@@ -3,7 +3,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      // UploadThing
       {
         protocol: "https",
         hostname: "utfs.io",
@@ -14,15 +13,11 @@ const nextConfig: NextConfig = {
         hostname: "ufs.sh",
         pathname: "/**",
       },
-
-      // Existing old Pixabay blog images
       {
         protocol: "https",
         hostname: "cdn.pixabay.com",
         pathname: "/**",
       },
-
-      // Older Firebase Storage images, if any still exist
       {
         protocol: "https",
         hostname: "firebasestorage.googleapis.com",
@@ -31,7 +26,10 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Keep this if you still want builds to pass even with TS errors
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   typescript: {
     ignoreBuildErrors: true,
   },

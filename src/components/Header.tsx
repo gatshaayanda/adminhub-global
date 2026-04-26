@@ -5,97 +5,85 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BadgeInfo,
-  Briefcase,
-  Car,
+  BriefcaseBusiness,
   ChevronDown,
-  Facebook,
+  ClipboardList,
   FileText,
-  HeartPulse,
-  Instagram,
-  Landmark,
+  Globe2,
+  LayoutDashboard,
+  LockKeyhole,
   LogOut,
   Menu,
   MessageCircle,
-  Music,
-  PhoneCall,
+  Network,
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  Users,
   Wifi,
   WifiOff,
+  Workflow,
   X,
 } from "lucide-react";
 
 import LogoMktMark from "@/components/LogoMktMark";
 
-const WHATSAPP_NUMBER = "+26772971852";
 const CLIENT_LOGIN_PATH = "/client/login";
 const CLIENT_PORTAL_PATH = "/client/dashboard";
 
-const SOCIALS = {
-  instagram: "https://www.instagram.com/sparklelegacyinsurancebrokers/",
-  tiktok: "https://www.tiktok.com/@sparklelegacyinsurancebr",
-  facebook:
-    "https://www.facebook.com/Sparkle-Legacy-Insurance-Brokers-61557773288268/",
-};
-
 const OFFLINE_LOCAL_STORAGE_KEYS = [
-  "sparkle_chat_history_v1",
-  "sparkle_chat_lead_v1",
-  "sparkle_blog_cache_v1",
-  "sparkle_blog_post_cache_v1",
-  "sparkle_home_cache_v1",
-  "sparkle_claims_cache_v1",
-  "sparkle_category_cache_v1",
-  "sparkle_contact_cache_v1",
+  "adminhub_global_chat_history_v1",
+  "adminhub_global_chat_lead_v1",
+  "adminhub_global_home_highlights_v1",
+  "adminhub_global_blog_cache_v1",
+  "adminhub_global_blog_post_cache_v1",
+  "adminhub_global_contact_cache_v1",
+  "adminhub_global_inquiry_cache_v1",
+  "adminhub_global_category_cache_v1",
 ];
 
 const OFFLINE_DB_NAME_HINTS = [
   "firebase",
   "firestore",
-  "sparkle",
+  "adminhub",
+  "adminhub-global",
   "workbox",
   "pwa",
 ];
 
 const primaryNav = [
   { label: "Home", href: "/", icon: <Sparkles size={18} /> },
-  { label: "Claims", href: "/claims", icon: <FileText size={18} /> },
+  { label: "Partner Portal", href: "/partners", icon: <Users size={18} /> },
   { label: "Insights", href: "/blog", icon: <BadgeInfo size={18} /> },
-  { label: "Contact", href: "/contact", icon: <MessageCircle size={18} /> },
+  { label: "Submit Inquiry", href: "/contact", icon: <MessageCircle size={18} /> },
 ];
 
-const productNav = [
+const solutionNav = [
   {
-    label: "Short-Term Insurance",
-    href: "/c/short-term",
-    icon: <Car size={18} />,
+    label: "48-Hour Live Proof",
+    href: "/c/rapid-proof",
+    icon: <Globe2 size={18} />,
+    desc: "Rapid proof sprint for turning a prospect intake into a visible working direction.",
   },
   {
-    label: "Long-Term Insurance",
-    href: "/c/long-term",
-    icon: <HeartPulse size={18} />,
+    label: "Business PWA",
+    href: "/c/business-pwa",
+    icon: <LayoutDashboard size={18} />,
+    desc: "Public site, admin dashboard, client portal, messaging, uploads, and support flow.",
   },
   {
-    label: "Business / SME Cover",
-    href: "/c/business",
-    icon: <Briefcase size={18} />,
+    label: "Operations PWA",
+    href: "/c/operations-pwa",
+    icon: <Workflow size={18} />,
+    desc: "Custom workflow-heavy systems for cases, onboarding, files, requests, and support.",
   },
   {
-    label: "Retirement",
-    href: "/c/retirement",
-    icon: <Landmark size={18} />,
+    label: "Client Hub",
+    href: CLIENT_PORTAL_PATH,
+    icon: <BriefcaseBusiness size={18} />,
+    desc: "Client-facing workspace for project progress, files, messages, and support.",
   },
 ];
-
-function waLink(message: string) {
-  const digits = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
-
-function telLink() {
-  return `tel:${WHATSAPP_NUMBER.replace(/[^\d+]/g, "")}`;
-}
 
 function getCookie(name: string) {
   if (typeof document === "undefined") return "";
@@ -162,7 +150,7 @@ export default function Header() {
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
-  const [productsOpen, setProductsOpen] = useState(false);
+  const [solutionsOpen, setSolutionsOpen] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [online, setOnline] = useState(true);
@@ -173,7 +161,7 @@ export default function Header() {
     setAuthed(!!roleValue && roleValue.includes("@"));
 
     setOpen(false);
-    setProductsOpen(false);
+    setSolutionsOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -195,11 +183,11 @@ export default function Header() {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
 
-  const productSectionActive = productNav.some((item) => isActive(item.href));
+  const solutionSectionActive = solutionNav.some((item) => isActive(item.href));
 
   const closeAll = () => {
     setOpen(false);
-    setProductsOpen(false);
+    setSolutionsOpen(false);
   };
 
   const onLogout = () => {
@@ -243,20 +231,20 @@ export default function Header() {
       <Link
         href="/"
         onClick={closeAll}
-        aria-label="Sparkle Legacy Insurance Brokers home"
-        className="flex min-w-0 items-center gap-3 select-none"
+        aria-label="AdminHub Global home"
+        className="flex min-w-0 select-none items-center gap-3"
         prefetch={false}
       >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-white shadow-[var(--shadow-sm)]">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[rgba(77,163,255,0.1)] shadow-[var(--shadow-sm)]">
           <LogoMktMark className="h-7 w-7 text-[var(--brand-primary)]" />
         </span>
 
         <span className="min-w-0">
-          <span className="block truncate text-base font-extrabold tracking-[-0.03em] text-[var(--text-primary)] sm:text-lg">
-            Sparkle Legacy
+          <span className="block truncate text-base font-extrabold tracking-[-0.04em] text-[var(--text-primary)] sm:text-lg">
+            AdminHub Global
           </span>
-          <span className="block truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-primary-strong)] sm:text-xs">
-            Insurance Brokers
+          <span className="block truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-primary)] sm:text-xs">
+            Custom PWA OS
           </span>
         </span>
       </Link>
@@ -273,16 +261,13 @@ export default function Header() {
         Skip to content
       </a>
 
-      <div className="hidden border-b border-[var(--border)] bg-[var(--surface)] lg:block">
+      <div className="hidden border-b border-[var(--border)] bg-[rgba(6,10,18,0.78)] lg:block">
         <div className="container flex items-center justify-between gap-4 py-2">
           <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-            <ShieldCheck
-              size={15}
-              className="text-[var(--brand-primary-strong)]"
-            />
+            <ShieldCheck size={15} className="text-[var(--brand-primary)]" />
             <span>
-              Trusted support for quotes, claims, and policy guidance in
-              Botswana.
+              Custom 9th-iteration PWA framework for agents, clients, projects,
+              and managed support.
             </span>
           </div>
 
@@ -290,55 +275,23 @@ export default function Header() {
             <span
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${
                 online
-                  ? "border-green-200 bg-green-50 text-green-700"
-                  : "border-amber-200 bg-amber-50 text-amber-800"
+                  ? "border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] text-[#86efac]"
+                  : "border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] text-[#fcd34d]"
               }`}
               title={online ? "Online" : "Offline"}
             >
               {online ? <Wifi size={14} /> : <WifiOff size={14} />}
-              {online ? "Online" : "Offline"}
+              {online ? "Online" : "Offline-aware"}
             </span>
 
-            <a
-              href={telLink()}
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+            <Link
+              href="/contact"
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-glow)] hover:text-[var(--text-primary)]"
+              prefetch={false}
             >
-              <PhoneCall
-                size={14}
-                className="text-[var(--brand-primary-strong)]"
-              />
-              {WHATSAPP_NUMBER}
-            </a>
-
-            <a
-              href={SOCIALS.instagram}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Instagram"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-            >
-              <Instagram size={16} />
-            </a>
-
-            <a
-              href={SOCIALS.tiktok}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="TikTok"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-            >
-              <Music size={16} />
-            </a>
-
-            <a
-              href={SOCIALS.facebook}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Facebook"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-            >
-              <Facebook size={16} />
-            </a>
+              <LockKeyhole size={14} className="text-[var(--brand-primary)]" />
+              Structured inquiry only
+            </Link>
           </div>
         </div>
       </div>
@@ -367,26 +320,26 @@ export default function Header() {
             <div className="relative">
               <button
                 type="button"
-                onClick={() => setProductsOpen((prev) => !prev)}
+                onClick={() => setSolutionsOpen((prev) => !prev)}
                 className={`menu-link ${
-                  productSectionActive || productsOpen ? "active" : ""
+                  solutionSectionActive || solutionsOpen ? "active" : ""
                 }`}
-                aria-expanded={productsOpen}
+                aria-expanded={solutionsOpen}
                 aria-haspopup="menu"
               >
-                <Briefcase size={18} />
-                Products
+                <Network size={18} />
+                Solutions
                 <ChevronDown
                   size={16}
                   className={`transition-transform duration-200 ${
-                    productsOpen ? "rotate-180" : ""
+                    solutionsOpen ? "rotate-180" : ""
                   }`}
                 />
               </button>
 
-              {productsOpen ? (
-                <div className="absolute left-0 top-[calc(100%+12px)] z-50 w-[320px] rounded-[1.25rem] border border-[var(--border)] bg-white p-2 shadow-[var(--shadow-lg)]">
-                  {productNav.map((item) => (
+              {solutionsOpen ? (
+                <div className="absolute left-0 top-[calc(100%+12px)] z-50 w-[360px] rounded-[1.25rem] border border-[var(--border)] bg-[rgba(11,18,32,0.98)] p-2 shadow-[var(--shadow-lg)] backdrop-blur-xl">
+                  {solutionNav.map((item) => (
                     <Link
                       key={item.label}
                       href={item.href}
@@ -394,19 +347,19 @@ export default function Header() {
                       onClick={closeAll}
                       className={`flex items-start gap-3 rounded-2xl px-3 py-3 transition ${
                         isActive(item.href)
-                          ? "bg-[var(--brand-tint)] text-[var(--brand-primary-strong)]"
-                          : "text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+                          ? "bg-[var(--brand-tint)] text-[var(--brand-primary)]"
+                          : "text-[var(--text-secondary)] hover:bg-[rgba(77,163,255,0.08)] hover:text-[var(--text-primary)]"
                       }`}
                     >
-                      <span className="mt-0.5 text-[var(--brand-primary-strong)]">
+                      <span className="mt-0.5 text-[var(--brand-primary)]">
                         {item.icon}
                       </span>
                       <span>
                         <span className="block text-sm font-extrabold">
                           {item.label}
                         </span>
-                        <span className="mt-0.5 block text-xs text-[var(--text-muted)]">
-                          Explore this cover category
+                        <span className="mt-0.5 block text-xs leading-5 text-[var(--text-muted)]">
+                          {item.desc}
                         </span>
                       </span>
                     </Link>
@@ -430,16 +383,14 @@ export default function Header() {
           </nav>
 
           <div className="hidden items-center gap-2 lg:flex">
-            <a
-              href={waLink(
-                "Hi Sparkle Legacy 👋 I need help with a quote / policy / claim."
-              )}
-              className="btn btn-outline"
-              aria-label="Chat on WhatsApp"
+            <Link
+              href="/contact"
+              className="btn btn-primary"
+              prefetch={false}
             >
-              <MessageCircle size={18} />
-              WhatsApp
-            </a>
+              <ClipboardList size={18} />
+              Submit Inquiry
+            </Link>
 
             <button
               type="button"
@@ -468,7 +419,7 @@ export default function Header() {
             {!authed ? (
               <Link
                 href={CLIENT_LOGIN_PATH}
-                className="btn btn-primary"
+                className="btn btn-outline"
                 prefetch={false}
               >
                 Client Login
@@ -480,7 +431,7 @@ export default function Header() {
                   className="btn btn-outline"
                   prefetch={false}
                 >
-                  Dashboard
+                  Client Hub
                 </Link>
 
                 <button
@@ -499,7 +450,7 @@ export default function Header() {
             <button
               type="button"
               onClick={onSoftRefresh}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-white text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--brand-tint)]"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[rgba(15,23,42,0.86)] text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--brand-tint)]"
               aria-label="Reload app"
               title="Reload app"
             >
@@ -522,14 +473,14 @@ export default function Header() {
                 onClick={closeAll}
                 className="inline-flex h-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-primary)] px-3 text-xs font-extrabold text-[var(--text-on-brand)] shadow-[var(--shadow-sm)] transition hover:brightness-105 sm:px-4 sm:text-sm"
               >
-                Portal
+                Client Hub
               </Link>
             )}
 
             <button
               type="button"
               onClick={() => setOpen((prev) => !prev)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-white text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--brand-tint)]"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[rgba(15,23,42,0.86)] text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--brand-tint)]"
               aria-label="Toggle menu"
               aria-expanded={open}
               aria-controls="mobile-menu"
@@ -542,7 +493,7 @@ export default function Header() {
 
       <div
         id="mobile-menu"
-        className={`overflow-hidden border-t border-[var(--border)] bg-[var(--surface)] transition-[max-height] duration-300 lg:hidden ${
+        className={`overflow-hidden border-t border-[var(--border)] bg-[rgba(6,10,18,0.98)] transition-[max-height] duration-300 lg:hidden ${
           open ? "max-h-[calc(100vh-82px)]" : "max-h-0"
         }`}
         aria-hidden={!open}
@@ -552,8 +503,8 @@ export default function Header() {
             <div
               className={`mb-2 rounded-[1.25rem] border px-4 py-3 text-sm font-semibold ${
                 online
-                  ? "border-green-200 bg-green-50 text-green-700"
-                  : "border-amber-200 bg-amber-50 text-amber-800"
+                  ? "border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] text-[#86efac]"
+                  : "border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] text-[#fcd34d]"
               }`}
             >
               <div className="flex items-start gap-2">
@@ -564,10 +515,20 @@ export default function Header() {
                 )}
                 <span>
                   {online
-                    ? "Online. Latest content can refresh normally."
-                    : "Offline. Cached pages may still work, but new content needs internet."}
+                    ? "Online. Latest platform content can refresh normally."
+                    : "Offline-aware mode. Cached pages may still work, but new messages, uploads, and fresh data need internet."}
                 </span>
               </div>
+            </div>
+
+            <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-4 py-3 text-xs leading-6 text-[var(--text-muted)]">
+              <div className="mb-1 flex items-center gap-2 font-extrabold text-[var(--text-primary)]">
+                <LockKeyhole size={15} className="text-[var(--brand-primary)]" />
+                Controlled contact flow
+              </div>
+              Direct personal phone or email details are not displayed publicly.
+              Submit a structured inquiry first, then AdminHub can follow up
+              privately.
             </div>
 
             {primaryNav.map((item) => (
@@ -588,12 +549,12 @@ export default function Header() {
               </Link>
             ))}
 
-            <div className="mt-2 rounded-[1.25rem] border border-[var(--border)] bg-white p-2 shadow-[var(--shadow-sm)]">
-              <div className="px-2 pb-2 pt-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary-strong)]">
-                Products
+            <div className="mt-2 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-2 shadow-[var(--shadow-sm)]">
+              <div className="px-2 pb-2 pt-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                Solutions
               </div>
 
-              {productNav.map((item) => (
+              {solutionNav.map((item) => (
                 <Link
                   key={item.label}
                   href={item.href}
@@ -601,8 +562,8 @@ export default function Header() {
                   onClick={closeAll}
                   className={`flex items-center justify-between rounded-2xl px-3 py-3 transition ${
                     isActive(item.href)
-                      ? "bg-[var(--brand-tint)] text-[var(--brand-primary-strong)]"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+                      ? "bg-[var(--brand-tint)] text-[var(--brand-primary)]"
+                      : "text-[var(--text-secondary)] hover:bg-[rgba(77,163,255,0.08)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -624,12 +585,32 @@ export default function Header() {
             >
               <span className="inline-flex items-center gap-2">
                 <BadgeInfo size={18} />
-                About
+                About AdminHub
               </span>
               <span className="text-[var(--text-muted)]">›</span>
             </Link>
 
             <div className="my-2 h-px bg-[var(--border)]" />
+
+            <Link
+              href="/contact"
+              onClick={closeAll}
+              className="btn btn-primary w-full"
+              prefetch={false}
+            >
+              <ClipboardList size={18} />
+              Submit Inquiry
+            </Link>
+
+            <Link
+              href="/partners"
+              onClick={closeAll}
+              className="btn btn-outline w-full"
+              prefetch={false}
+            >
+              <Users size={18} />
+              Partner Access Request
+            </Link>
 
             <button
               type="button"
@@ -653,33 +634,13 @@ export default function Header() {
               {refreshing ? "Refreshing..." : "Clear Offline Data"}
             </button>
 
-            <p className="rounded-[1rem] border border-[var(--border)] bg-white/70 px-4 py-3 text-xs leading-6 text-[var(--text-muted)]">
+            <p className="rounded-[1rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-4 py-3 text-xs leading-6 text-[var(--text-muted)]">
               Clear Offline Data removes cached app pages, saved offline helper
               data, and Firestore offline cache. It does not delete Firestore
               records or your client cookie login.
             </p>
 
             <div className="my-2 h-px bg-[var(--border)]" />
-
-            <a
-              href={waLink(
-                "Hi Sparkle Legacy 👋 I’d like help with a quote / policy / claim."
-              )}
-              onClick={closeAll}
-              className="btn btn-primary w-full"
-            >
-              <MessageCircle size={18} />
-              WhatsApp
-            </a>
-
-            <a
-              href={telLink()}
-              onClick={closeAll}
-              className="btn btn-outline w-full"
-            >
-              <PhoneCall size={18} />
-              Call
-            </a>
 
             {!authed ? (
               <Link
@@ -698,7 +659,7 @@ export default function Header() {
                   className="btn btn-outline w-full"
                   prefetch={false}
                 >
-                  Dashboard
+                  Client Hub
                 </Link>
 
                 <button
@@ -712,42 +673,9 @@ export default function Header() {
               </>
             )}
 
-            <div className="my-2 h-px bg-[var(--border)]" />
-
-            <div className="flex items-center gap-2">
-              <a
-                href={SOCIALS.instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-              >
-                <Instagram size={16} />
-              </a>
-
-              <a
-                href={SOCIALS.tiktok}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TikTok"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-              >
-                <Music size={16} />
-              </a>
-
-              <a
-                href={SOCIALS.facebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-              >
-                <Facebook size={16} />
-              </a>
-            </div>
-
-            <div className="pt-1 text-xs font-medium text-[var(--text-muted)]">
-              WhatsApp / Call: {WHATSAPP_NUMBER}
+            <div className="pt-2 text-xs font-medium leading-6 text-[var(--text-muted)]">
+              AdminHub Global uses structured inquiry capture before private
+              follow-up. No direct personal contact details are published here.
             </div>
           </div>
         </div>

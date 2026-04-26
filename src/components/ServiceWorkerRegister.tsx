@@ -13,9 +13,15 @@ export default function ServiceWorkerRegister() {
           scope: "/",
         });
 
-        console.log("Sparkle Legacy service worker registered:", registration.scope);
+        console.log(
+          "AdminHub Global service worker registered:",
+          registration.scope
+        );
       } catch (error) {
-        console.warn("Sparkle Legacy service worker registration failed:", error);
+        console.warn(
+          "AdminHub Global service worker registration failed:",
+          error
+        );
       }
     };
 

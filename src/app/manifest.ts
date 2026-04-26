@@ -2,19 +2,19 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Sparkle Legacy Insurance Brokers",
-    short_name: "Sparkle Legacy",
+    name: "AdminHub Global",
+    short_name: "AH Global",
     description:
-      "A modern insurance platform for Botswana focused on quotes, claims support, and clearer cover guidance.",
+      "A custom PWA operating system for managing agents, leads, client onboarding, project delivery, proposals, messaging, and recurring managed support.",
     start_url: "/",
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui", "browser"],
     orientation: "portrait",
-    background_color: "#fcfbf7",
-    theme_color: "#fcfbf7",
+    background_color: "#060a12",
+    theme_color: "#060a12",
     lang: "en",
-    categories: ["business", "finance", "productivity"],
+    categories: ["business", "productivity", "utilities"],
     icons: [
       {
         src: "/icon",
@@ -31,6 +31,47 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/apple-icon",
         sizes: "180x180",
         type: "image/png",
+      },
+    ],
+    shortcuts: [
+      {
+        name: "AdminHub Global Control",
+        short_name: "Control",
+        description: "Open the AdminHub Global command dashboard.",
+        url: "/admin/dashboard",
+        icons: [
+          {
+            src: "/icon",
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
+      },
+      {
+        name: "Partner Portal",
+        short_name: "Partners",
+        description: "Open the partner and agent workspace.",
+        url: "/partners",
+        icons: [
+          {
+            src: "/icon",
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
+      },
+      {
+        name: "Client Hub",
+        short_name: "Client Hub",
+        description: "Open the client project portal.",
+        url: "/client/dashboard",
+        icons: [
+          {
+            src: "/icon",
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
       },
     ],
   };

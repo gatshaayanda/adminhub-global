@@ -4,17 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
-  Briefcase,
-  Car,
+  BadgeDollarSign,
+  Bot,
+  BriefcaseBusiness,
   CheckCircle2,
   Clock3,
   FileText,
-  HeartPulse,
-  Landmark,
+  Globe2,
+  LayoutDashboard,
   MessageCircle,
+  Network,
   ShieldCheck,
   Sparkles,
+  UploadCloud,
+  Users,
   WifiOff,
+  Workflow,
 } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
 
@@ -36,13 +41,7 @@ type HomeCachePayload = {
   gallery: Highlight[];
 };
 
-const WHATSAPP_NUMBER = "+26772971852";
-const HOME_CACHE_KEY = "sparkle_legacy_home_highlights_v1";
-
-function waLink(message: string) {
-  const digits = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
+const HOME_CACHE_KEY = "adminhub_global_home_highlights_v1";
 
 function readHomeCache(): HomeCachePayload | null {
   if (typeof window === "undefined") return null;
@@ -172,28 +171,28 @@ export default function HomePage() {
   const quickCards = useMemo(
     () => [
       {
-        icon: <Car size={18} />,
-        title: "Short-Term Insurance",
-        desc: "Motor, home, household contents, travel, personal accident, and more.",
-        href: "/c/short-term",
+        icon: <Clock3 size={18} />,
+        title: "48-Hour Live Proof",
+        desc: "Move a prospect from intake or company profile to a live .vercel preview and early backend direction.",
+        href: "/c/rapid-proof",
       },
       {
-        icon: <HeartPulse size={18} />,
-        title: "Long-Term Insurance",
-        desc: "Life, funeral, disability, credit life, and protection for what matters most.",
-        href: "/c/long-term",
+        icon: <LayoutDashboard size={18} />,
+        title: "Business PWA Systems",
+        desc: "Public site, admin dashboard, client portal, messaging, uploads, and project workflow infrastructure.",
+        href: "/c/business-pwa",
       },
       {
-        icon: <Briefcase size={18} />,
-        title: "Business & SME Cover",
-        desc: "Business assets, liability, interruption cover, fleet, and broader commercial protection.",
-        href: "/c/business",
+        icon: <Workflow size={18} />,
+        title: "Operations PWA Builds",
+        desc: "Custom workflow-heavy systems for onboarding, cases, requests, documents, client service, and support.",
+        href: "/c/operations-pwa",
       },
       {
-        icon: <Landmark size={18} />,
-        title: "Retirement & Planning",
-        desc: "Long-term planning support to help secure future goals with clarity and confidence.",
-        href: "/c/retirement",
+        icon: <Users size={18} />,
+        title: "Partner-Led Sales",
+        desc: "A clearer agent sales process built around visible proof, structured implementation, and recurring support.",
+        href: "/partners",
       },
     ],
     []
@@ -202,16 +201,16 @@ export default function HomePage() {
   const supportSteps = useMemo(
     () => [
       {
-        title: "Tell us what you need",
-        desc: "Share your cover type, product, and a few details through WhatsApp or the chat assistant.",
+        title: "Lead enters the system",
+        desc: "An agent, referral, or direct prospect submits basic details, a short intake, or a company profile PDF.",
       },
       {
-        title: "Get guided support",
-        desc: "We help you understand options clearly, with less jargon and more practical direction.",
+        title: "Rapid proof creates belief",
+        desc: "A live preliminary version is produced quickly so the client can see direction instead of imagining it.",
       },
       {
-        title: "Move faster with confidence",
-        desc: "From quote requests to claim support, the process is structured to save time and reduce confusion.",
+        title: "Build becomes managed support",
+        desc: "Approved projects move into implementation, launch, client portal support, and recurring monthly management.",
       },
     ],
     []
@@ -220,19 +219,19 @@ export default function HomePage() {
   const valueCards = useMemo(
     () => [
       {
+        icon: <Network size={18} />,
+        title: "Custom framework",
+        desc: "Built on a reusable Next.js, Tailwind, Firebase, UploadThing, and PWA architecture — not boxed into a DIY builder.",
+      },
+      {
         icon: <ShieldCheck size={18} />,
-        title: "Clear guidance",
-        desc: "We focus on clarity first so clients can understand cover before making decisions.",
+        title: "9th-iteration process",
+        desc: "The delivery workflow has been refined across repeated builds, portals, dashboards, messaging, uploads, and PDF tools.",
       },
       {
-        icon: <FileText size={18} />,
-        title: "Practical process",
-        desc: "Quotes and claims support should feel structured, not confusing or buried in jargon.",
-      },
-      {
-        icon: <MessageCircle size={18} />,
-        title: "Accessible support",
-        desc: "WhatsApp remains central because it reduces friction and meets clients where they already are.",
+        icon: <BadgeDollarSign size={18} />,
+        title: "Agent-ready offer",
+        desc: "The commercial model gives sales partners a stronger B2B offer with proof, implementation, and recurring support potential.",
       },
     ],
     []
@@ -245,19 +244,21 @@ export default function HomePage() {
     >
       {/* HERO */}
       <section className="page-shell relative">
-        <div className="container">
-          <div className="grid items-center gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-70" />
+
+        <div className="container relative">
+          <div className="grid items-center gap-8 lg:grid-cols-[1.12fr_0.88fr] lg:gap-12">
             <div className="space-y-6">
               <div className="eyebrow">
-                <ShieldCheck size={15} />
-                Botswana • Quotes • Claims • Policy Support
+                <Globe2 size={15} />
+                AdminHub Global • Custom PWA Framework • Agent-Ready Delivery
               </div>
 
               {usingCachedData ? (
-                <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border)] bg-white/80 px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
+                <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border)] bg-[rgba(15,23,42,0.78)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] shadow-[var(--shadow-sm)] backdrop-blur-md">
                   <WifiOff
                     size={14}
-                    className="shrink-0 text-[var(--brand-primary-strong)]"
+                    className="shrink-0 text-[var(--brand-primary)]"
                   />
                   <span>
                     Showing saved offline homepage content
@@ -269,63 +270,63 @@ export default function HomePage() {
               ) : null}
 
               <div className="space-y-4">
-                <h1 className="max-w-[12ch]">
-                  Trusted insurance guidance with a cleaner digital experience.
+                <h1 className="max-w-[13ch]">
+                  The custom PWA operating system behind AdminHub.
                 </h1>
 
-                <p className="lead max-w-[60ch]">
-                  Sparkle Legacy Insurance Brokers helps individuals, families,
-                  and businesses understand cover clearly, request quotes faster,
-                  and get practical support when it matters most.
+                <p className="lead max-w-[63ch]">
+                  AdminHub Global helps manage agents, leads, client onboarding,
+                  project delivery, proposals, messaging, uploads, and recurring
+                  support — powered by the 9th iteration of a custom reusable PWA
+                  framework.
                 </p>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <a
-                  href={waLink(
-                    "Hi Sparkle Legacy 👋 I’d like a quote.\n\nCover type:\nProduct:\nCity/Town:\nName:"
-                  )}
-                  className="btn btn-primary"
-                >
-                  <MessageCircle size={18} />
-                  Get a Quote on WhatsApp
-                </a>
+                <Link href="/contact" prefetch={false} className="btn btn-primary">
+                  <FileText size={18} />
+                  Submit Project Inquiry
+                </Link>
 
                 <Link
-                  href="/c/short-term"
+                  href="/partners"
                   prefetch={false}
                   className="btn btn-outline"
                 >
-                  Browse Cover Types
+                  Partner Portal
                   <ArrowRight size={18} />
                 </Link>
 
-                <Link href="/claims" prefetch={false} className="btn btn-ghost">
-                  <FileText size={18} />
-                  Claims Help
+                <Link
+                  href="/client/dashboard"
+                  prefetch={false}
+                  className="btn btn-ghost"
+                >
+                  <BriefcaseBusiness size={18} />
+                  Client Hub
                 </Link>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <span className="badge">
                   <Sparkles size={14} />
-                  Short-Term
+                  48-hour live proof
                 </span>
                 <span className="badge">
                   <Sparkles size={14} />
-                  Long-Term
+                  9th-iteration framework
                 </span>
                 <span className="badge badge-neutral">
-                  <Clock3 size={14} />
-                  Fast response
+                  <ShieldCheck size={14} />
+                  Custom, not boxed-in
                 </span>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
-                  "Clear cover explanations",
-                  "WhatsApp-first convenience",
-                  "Professional claims support",
+                  "Lead → qualify → convert",
+                  "Onboard → build → launch",
+                  "Support → retain → grow",
                 ].map((item) => (
                   <div key={item} className="card-outline-gold">
                     <div className="card-inner flex items-start gap-3">
@@ -343,37 +344,43 @@ export default function HomePage() {
 
             <div className="relative">
               <div className="card-elevated overflow-hidden">
-                <div className="relative min-h-[420px] bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)]">
+                <div className="relative min-h-[430px] bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(6,10,18,0.98)_100%)]">
                   {hero?.imageUrl ? (
                     <>
                       <div className="absolute inset-0">
                         <img
                           src={hero.imageUrl}
-                          alt={hero.title || "Sparkle Legacy highlight"}
-                          className="h-full w-full object-cover opacity-[0.18]"
+                          alt={hero.title || "AdminHub Global highlight"}
+                          className="h-full w-full object-cover opacity-[0.16]"
                         />
                       </div>
-                      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,253,249,0.84)_0%,rgba(252,251,247,0.96)_72%,rgba(252,251,247,1)_100%)]" />
+                      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.76)_0%,rgba(6,10,18,0.94)_72%,rgba(6,10,18,1)_100%)]" />
                     </>
                   ) : null}
 
-                  <div className="relative z-10 flex min-h-[420px] flex-col justify-between p-6 md:p-8">
+                  <div className="absolute inset-0 panel-grid opacity-50" />
+                  <div className="absolute right-[-80px] top-[-80px] h-64 w-64 rounded-full bg-[rgba(77,163,255,0.16)] blur-3xl" />
+                  <div className="absolute bottom-[-90px] left-[-90px] h-72 w-72 rounded-full bg-[rgba(24,199,184,0.11)] blur-3xl" />
+
+                  <div className="relative z-10 flex min-h-[430px] flex-col justify-between p-6 md:p-8">
                     <div className="space-y-4">
-                      <div className="inline-flex w-fit items-center rounded-full border border-[var(--border-strong)] bg-white/90 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary-strong)]">
-                        Sparkle Legacy Insurance Brokers
+                      <div className="inline-flex w-fit items-center rounded-full border border-[var(--border-strong)] bg-[rgba(15,23,42,0.88)] px-3 py-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                        AdminHub Global Control
                       </div>
 
                       <div className="frame-gold p-5">
-                        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary-strong)]">
-                          Welcome
+                        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary)]">
+                          Operating model
                         </p>
+
                         <h2 className="mt-2 text-2xl">
                           {hero?.title ||
-                            "Practical support for personal and business cover."}
+                            "From 48-hour proof to managed implementation."}
                         </h2>
+
                         <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
                           {hero?.desc ||
-                            "Request quotes, understand your options more clearly, and get help with claim-related questions through a cleaner, more professional digital experience."}
+                            "Prospects do not need to imagine the solution. AdminHub can move from intake or company profile to a live working direction, then into implementation, client onboarding, launch, and ongoing support."}
                         </p>
                       </div>
                     </div>
@@ -381,39 +388,38 @@ export default function HomePage() {
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">
                       <div className="card-outline-gold">
                         <div className="card-inner">
-                          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary-strong)]">
-                            Personal
+                          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                            Sales engine
                           </p>
                           <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                            Motor, home, travel, accident, life, funeral, and
-                            more.
+                            Agents submit leads, track opportunities, and sell a
+                            proof-backed process.
                           </p>
                         </div>
                       </div>
 
                       <div className="card-outline-gold">
                         <div className="card-inner">
-                          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary-strong)]">
-                            Business
+                          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                            Delivery system
                           </p>
                           <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                            Commercial insurance, liability, interruption cover,
-                            fleet, and broader protection.
+                            AdminHub manages onboarding, messaging, files,
+                            proposals, projects, and support.
                           </p>
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-5">
-                      <a
-                        href={waLink(
-                          "Hi Sparkle Legacy 👋 I need guidance on choosing the right cover.\n\nName:\nCity/Town:\nWhat do you need insured?"
-                        )}
+                      <Link
+                        href="/contact"
+                        prefetch={false}
                         className="btn btn-outline w-full justify-center"
                       >
-                        <MessageCircle size={18} />
-                        Ask for Guidance
-                      </a>
+                        <Clock3 size={18} />
+                        Request a Proof Sprint Review
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -421,7 +427,7 @@ export default function HomePage() {
 
               {loading ? (
                 <p className="mt-3 text-xs font-semibold text-[var(--text-muted)]">
-                  Checking latest homepage highlights…
+                  Checking latest AdminHub Global highlights…
                 </p>
               ) : null}
             </div>
@@ -429,23 +435,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* INSURANCE CATEGORIES */}
+      {/* SOLUTIONS / PACKAGES */}
       <section className="section-shell">
         <div className="container">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div className="space-y-2">
-              <div className="eyebrow">Insurance categories</div>
+              <div className="eyebrow">What the platform manages</div>
               <h2 className="section-title">
-                Start with the type of cover you need.
+                One system for proof, build, launch, and support.
               </h2>
               <p className="section-copy">
-                The site is structured so visitors can move from broad cover
-                types into more specific products without getting lost.
+                AdminHub Global is shaped around the real business workflow:
+                lead capture, qualification, live proof, client onboarding,
+                project delivery, and managed monthly support.
               </p>
             </div>
 
             <Link href="/contact" prefetch={false} className="btn btn-outline">
-              Contact Us
+              Send Project Details
               <ArrowRight size={18} />
             </Link>
           </div>
@@ -459,7 +466,7 @@ export default function HomePage() {
                 className="card group block overflow-hidden"
               >
                 <div className="card-inner flex h-full flex-col">
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary-strong)]">
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary)]">
                     {item.icon}
                   </div>
 
@@ -468,7 +475,7 @@ export default function HomePage() {
                     {item.desc}
                   </p>
 
-                  <div className="mt-5 inline-flex items-center gap-2 text-sm font-extrabold text-[var(--brand-primary-strong)]">
+                  <div className="mt-5 inline-flex items-center gap-2 text-sm font-extrabold text-[var(--brand-primary)]">
                     Explore
                     <ArrowRight
                       size={16}
@@ -483,18 +490,19 @@ export default function HomePage() {
       </section>
 
       {/* VALUE CARDS */}
-      <section className="section-shell border-y border-[var(--border)] bg-[var(--surface)]">
+      <section className="section-shell border-y border-[var(--border)] bg-[rgba(11,18,32,0.58)]">
         <div className="container">
           <div className="grid gap-4 md:grid-cols-3">
             {valueCards.map((item) => (
               <div key={item.title} className="card-outline-gold">
                 <div className="card-inner">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary-strong)]">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary)]">
                       {item.icon}
                     </span>
                     <h3 className="text-base">{item.title}</h3>
                   </div>
+
                   <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
                     {item.desc}
                   </p>
@@ -509,26 +517,68 @@ export default function HomePage() {
       <section className="section-shell">
         <div className="container">
           <div className="mb-6 space-y-2">
-            <div className="eyebrow">How it works</div>
+            <div className="eyebrow">Phase 1 workflow</div>
             <h2 className="section-title">
-              A simpler path from question to action.
+              Lead to monthly support, inside one PWA.
             </h2>
             <p className="section-copy">
-              The experience should help visitors move from uncertainty to the
-              right next step with less delay and better guidance.
+              The first milestone is simple: an agent brings a lead, AdminHub
+              qualifies it, converts it, onboards the client, runs the build, and
+              keeps the client on managed support.
             </p>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
             {supportSteps.map((step, index) => (
               <div key={step.title} className="frame-gold p-5 md:p-6">
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--text-on-brand)]">
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-primary)] text-[var(--text-on-brand)] shadow-[var(--shadow-blue)]">
                   <span className="text-sm font-extrabold">{index + 1}</span>
                 </div>
+
                 <h3>{step.title}</h3>
+
                 <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
                   {step.desc}
                 </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-4">
+            {[
+              {
+                icon: <UploadCloud size={17} />,
+                title: "Onboarding",
+                desc: "Collect intake details, assets, files, and project requirements.",
+              },
+              {
+                icon: <FileText size={17} />,
+                title: "Proposals & PDFs",
+                desc: "Support package summaries, scopes, and proposal-ready outputs.",
+              },
+              {
+                icon: <MessageCircle size={17} />,
+                title: "Messaging",
+                desc: "Keep admin, clients, and support communication structured.",
+              },
+              {
+                icon: <Bot size={17} />,
+                title: "AI assistant",
+                desc: "Guide users through platform features, onboarding, and support.",
+              },
+            ].map((item) => (
+              <div key={item.title} className="card">
+                <div className="card-inner">
+                  <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary)]">
+                    {item.icon}
+                  </span>
+
+                  <h3 className="text-base">{item.title}</h3>
+
+                  <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                    {item.desc}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -536,28 +586,38 @@ export default function HomePage() {
       </section>
 
       {/* ADMIN-MANAGED HIGHLIGHTS */}
-      <section className="section-shell border-y border-[var(--border)] bg-[var(--surface)]">
+      <section className="section-shell border-y border-[var(--border)] bg-[rgba(11,18,32,0.58)]">
         <div className="container">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div className="space-y-2">
-              <div className="eyebrow">Managed from admin</div>
-              <h2 className="section-title">Updates and highlights</h2>
+              <div className="eyebrow">Managed from AdminHub Control</div>
+              <h2 className="section-title">Updates and platform highlights</h2>
               <p className="section-copy">
-                This section stays connected to admin-managed highlights so the
-                homepage can stay fresh without changing code each time.
+                This section remains connected to the existing admin-managed
+                highlights collection, so the homepage can stay fresh without
+                changing code each time.
               </p>
             </div>
+
+            <Link
+              href="/admin/dashboard"
+              prefetch={false}
+              className="btn btn-outline"
+            >
+              AdminHub Global Control
+              <ArrowRight size={18} />
+            </Link>
           </div>
 
           {loading ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, idx) => (
                 <div key={idx} className="card overflow-hidden">
-                  <div className="h-40 animate-pulse bg-[var(--surface-2)]" />
+                  <div className="h-40 loading-shimmer" />
                   <div className="card-inner">
-                    <div className="h-5 w-3/4 animate-pulse rounded bg-[var(--surface-2)]" />
-                    <div className="mt-3 h-4 w-full animate-pulse rounded bg-[var(--surface-2)]" />
-                    <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-[var(--surface-2)]" />
+                    <div className="h-5 w-3/4 rounded loading-shimmer" />
+                    <div className="mt-3 h-4 w-full rounded loading-shimmer" />
+                    <div className="mt-2 h-4 w-5/6 rounded loading-shimmer" />
                   </div>
                 </div>
               ))}
@@ -570,20 +630,23 @@ export default function HomePage() {
                     {item.imageUrl ? (
                       <img
                         src={item.imageUrl}
-                        alt={item.title || "Sparkle Legacy highlight"}
-                        className="h-full w-full object-cover"
+                        alt={item.title || "AdminHub Global highlight"}
+                        className="h-full w-full object-cover opacity-85"
                       />
                     ) : (
-                      <div className="absolute inset-0 bg-[linear-gradient(180deg,#f8f3e8_0%,#efe7d4_100%)]" />
+                      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(21,31,50,1)_0%,rgba(11,18,32,1)_100%)]" />
                     )}
 
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(23,20,17,0.16)_100%)]" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.08)_0%,rgba(6,10,18,0.54)_100%)]" />
                   </div>
 
                   <div className="card-inner">
-                    <h3 className="text-lg">{item.title || "Highlight"}</h3>
+                    <h3 className="text-lg">
+                      {item.title || "Platform update"}
+                    </h3>
+
                     <p className="mt-2 line-clamp-3 text-sm leading-7 text-[var(--text-secondary)]">
-                      {item.desc || "New update available."}
+                      {item.desc || "New AdminHub Global update available."}
                     </p>
                   </div>
                 </article>
@@ -591,7 +654,8 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="frame-gold p-5">
-              <h3 className="text-lg">No highlights yet</h3>
+              <h3 className="text-lg">No platform highlights yet</h3>
+
               <p className="mt-2 text-sm text-[var(--text-secondary)]">
                 Add entries in the <b>highlights</b> collection with{" "}
                 <b>showOnHome</b> enabled to populate this section.

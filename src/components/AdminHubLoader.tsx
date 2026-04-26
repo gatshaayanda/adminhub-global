@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 
 /**
- * Sparkle Legacy loader
+ * AdminHub Global loader
  *
- * Light-first, premium, insurance-appropriate loading overlay.
- * Uses the locked brand system:
- * - ivory / white surface
- * - warm gold accents
- * - strong dark text
+ * Premium dark operations/PWA loading overlay.
+ * Preserves the existing loader timing and visibility logic.
+ * Uses the locked AdminHub Global system:
+ * - near-black command-center background
+ * - electric blue / teal accents
+ * - custom framework / operating-system feel
  * - subtle motion only
  */
 export default function AdminHubLoader() {
@@ -31,14 +32,16 @@ export default function AdminHubLoader() {
   return (
     <div
       role="status"
-      aria-label="Loading Sparkle Legacy Insurance Brokers"
+      aria-label="Loading AdminHub Global"
       className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center transition-opacity duration-[900ms] ${
         fading ? "opacity-0" : "opacity-100"
       }`}
       style={{
         background: `
-          radial-gradient(circle at top, rgba(234, 227, 207, 0.6), transparent 30%),
-          linear-gradient(180deg, #fffdf9 0%, var(--background) 100%)
+          radial-gradient(circle at 18% 10%, rgba(77, 163, 255, 0.18), transparent 32%),
+          radial-gradient(circle at 82% 18%, rgba(24, 199, 184, 0.12), transparent 30%),
+          radial-gradient(circle at 50% 100%, rgba(47, 125, 255, 0.08), transparent 35%),
+          linear-gradient(180deg, #050814 0%, var(--background) 58%, #070b14 100%)
         `,
         isolation: "isolate",
         color: "var(--text-primary)",
@@ -46,105 +49,156 @@ export default function AdminHubLoader() {
       }}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[14%] h-44 w-44 -translate-x-1/2 rounded-full bg-[rgba(136,115,55,0.10)] blur-3xl" />
-        <div className="absolute bottom-[16%] left-[18%] h-24 w-24 rounded-full bg-[rgba(164,151,106,0.08)] blur-3xl" />
-        <div className="absolute right-[14%] top-[24%] h-28 w-28 rounded-full bg-[rgba(205,191,149,0.12)] blur-3xl" />
+        <div className="absolute inset-0 opacity-55 panel-grid" />
+        <div className="absolute left-1/2 top-[12%] h-56 w-56 -translate-x-1/2 rounded-full bg-[rgba(77,163,255,0.14)] blur-3xl" />
+        <div className="absolute bottom-[14%] left-[16%] h-32 w-32 rounded-full bg-[rgba(24,199,184,0.10)] blur-3xl" />
+        <div className="absolute right-[12%] top-[24%] h-36 w-36 rounded-full bg-[rgba(47,125,255,0.14)] blur-3xl" />
       </div>
 
-      <div className="relative mb-6 flex h-32 w-32 items-center justify-center">
-        <div className="absolute inset-0 rounded-full border border-[var(--border)] bg-white/55 backdrop-blur-sm shadow-[var(--shadow-md)]" />
-        <div className="absolute inset-[14px] rounded-full border border-[rgba(136,115,55,0.18)] bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)]" />
+      <div className="relative mb-6 flex h-34 w-34 items-center justify-center">
+        <div className="absolute inset-0 rounded-full border border-[var(--border)] bg-[rgba(15,23,42,0.58)] shadow-[var(--shadow-lg)] backdrop-blur-xl" />
+        <div className="absolute inset-[12px] rounded-full border border-[rgba(77,163,255,0.22)] bg-[linear-gradient(180deg,rgba(21,31,50,0.96)_0%,rgba(6,10,18,0.98)_100%)]" />
+        <div className="absolute inset-[26px] rounded-full border border-[rgba(24,199,184,0.22)] bg-[rgba(77,163,255,0.08)]" />
 
         <svg
-          viewBox="0 0 80 80"
-          width="88"
-          height="88"
+          viewBox="0 0 96 96"
+          width="96"
+          height="96"
           className="relative z-10 animate-float"
           aria-hidden="true"
         >
           <defs>
-            <linearGradient id="shieldFill" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#fffdf8" />
-              <stop offset="100%" stopColor="#eae3cf" />
+            <linearGradient id="hubBlue" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#4da3ff" />
+              <stop offset="100%" stopColor="#2f7dff" />
             </linearGradient>
 
-            <linearGradient id="shieldStroke" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#a4976a" />
-              <stop offset="100%" stopColor="#6f5d2b" />
+            <linearGradient id="hubTeal" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#69e3d7" />
+              <stop offset="100%" stopColor="#18c7b8" />
             </linearGradient>
 
-            <linearGradient id="checkStroke" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#887337" />
-              <stop offset="100%" stopColor="#6f5d2b" />
-            </linearGradient>
+            <radialGradient id="hubGlow" cx="50%" cy="50%" r="60%">
+              <stop offset="0%" stopColor="#4da3ff" stopOpacity="0.34" />
+              <stop offset="100%" stopColor="#4da3ff" stopOpacity="0" />
+            </radialGradient>
           </defs>
 
-          <path
-            d="M40 9.5c10.4 0 18.8 8.1 18.8 18.4 0 13.8-15.6 28.5-18.8 31.3-3.2-2.8-18.8-17.5-18.8-31.3C21.2 17.6 29.6 9.5 40 9.5Z"
-            fill="url(#shieldFill)"
-            stroke="url(#shieldStroke)"
-            strokeWidth="1.8"
-          />
+          <circle cx="48" cy="48" r="36" fill="url(#hubGlow)" />
 
           <path
-            d="M31.8 39.5l6 6.3L49.6 31"
-            fill="none"
-            stroke="url(#checkStroke)"
+            d="M48 17V8"
+            stroke="url(#hubBlue)"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M48 88V79"
+            stroke="url(#hubBlue)"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M17 48H8"
+            stroke="url(#hubBlue)"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M88 48H79"
+            stroke="url(#hubBlue)"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+
+          <circle
+            cx="48"
+            cy="48"
+            r="27"
+            fill="rgba(11,18,32,0.72)"
+            stroke="url(#hubBlue)"
+            strokeWidth="4"
+          />
+
+          <circle
+            cx="48"
+            cy="48"
+            r="13"
+            fill="rgba(16,24,39,0.96)"
+            stroke="url(#hubTeal)"
             strokeWidth="3.6"
+          />
+
+          <circle cx="48" cy="8" r="4.4" fill="#69e3d7" />
+          <circle cx="48" cy="88" r="4.4" fill="#69e3d7" />
+          <circle cx="8" cy="48" r="4.4" fill="#4da3ff" />
+          <circle cx="88" cy="48" r="4.4" fill="#4da3ff" />
+
+          <path
+            d="M29 65L42 32H48L61 65"
+            fill="none"
+            stroke="#f4f7fb"
+            strokeWidth="5.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-
           <path
-            d="M28.8 28.8c3.1-3.7 7-5.7 11.2-5.7 4.3 0 8.1 2 11.2 5.7"
+            d="M35 55H55"
             fill="none"
-            stroke="rgba(23,20,17,0.18)"
-            strokeWidth="1.25"
+            stroke="#f4f7fb"
+            strokeWidth="5.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M65 32V65"
+            fill="none"
+            stroke="#f4f7fb"
+            strokeWidth="5.5"
             strokeLinecap="round"
           />
 
           <g className="sparkle">
             <path
-              d="M59.5 20.2l1.2 2.8 2.8 1.2-2.8 1.2-1.2 2.8-1.2-2.8-2.8-1.2 2.8-1.2 1.2-2.8Z"
-              fill="#a4976a"
+              d="M74 20l1.6 3.8 3.8 1.6-3.8 1.6L74 31l-1.6-4-3.8-1.6 3.8-1.6L74 20Z"
+              fill="#69e3d7"
             />
           </g>
         </svg>
       </div>
 
       <div className="relative z-10 text-center">
-        <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.22em] text-[var(--brand-primary-strong)] fade-up">
-          Sparkle Legacy
+        <div className="text-[0.78rem] font-extrabold uppercase tracking-[0.22em] text-[var(--brand-primary)] fade-up">
+          AdminHub Global
         </div>
 
-        <div className="mt-2 text-[1.55rem] font-extrabold tracking-[-0.03em] text-[var(--text-primary)] fade-up-delayed">
-          Insurance Brokers
+        <div className="mt-2 text-[1.55rem] font-extrabold tracking-[-0.04em] text-[var(--text-primary)] fade-up-delayed">
+          Control System
         </div>
 
         <div className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)] fade-up-delayed-2">
-          quotes • claims • policy support
+          agents • leads • clients • support
         </div>
       </div>
 
-      <div className="relative z-10 mt-8 w-52">
-        <div className="h-1.5 overflow-hidden rounded-full bg-[rgba(136,115,55,0.10)]">
+      <div className="relative z-10 mt-8 w-56">
+        <div className="h-1.5 overflow-hidden rounded-full bg-[rgba(148,163,184,0.12)]">
           <span className="loader-bar block h-full w-1/3 rounded-full" />
         </div>
       </div>
 
       <div className="relative z-10 mt-4 text-xs text-[var(--text-muted)]">
-        Preparing your secure experience...
+        Initializing your PWA workspace...
       </div>
 
       <style jsx>{`
         .loader-bar {
           background: linear-gradient(
             90deg,
-            var(--brand-primary) 0%,
-            var(--brand-secondary) 50%,
-            var(--brand-primary-strong) 100%
+            var(--brand-primary-strong) 0%,
+            var(--brand-primary) 42%,
+            var(--brand-secondary) 100%
           );
-          box-shadow: 0 0 18px rgba(111, 93, 43, 0.22);
+          box-shadow: 0 0 22px rgba(77, 163, 255, 0.34);
           animation: shimmer 2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
         }
 
@@ -169,7 +223,7 @@ export default function AdminHubLoader() {
         }
 
         .animate-float {
-          filter: drop-shadow(0 8px 18px rgba(111, 93, 43, 0.14));
+          filter: drop-shadow(0 10px 24px rgba(77, 163, 255, 0.22));
           animation: float 4.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
         }
 
@@ -210,7 +264,7 @@ export default function AdminHubLoader() {
         @keyframes sparklePulse {
           0%,
           100% {
-            opacity: 0.7;
+            opacity: 0.68;
             transform: scale(0.96);
           }
           50% {

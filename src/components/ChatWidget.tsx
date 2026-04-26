@@ -2,35 +2,37 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bot,
+  BriefcaseBusiness,
   ClipboardList,
-  ExternalLink,
+  LayoutDashboard,
   MessageCircle,
-  Phone,
+  Network,
   Send,
   ShieldCheck,
+  Sparkles,
+  Users,
+  Workflow,
   X,
 } from "lucide-react";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+
+import { firestore } from "@/utils/firebaseConfig";
 
 type Msg = { sender: "user" | "bot"; text: string };
 type Stage = "browse" | "inquire" | "lead" | "handoff";
 
 type Lead = {
   name: string;
-  phone: string;
-  coverType: string;
-  product: string;
-  city: string;
-  note: string;
+  contact: string;
+  role: string;
+  business: string;
+  country: string;
+  need: string;
 };
 
-const STORAGE_KEY = "sparkle_chat_history_v1";
-const LEAD_KEY = "sparkle_chat_lead_v1";
-const WHATSAPP_NUMBER = "+26772971852";
-
-function waLink(message: string) {
-  const digits = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
+const STORAGE_KEY = "adminhub_global_chat_history_v1";
+const LEAD_KEY = "adminhub_global_chat_lead_v1";
 
 function safeJsonParse<T>(value: string | null): T | null {
   if (!value) return null;
@@ -66,20 +68,21 @@ export default function ChatWidget() {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const [leadOpen, setLeadOpen] = useState(false);
+  const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [lead, setLead] = useState<Lead>({
     name: "",
-    phone: "",
-    coverType: "",
-    product: "",
-    city: "",
-    note: "",
+    contact: "",
+    role: "",
+    business: "",
+    country: "",
+    need: "",
   });
 
   const FALLBACKS = useMemo(
     () => [
-      "I can help with quotes, claims, cover questions, and finding your way around this page. Tell me what you need, and I’ll guide you clearly.",
-      "You can ask about motor, home, funeral, life, business cover, retirement, claims support, the client portal, PDF generation, or where to click next.",
-      "For the fastest next step, tap “Get a quote” and I’ll prepare a WhatsApp message for you.",
+      "I can help you understand AdminHub Global, the 48-hour live proof process, Partner Portal, Client Hub, admin dashboard, project delivery workflow, and managed support model. Tell me what you want to do next.",
+      "You can ask about agents, leads, client onboarding, proposal PDFs, project workspaces, messaging, uploads, recurring support, or how the custom PWA framework works.",
+      "For the fastest next step, tap “Start inquiry” and I’ll help collect the right details before AdminHub follows up privately.",
     ],
     []
   );
@@ -87,10 +90,10 @@ export default function ChatWidget() {
   const DEFAULT_SUGGESTIONS = useMemo(
     () => [
       "What can I do on this page?",
-      "Get a quote",
-      "Short-Term cover",
-      "Claims help",
-      "Talk on WhatsApp",
+      "48-hour proof",
+      "Partner Portal",
+      "Client Hub",
+      "Start inquiry",
     ],
     []
   );
@@ -139,7 +142,7 @@ export default function ChatWidget() {
         {
           sender: "bot",
           text:
-            "Hi 👋 I’m the Sparkle Legacy assistant.\nI can help you understand cover, request a quote, guide you on claims, and show you what this page can do.\n\nYou can ask things like:\n• What can I do on this page?\n• Where is the PDF button?\n• How do I share an article?\n• How does offline mode work?\n\nWhat would you like help with today?",
+            "Hi 👋 I’m the AdminHub Global assistant.\n\nI can help you understand the platform, the 48-hour live proof process, Partner Portal, Client Hub, admin dashboard, project delivery workflow, and managed support model.\n\nYou can ask things like:\n• What can I do on this page?\n• How does the 48-hour proof work?\n• What can agents sell?\n• What does the Client Hub do?\n• How is this different from a DIY website builder?\n\nWhat would you like help with today?",
         },
       ]);
       setSuggestions(DEFAULT_SUGGESTIONS);
@@ -166,29 +169,6 @@ export default function ChatWidget() {
       { sender: "bot", text: clampText(text, 1800) },
     ]);
     setSuggestions(Array.isArray(sugg) ? sugg : []);
-  };
-
-  const toWhatsAppQuote = (leadData: Lead, transcript: Msg[]) => {
-    const cleanTranscript = transcript.slice(-10).map((m) => {
-      const label = m.sender === "user" ? "Me" : "Assistant";
-      return `${label}: ${clampText(m.text, 220)}`;
-    });
-
-    const lines = [
-      "Hi Sparkle Legacy 👋 I’d like a quote:",
-      "",
-      `Name: ${leadData.name || "-"}`,
-      `Phone: ${leadData.phone || "-"}`,
-      `Cover type: ${leadData.coverType || "-"}`,
-      `Product: ${leadData.product || "-"}`,
-      `City/Town: ${leadData.city || "-"}`,
-      `Notes: ${leadData.note || "-"}`,
-      "",
-      cleanTranscript.length ? "— Chat context —" : "",
-      ...cleanTranscript,
-    ].filter(Boolean);
-
-    return waLink(lines.join("\n"));
   };
 
   async function sendMessage(override?: string) {
@@ -222,50 +202,52 @@ export default function ChatWidget() {
     }
   }
 
+  const openInquiryForm = () => {
+    setLeadOpen(true);
+    setStage("lead");
+    pushBot(
+      "Sure — fill in these quick details first. AdminHub can review the inquiry and follow up privately from there.",
+      []
+    );
+  };
+
   const onSuggestion = (s: string) => {
-    if (s === "Talk on WhatsApp") {
-      window.location.href = waLink(
-        "Hi Sparkle Legacy 👋 I need help with a quote / policy / claim."
-      );
+    if (s === "Start inquiry" || s === "Get a quote") {
+      openInquiryForm();
       return;
     }
 
-    if (s === "Get a quote") {
-      setLeadOpen(true);
-      setStage("lead");
-      pushBot(
-        "Sure — fill in these quick details and I’ll prepare your WhatsApp quote request.",
-        []
-      );
+    if (s === "48-hour proof" || s === "Rapid Proof Sprint") {
+      window.location.href = "/c/rapid-proof";
       return;
     }
 
-    if (s === "Short-Term cover") {
-      window.location.href = "/c/short-term";
+    if (s === "Business PWA") {
+      window.location.href = "/c/business-pwa";
       return;
     }
 
-    if (s === "Long-Term cover") {
-      window.location.href = "/c/long-term";
+    if (s === "Operations PWA") {
+      window.location.href = "/c/operations-pwa";
       return;
     }
 
-    if (s === "SME cover") {
-      window.location.href = "/c/business";
+    if (s === "Partner Portal") {
+      window.location.href = "/partners";
       return;
     }
 
-    if (s === "Retirement") {
-      window.location.href = "/c/retirement";
+    if (s === "Client Hub") {
+      window.location.href = "/client/dashboard";
       return;
     }
 
-    if (s === "Claims help") {
-      window.location.href = "/claims";
+    if (s === "Admin Dashboard" || s === "AdminHub Global Control") {
+      window.location.href = "/admin/dashboard";
       return;
     }
 
-    if (s === "Contact") {
+    if (s === "Contact" || s === "Submit inquiry") {
       window.location.href = "/contact";
       return;
     }
@@ -273,32 +255,69 @@ export default function ChatWidget() {
     sendMessage(s);
   };
 
-  const submitLead = () => {
+  const submitLead = async () => {
+    if (leadSubmitting) return;
+
     const clean: Lead = {
       name: lead.name.trim(),
-      phone: lead.phone.trim(),
-      coverType: lead.coverType.trim(),
-      product: lead.product.trim(),
-      city: lead.city.trim(),
-      note: lead.note.trim(),
+      contact: lead.contact.trim(),
+      role: lead.role.trim(),
+      business: lead.business.trim(),
+      country: lead.country.trim(),
+      need: lead.need.trim(),
     };
+
+    if (!clean.name || !clean.contact || !clean.need) {
+      pushBot(
+        "Please add at least your name, preferred contact detail, and what you need before submitting the inquiry.",
+        []
+      );
+      return;
+    }
+
+    setLeadSubmitting(true);
 
     try {
       localStorage.setItem(LEAD_KEY, JSON.stringify(clean));
     } catch {}
 
-    const url = toWhatsAppQuote(clean, messages);
+    try {
+      await addDoc(collection(firestore, "inquiries"), {
+        source: "chat_widget",
+        project: "AdminHub Global",
+        status: "new",
+        name: clean.name,
+        contact: clean.contact,
+        role: clean.role,
+        business: clean.business,
+        country: clean.country,
+        need: clean.need,
+        page: getCurrentPath(),
+        transcript: messages.slice(-10).map((m) => ({
+          sender: m.sender,
+          text: clampText(m.text, 500),
+        })),
+        createdAt: serverTimestamp(),
+      });
 
-    setLeadOpen(false);
-    setStage("handoff");
-    pushBot("Opening WhatsApp now.", [
-      "Short-Term cover",
-      "Long-Term cover",
-      "Claims help",
-      "Talk on WhatsApp",
-    ]);
+      setLeadOpen(false);
+      setStage("handoff");
+      pushBot(
+        "Done — your inquiry details have been captured. AdminHub can review the request and follow up privately. You can also continue to the contact page if you want to add more structured details.",
+        ["48-hour proof", "Partner Portal", "Client Hub", "Contact"]
+      );
+    } catch (error) {
+      console.error("Inquiry capture failed:", error);
 
-    window.location.href = url;
+      setLeadOpen(false);
+      setStage("handoff");
+      pushBot(
+        "I saved the inquiry details locally in this browser, but the online submission could not be completed. Please continue to the contact page and submit the request there.",
+        ["Contact", "48-hour proof", "Partner Portal", "Client Hub"]
+      );
+    } finally {
+      setLeadSubmitting(false);
+    }
   };
 
   const clearChat = () => {
@@ -313,7 +332,7 @@ export default function ChatWidget() {
       {
         sender: "bot",
         text:
-          "Chat cleared. 👋\nI can help with quotes, claims, page guidance, PDF buttons, portal support, and offline/PWA questions.\n\nWhat would you like help with?",
+          "Chat cleared. 👋\nI can help with AdminHub Global, the 48-hour proof process, Partner Portal, Client Hub, admin workflow, proposal PDFs, messaging, uploads, managed support, and PWA questions.\n\nWhat would you like help with?",
       },
     ]);
     setSuggestions(DEFAULT_SUGGESTIONS);
@@ -326,12 +345,12 @@ export default function ChatWidget() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 grid h-14 w-14 place-items-center rounded-full border border-[rgba(255,253,248,0.7)] text-[var(--text-on-brand)] shadow-[var(--shadow-lg)] transition hover:-translate-y-0.5"
+          className="fixed bottom-6 right-6 z-50 grid h-14 w-14 place-items-center rounded-full border border-[rgba(77,163,255,0.34)] text-[var(--text-on-brand)] shadow-[var(--shadow-blue)] transition hover:-translate-y-0.5"
           style={{
             background:
               "linear-gradient(135deg, var(--brand-primary-strong), var(--brand-primary))",
           }}
-          aria-label="Open Sparkle Legacy chat"
+          aria-label="Open AdminHub Global assistant"
         >
           <MessageCircle size={22} />
 
@@ -340,7 +359,7 @@ export default function ChatWidget() {
               className="absolute -right-1 -top-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold text-white"
               style={{
                 background: "var(--danger)",
-                boxShadow: "0 10px 20px rgba(179, 38, 30, 0.22)",
+                boxShadow: "0 10px 20px rgba(239, 68, 68, 0.22)",
               }}
             >
               {unread}
@@ -351,27 +370,27 @@ export default function ChatWidget() {
 
       {open && (
         <div
-          className="fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-white shadow-[var(--shadow-lg)]"
+          className="fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden rounded-[1.5rem] border border-[var(--border-strong)] bg-[rgba(11,18,32,0.98)] shadow-[var(--shadow-lg)]"
           style={{
             width: "min(92vw, 24rem)",
             height: leadOpen ? "39rem" : "33rem",
-            animation: "sparkleSlideIn 0.34s cubic-bezier(0.45,0,0.25,1)",
+            animation: "adminHubSlideIn 0.34s cubic-bezier(0.45,0,0.25,1)",
           }}
           role="dialog"
-          aria-label="Sparkle Legacy Assistant"
+          aria-label="AdminHub Global Assistant"
           aria-modal="false"
         >
-          <div className="border-b border-[var(--border)] bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] px-4 py-3">
+          <div className="border-b border-[var(--border)] bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.98)_48%,rgba(24,199,184,0.12)_100%)] px-4 py-3">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-2.5">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--border-strong)] bg-white text-xs font-extrabold text-[var(--brand-primary-strong)] shadow-[var(--shadow-sm)]">
-                  SL
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[rgba(77,163,255,0.34)] bg-[rgba(77,163,255,0.12)] text-xs font-extrabold text-[var(--brand-primary)] shadow-[var(--shadow-sm)]">
+                  AH
                 </div>
 
                 <div className="min-w-0 leading-tight">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="truncate text-sm font-extrabold text-[var(--text-primary)]">
-                      Sparkle Legacy Assistant
+                      AdminHub Global Assistant
                     </div>
 
                     <span
@@ -379,14 +398,14 @@ export default function ChatWidget() {
                       style={{ fontSize: 12, padding: "0.18rem 0.55rem" }}
                     >
                       <ShieldCheck size={14} />
-                      Secure help
+                      PWA guide
                     </span>
                   </div>
 
                   <div className="mt-1 text-[11px] text-[var(--text-muted)]">
                     {stage === "lead"
-                      ? "Quote request"
-                      : "Page guide • Quotes • Claims • Portal help"}
+                      ? "Inquiry capture"
+                      : "Platform guide • Agents • Clients • Support"}
                   </div>
                 </div>
               </div>
@@ -394,7 +413,7 @@ export default function ChatWidget() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--border)] bg-[rgba(6,10,18,0.58)] text-[var(--text-secondary)] transition hover:bg-[rgba(77,163,255,0.12)] hover:text-[var(--text-primary)]"
                 aria-label="Close chat"
               >
                 <X size={18} />
@@ -405,7 +424,7 @@ export default function ChatWidget() {
               <button
                 type="button"
                 onClick={() => sendMessage("What can I do on this page?")}
-                className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:bg-[var(--brand-tint)] hover:text-[var(--text-primary)]"
+                className="rounded-full border border-[var(--border)] bg-[rgba(6,10,18,0.54)] px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:bg-[var(--brand-tint)] hover:text-[var(--text-primary)]"
               >
                 Page help
               </button>
@@ -413,7 +432,7 @@ export default function ChatWidget() {
               <button
                 type="button"
                 onClick={clearChat}
-                className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+                className="rounded-full border border-[var(--border)] bg-[rgba(6,10,18,0.54)] px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:bg-[rgba(148,163,184,0.1)] hover:text-[var(--text-primary)]"
               >
                 Clear chat
               </button>
@@ -421,7 +440,7 @@ export default function ChatWidget() {
           </div>
 
           <div
-            className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,#fffdf9_0%,#fcfbf7_100%)] p-3 text-sm"
+            className="flex-1 overflow-y-auto bg-[linear-gradient(180deg,rgba(6,10,18,0.98)_0%,rgba(11,18,32,0.96)_100%)] p-3 text-sm"
             aria-live="polite"
           >
             <div className="space-y-2">
@@ -438,12 +457,14 @@ export default function ChatWidget() {
                     <div
                       className={`max-w-[86%] whitespace-pre-line rounded-2xl border px-3 py-2.5 ${
                         isUser
-                          ? "border-[var(--brand-primary-strong)] bg-[var(--brand-primary-strong)] text-[var(--text-on-brand)]"
-                          : "border-[var(--border)] bg-white text-[var(--text-primary)]"
+                          ? "border-[rgba(77,163,255,0.42)] bg-[linear-gradient(135deg,var(--brand-primary-strong),var(--brand-primary))] text-[var(--text-on-brand)]"
+                          : "border-[var(--border)] bg-[rgba(15,23,42,0.96)] text-[var(--text-primary)]"
                       }`}
                       style={{
-                        boxShadow: isUser ? "none" : "var(--shadow-sm)",
-                        animation: "sparkleBubbleIn 150ms ease-out",
+                        boxShadow: isUser
+                          ? "var(--shadow-blue)"
+                          : "var(--shadow-sm)",
+                        animation: "adminHubBubbleIn 150ms ease-out",
                       }}
                     >
                       {m.text}
@@ -454,14 +475,14 @@ export default function ChatWidget() {
 
               {typing && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl border border-[var(--border)] bg-white px-3 py-2.5 text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
-                    <span className="sparkle-typing-dot" />
+                  <div className="rounded-2xl border border-[var(--border)] bg-[rgba(15,23,42,0.96)] px-3 py-2.5 text-[var(--text-primary)] shadow-[var(--shadow-sm)]">
+                    <span className="adminhub-typing-dot" />
                     <span
-                      className="sparkle-typing-dot"
+                      className="adminhub-typing-dot"
                       style={{ animationDelay: "120ms" }}
                     />
                     <span
-                      className="sparkle-typing-dot"
+                      className="adminhub-typing-dot"
                       style={{ animationDelay: "240ms" }}
                     />
                   </div>
@@ -473,24 +494,17 @@ export default function ChatWidget() {
           </div>
 
           {leadOpen && (
-            <div className="border-t border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="border-t border-[var(--border)] bg-[rgba(11,18,32,0.98)] p-3">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
                   <ClipboardList
                     size={16}
-                    className="text-[var(--brand-primary-strong)]"
+                    className="text-[var(--brand-primary)]"
                   />
-                  Quote details
+                  Inquiry details
                 </div>
 
-                <a
-                  href={waLink("Hi Sparkle Legacy 👋 I’d like help with a quote.")}
-                  className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] transition hover:text-[var(--brand-primary-strong)]"
-                  aria-label="Open WhatsApp without form"
-                >
-                  Skip form
-                  <ExternalLink size={14} />
-                </a>
+                <LinkButtonLike href="/contact" label="Full form" />
               </div>
 
               <div className="space-y-2.5">
@@ -507,84 +521,85 @@ export default function ChatWidget() {
                 </div>
 
                 <div>
-                  <label className="label">Phone</label>
+                  <label className="label">Preferred contact detail</label>
                   <input
-                    value={lead.phone}
+                    value={lead.contact}
                     onChange={(e) =>
-                      setLead((s) => ({ ...s, phone: e.target.value }))
+                      setLead((s) => ({ ...s, contact: e.target.value }))
                     }
-                    placeholder="Phone number"
+                    placeholder="Email, phone, or preferred reply method"
                     className="input"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <div>
-                    <label className="label">Cover type</label>
+                    <label className="label">Interest</label>
                     <input
-                      value={lead.coverType}
+                      value={lead.role}
                       onChange={(e) =>
                         setLead((s) => ({
                           ...s,
-                          coverType: e.target.value,
+                          role: e.target.value,
                         }))
                       }
-                      placeholder="Short-Term / Long-Term"
+                      placeholder="Client / Agent / Partner"
                       className="input"
                     />
                   </div>
 
                   <div>
-                    <label className="label">City / Town</label>
+                    <label className="label">Country / Region</label>
                     <input
-                      value={lead.city}
+                      value={lead.country}
                       onChange={(e) =>
-                        setLead((s) => ({ ...s, city: e.target.value }))
+                        setLead((s) => ({ ...s, country: e.target.value }))
                       }
-                      placeholder="City or town"
+                      placeholder="Country or region"
                       className="input"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="label">Product</label>
+                  <label className="label">Business / Organisation</label>
                   <input
-                    value={lead.product}
+                    value={lead.business}
                     onChange={(e) =>
-                      setLead((s) => ({ ...s, product: e.target.value }))
+                      setLead((s) => ({ ...s, business: e.target.value }))
                     }
-                    placeholder="Motor, Funeral, Life, Home..."
+                    placeholder="Business name"
                     className="input"
                   />
                 </div>
 
                 <div>
-                  <label className="label">Notes</label>
+                  <label className="label">What do you need?</label>
                   <textarea
                     rows={3}
-                    value={lead.note}
+                    value={lead.need}
                     onChange={(e) =>
-                      setLead((s) => ({ ...s, note: e.target.value }))
+                      setLead((s) => ({ ...s, need: e.target.value }))
                     }
-                    placeholder="Any details that will help with your quote"
+                    placeholder="Example: 48-hour prototype, client portal, admin dashboard, agent partnership, managed support..."
                     className="textarea"
                   />
                 </div>
 
                 <p className="text-xs leading-6 text-[var(--text-muted)]">
-                  These details are only used to prepare your WhatsApp quote
-                  request.
+                  This captures the inquiry first. Direct private follow-up
+                  happens only after the request is reviewed.
                 </p>
 
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
                     onClick={submitLead}
-                    className="btn btn-primary"
+                    disabled={leadSubmitting}
+                    className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <Phone size={18} />
-                    Send to WhatsApp
+                    <Send size={18} />
+                    {leadSubmitting ? "Submitting..." : "Submit Inquiry"}
                   </button>
 
                   <button
@@ -594,7 +609,8 @@ export default function ChatWidget() {
                       setStage("inquire");
                       setSuggestions(DEFAULT_SUGGESTIONS);
                     }}
-                    className="btn btn-outline"
+                    disabled={leadSubmitting}
+                    className="btn btn-outline disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Cancel
                   </button>
@@ -604,14 +620,14 @@ export default function ChatWidget() {
           )}
 
           {!leadOpen && suggestions.length > 0 && (
-            <div className="border-t border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+            <div className="border-t border-[var(--border)] bg-[rgba(11,18,32,0.98)] px-3 py-2">
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((s, i) => (
                   <button
                     key={`${s}-${i}`}
                     type="button"
                     onClick={() => onSuggestion(s)}
-                    className="rounded-full border border-[var(--border-strong)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--brand-primary)] hover:bg-[var(--brand-tint)] hover:text-[var(--text-primary)]"
+                    className="rounded-full border border-[var(--border-strong)] bg-[rgba(6,10,18,0.62)] px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--brand-primary)] hover:bg-[var(--brand-tint)] hover:text-[var(--text-primary)]"
                   >
                     {s}
                   </button>
@@ -621,7 +637,7 @@ export default function ChatWidget() {
           )}
 
           {!leadOpen && (
-            <div className="flex gap-2 border-t border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="flex gap-2 border-t border-[var(--border)] bg-[rgba(11,18,32,0.98)] p-3">
               <input
                 ref={inputRef}
                 value={input}
@@ -629,7 +645,7 @@ export default function ChatWidget() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") sendMessage();
                 }}
-                placeholder="Ask about this page, quotes, claims..."
+                placeholder="Ask about AdminHub Global..."
                 className="input flex-1"
                 aria-label="Type your message"
               />
@@ -649,7 +665,7 @@ export default function ChatWidget() {
       )}
 
       <style jsx global>{`
-        @keyframes sparkleSlideIn {
+        @keyframes adminHubSlideIn {
           from {
             transform: translateY(16px);
             opacity: 0;
@@ -660,7 +676,7 @@ export default function ChatWidget() {
           }
         }
 
-        @keyframes sparkleBubbleIn {
+        @keyframes adminHubBubbleIn {
           from {
             transform: scale(0.985);
             opacity: 0.7;
@@ -671,7 +687,7 @@ export default function ChatWidget() {
           }
         }
 
-        @keyframes sparkleTyping {
+        @keyframes adminHubTyping {
           0%,
           80%,
           100% {
@@ -684,7 +700,7 @@ export default function ChatWidget() {
           }
         }
 
-        .sparkle-typing-dot {
+        .adminhub-typing-dot {
           display: inline-block;
           width: 6px;
           height: 6px;
@@ -693,9 +709,9 @@ export default function ChatWidget() {
           background: linear-gradient(
             135deg,
             var(--brand-primary),
-            var(--brand-primary-strong)
+            var(--brand-secondary)
           );
-          animation: sparkleTyping 1.35s infinite ease-in-out;
+          animation: adminHubTyping 1.35s infinite ease-in-out;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -707,5 +723,19 @@ export default function ChatWidget() {
         }
       `}</style>
     </>
+  );
+}
+
+function LinkButtonLike({ href, label }: { href: string; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        window.location.href = href;
+      }}
+      className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[rgba(6,10,18,0.54)] px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:bg-[var(--brand-tint)] hover:text-[var(--text-primary)]"
+    >
+      {label}
+    </button>
   );
 }

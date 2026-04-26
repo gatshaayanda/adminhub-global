@@ -15,6 +15,7 @@ import {
   FileText,
   Link as LinkIcon,
   Loader2,
+  MessageCircle,
   Send,
   Trash2,
   X,
@@ -54,7 +55,7 @@ export default function ChatPanel({
   projectId,
   senderName,
   canDeleteAll = false,
-  brand = { primary: "#887337", accent: "#d6b678" },
+  brand = { primary: "#4da3ff", accent: "#18c7b8" },
 }: {
   projectId: string;
   senderName: string;
@@ -158,7 +159,7 @@ export default function ChatPanel({
 
       const messagePayload: ChatMessage = {
         text: cleanText,
-        sender: senderName?.trim() || "Sparkle Legacy Team",
+        sender: senderName?.trim() || "AdminHub Global Team",
         link: cleanLink,
         fileUrl: uploadedFileUrl,
         fileName: uploadedFileName,
@@ -205,35 +206,44 @@ export default function ChatPanel({
   const isOwn = (message: ChatMessage) => message.sender === senderName;
 
   return (
-    <section className="card-outline-gold overflow-hidden">
+    <section className="overflow-hidden rounded-[1.5rem] border border-[var(--border-strong)] bg-[rgba(11,18,32,0.92)] shadow-[var(--shadow-lg)]">
       <div
-        className="flex items-center justify-between px-4 py-3 md:px-6"
+        className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 md:px-6"
         style={{
-          background: `linear-gradient(180deg, ${brand.primary} 0%, ${brand.primary}dd 100%)`,
-          color: "#fff",
+          background: `linear-gradient(135deg, rgba(77,163,255,0.18) 0%, rgba(15,23,42,0.96) 48%, rgba(24,199,184,0.14) 100%)`,
+          color: "var(--text-primary)",
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg"
-            style={{ background: "rgba(255,255,255,0.14)" }}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[rgba(77,163,255,0.28)]"
+            style={{
+              background: "rgba(77,163,255,0.12)",
+              color: brand.accent,
+            }}
           >
-            💬
+            <MessageCircle size={18} />
           </span>
-          <h2 className="text-sm font-semibold tracking-wide md:text-base">
-            Client Conversation
-          </h2>
+
+          <div>
+            <h2 className="text-sm font-extrabold tracking-[-0.01em] md:text-base">
+              Project Conversation
+            </h2>
+            <p className="text-xs font-medium text-[var(--text-muted)]">
+              AdminHub Global messaging, files, links, and client updates
+            </p>
+          </div>
         </div>
 
         {canDeleteAll ? (
           <button
             onClick={deleteAll}
             disabled={deleting}
-            className="inline-flex items-center gap-2 rounded-md border px-3 py-1 text-xs disabled:opacity-60 md:text-sm"
+            className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:bg-[rgba(239,68,68,0.12)] disabled:opacity-60 md:text-sm"
             style={{
-              borderColor: "rgba(255,255,255,0.35)",
-              background: "transparent",
-              color: "#fff",
+              borderColor: "rgba(239,68,68,0.32)",
+              background: "rgba(239,68,68,0.08)",
+              color: "#fca5a5",
             }}
             type="button"
           >
@@ -249,115 +259,136 @@ export default function ChatPanel({
 
       <div
         ref={messagesBoxRef}
-        className="max-h-[430px] space-y-3 overflow-y-auto overscroll-contain border-x border-b border-[var(--border)] bg-[var(--surface)] p-3 md:p-4"
+        className="max-h-[430px] space-y-3 overflow-y-auto overscroll-contain border-b border-[var(--border)] bg-[rgba(6,10,18,0.72)] p-3 md:p-4"
       >
         {messages.length === 0 ? (
-          <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-5 text-center">
-            <p className="text-sm font-semibold text-[var(--text-primary)]">
+          <div className="empty-state p-5 text-center">
+            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary)]">
+              <MessageCircle size={20} />
+            </div>
+
+            <p className="text-sm font-extrabold text-[var(--text-primary)]">
               No messages yet
             </p>
-            <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-              Start the conversation with a clear update, document request, or
-              next step for this client case.
+            <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-[var(--text-secondary)]">
+              Start the workspace conversation with a clear project update,
+              onboarding request, file note, proposal question, or next action
+              for this client.
             </p>
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
-                isOwn(message) ? "ml-auto" : ""
-              }`}
-              style={{
-                background: isOwn(message) ? "#F7F2E7" : "#FFFFFF",
-                border: `1px solid ${
-                  isOwn(message) ? "#E8D9B0" : "rgba(0,0,0,.08)"
-                }`,
-              }}
-            >
+          messages.map((message) => {
+            const ownMessage = isOwn(message);
+
+            return (
               <div
-                className="mb-1 text-[10px] font-semibold"
+                key={message.id}
+                className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-sm ${
+                  ownMessage ? "ml-auto" : ""
+                }`}
                 style={{
-                  color: isOwn(message) ? brand.primary : "#6B7280",
+                  background: ownMessage
+                    ? "linear-gradient(135deg, rgba(77,163,255,0.18), rgba(24,199,184,0.10))"
+                    : "rgba(15,23,42,0.92)",
+                  border: `1px solid ${
+                    ownMessage
+                      ? "rgba(77,163,255,0.34)"
+                      : "rgba(148,163,184,0.16)"
+                  }`,
+                  boxShadow: ownMessage
+                    ? "0 14px 30px rgba(47,125,255,0.12)"
+                    : "0 12px 26px rgba(0,0,0,0.18)",
                 }}
               >
-                {message.sender}
-              </div>
+                <div
+                  className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.14em]"
+                  style={{
+                    color: ownMessage ? brand.accent : "var(--text-muted)",
+                  }}
+                >
+                  {message.sender}
+                </div>
 
-              {message.text ? (
-                <p className="whitespace-pre-line text-sm leading-6 text-gray-800">
-                  {message.text}
-                </p>
-              ) : null}
-
-              <div className="mt-2 space-y-1">
-                {message.link ? (
-                  <a
-                    href={message.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs underline"
-                    style={{ color: brand.primary }}
-                  >
-                    <LinkIcon size={13} />
-                    Reference link
-                  </a>
+                {message.text ? (
+                  <p className="whitespace-pre-line text-sm leading-6 text-[var(--text-secondary)]">
+                    {message.text}
+                  </p>
                 ) : null}
 
-                {message.fileUrl ? (
-                  <a
-                    href={message.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs underline"
-                    style={{ color: brand.primary }}
-                  >
-                    <FileText size={13} />
-                    {message.fileName || "View attached file"}
-                  </a>
-                ) : null}
+                <div className="mt-2 space-y-1.5">
+                  {message.link ? (
+                    <a
+                      href={message.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(77,163,255,0.26)] bg-[rgba(77,163,255,0.1)] px-2.5 py-1 text-xs font-bold underline-offset-4 hover:underline"
+                      style={{ color: brand.primary }}
+                    >
+                      <LinkIcon size={13} />
+                      Reference link
+                    </a>
+                  ) : null}
+
+                  {message.fileUrl ? (
+                    <a
+                      href={message.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(24,199,184,0.26)] bg-[rgba(24,199,184,0.1)] px-2.5 py-1 text-xs font-bold underline-offset-4 hover:underline"
+                      style={{ color: brand.accent }}
+                    >
+                      <FileText size={13} />
+                      {message.fileName || "View attached file"}
+                    </a>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
-      <form onSubmit={send} className="space-y-3 bg-white p-3 md:p-4">
+      <form
+        onSubmit={send}
+        className="space-y-3 bg-[rgba(11,18,32,0.96)] p-3 md:p-4"
+      >
         <textarea
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Write a clear update or reply..."
+          placeholder="Write a project update, onboarding request, support note, or reply..."
           rows={3}
           disabled={busy}
           className="input min-h-[110px] resize-y rounded-[1.25rem] disabled:opacity-60"
         />
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            key={fileInputKey}
-            type="file"
-            accept="image/*,application/pdf"
-            disabled={busy}
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="block text-xs text-[var(--text-secondary)] disabled:opacity-60"
-          />
+          <label className="flex min-h-[46px] cursor-pointer items-center justify-center rounded-xl border border-[var(--border-strong)] bg-[rgba(15,23,42,0.86)] px-4 text-xs font-bold text-[var(--text-secondary)] transition hover:border-[rgba(77,163,255,0.44)] hover:text-[var(--text-primary)] sm:w-auto">
+            Attach file
+            <input
+              key={fileInputKey}
+              type="file"
+              accept="image/*,application/pdf"
+              disabled={busy}
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="sr-only"
+            />
+          </label>
 
           <input
             type="url"
             value={optionalLink}
             disabled={busy}
             onChange={(e) => setOptionalLink(e.target.value)}
-            placeholder="Optional link"
+            placeholder="Optional reference link"
             className="input w-full disabled:opacity-60 sm:flex-1"
           />
 
           <button
             type="submit"
             disabled={busy || (!newMessage.trim() && !optionalLink.trim() && !file)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-extrabold text-white shadow-[var(--shadow-blue)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
             style={{
-              background: brand.accent,
-              color: brand.primary,
+              background: `linear-gradient(135deg, ${brand.primary}, ${brand.accent})`,
             }}
           >
             {busy ? (
@@ -370,7 +401,7 @@ export default function ChatPanel({
         </div>
 
         {file ? (
-          <div className="flex items-center justify-between gap-3 rounded-[1rem] border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+          <div className="flex items-center justify-between gap-3 rounded-[1rem] border border-[var(--border)] bg-[rgba(15,23,42,0.86)] px-4 py-3">
             <span className="min-w-0 truncate text-sm text-[var(--text-secondary)]">
               {file.name}
             </span>
@@ -382,13 +413,19 @@ export default function ChatPanel({
                 setFile(null);
                 setFileInputKey((prev) => prev + 1);
               }}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] disabled:opacity-60"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--border)] bg-[rgba(6,10,18,0.7)] px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] disabled:opacity-60"
             >
               <X size={14} />
               Remove
             </button>
           </div>
         ) : null}
+
+        <p className="text-xs leading-6 text-[var(--text-muted)]">
+          Use this panel for client project updates, onboarding requests,
+          uploaded files, proposal references, and support notes. New uploads and
+          messages require an internet connection.
+        </p>
       </form>
     </section>
   );

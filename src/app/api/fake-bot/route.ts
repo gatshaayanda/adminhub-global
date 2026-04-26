@@ -5,74 +5,69 @@ type BotResponse = {
   suggestions?: string[];
 };
 
-const CONTACT = {
-  whatsappNumber: "+26772971852",
-};
-
-const SOCIALS = {
-  instagram: "https://www.instagram.com/p/DUTTKQjCCG6/",
-  tiktok:
-    "https://www.tiktok.com/@sparklelegacyinsurancebr/video/7568941327816068364",
-  facebook:
-    "https://www.facebook.com/p/Sparkle-Legacy-Insurance-Brokers-61557773288268/",
-};
-
 const PATHS = {
-  shortTerm: "/c/short-term",
-  longTerm: "/c/long-term",
-  retirement: "/c/retirement",
-  business: "/c/business",
-  claims: "/claims",
+  rapidProof: "/c/rapid-proof",
+  businessPwa: "/c/business-pwa",
+  operationsPwa: "/c/operations-pwa",
+  partners: "/partners",
   contact: "/contact",
+  clientHub: "/client/dashboard",
   clientLogin: "/client/login",
+  adminControl: "/admin/dashboard",
 };
 
 const SUGG = {
-  GET_QUOTE: "Get a quote",
-  SHORT: "Short-Term cover",
-  LONG: "Long-Term cover",
-  RETIRE: "Retirement",
-  SME: "SME cover",
-  CLAIMS: "Claims help",
-  WHATSAPP: "Talk on WhatsApp",
+  START: "Start inquiry",
+  PROOF: "48-hour proof",
+  RAPID: "Rapid Proof Sprint",
+  BUSINESS: "Business PWA",
+  OPERATIONS: "Operations PWA",
+  PARTNERS: "Partner Portal",
+  CLIENT: "Client Hub",
+  ADMIN: "AdminHub Global Control",
   CONTACT: "Contact",
-  DOCS: "What documents are needed?",
-  LOGIN: "Client login help",
 } as const;
 
-const SHORT_TERM_PRODUCTS = [
-  "motor",
-  "car",
-  "vehicle",
-  "home",
-  "household contents",
-  "travel",
-  "gadgets",
-  "liability",
+const PLATFORM_MODULES = [
+  "public website",
+  "admin dashboard",
+  "client portal",
+  "agent management",
+  "lead pipeline",
+  "client onboarding",
+  "project workspace",
+  "messaging",
+  "uploads",
+  "PDF proposals",
+  "recurring support tracking",
+  "commission tracking",
+  "activity logs",
 ];
 
-const LONG_TERM_PRODUCTS = [
-  "life",
-  "funeral",
-  "disability",
-  "credit life",
-  "dread disease",
-  "income protection",
+const PHASE_ONE_WORKFLOW = [
+  "lead capture",
+  "qualification",
+  "48-hour live proof",
+  "conversion",
+  "client onboarding",
+  "project build",
+  "launch",
+  "monthly managed support",
 ];
 
-const BUSINESS_PRODUCTS = [
-  "business assets",
-  "commercial cover",
-  "liability",
-  "fleet",
-  "employee benefits",
+const PACKAGE_TIERS = [
+  "Rapid Proof + Launch",
+  "Business PWA",
+  "Operations PWA",
 ];
 
-const RETIREMENT_PRODUCTS = [
-  "retirement planning",
-  "pensions",
-  "annuities",
-  "long-term planning",
+const BEST_FIT_SECTORS = [
+  "insurance and advisory",
+  "education and training",
+  "hospitality and service businesses",
+  "consulting firms",
+  "SMEs with recurring client communication",
+  "businesses handling files, cases, requests, onboarding, or support",
 ];
 
 const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
@@ -100,251 +95,74 @@ const joinList = (items: string[]) =>
     ? items.join("")
     : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 
-function getProductHints(text: string) {
-  const hits: string[] = [];
-
-  if (containsAny(text, [/\b(motor|car|vehicle|third party|comprehensive)\b/])) {
-    hits.push("motor");
-  }
-  if (containsAny(text, [/\b(home|house|contents|property)\b/])) {
-    hits.push("home");
-  }
-  if (containsAny(text, [/\b(travel)\b/])) {
-    hits.push("travel");
-  }
-  if (containsAny(text, [/\b(gadget|phone|laptop|device)\b/])) {
-    hits.push("gadgets");
-  }
-  if (containsAny(text, [/\b(life)\b/])) {
-    hits.push("life");
-  }
-  if (containsAny(text, [/\b(funeral)\b/])) {
-    hits.push("funeral");
-  }
-  if (containsAny(text, [/\b(disability|income protection|income)\b/])) {
-    hits.push("disability / income protection");
-  }
-  if (containsAny(text, [/\b(retirement|pension|annuity|wealth)\b/])) {
-    hits.push("retirement");
-  }
-  if (containsAny(text, [/\b(business|sme|commercial|fleet|office|company)\b/])) {
-    hits.push("business / SME");
-  }
-
-  return [...new Set(hits)];
-}
-
-function getQuoteReply(text: string): BotResponse {
-  const productHints = getProductHints(text);
-
-  if (productHints.length > 0) {
+function getPageHelpReply(path = ""): BotResponse {
+  if (path.includes("/partners")) {
     return reply(
       [
-        `I can help with a quote for ${joinList(productHints)} cover.`,
+        "This is the Partner Portal area.",
         "",
-        "Please share:",
-        "• your cover type",
-        "• the product you need",
-        "• your city or town",
-        "• any useful notes",
+        "The goal here is to help sales partners understand the offer, submit leads, track opportunities, and sell a proof-backed process instead of a vague promise.",
         "",
-        "For example:",
-        '"Motor insurance for a 2018 Toyota Axio in Gaborone."',
-        "",
-        `You can also browse the relevant page first:`,
-        `• Short-Term: ${PATHS.shortTerm}`,
-        `• Long-Term: ${PATHS.longTerm}`,
-        `• Business / SME: ${PATHS.business}`,
-        `• Retirement: ${PATHS.retirement}`,
+        "A good next step is to submit a structured inquiry or review the 48-hour proof process.",
       ].join("\n"),
-      [SUGG.GET_QUOTE, SUGG.WHATSAPP, SUGG.DOCS, SUGG.CONTACT]
+      [SUGG.START, SUGG.PROOF, SUGG.BUSINESS, SUGG.CONTACT]
     );
   }
 
-  return reply(
-    [
-      "Absolutely — I can help you start a quote.",
-      "",
-      "Tell me these 4 things:",
-      "• cover type",
-      "• product",
-      "• city / town",
-      "• any extra notes",
-      "",
-      "If you are still deciding, I can also help you choose between:",
-      `• Short-Term: ${joinList(SHORT_TERM_PRODUCTS)}`,
-      `• Long-Term: ${joinList(LONG_TERM_PRODUCTS)}`,
-      `• Business / SME: ${joinList(BUSINESS_PRODUCTS)}`,
-      `• Retirement: ${joinList(RETIREMENT_PRODUCTS)}`,
-      "",
-      "Or tap “Talk on WhatsApp” and the site will prepare the message for you.",
-    ].join("\n"),
-    [SUGG.SHORT, SUGG.LONG, SUGG.SME, SUGG.RETIRE, SUGG.WHATSAPP]
-  );
-}
-
-function getClaimsReply(text: string): BotResponse {
-  const productHints = getProductHints(text);
-
-  return reply(
-    [
-      "I can guide you on claims support.",
-      "",
-      "The best starting details are:",
-      "• what happened",
-      "• when it happened",
-      "• which product it relates to",
-      "• any photos, reports, forms, or supporting documents you already have",
-      "",
-      productHints.length
-        ? `From your message, this sounds related to ${joinList(productHints)}.`
-        : "If you tell me the product type, I can guide you more clearly.",
-      "",
-      `Claims page: ${PATHS.claims}`,
-      "If it feels urgent, please use WhatsApp so the team can respond faster.",
-    ].join("\n"),
-    [SUGG.CLAIMS, SUGG.DOCS, SUGG.WHATSAPP, SUGG.CONTACT]
-  );
-}
-
-function getDocumentsReply(text: string): BotResponse {
-  const productHints = getProductHints(text);
-
-  if (productHints.length > 0) {
+  if (path.includes("/client")) {
     return reply(
       [
-        `For ${joinList(productHints)}, the exact requirements can vary, but common items usually include:`,
-        "• ID",
-        "• the relevant form or quote details",
-        "• supporting documents linked to the request",
+        "This is part of the Client Hub experience.",
         "",
-        "For claims, that often means evidence such as photos, reports, invoices, medical information, or repair-related documents depending on the case.",
+        "The Client Hub is meant to help clients see project progress, respond to onboarding requests, exchange messages, access files, and follow support updates after launch.",
         "",
-        "For a precise checklist, tell me whether this is for a quote, claim, or policy support.",
+        "If you are not already onboarded as a client, start with an inquiry first.",
       ].join("\n"),
-      [SUGG.GET_QUOTE, SUGG.CLAIMS, SUGG.WHATSAPP]
+      [SUGG.START, SUGG.CONTACT, SUGG.PROOF]
     );
+  }
+
+  if (path.includes("/admin")) {
+    return reply(
+      [
+        "This is part of AdminHub Global Control.",
+        "",
+        "The admin area is the command center for leads, agents, clients, project workspaces, proposals, messaging, support plans, commissions, and activity tracking.",
+        "",
+        "Access should stay controlled and role-aware.",
+      ].join("\n"),
+      [SUGG.ADMIN, SUGG.CLIENT, SUGG.PARTNERS]
+    );
+  }
+
+  if (path.includes("/c/rapid-proof")) {
+    return getProofReply();
+  }
+
+  if (path.includes("/c/business-pwa")) {
+    return getBusinessPwaReply();
+  }
+
+  if (path.includes("/c/operations-pwa")) {
+    return getOperationsPwaReply();
+  }
+
+  if (path.includes("/contact")) {
+    return getContactReply();
   }
 
   return reply(
     [
-      "Document requirements usually depend on the product and whether this is for a quote, claim, or policy support request.",
+      "On this page, you can learn what AdminHub Global is, how the 48-hour proof process works, and how the platform connects agents, leads, client onboarding, project delivery, and recurring support.",
       "",
-      "Common items often include:",
-      "• ID",
-      "• quote or policy details if available",
-      "• completed forms where needed",
-      "• supporting evidence relevant to the request",
+      "Useful next steps:",
+      `• Review the 48-hour proof process: ${PATHS.rapidProof}`,
+      `• Explore partner selling: ${PATHS.partners}`,
+      `• Submit a structured inquiry: ${PATHS.contact}`,
       "",
-      "Tell me the product type — for example motor, home, funeral, life, business, or retirement — and I’ll narrow it down.",
+      "No direct personal contact details are shown publicly. The preferred flow is to capture identity and project context first, then follow up privately.",
     ].join("\n"),
-    [SUGG.DOCS, SUGG.SHORT, SUGG.LONG, SUGG.CLAIMS]
-  );
-}
-
-function getShortTermReply(): BotResponse {
-  return reply(
-    [
-      "Short-Term insurance usually covers things such as:",
-      `• ${joinList(SHORT_TERM_PRODUCTS)}`,
-      "",
-      `You can browse here: ${PATHS.shortTerm}`,
-      "If you want a quote, tell me what product you need and your city or town.",
-    ].join("\n"),
-    [SUGG.GET_QUOTE, SUGG.CLAIMS, SUGG.DOCS, SUGG.WHATSAPP]
-  );
-}
-
-function getLongTermReply(): BotResponse {
-  return reply(
-    [
-      "Long-Term insurance usually focuses on people, families, and income-related protection, including:",
-      `• ${joinList(LONG_TERM_PRODUCTS)}`,
-      "",
-      `You can browse here: ${PATHS.longTerm}`,
-      "If you tell me the product you are considering, I can help guide the next step.",
-    ].join("\n"),
-    [SUGG.GET_QUOTE, SUGG.RETIRE, SUGG.DOCS, SUGG.WHATSAPP]
-  );
-}
-
-function getBusinessReply(): BotResponse {
-  return reply(
-    [
-      "For businesses and SMEs, Sparkle Legacy can guide you on cover such as:",
-      `• ${joinList(BUSINESS_PRODUCTS)}`,
-      "",
-      `Business / SME page: ${PATHS.business}`,
-      "Tell me what kind of business you run and what you need protected, and I’ll guide the next step.",
-    ].join("\n"),
-    [SUGG.SME, SUGG.GET_QUOTE, SUGG.DOCS, SUGG.WHATSAPP]
-  );
-}
-
-function getRetirementReply(): BotResponse {
-  return reply(
-    [
-      "Retirement and long-term planning is about building future security with more clarity.",
-      "",
-      `This area usually includes ${joinList(RETIREMENT_PRODUCTS)}.`,
-      `Browse here: ${PATHS.retirement}`,
-      "",
-      "If you want, tell me whether you are looking for planning support, a savings-focused option, or future income planning.",
-    ].join("\n"),
-    [SUGG.RETIRE, SUGG.GET_QUOTE, SUGG.WHATSAPP, SUGG.CONTACT]
-  );
-}
-
-function getContactReply(): BotResponse {
-  return reply(
-    [
-      `You can reach Sparkle Legacy on WhatsApp at ${CONTACT.whatsappNumber}.`,
-      `You can also visit the contact page here: ${PATHS.contact}`,
-      "",
-      "If you tell me whether this is about a quote, claim, or policy question, I can help you prepare the right message first.",
-    ].join("\n"),
-    [SUGG.WHATSAPP, SUGG.GET_QUOTE, SUGG.CLAIMS, SUGG.CONTACT]
-  );
-}
-
-function getSocialsReply(): BotResponse {
-  return reply(
-    [
-      "Here are Sparkle Legacy’s social links:",
-      `• Instagram: ${SOCIALS.instagram}`,
-      `• TikTok: ${SOCIALS.tiktok}`,
-      `• Facebook: ${SOCIALS.facebook}`,
-    ].join("\n"),
-    [SUGG.GET_QUOTE, SUGG.WHATSAPP, SUGG.CONTACT]
-  );
-}
-
-function getClientLoginReply(): BotResponse {
-  return reply(
-    [
-      "Client access is available here:",
-      `${PATHS.clientLogin}`,
-      "",
-      "If you are trying to log in and need help, the quickest path is to contact the team on WhatsApp so they can guide you directly.",
-    ].join("\n"),
-    [SUGG.LOGIN, SUGG.WHATSAPP, SUGG.CONTACT]
-  );
-}
-
-function getPricingReply(): BotResponse {
-  return reply(
-    [
-      "Premiums and pricing depend on the product, your details, and insurer underwriting.",
-      "",
-      "The fastest way to get a useful answer is to request a quote with:",
-      "• the cover type",
-      "• the product",
-      "• your city or town",
-      "• any relevant notes",
-      "",
-      "Once those details are clear, the team can guide you properly.",
-    ].join("\n"),
-    [SUGG.GET_QUOTE, SUGG.WHATSAPP, SUGG.SHORT, SUGG.LONG]
+    [SUGG.START, SUGG.PROOF, SUGG.PARTNERS, SUGG.CONTACT]
   );
 }
 
@@ -352,50 +170,289 @@ function getGreetingReply(): BotResponse {
   return reply(
     [
       pick([
-        "Hi 👋 You’re chatting with Sparkle Legacy.",
-        "Hello 👋 Sparkle Legacy here.",
-        "Welcome 👋 I’m here to help with quotes, claims, and cover guidance.",
+        "Hi 👋 You’re chatting with the AdminHub Global assistant.",
+        "Hello 👋 I can help you understand AdminHub Global.",
+        "Welcome 👋 I can guide you through the platform, proof process, Partner Portal, Client Hub, and inquiry flow.",
       ]),
       "",
-      "What do you need help with today?",
+      "What would you like help with today?",
     ].join("\n"),
-    [SUGG.GET_QUOTE, SUGG.SHORT, SUGG.LONG, SUGG.CLAIMS, SUGG.WHATSAPP]
+    [SUGG.PROOF, SUGG.PARTNERS, SUGG.CLIENT, SUGG.START]
   );
 }
 
-function getComparisonReply(text: string): BotResponse {
-  if (containsAny(text, [/\b(short[-\s]?term)\b/, /\b(things?)\b/])) {
-    return getShortTermReply();
-  }
-
-  if (containsAny(text, [/\b(long[-\s]?term)\b/, /\b(people|income)\b/])) {
-    return getLongTermReply();
-  }
-
+function getProofReply(): BotResponse {
   return reply(
     [
-      "A simple way to think about it is:",
-      "• Short-Term insurance usually protects things like cars, homes, contents, travel, and gadgets.",
-      "• Long-Term insurance usually protects people, families, and income through products like life, funeral, and disability cover.",
+      "The 48-hour live proof process is one of AdminHub Global’s strongest sales advantages.",
       "",
-      "If you tell me what you want to protect, I’ll point you in the right direction.",
+      "The flow is:",
+      "1. A prospect submits a short intake or company profile.",
+      "2. A live preliminary version is produced quickly on a preview domain.",
+      "3. Initial backend/admin direction can be added where relevant.",
+      "4. The prospect sees a working direction instead of imagining the solution.",
+      "5. If approved, the project moves into implementation, onboarding, launch, and managed support.",
+      "",
+      "This helps agents sell a visible proof stage rather than an abstract development promise.",
     ].join("\n"),
-    [SUGG.SHORT, SUGG.LONG, SUGG.GET_QUOTE]
+    [SUGG.START, SUGG.BUSINESS, SUGG.OPERATIONS, SUGG.PARTNERS]
+  );
+}
+
+function getCustomFrameworkReply(): BotResponse {
+  return reply(
+    [
+      "AdminHub Global is built on a custom reusable PWA framework, not a boxed-in DIY website builder.",
+      "",
+      "That matters because the framework can support more than brochure pages:",
+      `• ${joinList(PLATFORM_MODULES)}`,
+      "",
+      "The goal is not to compete with simple page builders on DIY convenience. The goal is to build business-specific digital infrastructure: dashboards, portals, workflows, files, messaging, PDFs, and managed support systems.",
+    ].join("\n"),
+    [SUGG.PROOF, SUGG.BUSINESS, SUGG.OPERATIONS, SUGG.START]
+  );
+}
+
+function getNinthIterationReply(): BotResponse {
+  return reply(
+    [
+      "AdminHub Global is backed by the 9th iteration of the reusable framework and delivery process.",
+      "",
+      "That means it is not a first attempt or raw template. It has been refined through repeated builds involving public websites, admin dashboards, client portals, messaging, uploads, PDF tools, Firebase workflows, and PWA app-shell patterns.",
+      "",
+      "The advantage is a balance of custom delivery and repeatable process.",
+    ].join("\n"),
+    [SUGG.PROOF, SUGG.BUSINESS, SUGG.START]
+  );
+}
+
+function getPartnerReply(): BotResponse {
+  return reply(
+    [
+      "The Partner Portal is for sales partners and agents.",
+      "",
+      "The agent value proposition is:",
+      "• a stronger-ticket B2B offer than generic websites",
+      "• clear operational pain points to sell against",
+      "• a 48-hour proof process that makes the offer easier to understand",
+      "• founder-led fulfillment",
+      "• potential recurring support revenue after launch",
+      "",
+      "Agents are not selling a vague promise. They can move qualified prospects toward a visible proof stage.",
+    ].join("\n"),
+    [SUGG.START, SUGG.PROOF, SUGG.BUSINESS, SUGG.CONTACT]
+  );
+}
+
+function getClientHubReply(): BotResponse {
+  return reply(
+    [
+      "The Client Hub is the client-facing workspace.",
+      "",
+      "It should help clients:",
+      "• view project progress",
+      "• send onboarding details",
+      "• exchange project messages",
+      "• access files and shared links",
+      "• follow support status",
+      "• stay connected after launch",
+      "",
+      "The existing client route structure should be preserved unless the project explicitly changes it.",
+    ].join("\n"),
+    [SUGG.CLIENT, SUGG.START, SUGG.CONTACT]
+  );
+}
+
+function getAdminControlReply(): BotResponse {
+  return reply(
+    [
+      "AdminHub Global Control is the internal command center.",
+      "",
+      "Phase 1 should focus on:",
+      `• ${joinList(PHASE_ONE_WORKFLOW)}`,
+      "",
+      "The admin dashboard should eventually track agents, leads, opportunities, clients, projects, proposals, messages, files, support plans, commissions, and recent activity.",
+    ].join("\n"),
+    [SUGG.ADMIN, SUGG.PARTNERS, SUGG.CLIENT, SUGG.PROOF]
+  );
+}
+
+function getBusinessPwaReply(): BotResponse {
+  return reply(
+    [
+      "A Business PWA is best for service SMEs that need more structure than a normal website.",
+      "",
+      "It can include:",
+      "• public website",
+      "• admin dashboard",
+      "• client portal",
+      "• messaging and uploads",
+      "• Firebase-backed workflows",
+      "• proposal or PDF support",
+      "• launch and managed support",
+      "",
+      "This is the middle tier between a simple proof launch and a heavier operations platform.",
+    ].join("\n"),
+    [SUGG.START, SUGG.PROOF, SUGG.OPERATIONS, SUGG.CONTACT]
+  );
+}
+
+function getOperationsPwaReply(): BotResponse {
+  return reply(
+    [
+      "An Operations PWA is for workflow-heavy businesses.",
+      "",
+      "It is a good fit when a business needs to manage cases, claims, service requests, onboarding, documents, client communication, files, approvals, support history, or multi-role operations.",
+      "",
+      "This is where AdminHub Global becomes more than a website — it becomes tailored digital infrastructure around the way the business works.",
+    ].join("\n"),
+    [SUGG.START, SUGG.BUSINESS, SUGG.PROOF, SUGG.CONTACT]
+  );
+}
+
+function getPricingReply(): BotResponse {
+  return reply(
+    [
+      "AdminHub Global pricing should be framed in stages, not as a vague one-off website quote.",
+      "",
+      "Recommended export-market structure:",
+      "• Rapid Proof + Launch: USD 2,500–5,000",
+      "• Business PWA: USD 5,000–12,000 plus managed support",
+      "• Operations PWA: USD 12,000–25,000+ plus stronger managed support",
+      "",
+      "The proof stage should be treated as a serious paid validation step, not a free sample. Exact pricing depends on scope, workflow complexity, portal needs, backend depth, and support requirements.",
+    ].join("\n"),
+    [SUGG.START, SUGG.PROOF, SUGG.BUSINESS, SUGG.OPERATIONS]
+  );
+}
+
+function getSupportReply(): BotResponse {
+  return reply(
+    [
+      "Managed support is part of the long-term value of AdminHub Global.",
+      "",
+      "After launch, support can cover:",
+      "• updates and fixes",
+      "• content and system adjustments",
+      "• portal continuity",
+      "• client/project support",
+      "• workflow refinement",
+      "• future feature improvements",
+      "",
+      "This is why the model should not be positioned as a one-off website sale only.",
+    ].join("\n"),
+    [SUGG.START, SUGG.BUSINESS, SUGG.CONTACT]
+  );
+}
+
+function getPwaReply(): BotResponse {
+  return reply(
+    [
+      "AdminHub Global should feel like an installable, mobile-first PWA.",
+      "",
+      "That means:",
+      "• standalone app feel",
+      "• manifest and icons",
+      "• polished loading states",
+      "• responsive dashboards",
+      "• app-like navigation",
+      "• offline-aware behavior where realistic",
+      "",
+      "Important: offline-aware does not mean every cloud feature works offline. Firebase updates, uploads, new messages, and fresh data still need an internet connection.",
+    ].join("\n"),
+    [SUGG.PROOF, SUGG.CLIENT, SUGG.ADMIN]
+  );
+}
+
+function getPdfReply(): BotResponse {
+  return reply(
+    [
+      "PDF and proposal tools are a useful part of AdminHub Global.",
+      "",
+      "They can support:",
+      "• service catalog summaries",
+      "• proof sprint summaries",
+      "• proposal exports",
+      "• scope summaries",
+      "• onboarding summaries",
+      "• project/support reports",
+      "",
+      "The goal is to help turn the platform into a sales and delivery system, not just a public website.",
+    ].join("\n"),
+    [SUGG.START, SUGG.PROOF, SUGG.BUSINESS]
+  );
+}
+
+function getInquiryReply(): BotResponse {
+  return reply(
+    [
+      "The best next step is to submit a structured inquiry.",
+      "",
+      "AdminHub Global should collect identity and project context first, such as:",
+      "• name",
+      "• preferred contact detail",
+      "• business or organisation",
+      "• country or region",
+      "• whether the person is a client, agent, or partner",
+      "• what they need",
+      "",
+      "After that, AdminHub can review the request and follow up privately. Direct personal contact details are not displayed publicly.",
+    ].join("\n"),
+    [SUGG.START, SUGG.CONTACT, SUGG.PROOF]
+  );
+}
+
+function getContactReply(): BotResponse {
+  return reply(
+    [
+      `Use the structured contact/inquiry page here: ${PATHS.contact}`,
+      "",
+      "AdminHub Global does not need to expose direct personal phone or email publicly. The cleaner flow is to capture the person’s identity, business context, location, and request first, then follow up privately.",
+    ].join("\n"),
+    [SUGG.START, SUGG.PROOF, SUGG.PARTNERS]
+  );
+}
+
+function getFitReply(): BotResponse {
+  return reply(
+    [
+      "AdminHub Global is strongest for SMEs that need structured digital operations, not just a basic online presence.",
+      "",
+      "Best-fit sectors include:",
+      `• ${BEST_FIT_SECTORS.join("\n• ")}`,
+      "",
+      "Poor-fit prospects are usually businesses that only want social media presence or are not ready to move beyond basic digital visibility.",
+    ].join("\n"),
+    [SUGG.START, SUGG.BUSINESS, SUGG.OPERATIONS]
+  );
+}
+
+function getComparisonReply(): BotResponse {
+  return reply(
+    [
+      "The simple difference is:",
+      "",
+      "DIY builders help people assemble websites.",
+      "AdminHub builds custom digital infrastructure around how a business actually works.",
+      "",
+      "AdminHub Global is better suited for workflows, portals, dashboards, messaging, uploads, proposals, support processes, and operational systems that need more flexibility than boxed-in page-builder tooling.",
+    ].join("\n"),
+    [SUGG.PROOF, SUGG.BUSINESS, SUGG.OPERATIONS, SUGG.START]
   );
 }
 
 function fallbackReply(): BotResponse {
   return reply(
     pick([
-      "I can help with quotes, claims, product guidance, and policy support. Tell me what you need in a few words and I’ll point you in the right direction.",
-      "Tell me whether this is about a quote, a claim, or understanding cover, and I’ll guide the next step.",
-      `If you prefer, you can go straight to WhatsApp on ${CONTACT.whatsappNumber}, or tell me the product you are asking about.`,
+      "I can help with AdminHub Global, the 48-hour proof process, Partner Portal, Client Hub, admin workflows, proposals, messaging, uploads, recurring support, and custom PWA positioning. Tell me what you want to understand.",
+      "Tell me whether you are asking as a client, agent, partner, or internal admin user, and I’ll guide the next step.",
+      "If you are ready to move forward, the best step is to submit a structured inquiry so AdminHub can review your identity, business context, and request before private follow-up.",
     ]),
-    [SUGG.GET_QUOTE, SUGG.SHORT, SUGG.LONG, SUGG.CLAIMS, SUGG.WHATSAPP]
+    [SUGG.START, SUGG.PROOF, SUGG.PARTNERS, SUGG.CLIENT]
   );
 }
 
-function detectReply(text: string): BotResponse {
+function detectReply(text: string, path = ""): BotResponse {
   if (!text) return getGreetingReply();
 
   if (
@@ -409,104 +466,133 @@ function detectReply(text: string): BotResponse {
 
   if (
     containsAny(text, [
-      /\b(instagram|ig)\b/,
-      /\b(tiktok|tik tok)\b/,
-      /\b(facebook|fb)\b/,
-      /\b(social|socials|links|pages)\b/,
+      /\b(what can i do|this page|page help|where am i|how do i use this)\b/,
     ])
   ) {
-    return getSocialsReply();
+    return getPageHelpReply(path);
   }
 
   if (
     containsAny(text, [
-      /\b(login|log in|sign in|portal|client portal|client login|account)\b/,
+      /\b(48|forty eight|proof|prototype|preview|rapid|sprint|vercel)\b/,
+      /\b(live version|live proof|working version)\b/,
     ])
   ) {
-    return getClientLoginReply();
+    return getProofReply();
   }
 
   if (
     containsAny(text, [
-      /\b(claim|claims|accident|damage|stolen|theft|lost|injury|incident)\b/,
+      /\b(custom|framework|next\.?js|firebase|tailwind|uploadthing)\b/,
+      /\b(boxed|builder|page builder|wix|joomla|wordpress|diy)\b/,
     ])
   ) {
-    return getClaimsReply(text);
+    return getCustomFrameworkReply();
   }
 
   if (
     containsAny(text, [
-      /\b(document|documents|requirements|needed|need|forms?|id|papers?)\b/,
+      /\b(9th|ninth|iteration|battle tested|refined|repeatable)\b/,
     ])
   ) {
-    return getDocumentsReply(text);
+    return getNinthIterationReply();
   }
 
   if (
     containsAny(text, [
-      /\b(quote|quotation|price|premium|cost|how much)\b/,
-      /\b(i want cover|i need insurance|need cover)\b/,
+      /\b(agent|agents|partner|partners|sales partner|commission|commissions|payout)\b/,
     ])
   ) {
-    return getQuoteReply(text);
+    return getPartnerReply();
   }
 
   if (
     containsAny(text, [
-      /\b(short[-\s]?term|motor|car|vehicle|third party|comprehensive|home|house|contents|travel|gadget|phone|laptop|liability)\b/,
+      /\b(client hub|client portal|client dashboard|client login|client access)\b/,
     ])
   ) {
-    return getShortTermReply();
+    return getClientHubReply();
   }
 
   if (
     containsAny(text, [
-      /\b(long[-\s]?term|life|funeral|disability|credit life|dread disease|critical illness|income protection)\b/,
+      /\b(admin|dashboard|control|command center|adminhub global control)\b/,
     ])
   ) {
-    return getLongTermReply();
+    return getAdminControlReply();
   }
 
   if (
     containsAny(text, [
-      /\b(retirement|pension|annuity|wealth|planning)\b/,
+      /\b(business pwa|service business|service sme|sme pwa)\b/,
     ])
   ) {
-    return getRetirementReply();
+    return getBusinessPwaReply();
   }
 
   if (
     containsAny(text, [
-      /\b(business|sme|commercial|company|office|fleet|employee benefits)\b/,
+      /\b(operations pwa|workflow|workflows|case|cases|claims|requests|records|multi-role|operational)\b/,
     ])
   ) {
-    return getBusinessReply();
+    return getOperationsPwaReply();
   }
 
   if (
     containsAny(text, [
-      /\b(whatsapp|chat|talk to someone|speak to someone|agent|advisor)\b/,
-      /\b(contact|call|phone)\b/,
-    ])
-  ) {
-    return getContactReply();
-  }
-
-  if (
-    containsAny(text, [
-      /\b(compare|difference|which one|what is the difference)\b/,
-      /\b(things|people|income)\b/,
-    ])
-  ) {
-    return getComparisonReply(text);
-  }
-
-  if (
-    containsAny(text, [
-      /\b(price|premium|cheap|expensive|cost)\b/,
+      /\b(price|pricing|cost|package|packages|tier|tiers|how much|quote)\b/,
     ])
   ) {
     return getPricingReply();
+  }
+
+  if (
+    containsAny(text, [
+      /\b(monthly|support|retainer|managed support|recurring|maintenance)\b/,
+    ])
+  ) {
+    return getSupportReply();
+  }
+
+  if (
+    containsAny(text, [
+      /\b(pwa|install|installable|offline|app|mobile app|standalone|manifest)\b/,
+    ])
+  ) {
+    return getPwaReply();
+  }
+
+  if (
+    containsAny(text, [
+      /\b(pdf|proposal|catalog|catalogue|scope|export|document|invoice)\b/,
+    ])
+  ) {
+    return getPdfReply();
+  }
+
+  if (
+    containsAny(text, [
+      /\b(contact|inquiry|enquiry|submit|reach|message|talk|speak|follow up)\b/,
+    ])
+  ) {
+    return getInquiryReply();
+  }
+
+  if (
+    containsAny(text, [
+      /\b(best fit|good fit|who is this for|ideal customer|sector|industry|industries)\b/,
+    ])
+  ) {
+    return getFitReply();
+  }
+
+  if (
+    containsAny(text, [
+      /\b(compare|difference|different|better than|vs|versus)\b/,
+      /\b(wix|joomla|wordpress|shopify|squarespace|diy builder)\b/,
+    ])
+  ) {
+    return getComparisonReply();
   }
 
   return fallbackReply();
@@ -514,14 +600,17 @@ function detectReply(text: string): BotResponse {
 
 export async function POST(req: Request) {
   let raw = "";
+  let path = "";
 
   try {
     const body = await req.json();
     raw = String(body?.message ?? "");
+    path = String(body?.path ?? "");
   } catch {
     raw = "";
+    path = "";
   }
 
   const text = normalize(raw);
-  return NextResponse.json(detectReply(text));
+  return NextResponse.json(detectReply(text, normalize(path)));
 }

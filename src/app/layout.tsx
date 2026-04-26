@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Montserrat, Inter } from "next/font/google";
+import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 
 import InstallPrompt from "@/components/InstallPrompt";
@@ -13,52 +13,68 @@ import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-const montserrat = Montserrat({
+const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
-const inter = Inter({
-  variable: "--font-ui",
+const montserrat = Montserrat({
+  variable: "--font-display",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["500", "600", "700", "800"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Sparkle Legacy Insurance Brokers",
-    template: "%s | Sparkle Legacy Insurance Brokers",
+    default: "AdminHub Global",
+    template: "%s | AdminHub Global",
   },
   description:
-    "Sparkle Legacy Insurance Brokers offers clear, modern insurance support in Botswana with quote guidance, claims help, and trusted policy assistance.",
-  applicationName: "Sparkle Legacy Insurance Brokers",
+    "AdminHub Global is a custom PWA operating system for managing agents, leads, client onboarding, project delivery, proposals, messaging, and recurring managed support.",
+  applicationName: "AdminHub Global",
   keywords: [
-    "Sparkle Legacy Insurance Brokers",
-    "Botswana insurance",
-    "insurance brokers Botswana",
-    "insurance quotes Botswana",
-    "claims support Botswana",
-    "short term insurance",
-    "long term insurance",
-    "SME insurance Botswana",
+    "AdminHub Global",
+    "AdminHub",
+    "AdminHub Pty Ltd",
+    "custom PWA framework",
+    "business operations platform",
+    "agent management",
+    "client portal",
+    "admin dashboard",
+    "lead pipeline",
+    "project delivery system",
+    "48-hour live prototype",
+    "managed support platform",
+    "Next.js Firebase PWA",
   ],
   manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "AdminHub Global",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
-    title: "Sparkle Legacy Insurance Brokers",
+    title: "AdminHub Global",
     description:
-      "A modern digital insurance platform for Botswana focused on trust, clarity, quotes, and claims support.",
-    siteName: "Sparkle Legacy Insurance Brokers",
+      "A custom 9th-iteration PWA framework and operating platform for agent-led SME digital delivery, client portals, project workflows, and managed support.",
+    siteName: "AdminHub Global",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AdminHub Global",
+    description:
+      "A custom PWA operating system for agents, leads, clients, projects, proposals, and recurring support.",
   },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#fcfbf7",
+  themeColor: "#060a12",
 };
 
 export default function RootLayout({
@@ -69,8 +85,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="light"
-      className={`${montserrat.variable} ${inter.variable}`}
+      data-theme="dark"
+      className={`${inter.variable} ${montserrat.variable}`}
       suppressHydrationWarning
     >
       <body
@@ -80,8 +96,8 @@ export default function RootLayout({
         <Loader />
 
         <AnalyticsProvider>
-          <div className="flex min-h-screen flex-col">
-            <div className="sticky top-0 z-40 border-b border-[var(--border)] bg-[rgba(255,253,249,0.88)] backdrop-blur-md">
+          <div className="flex min-h-screen flex-col bg-[var(--background)]">
+            <div className="sticky top-0 z-40 border-b border-[var(--border)] bg-[rgba(6,10,18,0.82)] shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl">
               <Header />
             </div>
 

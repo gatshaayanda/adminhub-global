@@ -2,197 +2,186 @@
 
 import Link from "next/link";
 import {
-  Facebook,
+  ArrowRight,
+  Bot,
+  BriefcaseBusiness,
+  ClipboardList,
   FileText,
-  Instagram,
+  Globe2,
+  LayoutDashboard,
+  LockKeyhole,
   MessageCircle,
-  Music,
-  PhoneCall,
+  Network,
   ShieldCheck,
+  Sparkles,
+  Users,
+  Workflow,
 } from "lucide-react";
 
-const WHATSAPP_NUMBER = "+26772971852";
-
-const COMPLIANCE = {
-  nbfiraLicense: "To be confirmed",
-  cipaRegistration: "To be confirmed",
+const COMPANY = {
+  name: "AdminHub (Pty) Ltd",
+  product: "AdminHub Global",
   privacySummaryPath: "/privacy",
 };
 
-function waLink(message: string) {
-  const digits = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
+const QUICK_LINKS = [
+  { label: "Home", href: "/" },
+  { label: "48-Hour Live Proof", href: "/c/rapid-proof" },
+  { label: "Business PWA", href: "/c/business-pwa" },
+  { label: "Operations PWA", href: "/c/operations-pwa" },
+  { label: "Partner Portal", href: "/partners" },
+  { label: "Client Hub", href: "/client/dashboard" },
+  { label: "Insights", href: "/blog" },
+  { label: "Submit Inquiry", href: "/contact" },
+];
 
-function telLink() {
-  return `tel:${WHATSAPP_NUMBER.replace(/[^\d+]/g, "")}`;
-}
+const PLATFORM_MODULES = [
+  {
+    icon: <LayoutDashboard size={16} />,
+    label: "Admin dashboards",
+  },
+  {
+    icon: <Users size={16} />,
+    label: "Agent and lead tracking",
+  },
+  {
+    icon: <BriefcaseBusiness size={16} />,
+    label: "Client project workspaces",
+  },
+  {
+    icon: <MessageCircle size={16} />,
+    label: "Messaging and uploads",
+  },
+  {
+    icon: <FileText size={16} />,
+    label: "Proposal and PDF tools",
+  },
+  {
+    icon: <Bot size={16} />,
+    label: "AI-guided support",
+  },
+];
 
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative mt-16 overflow-hidden border-t border-[var(--border)] bg-[linear-gradient(180deg,#fffdf9_0%,#f8f3e8_100%)] text-[var(--text-primary)]">
-      <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent_0%,rgba(136,115,55,0.45)_18%,rgba(136,115,55,0.75)_50%,rgba(136,115,55,0.45)_82%,transparent_100%)]" />
+    <footer className="relative mt-16 overflow-hidden border-t border-[var(--border)] bg-[linear-gradient(180deg,rgba(6,10,18,0.98)_0%,rgba(11,18,32,0.98)_100%)] text-[var(--text-primary)]">
+      <div className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent_0%,rgba(77,163,255,0.45)_18%,rgba(24,199,184,0.6)_50%,rgba(77,163,255,0.45)_82%,transparent_100%)]" />
+      <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
+      <div className="pointer-events-none absolute -left-24 top-12 h-64 w-64 rounded-full bg-[rgba(77,163,255,0.1)] blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-12 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.08)] blur-3xl" />
 
-      <div className="container py-12 md:py-14">
+      <div className="container relative py-12 md:py-14">
         <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
           <section aria-labelledby="footer-brand" className="space-y-4">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary-strong)]">
-                Sparkle Legacy
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary)]">
+                AdminHub Global
               </p>
               <h2
                 id="footer-brand"
-                className="mt-2 text-2xl font-extrabold tracking-[-0.03em]"
+                className="mt-2 text-2xl font-extrabold tracking-[-0.04em]"
               >
-                Insurance Brokers
+                Custom PWA operating system.
               </h2>
             </div>
 
-            <p className="max-w-[34ch] text-sm leading-7 text-[var(--text-secondary)]">
-              A modern insurance platform built to make quotes, claims, and
-              policy guidance feel clearer, more professional, and easier to
-              access in Botswana.
+            <p className="max-w-[35ch] text-sm leading-7 text-[var(--text-secondary)]">
+              A founder-led platform for managing agents, leads, client
+              onboarding, project delivery, proposals, messaging, uploads, and
+              recurring managed support.
             </p>
 
             <div className="flex flex-wrap gap-2">
-              <span className="badge">Short-Term</span>
-              <span className="badge">Long-Term</span>
-              <span className="badge">Retirement</span>
-              <span className="badge">SME Cover</span>
-              <span className="badge badge-neutral">Claims</span>
+              <span className="badge">
+                <Sparkles size={14} />
+                48-hour proof
+              </span>
+              <span className="badge">
+                <Network size={14} />
+                Custom framework
+              </span>
+              <span className="badge badge-neutral">
+                <ShieldCheck size={14} />
+                9th iteration
+              </span>
             </div>
 
-            <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/70 p-4 text-sm leading-7 text-[var(--text-secondary)]">
+            <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4 text-sm leading-7 text-[var(--text-secondary)] shadow-[var(--shadow-sm)]">
               <p className="inline-flex items-center gap-2 font-extrabold text-[var(--text-primary)]">
-                <ShieldCheck
-                  size={16}
-                  className="text-[var(--brand-primary-strong)]"
-                />
-                Trust disclosure
+                <ShieldCheck size={16} className="text-[var(--brand-primary)]" />
+                Business credibility
               </p>
-              <div className="mt-2 space-y-1 text-xs leading-6">
-                <p>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    NBFIRA License:
-                  </span>{" "}
-                  {COMPLIANCE.nbfiraLicense}
-                </p>
-                <p>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    CIPA Registration:
-                  </span>{" "}
-                  {COMPLIANCE.cipaRegistration}
-                </p>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2 pt-1">
-              <a
-                href="https://www.instagram.com/sparklelegacyinsurancebrokers/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-              >
-                <Instagram size={16} />
-              </a>
-
-              <a
-                href="https://www.tiktok.com/@sparklelegacyinsurancebr"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TikTok"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-              >
-                <Music size={16} />
-              </a>
-
-              <a
-                href="https://www.facebook.com/Sparkle-Legacy-Insurance-Brokers-61557773288268/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-white text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-primary-strong)]"
-              >
-                <Facebook size={16} />
-              </a>
+              <p className="mt-2 text-xs leading-6 text-[var(--text-muted)]">
+                {COMPANY.name} is a formally incorporated Botswana company
+                building {COMPANY.product} as a custom, export-ready PWA
+                delivery and operations platform.
+              </p>
             </div>
           </section>
 
-          <section aria-labelledby="footer-contact" className="space-y-4">
+          <section aria-labelledby="footer-inquiry" className="space-y-4">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary-strong)]">
-                Support
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary)]">
+                Inquiry flow
               </p>
-              <h3 id="footer-contact" className="mt-2 text-lg font-extrabold">
-                Need help quickly?
+              <h3 id="footer-inquiry" className="mt-2 text-lg font-extrabold">
+                Start with structured details.
               </h3>
             </div>
 
             <div className="frame-gold p-4">
               <div className="space-y-3 text-sm text-[var(--text-secondary)]">
-                <a
-                  href={waLink(
-                    "Hi Sparkle Legacy 👋 I need help with a quote / policy / claim."
-                  )}
-                  className="flex items-start gap-3 rounded-2xl transition hover:text-[var(--text-primary)]"
-                >
-                  <span className="mt-0.5 text-[var(--brand-primary-strong)]">
-                    <MessageCircle size={18} />
+                <div className="flex items-start gap-3 rounded-2xl">
+                  <span className="mt-0.5 text-[var(--brand-primary)]">
+                    <ClipboardList size={18} />
                   </span>
                   <span>
                     <span className="block font-bold text-[var(--text-primary)]">
-                      Chat on WhatsApp
+                      Submit project context first
                     </span>
-                    <span className="block">{WHATSAPP_NUMBER}</span>
+                    <span className="block">
+                      Share your identity, business, region, role, and what you
+                      need before any private follow-up happens.
+                    </span>
                   </span>
-                </a>
+                </div>
 
-                <a
-                  href={telLink()}
-                  className="flex items-start gap-3 rounded-2xl transition hover:text-[var(--text-primary)]"
-                >
-                  <span className="mt-0.5 text-[var(--brand-primary-strong)]">
-                    <PhoneCall size={18} />
+                <div className="flex items-start gap-3 rounded-2xl">
+                  <span className="mt-0.5 text-[var(--brand-primary)]">
+                    <LockKeyhole size={18} />
                   </span>
                   <span>
                     <span className="block font-bold text-[var(--text-primary)]">
-                      Call support
+                      No public direct contact details
                     </span>
-                    <span className="block">Tap to call directly</span>
+                    <span className="block">
+                      AdminHub Global uses a controlled inquiry flow instead of
+                      exposing personal phone or email details publicly.
+                    </span>
                   </span>
-                </a>
+                </div>
               </div>
 
               <div className="mt-4 space-y-2">
-                <a
-                  href={waLink(
-                    "Hi Sparkle Legacy 👋 I’d like a quote:\n\nCover type:\nProduct:\nCity/Town:\nNotes:"
-                  )}
-                  className="btn btn-primary w-full"
-                >
-                  <MessageCircle size={18} />
-                  Get a Quote via WhatsApp
-                </a>
+                <Link href="/contact" className="btn btn-primary w-full">
+                  <FileText size={18} />
+                  Submit Inquiry
+                </Link>
 
-                <a
-                  href={waLink(
-                    "Hi Sparkle Legacy 👋 Please call me.\n\nName:\nBest time:\nTopic (quote/policy/claim):"
-                  )}
-                  className="btn btn-outline w-full"
-                >
-                  <PhoneCall size={18} />
-                  Request a Callback
-                </a>
+                <Link href="/partners" className="btn btn-outline w-full">
+                  <Users size={18} />
+                  Partner Access Request
+                </Link>
               </div>
             </div>
           </section>
 
           <nav aria-labelledby="footer-links" className="space-y-4">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary-strong)]">
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary)]">
                 Navigation
               </p>
               <h3 id="footer-links" className="mt-2 text-lg font-extrabold">
@@ -201,72 +190,24 @@ export default function Footer() {
             </div>
 
             <ul className="space-y-3 text-sm text-[var(--text-secondary)]">
-              <li>
-                <Link href="/" className="transition hover:text-[var(--text-primary)]">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/c/short-term"
-                  className="transition hover:text-[var(--text-primary)]"
-                >
-                  Short-Term Insurance
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/c/long-term"
-                  className="transition hover:text-[var(--text-primary)]"
-                >
-                  Long-Term Insurance
-                </Link>
-              </li>
+              {QUICK_LINKS.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="inline-flex items-center gap-2 transition hover:text-[var(--brand-primary)]"
+                  >
+                    <ArrowRight size={14} />
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+
               <li>
                 <Link
-                  href="/c/business"
-                  className="transition hover:text-[var(--text-primary)]"
+                  href={COMPANY.privacySummaryPath}
+                  className="inline-flex items-center gap-2 transition hover:text-[var(--brand-primary)]"
                 >
-                  Business / SME Cover
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/c/retirement"
-                  className="transition hover:text-[var(--text-primary)]"
-                >
-                  Retirement
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/claims"
-                  className="transition hover:text-[var(--text-primary)]"
-                >
-                  Claims
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/blog"
-                  className="transition hover:text-[var(--text-primary)]"
-                >
-                  Insights
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="transition hover:text-[var(--text-primary)]"
-                >
-                  Contact
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href={COMPLIANCE.privacySummaryPath}
-                  className="transition hover:text-[var(--text-primary)]"
-                >
+                  <ArrowRight size={14} />
                   Privacy Summary
                 </Link>
               </li>
@@ -275,84 +216,69 @@ export default function Footer() {
 
           <section aria-labelledby="footer-info" className="space-y-4">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary-strong)]">
-                Guidance
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary)]">
+                Platform scope
               </p>
               <h3 id="footer-info" className="mt-2 text-lg font-extrabold">
-                How the process works
+                Built beyond brochure sites.
               </h3>
             </div>
 
             <p className="text-sm leading-7 text-[var(--text-secondary)]">
-              Browse cover categories, ask for a quote, and share the details we
-              need to help you properly. We then guide you through the next
-              steps with clearer communication and faster follow-up.
+              AdminHub Global is not a boxed-in DIY website builder. It is a
+              custom reusable PWA framework for workflows, portals, dashboards,
+              files, proposals, messaging, client delivery, and managed support.
             </p>
 
-            <div className="card-outline-gold">
-              <div className="card-inner">
-                <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
-                  <ShieldCheck
-                    size={16}
-                    className="text-[var(--brand-primary-strong)]"
-                  />
-                  Helpful tip
-                </p>
-
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                  For quicker quotes or claim assistance, send clear details and
-                  any supporting documents you already have. Unsure what is
-                  needed? Ask first and we will guide you.
-                </p>
-
-                <div className="mt-4">
-                  <a
-                    href={waLink(
-                      "Hi Sparkle Legacy 👋 What documents do you need for my quote/claim?"
-                    )}
-                    className="btn btn-outline w-full"
-                  >
-                    <FileText size={18} />
-                    Ask for Requirements
-                  </a>
+            <div className="grid gap-2">
+              {PLATFORM_MODULES.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[rgba(15,23,42,0.62)] px-3 py-2 text-sm text-[var(--text-secondary)]"
+                >
+                  <span className="text-[var(--brand-primary)]">{item.icon}</span>
+                  <span>{item.label}</span>
                 </div>
-              </div>
+              ))}
             </div>
 
-            <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/70 p-4">
-              <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                Data protection notice
+            <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+              <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                <Workflow size={16} className="text-[var(--brand-primary)]" />
+                Phase 1 workflow
               </p>
+
               <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                Information shared with Sparkle Legacy may be used to respond to
-                inquiries, prepare quotes, assist with policy servicing, and
-                support claims.
+                Lead → qualify → 48-hour proof → convert → onboard → build →
+                launch → monthly support.
               </p>
-              <Link
-                href={COMPLIANCE.privacySummaryPath}
-                className="mt-3 inline-flex text-sm font-bold text-[var(--brand-primary-strong)] transition hover:opacity-80"
-              >
-                Read Privacy Summary
-              </Link>
+
+              <div className="mt-4">
+                <Link href="/c/rapid-proof" className="btn btn-outline w-full">
+                  <Globe2 size={18} />
+                  View Proof Process
+                </Link>
+              </div>
             </div>
           </section>
         </div>
       </div>
 
-      <div className="border-t border-[var(--border)] bg-white/70">
+      <div className="relative border-t border-[var(--border)] bg-[rgba(6,10,18,0.92)]">
         <div className="container flex flex-col gap-3 py-4 text-xs text-[var(--text-muted)] lg:flex-row lg:items-center lg:justify-between">
           <div>
-            &copy; {year} Sparkle Legacy Insurance Brokers. All rights reserved.
+            &copy; {year} {COMPANY.name}. {COMPANY.product}. All rights
+            reserved.
           </div>
 
           <div className="flex flex-col gap-1 lg:text-right">
             <div>
-              NBFIRA License: {COMPLIANCE.nbfiraLicense} • CIPA Registration:{" "}
-              {COMPLIANCE.cipaRegistration}
+              Custom 9th-iteration PWA framework for agents, clients, projects,
+              and managed support.
             </div>
             <div>
-              Cover terms, premiums, benefits, and acceptance remain subject to
-              insurer underwriting and policy conditions.
+              Direct private contact details are intentionally not displayed
+              publicly. Please use the structured inquiry flow.
             </div>
           </div>
         </div>

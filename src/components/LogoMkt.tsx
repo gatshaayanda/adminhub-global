@@ -7,37 +7,41 @@ type Props = React.SVGProps<SVGSVGElement>;
 
 export default function LogoMkt(props: Props) {
   const id = useId().replace(/:/g, "");
-  const gradId = `sparkle-grad-${id}`;
-  const glowId = `sparkle-glow-${id}`;
-  const shineId = `sparkle-shine-${id}`;
-  const shineMaskId = `sparkle-shine-mask-${id}`;
+  const blueGradId = `adminhub-blue-grad-${id}`;
+  const tealGradId = `adminhub-teal-grad-${id}`;
+  const glowId = `adminhub-glow-${id}`;
+  const shineId = `adminhub-shine-${id}`;
+  const shineMaskId = `adminhub-shine-mask-${id}`;
 
   return (
     <svg
       viewBox="0 0 360 64"
       role="img"
-      aria-label="Sparkle Legacy Insurance Brokers Logo"
+      aria-label="AdminHub Global Logo"
       xmlns="http://www.w3.org/2000/svg"
       {...props}
       className={`logo-fade ${props.className || ""}`}
     >
       <defs>
-        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#a4976a" />
-          <stop offset="45%" stopColor="#887337" />
-          <stop offset="100%" stopColor="#6f5d2b" />
+        <linearGradient id={blueGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#4da3ff" />
+          <stop offset="100%" stopColor="#2f7dff" />
         </linearGradient>
 
-        <radialGradient id={glowId} cx="50%" cy="38%" r="72%">
-          <stop offset="0%" stopColor="rgba(255,253,248,0.96)" />
-          <stop offset="35%" stopColor="rgba(234,227,207,0.78)" />
-          <stop offset="70%" stopColor="rgba(205,191,149,0.26)" />
+        <linearGradient id={tealGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#69e3d7" />
+          <stop offset="100%" stopColor="#18c7b8" />
+        </linearGradient>
+
+        <radialGradient id={glowId} cx="50%" cy="50%" r="72%">
+          <stop offset="0%" stopColor="rgba(77,163,255,0.42)" />
+          <stop offset="44%" stopColor="rgba(47,125,255,0.18)" />
           <stop offset="100%" stopColor="rgba(0,0,0,0)" />
         </radialGradient>
 
         <linearGradient id={shineId} x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="rgba(255,255,255,0)" />
-          <stop offset="50%" stopColor="rgba(255,255,255,0.9)">
+          <stop offset="50%" stopColor="rgba(255,255,255,0.78)">
             <animate
               attributeName="offset"
               values="-1; 2"
@@ -54,33 +58,88 @@ export default function LogoMkt(props: Props) {
       </defs>
 
       <g transform="translate(36,32)" className="float drop-glow">
-        <path
-          d="M0 -18c8.6 0 15.6 7 15.6 15.7 0 11.4-13 23.4-15.6 25.8-2.6-2.4-15.6-14.4-15.6-25.8C-15.6 -11-8.6 -18 0 -18Z"
-          fill={`url(#${gradId})`}
-          stroke="rgba(255,253,248,0.95)"
-          strokeWidth="1.5"
+        <circle cx="0" cy="0" r="28" fill={`url(#${glowId})`} opacity="0.9" />
+
+        <circle
+          cx="0"
+          cy="0"
+          r="22"
+          fill="rgba(11,18,32,0.94)"
+          stroke={`url(#${blueGradId})`}
+          strokeWidth="2.6"
+        />
+
+        <circle
+          cx="0"
+          cy="0"
+          r="10"
+          fill="rgba(16,24,39,0.96)"
+          stroke={`url(#${tealGradId})`}
+          strokeWidth="2.2"
         />
 
         <path
-          d="M0 -25c12.1 0 22 9.9 22 22.1 0 16.1-18.4 32.9-22 36.1-3.6-3.2-22-20-22-36.1C-22 -15.1 -12.1 -25 0 -25Z"
-          fill={`url(#${glowId})`}
-          opacity="0.75"
+          d="M0 -22V-30"
+          stroke={`url(#${blueGradId})`}
+          strokeWidth="3.4"
+          strokeLinecap="round"
+        />
+        <path
+          d="M0 30V22"
+          stroke={`url(#${blueGradId})`}
+          strokeWidth="3.4"
+          strokeLinecap="round"
+        />
+        <path
+          d="M-22 0H-30"
+          stroke={`url(#${blueGradId})`}
+          strokeWidth="3.4"
+          strokeLinecap="round"
+        />
+        <path
+          d="M30 0H22"
+          stroke={`url(#${blueGradId})`}
+          strokeWidth="3.4"
+          strokeLinecap="round"
         />
 
-        <path
-          d="M0 -18c8.6 0 15.6 7 15.6 15.7 0 11.4-13 23.4-15.6 25.8-2.6-2.4-15.6-14.4-15.6-25.8C-15.6 -11-8.6 -18 0 -18Z"
-          fill={`url(#${shineId})`}
-          mask={`url(#${shineMaskId})`}
-          opacity="0.26"
-        />
+        <circle cx="0" cy="-31" r="3.6" fill="#69e3d7" />
+        <circle cx="0" cy="31" r="3.6" fill="#69e3d7" />
+        <circle cx="-31" cy="0" r="3.6" fill="#4da3ff" />
+        <circle cx="31" cy="0" r="3.6" fill="#4da3ff" />
 
         <path
-          d="M-7.8 2.2l3.5 3.6L8.2 -7.2"
+          d="M-13.5 13.5L-5 -13H1.5L10 13.5"
           fill="none"
-          stroke="rgba(23,20,17,0.82)"
-          strokeWidth="3"
+          stroke="var(--text-primary)"
+          strokeWidth="3.8"
           strokeLinecap="round"
           strokeLinejoin="round"
+        />
+
+        <path
+          d="M-9 5H6"
+          fill="none"
+          stroke="var(--text-primary)"
+          strokeWidth="3.8"
+          strokeLinecap="round"
+        />
+
+        <path
+          d="M15 -13V13.5"
+          fill="none"
+          stroke="var(--text-primary)"
+          strokeWidth="3.8"
+          strokeLinecap="round"
+        />
+
+        <circle
+          cx="0"
+          cy="0"
+          r="22"
+          fill={`url(#${shineId})`}
+          mask={`url(#${shineMaskId})`}
+          opacity="0.16"
         />
       </g>
 
@@ -91,23 +150,23 @@ export default function LogoMkt(props: Props) {
         fontFamily="var(--font-sans)"
         fontWeight="900"
         fontSize="22"
-        letterSpacing="0.2"
+        letterSpacing="-0.4"
         className="tracking-text"
       >
-        Sparkle Legacy
+        AdminHub Global
       </text>
 
       <text
         x="74"
         y="52"
-        fill="var(--brand-primary-strong)"
+        fill="var(--brand-primary)"
         fontFamily="var(--font-sans)"
         fontWeight="800"
         fontSize="10.5"
-        letterSpacing="1.9"
+        letterSpacing="1.75"
         className="subtle"
       >
-        INSURANCE BROKERS • BOTSWANA
+        CUSTOM PWA OS • 9TH ITERATION
       </text>
 
       <style jsx>{`
@@ -127,25 +186,25 @@ export default function LogoMkt(props: Props) {
         }
 
         .drop-glow {
-          filter: drop-shadow(0 6px 12px rgba(111, 93, 43, 0.12))
-            drop-shadow(0 10px 20px rgba(136, 115, 55, 0.08));
+          filter: drop-shadow(0 8px 18px rgba(77, 163, 255, 0.18))
+            drop-shadow(0 14px 26px rgba(24, 199, 184, 0.08));
           transition: filter 0.6s ease;
         }
 
         .drop-glow:hover {
-          filter: drop-shadow(0 8px 16px rgba(111, 93, 43, 0.16))
-            drop-shadow(0 12px 24px rgba(136, 115, 55, 0.1));
+          filter: drop-shadow(0 10px 22px rgba(77, 163, 255, 0.26))
+            drop-shadow(0 18px 34px rgba(24, 199, 184, 0.12));
         }
 
         @keyframes textReveal {
           0% {
             opacity: 0;
-            letter-spacing: 0.08em;
+            letter-spacing: 0.05em;
             transform: translateY(5px);
           }
           100% {
             opacity: 1;
-            letter-spacing: 0.01em;
+            letter-spacing: -0.02em;
             transform: translateY(0);
           }
         }

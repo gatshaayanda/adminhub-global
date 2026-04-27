@@ -13,103 +13,171 @@ import {
 import {
   ArrowLeft,
   BadgeCheck,
+  BriefcaseBusiness,
+  ClipboardList,
+  Eye,
   FileText,
   FolderKanban,
+  Globe2,
+  LayoutDashboard,
   Mail,
   MapPin,
   MessageSquareMore,
   Pencil,
-  Phone,
   Plus,
   ShieldCheck,
   UserRound,
-  Eye,
+  Workflow,
 } from "lucide-react";
 
 import { firestore } from "@/utils/firebaseConfig";
 import AdminHubLoader from "@/components/AdminHubLoader";
 
-interface ClientCase {
+interface AdminHubProject {
   id: string;
   displayName: string;
   clientEmail?: string;
   clientPhone?: string;
-  cityTown?: string;
-  coverType?: string;
-  requestType?: string;
-  productInterest?: string;
+  countryRegion?: string;
+  projectType?: string;
+  packageSelected?: string;
+  stage?: string;
   status?: string;
+  supportStatus?: string;
+  agentName?: string;
+  agentEmail?: string;
   progressUpdate?: string;
+  nextFollowUp?: string;
   hasClientMessages: boolean;
 }
 
-const ADMIN_SENDER = "Sparkle Legacy Team";
+const ADMIN_SENDER_NAMES = [
+  "AdminHub Global Team",
+  "AdminHub Team",
+  "The AdminHub Team",
+  "Admin",
+];
 
 function niceLabel(value?: string) {
   if (!value) return "—";
+
   return value
     .replace(/-/g, " ")
-    .replace(/\b\w/g, (m) => m.toUpperCase());
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function cleanString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function pickFirst(...values: unknown[]) {
+  for (const value of values) {
+    const clean = cleanString(value);
+    if (clean) return clean;
+  }
+
+  return "";
+}
+
+function isAdminSender(sender: unknown) {
+  const clean = cleanString(sender).toLowerCase();
+
+  if (!clean) return false;
+
+  return ADMIN_SENDER_NAMES.some(
+    (name) => clean === name.toLowerCase() || clean.includes(name.toLowerCase())
+  );
 }
 
 export default function ProjectListPage() {
   const [loading, setLoading] = useState(true);
-  const [cases, setCases] = useState<ClientCase[]>([]);
+  const [projects, setProjects] = useState<AdminHubProject[]>([]);
 
   useEffect(() => {
-    const fetchCasesAndMessages = async () => {
+    const fetchProjectsAndMessages = async () => {
       try {
         const snap = await getDocs(
-          query(collection(firestore, "projects"), where("admin_id", "==", "admin"))
+          query(
+            collection(firestore, "projects"),
+            where("admin_id", "==", "admin")
+          )
         );
 
-        const rows: ClientCase[] = await Promise.all(
+        const rows: AdminHubProject[] = await Promise.all(
           snap.docs.map(async (docSnap) => {
             const data = docSnap.data() as Record<string, unknown>;
-            const caseId = docSnap.id;
+            const projectId = docSnap.id;
 
             const displayName =
-              (typeof data.client_name === "string" && data.client_name.trim()) ||
-              (typeof data.business_name === "string" && data.business_name.trim()) ||
-              (typeof data.business === "string" && data.business.trim()) ||
-              (typeof data.client_email === "string" && data.client_email.trim()) ||
-              "Unnamed Client Case";
+              pickFirst(
+                data.project_name,
+                data.client_name,
+                data.business_name,
+                data.business,
+                data.company_name,
+                data.client_email
+              ) || "Unnamed AdminHub Project";
 
-            const clientEmail =
-              typeof data.client_email === "string" ? data.client_email : "";
+            const clientEmail = pickFirst(data.client_email, data.email);
+            const clientPhone = pickFirst(data.client_phone, data.phone);
 
-            const clientPhone =
-              typeof data.client_phone === "string" ? data.client_phone : "";
+            const countryRegion = pickFirst(
+              data.country_region,
+              data.country,
+              data.region,
+              data.city_town,
+              data.city
+            );
 
-            const cityTown =
-              typeof data.city_town === "string"
-                ? data.city_town
-                : typeof data.city === "string"
-                ? data.city
-                : "";
+            const projectType = pickFirst(
+              data.project_type,
+              data.request_type,
+              data.solution_type,
+              data.service_type
+            );
 
-            const coverType =
-              typeof data.cover_type === "string" ? data.cover_type : "";
+            const packageSelected = pickFirst(
+              data.package_selected,
+              data.package,
+              data.quote_package,
+              data.product_interest
+            );
 
-            const requestType =
-              typeof data.request_type === "string" ? data.request_type : "";
+            const stage = pickFirst(
+              data.pipeline_stage,
+              data.stage,
+              data.lead_stage,
+              data.workflow_stage
+            );
 
-            const productInterest =
-              typeof data.product_interest === "string"
-                ? data.product_interest
-                : "";
+            const status = pickFirst(data.status, data.project_status);
 
-            const status =
-              typeof data.status === "string" ? data.status : "";
+            const supportStatus = pickFirst(
+              data.support_status,
+              data.retainer_status,
+              data.monthly_support_status,
+              data.renewal_status
+            );
 
-            const progressUpdate =
-              typeof data.progress_update === "string"
-                ? data.progress_update
-                : "";
+            const agentName = pickFirst(data.agent_name, data.partner_name);
+            const agentEmail = pickFirst(data.agent_email, data.partner_email);
+
+            const progressUpdate = pickFirst(
+              data.progress_update,
+              data.latest_update,
+              data.admin_summary
+            );
+
+            const nextFollowUp = pickFirst(
+              data.next_follow_up,
+              data.follow_up_date,
+              data.next_action
+            );
 
             const messagesSnap = await getDocs(
               query(
-                collection(firestore, "projects", caseId, "messages"),
+                collection(firestore, "projects", projectId, "messages"),
                 orderBy("timestamp", "desc"),
                 limit(10)
               )
@@ -117,20 +185,24 @@ export default function ProjectListPage() {
 
             const hasClientMessages = messagesSnap.docs.some((msg) => {
               const sender = msg.data().sender;
-              return typeof sender === "string" && sender !== ADMIN_SENDER;
+              return typeof sender === "string" && !isAdminSender(sender);
             });
 
             return {
-              id: caseId,
+              id: projectId,
               displayName,
               clientEmail,
               clientPhone,
-              cityTown,
-              coverType,
-              requestType,
-              productInterest,
+              countryRegion,
+              projectType,
+              packageSelected,
+              stage,
               status,
+              supportStatus,
+              agentName,
+              agentEmail,
               progressUpdate,
+              nextFollowUp,
               hasClientMessages,
             };
           })
@@ -140,88 +212,136 @@ export default function ProjectListPage() {
           if (a.hasClientMessages !== b.hasClientMessages) {
             return a.hasClientMessages ? -1 : 1;
           }
+
+          const aStage = a.stage || a.status || "";
+          const bStage = b.stage || b.status || "";
+
+          if (aStage !== bStage) {
+            return aStage.localeCompare(bStage);
+          }
+
           return a.displayName.localeCompare(b.displayName);
         });
 
-        setCases(rows);
+        setProjects(rows);
       } catch (err) {
-        console.error("Failed to load client cases", err);
-        setCases([]);
+        console.error("Failed to load AdminHub Global projects", err);
+        setProjects([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCasesAndMessages();
+    fetchProjectsAndMessages();
   }, []);
 
   const stats = useMemo(() => {
-    const needsReply = cases.filter((item) => item.hasClientMessages).length;
-    const quoteCases = cases.filter((item) => item.requestType === "quote").length;
-    const claimCases = cases.filter((item) => item.requestType === "claim").length;
+    const needsReply = projects.filter((item) => item.hasClientMessages).length;
+
+    const liveProof = projects.filter((item) => {
+      const joined = `${item.stage} ${item.status} ${item.projectType}`.toLowerCase();
+      return (
+        joined.includes("proof") ||
+        joined.includes("prototype") ||
+        joined.includes("preview")
+      );
+    }).length;
+
+    const buildStage = projects.filter((item) => {
+      const joined = `${item.stage} ${item.status}`.toLowerCase();
+      return (
+        joined.includes("build") ||
+        joined.includes("implementation") ||
+        joined.includes("onboard") ||
+        joined.includes("launch")
+      );
+    }).length;
+
+    const managedSupport = projects.filter((item) => {
+      const joined = `${item.supportStatus} ${item.status}`.toLowerCase();
+      return (
+        joined.includes("support") ||
+        joined.includes("retainer") ||
+        joined.includes("monthly") ||
+        joined.includes("active")
+      );
+    }).length;
 
     return {
-      total: cases.length,
+      total: projects.length,
       needsReply,
-      quoteCases,
-      claimCases,
+      liveProof,
+      buildStage,
+      managedSupport,
     };
-  }, [cases]);
+  }, [projects]);
 
   if (loading) return <AdminHubLoader />;
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+    <main
+      id="main"
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+    >
+      <section className="section-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           <div className="mx-auto max-w-6xl">
             <div className="mb-5">
               <Link
                 href="/admin/dashboard"
                 prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
               >
                 <ArrowLeft size={16} />
-                Back to Dashboard
+                Back to AdminHub Global Control
               </Link>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-                  <div className="eyebrow">
-                    <FolderKanban size={15} />
-                    Sparkle Legacy • Client Cases
-                  </div>
+                <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+                  <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
 
-                  <h1 className="max-w-[13ch]">
-                    Manage insurance cases, inquiries, and follow-up.
-                  </h1>
+                  <div className="relative">
+                    <div className="eyebrow">
+                      <FolderKanban size={15} />
+                      AdminHub Global • Project Workspace
+                    </div>
 
-                  <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    This page is the working list for Sparkle Legacy client
-                    servicing. Use it to track quote requests, claims support,
-                    policy servicing matters, renewals, and client replies.
-                  </p>
+                    <h1 className="max-w-[14ch]">
+                      Manage client builds, proof sprints, and support records.
+                    </h1>
 
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    <Link
-                      href="/admin/project/create-project"
-                      prefetch={false}
-                      className="btn btn-primary"
-                    >
-                      <Plus size={18} />
-                      New Client Case
-                    </Link>
+                    <p className="mt-4 max-w-[64ch] text-base leading-8 text-[var(--text-secondary)]">
+                      This is the working list for AdminHub Global delivery.
+                      Track prospects that became projects, 48-hour proof
+                      sprints, onboarding, implementation, client portal access,
+                      messaging, files, and recurring managed support.
+                    </p>
 
-                    <Link
-                      href="/admin/dashboard/clients"
-                      prefetch={false}
-                      className="btn btn-outline"
-                    >
-                      <MessageSquareMore size={18} />
-                      Open Client Conversations
-                    </Link>
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                      <Link
+                        href="/admin/project/create-project"
+                        prefetch={false}
+                        className="btn btn-primary"
+                      >
+                        <Plus size={18} />
+                        New Project Record
+                      </Link>
+
+                      <Link
+                        href="/admin/dashboard/clients"
+                        prefetch={false}
+                        className="btn btn-outline"
+                      >
+                        <MessageSquareMore size={18} />
+                        Open Client Conversations
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -230,25 +350,39 @@ export default function ProjectListPage() {
                 <div className="card-inner md:p-8">
                   <div className="eyebrow mb-0">
                     <ShieldCheck size={15} />
-                    Case overview
+                    Delivery overview
                   </div>
 
-                  <h2 className="mt-2 text-2xl">Current status</h2>
+                  <h2 className="mt-2 text-2xl">Current workspace status</h2>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <StatCard label="Total Cases" value={String(stats.total)} />
-                    <StatCard label="Needs Reply" value={String(stats.needsReply)} />
-                    <StatCard label="Quote Cases" value={String(stats.quoteCases)} />
-                    <StatCard label="Claim Cases" value={String(stats.claimCases)} />
+                    <StatCard label="Total Projects" value={String(stats.total)} />
+                    <StatCard
+                      label="Needs Reply"
+                      value={String(stats.needsReply)}
+                    />
+                    <StatCard
+                      label="Live Proof"
+                      value={String(stats.liveProof)}
+                    />
+                    <StatCard
+                      label="Build Stage"
+                      value={String(stats.buildStage)}
+                    />
+                    <StatCard
+                      label="Managed Support"
+                      value={String(stats.managedSupport)}
+                    />
                   </div>
 
-                  <div className="mt-5 rounded-[1.25rem] border border-[var(--border)] bg-[var(--surface)] p-4">
+                  <div className="mt-5 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                     <p className="text-sm font-extrabold text-[var(--text-primary)]">
                       Message rule
                     </p>
                     <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                      A case is marked as having new client messages when a
-                      recent sender is not <b>{ADMIN_SENDER}</b>.
+                      A project is marked as needing attention when a recent
+                      conversation sender is not one of the AdminHub Global admin
+                      sender names.
                     </p>
                   </div>
                 </div>
@@ -259,17 +393,18 @@ export default function ProjectListPage() {
               <div className="mb-4">
                 <div className="eyebrow">
                   <UserRound size={15} />
-                  Client case list
+                  Client project list
                 </div>
-                <h2 className="mt-2 text-2xl">Active servicing records</h2>
+                <h2 className="mt-2 text-2xl">Active delivery records</h2>
               </div>
 
-              {cases.length === 0 ? (
+              {projects.length === 0 ? (
                 <div className="frame-gold p-8 text-center">
-                  <h3 className="text-2xl">No client cases yet</h3>
-                  <p className="mx-auto mt-3 max-w-[52ch] text-sm leading-7 text-[var(--text-secondary)]">
-                    Create your first client case to begin tracking quotes,
-                    claims, servicing work, and ongoing client support.
+                  <h3 className="text-2xl">No project records yet</h3>
+                  <p className="mx-auto mt-3 max-w-[58ch] text-sm leading-7 text-[var(--text-secondary)]">
+                    Create your first AdminHub Global project record to begin
+                    tracking a lead after conversion, proof sprint, onboarding,
+                    implementation, client workspace, and managed support.
                   </p>
 
                   <div className="mt-5 flex justify-center">
@@ -279,13 +414,13 @@ export default function ProjectListPage() {
                       className="btn btn-primary"
                     >
                       <Plus size={18} />
-                      Create Client Case
+                      Create Project Record
                     </Link>
                   </div>
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  {cases.map((item) => (
+                  {projects.map((item) => (
                     <article key={item.id} className="card-outline-gold">
                       <div className="card-inner md:p-6">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -294,19 +429,25 @@ export default function ProjectListPage() {
                               <h3 className="text-xl">{item.displayName}</h3>
 
                               {item.hasClientMessages ? (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-green-400/30 bg-green-400/10 px-2.5 py-1 text-xs font-bold text-green-200">
                                   <BadgeCheck size={14} />
-                                  New Messages
+                                  New Client Message
                                 </span>
                               ) : (
-                                <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)]">
+                                <span className="rounded-full border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)]">
                                   No New Messages
                                 </span>
                               )}
 
                               {item.status ? (
-                                <span className="rounded-full border border-[var(--border)] bg-white px-2.5 py-1 text-xs font-bold text-[var(--text-secondary)]">
+                                <span className="rounded-full border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-2.5 py-1 text-xs font-bold text-[var(--text-secondary)]">
                                   {niceLabel(item.status)}
+                                </span>
+                              ) : null}
+
+                              {item.stage ? (
+                                <span className="rounded-full border border-[rgba(77,163,255,0.28)] bg-[rgba(77,163,255,0.1)] px-2.5 py-1 text-xs font-bold text-[var(--brand-primary)]">
+                                  {niceLabel(item.stage)}
                                 </span>
                               ) : null}
                             </div>
@@ -319,48 +460,58 @@ export default function ProjectListPage() {
                                 </span>
                               ) : null}
 
-                              {item.clientPhone ? (
+                              {item.countryRegion ? (
                                 <span className="inline-flex items-center gap-2">
-                                  <Phone size={14} />
-                                  {item.clientPhone}
+                                  <MapPin size={14} />
+                                  {item.countryRegion}
                                 </span>
                               ) : null}
 
-                              {item.cityTown ? (
+                              {item.agentName || item.agentEmail ? (
                                 <span className="inline-flex items-center gap-2">
-                                  <MapPin size={14} />
-                                  {item.cityTown}
+                                  <BriefcaseBusiness size={14} />
+                                  {item.agentName || item.agentEmail}
                                 </span>
                               ) : null}
                             </div>
 
                             <div className="mt-4 flex flex-wrap gap-2">
-                              {item.requestType ? (
+                              {item.projectType ? (
                                 <span className="badge">
-                                  {niceLabel(item.requestType)}
+                                  <Globe2 size={14} />
+                                  {niceLabel(item.projectType)}
                                 </span>
                               ) : null}
 
-                              {item.coverType ? (
+                              {item.packageSelected ? (
                                 <span className="badge">
-                                  {niceLabel(item.coverType)}
+                                  <LayoutDashboard size={14} />
+                                  {niceLabel(item.packageSelected)}
                                 </span>
                               ) : null}
 
-                              {item.productInterest ? (
-                                <span className="badge">
-                                  {item.productInterest}
+                              {item.supportStatus ? (
+                                <span className="badge badge-neutral">
+                                  <Workflow size={14} />
+                                  {niceLabel(item.supportStatus)}
+                                </span>
+                              ) : null}
+
+                              {item.nextFollowUp ? (
+                                <span className="badge badge-neutral">
+                                  <ClipboardList size={14} />
+                                  {item.nextFollowUp}
                                 </span>
                               ) : null}
                             </div>
 
                             {item.progressUpdate ? (
-                              <p className="mt-4 max-w-[70ch] text-sm leading-7 text-[var(--text-secondary)] line-clamp-2">
+                              <p className="mt-4 line-clamp-2 max-w-[72ch] text-sm leading-7 text-[var(--text-secondary)]">
                                 {item.progressUpdate}
                               </p>
                             ) : (
                               <p className="mt-4 text-sm leading-7 text-[var(--text-muted)]">
-                                No progress update added yet.
+                                No project progress update added yet.
                               </p>
                             )}
                           </div>
@@ -394,8 +545,10 @@ export default function ProjectListPage() {
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
               <b className="text-[var(--text-primary)]">Admin note:</b> use this
-              page as the insurance servicing triage view. Cases with new client
-              messages or urgent claim activity should usually be handled first.
+              page as the delivery triage view for AdminHub Global. Projects with
+              new client messages, active proof sprints, upcoming onboarding
+              tasks, or managed support obligations should usually be reviewed
+              first.
             </div>
           </div>
         </div>
@@ -404,15 +557,9 @@ export default function ProjectListPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4 text-center">
+    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4 text-center">
       <div className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {label}
       </div>

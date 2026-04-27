@@ -8,29 +8,97 @@ import jsPDF from "jspdf";
 import {
   ArrowLeft,
   BadgeCheck,
+  BriefcaseBusiness,
+  Clock3,
   Download,
   Edit3,
   ExternalLink,
   FileText,
   FolderKanban,
+  Globe2,
+  LayoutDashboard,
   Mail,
+  Network,
   Phone,
   ShieldCheck,
   UserRound,
+  Users,
+  Workflow,
 } from "lucide-react";
 
 import { firestore } from "@/utils/firebaseConfig";
 import AdminHubLoader from "@/components/AdminHubLoader";
 import ChatPanel from "@/components/ChatPanel";
 
-type ClientCaseRecord = {
+type ProjectRecord = {
+  project_name?: string;
+
   client_name?: string;
   client_email?: string;
   client_phone?: string;
   client_type?: string;
+
   business?: string;
   business_name?: string;
+  company_name?: string;
+  country_region?: string;
   city_town?: string;
+
+  source?: string;
+  agent_name?: string;
+  agent_email?: string;
+
+  project_type?: string;
+  solution_type?: string;
+  service_type?: string;
+  package_selected?: string;
+  package?: string;
+  quote_package?: string;
+
+  pipeline_stage?: string;
+  workflow_stage?: string;
+  lead_stage?: string;
+  stage?: string;
+  status?: string;
+
+  intake_summary?: string;
+  business_goals?: string;
+  pain_points?: string;
+  requested_pages?: string;
+  requested_features?: string;
+  branding_notes?: string;
+
+  proof_status?: string;
+  proposal_status?: string;
+  contract_status?: string;
+  payment_status?: string;
+
+  onboarding_checklist?: string;
+  required_assets?: string;
+  required_documents?: string;
+
+  support_plan?: string;
+  support_status?: string;
+  monthly_support_amount?: string;
+  support_summary?: string;
+
+  commission_terms?: string;
+  commission_status?: string;
+
+  portal_access?: boolean;
+  admin_panel?: boolean;
+
+  admin_notes?: string;
+  progress_update?: string;
+  latest_update?: string;
+  next_action?: string;
+  resource_link?: string;
+
+  documentUrl?: string;
+  documentName?: string;
+  documentType?: string;
+
+  // Compatibility fields from older project/client pages
   request_type?: string;
   cover_type?: string;
   product_interest?: string;
@@ -38,22 +106,11 @@ type ClientCaseRecord = {
   current_insurer?: string;
   policy_number?: string;
   risk_items?: string;
-  support_summary?: string;
-  required_documents?: string;
-  portal_access?: boolean;
-  admin_panel?: boolean;
-  status?: string;
-  admin_notes?: string;
-  progress_update?: string;
-  resource_link?: string;
-
-  documentUrl?: string;
-  documentName?: string;
-  documentType?: string;
 };
 
 function niceLabel(value?: string) {
   if (!value) return "—";
+
   return value
     .replace(/-/g, " ")
     .replace(/\b\w/g, (m) => m.toUpperCase());
@@ -80,25 +137,31 @@ function pdfFileName(name: string, id: string) {
     .replace(/(^-|-$)/g, "")
     .slice(0, 50);
 
-  return `sparkle-legacy-case-${safeName || id}.pdf`;
+  return `adminhub-global-project-${safeName || id}.pdf`;
+}
+
+function firstValue(...values: Array<string | undefined>) {
+  return values.find((value) => value?.trim())?.trim() || "";
 }
 
 const LOGO_PATH = "/logo.png";
 
 const BRAND = {
-  gold: [136, 115, 55] as [number, number, number],
-  softGold: [214, 182, 120] as [number, number, number],
-  cream: [255, 253, 249] as [number, number, number],
-  paleCream: [248, 243, 232] as [number, number, number],
-  text: [24, 24, 24] as [number, number, number],
-  muted: [105, 105, 105] as [number, number, number],
+  blue: [77, 163, 255] as [number, number, number],
+  cyan: [24, 199, 184] as [number, number, number],
+  navy: [6, 10, 18] as [number, number, number],
+  panel: [15, 23, 42] as [number, number, number],
+  softPanel: [232, 240, 255] as [number, number, number],
+  pale: [244, 248, 255] as [number, number, number],
+  text: [15, 23, 42] as [number, number, number],
+  muted: [89, 103, 130] as [number, number, number],
 };
 
-const SPARKLE_CONTACT = {
-  phone: "+267 72 971 852",
-  email: "info@sparklelegacy.co.bw",
-  nbfira: "[To be added]",
-  cipa: "[To be added]",
+const ADMINHUB_CONTACT = {
+  publicRoute: "/contact",
+  note: "Structured inquiry only. Direct personal phone and email details are not published publicly.",
+  company: "AdminHub (Pty) Ltd",
+  product: "AdminHub Global",
 };
 
 async function loadImageAsDataUrl(src: string) {
@@ -119,14 +182,14 @@ async function loadImageAsDataUrl(src: string) {
   }
 }
 
-async function generateCaseSummaryPdf({
+async function generateProjectSummaryPdf({
   id,
   record,
   displayName,
   portalAccess,
 }: {
   id: string;
-  record: ClientCaseRecord;
+  record: ProjectRecord;
   displayName: string;
   portalAccess: boolean;
 }) {
@@ -149,7 +212,7 @@ async function generateCaseSummaryPdf({
   };
 
   const addBrandLine = () => {
-    pdf.setDrawColor(...BRAND.gold);
+    pdf.setDrawColor(...BRAND.blue);
     pdf.setLineWidth(0.7);
     pdf.line(marginX, y, pageWidth - marginX, y);
     y += 8;
@@ -160,7 +223,7 @@ async function generateCaseSummaryPdf({
 
     y += 3;
 
-    pdf.setFillColor(...BRAND.gold);
+    pdf.setFillColor(...BRAND.navy);
     pdf.roundedRect(marginX, y, maxWidth, 9, 2, 2, "F");
 
     pdf.setFont("helvetica", "bold");
@@ -178,13 +241,13 @@ async function generateCaseSummaryPdf({
 
     addPageIfNeeded(neededHeight);
 
-    pdf.setFillColor(...BRAND.cream);
-    pdf.setDrawColor(232, 224, 202);
+    pdf.setFillColor(...BRAND.pale);
+    pdf.setDrawColor(204, 219, 245);
     pdf.roundedRect(marginX, y, maxWidth, neededHeight, 2, 2, "FD");
 
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8);
-    pdf.setTextColor(...BRAND.gold);
+    pdf.setTextColor(...BRAND.blue);
     pdf.text(label.toUpperCase(), marginX + 4, y + 5.5);
 
     pdf.setFont("helvetica", "normal");
@@ -201,7 +264,7 @@ async function generateCaseSummaryPdf({
     for (let page = 1; page <= pageCount; page += 1) {
       pdf.setPage(page);
 
-      pdf.setDrawColor(...BRAND.softGold);
+      pdf.setDrawColor(204, 219, 245);
       pdf.setLineWidth(0.3);
       pdf.line(marginX, pageHeight - 18, pageWidth - marginX, pageHeight - 18);
 
@@ -210,40 +273,33 @@ async function generateCaseSummaryPdf({
       pdf.setTextColor(...BRAND.muted);
 
       pdf.text(
-        "Sparkle Legacy Insurance Brokers | NBFIRA License No: [To be added] | CIPA Registration No: [To be added]",
+        "AdminHub (Pty) Ltd | AdminHub Global | Custom PWA Framework | Structured inquiry only",
         marginX,
         pageHeight - 12
       );
 
       pdf.text(
-        `WhatsApp / Call: ${SPARKLE_CONTACT.phone} | ${SPARKLE_CONTACT.email}`,
+        `Public inquiry route: ${ADMINHUB_CONTACT.publicRoute} | Page ${page} of ${pageCount}`,
         marginX,
-        pageHeight - 8
-      );
-
-      pdf.text(
-        `Page ${page} of ${pageCount}`,
-        pageWidth - marginX - 22,
         pageHeight - 8
       );
     }
   };
 
-  // Header background
-  pdf.setFillColor(...BRAND.cream);
+  pdf.setFillColor(...BRAND.pale);
   pdf.rect(0, 0, pageWidth, 62, "F");
 
-  // Logo
   if (logoDataUrl) {
     pdf.addImage(logoDataUrl, "PNG", 54, 8, 102, 34);
   } else {
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(18);
-    pdf.setTextColor(...BRAND.gold);
-    pdf.text("SPARKLE LEGACY", pageWidth / 2, 22, { align: "center" });
+    pdf.setTextColor(...BRAND.navy);
+    pdf.text("ADMINHUB GLOBAL", pageWidth / 2, 22, { align: "center" });
 
     pdf.setFontSize(9);
-    pdf.text("INSURANCE BROKERS", pageWidth / 2, 29, { align: "center" });
+    pdf.setTextColor(...BRAND.blue);
+    pdf.text("CUSTOM PWA FRAMEWORK", pageWidth / 2, 29, { align: "center" });
   }
 
   y = 48;
@@ -251,7 +307,9 @@ async function generateCaseSummaryPdf({
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(15);
   pdf.setTextColor(...BRAND.text);
-  pdf.text("Client Case Summary", pageWidth / 2, y, { align: "center" });
+  pdf.text("Project Workspace Summary", pageWidth / 2, y, {
+    align: "center",
+  });
 
   y += 6;
 
@@ -259,7 +317,7 @@ async function generateCaseSummaryPdf({
   pdf.setFontSize(8.5);
   pdf.setTextColor(...BRAND.muted);
   pdf.text(
-    "Professional insurance servicing record generated from the Sparkle Legacy admin system.",
+    "Internal project record generated from AdminHub Global Control.",
     pageWidth / 2,
     y,
     { align: "center" }
@@ -269,10 +327,9 @@ async function generateCaseSummaryPdf({
 
   addBrandLine();
 
-  // Case summary strip
-  pdf.setFillColor(...BRAND.paleCream);
-  pdf.setDrawColor(232, 224, 202);
-  pdf.roundedRect(marginX, y, maxWidth, 24, 3, 3, "FD");
+  pdf.setFillColor(...BRAND.softPanel);
+  pdf.setDrawColor(204, 219, 245);
+  pdf.roundedRect(marginX, y, maxWidth, 28, 3, 3, "FD");
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
@@ -282,68 +339,151 @@ async function generateCaseSummaryPdf({
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);
   pdf.setTextColor(...BRAND.muted);
-  pdf.text(`Generated: ${new Date().toLocaleString("en-BW")}`, marginX + 5, y + 15);
-  pdf.text(`Case ID: ${id}`, marginX + 5, y + 20);
+  pdf.text(
+    `Generated: ${new Date().toLocaleString("en-BW")}`,
+    marginX + 5,
+    y + 15
+  );
+  pdf.text(`Project ID: ${id}`, marginX + 5, y + 20);
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9);
-  pdf.setTextColor(...BRAND.gold);
+  pdf.setTextColor(...BRAND.blue);
   pdf.text(
-    `Status: ${cleanPdfText(niceLabel(record.status))}`,
+    `Stage: ${cleanPdfText(
+      niceLabel(
+        firstValue(
+          record.pipeline_stage,
+          record.workflow_stage,
+          record.lead_stage,
+          record.stage
+        )
+      )
+    )}`,
     pageWidth - marginX - 5,
     y + 8,
     { align: "right" }
   );
   pdf.text(
-    `Request: ${cleanPdfText(niceLabel(record.request_type))}`,
+    `Status: ${cleanPdfText(niceLabel(record.status))}`,
     pageWidth - marginX - 5,
     y + 15,
     { align: "right" }
   );
+  pdf.text(
+    `Package: ${cleanPdfText(
+      niceLabel(
+        firstValue(
+          record.package_selected,
+          record.package,
+          record.quote_package,
+          record.product_interest
+        )
+      )
+    )}`,
+    pageWidth - marginX - 5,
+    y + 22,
+    { align: "right" }
+  );
 
-  y += 34;
+  y += 38;
 
-  addSectionTitle("Compliance & Contact");
-  addField("NBFIRA License No", SPARKLE_CONTACT.nbfira);
-  addField("CIPA Registration No", SPARKLE_CONTACT.cipa);
-  addField("WhatsApp / Call", SPARKLE_CONTACT.phone);
-  addField("Email", SPARKLE_CONTACT.email);
+  addSectionTitle("AdminHub Contact Policy");
+  addField("Company", ADMINHUB_CONTACT.company);
+  addField("Product", ADMINHUB_CONTACT.product);
+  addField("Public Inquiry Route", ADMINHUB_CONTACT.publicRoute);
+  addField("Contact Handling Note", ADMINHUB_CONTACT.note);
 
-  addSectionTitle("Client Overview");
-  addField("Client Name", record.client_name || displayName);
+  addSectionTitle("Client & Business Overview");
+  addField("Project Name", record.project_name || displayName);
+  addField("Client Name", record.client_name);
   addField("Client Email", record.client_email);
   addField("Client Phone", record.client_phone);
   addField("Client Type", niceLabel(record.client_type));
-  addField("Business Name", record.business_name || record.business);
-  addField("City / Town", record.city_town);
+  addField(
+    "Business / Organisation",
+    firstValue(record.business_name, record.business, record.company_name)
+  );
+  addField("Country / Region", firstValue(record.country_region, record.city_town));
 
-  addSectionTitle("Insurance Case Details");
-  addField("Request Type", niceLabel(record.request_type));
-  addField("Cover Type", niceLabel(record.cover_type));
-  addField("Product / Policy Interest", record.product_interest);
-  addField("Industry", record.industry);
-  addField("Current Insurer", record.current_insurer);
-  addField("Policy Number", record.policy_number);
+  addSectionTitle("Lead Source & Partner Attribution");
+  addField("Source", niceLabel(record.source));
+  addField("Agent / Partner Name", record.agent_name);
+  addField("Agent / Partner Email", record.agent_email);
+  addField("Commission Terms", record.commission_terms);
+  addField("Commission Status", niceLabel(record.commission_status));
+
+  addSectionTitle("Project & Pipeline Details");
+  addField(
+    "Project Type",
+    niceLabel(
+      firstValue(record.project_type, record.solution_type, record.service_type)
+    )
+  );
+  addField(
+    "Package Selected",
+    niceLabel(
+      firstValue(
+        record.package_selected,
+        record.package,
+        record.quote_package,
+        record.product_interest
+      )
+    )
+  );
+  addField(
+    "Pipeline Stage",
+    niceLabel(
+      firstValue(
+        record.pipeline_stage,
+        record.workflow_stage,
+        record.lead_stage,
+        record.stage
+      )
+    )
+  );
   addField("Status", niceLabel(record.status));
-  addField("Portal Access", portalAccess ? "Yes" : "No");
+  addField("Client Hub Access", portalAccess ? "Yes" : "No");
 
-  addSectionTitle("Servicing Notes");
-  addField("Risk Items / What Needs Cover", record.risk_items);
-  addField("Support Summary", record.support_summary);
-  addField("Required Documents", record.required_documents);
-  addField("Client-facing Progress Update", record.progress_update);
-  addField("Admin Notes", record.admin_notes);
+  addSectionTitle("Intake & Scope");
+  addField("Intake Summary", firstValue(record.intake_summary, record.support_summary));
+  addField("Business Goals", record.business_goals);
+  addField("Pain Points", record.pain_points);
+  addField("Requested Pages / Areas", record.requested_pages);
+  addField("Requested Features / Modules", record.requested_features);
+  addField("Branding Notes", record.branding_notes);
 
-  addSectionTitle("Saved Links & Files");
-  addField("Saved Case File", record.documentName || record.documentUrl);
+  addSectionTitle("Commercial & Delivery Tracking");
+  addField("Proof Status", niceLabel(record.proof_status));
+  addField("Proposal Status", niceLabel(record.proposal_status));
+  addField("Contract Status", niceLabel(record.contract_status));
+  addField("Payment Status", niceLabel(record.payment_status));
+  addField("Support Plan", niceLabel(record.support_plan));
+  addField("Support Status", niceLabel(record.support_status));
+  addField("Monthly Support Amount", record.monthly_support_amount);
+
+  addSectionTitle("Onboarding, Assets & Files");
+  addField("Onboarding Checklist", record.onboarding_checklist);
+  addField(
+    "Required Assets",
+    firstValue(record.required_assets, record.required_documents)
+  );
+  addField("Saved File", record.documentName || record.documentUrl);
   addField("Document Type", record.documentType);
   addField("Document URL", record.documentUrl);
   addField("Shared Resource Link", record.resource_link);
 
+  addSectionTitle("Updates & Notes");
+  addField(
+    "Client-facing Progress Update",
+    firstValue(record.progress_update, record.latest_update, record.next_action)
+  );
+  addField("Admin Notes", record.admin_notes);
+
   addSectionTitle("Important Note");
   addField(
     "Disclaimer",
-    "This case summary is an administrative support document. Cover terms, premiums, claim outcomes, benefits, acceptance, and settlement decisions remain subject to insurer underwriting, policy wording, and applicable conditions."
+    "This document is an internal AdminHub Global project workspace summary. It supports project coordination, lead tracking, delivery, Client Hub visibility, and managed support follow-up. Public-facing contact should remain structured through the inquiry flow, not direct personal contact details."
   );
 
   addFooter();
@@ -354,36 +494,38 @@ async function generateCaseSummaryPdf({
 export default function ViewProjectPage() {
   const { id } = useParams() as { id: string };
 
-  const [record, setRecord] = useState<ClientCaseRecord | null>(null);
+  const [record, setRecord] = useState<ProjectRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchCase = async () => {
+    const fetchProject = async () => {
       try {
         const snap = await getDoc(doc(firestore, "projects", id));
-        if (!snap.exists()) throw new Error("Client case not found.");
+        if (!snap.exists()) throw new Error("Project record not found.");
 
-        setRecord(snap.data() as ClientCaseRecord);
+        setRecord(snap.data() as ProjectRecord);
       } catch (e: any) {
-        setError(e?.message || "Failed to load client case.");
+        setError(e?.message || "Failed to load project record.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCase();
+    fetchProject();
   }, [id]);
 
   const displayName = useMemo(() => {
-    if (!record) return "Client Case";
+    if (!record) return "AdminHub Global Project";
 
     return (
-      record.client_name?.trim() ||
+      record.project_name?.trim() ||
       record.business_name?.trim() ||
       record.business?.trim() ||
+      record.company_name?.trim() ||
+      record.client_name?.trim() ||
       record.client_email?.trim() ||
-      "Unnamed Client Case"
+      "Unnamed AdminHub Global Project"
     );
   }, [record]);
 
@@ -392,10 +534,44 @@ export default function ViewProjectPage() {
     return !!record.portal_access || !!record.admin_panel;
   }, [record]);
 
+  const projectType = useMemo(() => {
+    if (!record) return "—";
+
+    return niceLabel(
+      firstValue(record.project_type, record.solution_type, record.service_type)
+    );
+  }, [record]);
+
+  const packageSelected = useMemo(() => {
+    if (!record) return "—";
+
+    return niceLabel(
+      firstValue(
+        record.package_selected,
+        record.package,
+        record.quote_package,
+        record.product_interest
+      )
+    );
+  }, [record]);
+
+  const pipelineStage = useMemo(() => {
+    if (!record) return "—";
+
+    return niceLabel(
+      firstValue(
+        record.pipeline_stage,
+        record.workflow_stage,
+        record.lead_stage,
+        record.stage
+      )
+    );
+  }, [record]);
+
   const handleDownloadPdf = async () => {
     if (!record) return;
 
-    await generateCaseSummaryPdf({
+    await generateProjectSummaryPdf({
       id,
       record,
       displayName,
@@ -415,16 +591,16 @@ export default function ViewProjectPage() {
                 <Link
                   href="/admin/project"
                   prefetch={false}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
                 >
                   <ArrowLeft size={16} />
-                  Back to Client Cases
+                  Back to Project Workspace
                 </Link>
               </div>
 
               <div className="frame-gold p-8 text-center">
-                <h1 className="text-2xl">Unable to open client case</h1>
-                <p className="mt-3 text-sm leading-7 text-red-700">{error}</p>
+                <h1 className="text-2xl">Unable to open project record</h1>
+                <p className="mt-3 text-sm leading-7 text-red-300">{error}</p>
               </div>
             </div>
           </div>
@@ -436,18 +612,25 @@ export default function ViewProjectPage() {
   if (!record) return null;
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+    <main
+      id="main"
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+    >
+      <section className="section-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-12 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-12 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           <div className="mx-auto max-w-7xl">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Link
                 href="/admin/project"
                 prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
               >
                 <ArrowLeft size={16} />
-                Back to Client Cases
+                Back to Project Workspace
               </Link>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -457,7 +640,7 @@ export default function ViewProjectPage() {
                   className="btn btn-primary"
                 >
                   <Download size={16} />
-                  Download Case PDF
+                  Download Project PDF
                 </button>
 
                 <Link
@@ -466,48 +649,58 @@ export default function ViewProjectPage() {
                   className="btn btn-outline"
                 >
                   <Edit3 size={16} />
-                  Edit Case
+                  Edit Project
                 </Link>
               </div>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-                  <div className="eyebrow">
-                    <FolderKanban size={15} />
-                    Sparkle Legacy • Client Case Overview
-                  </div>
+                <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+                  <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
 
-                  <h1 className="max-w-[16ch]">{displayName}</h1>
+                  <div className="relative">
+                    <div className="eyebrow">
+                      <FolderKanban size={15} />
+                      AdminHub Global • Project Workspace
+                    </div>
 
-                  <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    Review the insurance servicing details for this client case,
-                    check the status, view intake information, open saved files,
-                    and continue communication as <b>Sparkle Legacy Team</b>.
-                  </p>
+                    <h1 className="max-w-[16ch]">{displayName}</h1>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <MiniStat
-                      icon={<UserRound size={16} />}
-                      label="Client"
-                      value={record.client_name?.trim() || "Not provided"}
-                    />
-                    <MiniStat
-                      icon={<Mail size={16} />}
-                      label="Email"
-                      value={record.client_email?.trim() || "Not provided"}
-                    />
-                    <MiniStat
-                      icon={<Phone size={16} />}
-                      label="Phone"
-                      value={record.client_phone?.trim() || "Not provided"}
-                    />
-                    <MiniStat
-                      icon={<BadgeCheck size={16} />}
-                      label="Status"
-                      value={niceLabel(record.status)}
-                    />
+                    <p className="mt-4 max-w-[64ch] text-base leading-8 text-[var(--text-secondary)]">
+                      Review the lead, proof sprint, onboarding, build,
+                      proposal, Client Hub, messaging, files, and recurring
+                      support details for this AdminHub Global project.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <MiniStat
+                        icon={<UserRound size={16} />}
+                        label="Client"
+                        value={record.client_name?.trim() || "Not provided"}
+                      />
+                      <MiniStat
+                        icon={<BriefcaseBusiness size={16} />}
+                        label="Business"
+                        value={
+                          firstValue(
+                            record.business_name,
+                            record.business,
+                            record.company_name
+                          ) || "Not provided"
+                        }
+                      />
+                      <MiniStat
+                        icon={<BadgeCheck size={16} />}
+                        label="Stage"
+                        value={pipelineStage}
+                      />
+                      <MiniStat
+                        icon={<ShieldCheck size={16} />}
+                        label="Status"
+                        value={niceLabel(record.status)}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -515,32 +708,29 @@ export default function ViewProjectPage() {
               <div className="card-outline-gold self-start">
                 <div className="card-inner md:p-8">
                   <div className="eyebrow mb-0">
-                    <ShieldCheck size={15} />
-                    Case snapshot
+                    <LayoutDashboard size={15} />
+                    Project snapshot
                   </div>
 
-                  <h2 className="mt-2 text-2xl">Insurance details</h2>
+                  <h2 className="mt-2 text-2xl">Delivery details</h2>
 
                   <div className="mt-5 grid gap-3">
+                    <SnapshotRow label="Project Type" value={projectType} />
                     <SnapshotRow
-                      label="Request Type"
-                      value={niceLabel(record.request_type)}
+                      label="Package Selected"
+                      value={packageSelected}
+                    />
+                    <SnapshotRow label="Pipeline Stage" value={pipelineStage} />
+                    <SnapshotRow
+                      label="Lead Source"
+                      value={niceLabel(record.source)}
                     />
                     <SnapshotRow
-                      label="Cover Type"
-                      value={niceLabel(record.cover_type)}
+                      label="Country / Region"
+                      value={firstValue(record.country_region, record.city_town)}
                     />
                     <SnapshotRow
-                      label="Product / Policy Interest"
-                      value={record.product_interest}
-                    />
-                    <SnapshotRow
-                      label="Client Type"
-                      value={niceLabel(record.client_type)}
-                    />
-                    <SnapshotRow label="City / Town" value={record.city_town} />
-                    <SnapshotRow
-                      label="Portal Access"
+                      label="Client Hub Access"
                       value={portalAccess ? "Yes" : "No"}
                     />
                   </div>
@@ -550,14 +740,15 @@ export default function ViewProjectPage() {
                       href={record.documentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4 transition hover:bg-[var(--surface)]"
+                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4 transition hover:bg-[rgba(77,163,255,0.08)]"
                     >
                       <div>
                         <div className="text-sm font-extrabold text-[var(--text-primary)]">
-                          Saved Case File
+                          Saved Project File
                         </div>
                         <div className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">
-                          {record.documentName || "Open uploaded PDF/image"}
+                          {record.documentName ||
+                            "Open uploaded PDF, image, or scope file"}
                         </div>
                         {record.documentType ? (
                           <div className="mt-1 text-xs text-[var(--text-muted)]">
@@ -567,7 +758,7 @@ export default function ViewProjectPage() {
                       </div>
                       <ExternalLink
                         size={18}
-                        className="mt-1 shrink-0 text-[var(--brand-primary-strong)]"
+                        className="mt-1 shrink-0 text-[var(--brand-primary)]"
                       />
                     </a>
                   ) : null}
@@ -577,30 +768,39 @@ export default function ViewProjectPage() {
                       href={record.resource_link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4 transition hover:bg-[var(--surface)]"
+                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4 transition hover:bg-[rgba(77,163,255,0.08)]"
                     >
                       <div>
                         <div className="text-sm font-extrabold text-[var(--text-primary)]">
                           Shared Resource Link
                         </div>
                         <div className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">
-                          Open the linked Google Doc, Sheet, or shared file.
+                          Open the linked Drive file, document, preview, or
+                          project resource.
                         </div>
                       </div>
                       <ExternalLink
                         size={18}
-                        className="mt-1 shrink-0 text-[var(--brand-primary-strong)]"
+                        className="mt-1 shrink-0 text-[var(--brand-primary)]"
                       />
                     </a>
                   ) : null}
 
-                  {record.progress_update ? (
-                    <div className="mt-5 rounded-[1.25rem] border border-[var(--border)] bg-[var(--surface)] p-4">
+                  {firstValue(
+                    record.progress_update,
+                    record.latest_update,
+                    record.next_action
+                  ) ? (
+                    <div className="mt-5 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                       <p className="text-sm font-extrabold text-[var(--text-primary)]">
                         Client-facing Progress Update
                       </p>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        {record.progress_update}
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--text-secondary)]">
+                        {firstValue(
+                          record.progress_update,
+                          record.latest_update,
+                          record.next_action
+                        )}
                       </p>
                     </div>
                   ) : null}
@@ -611,67 +811,151 @@ export default function ViewProjectPage() {
             <section className="mt-8 space-y-6">
               <ChatPanel
                 projectId={id}
-                senderName="Sparkle Legacy Team"
+                senderName="AdminHub Global Team"
                 canDeleteAll={true}
                 brand={{
-                  primary: "#887337",
-                  accent: "#d6b678",
+                  primary: "#1d4ed8",
+                  accent: "#4da3ff",
                 }}
               />
             </section>
 
             <section className="mt-8 grid gap-6 xl:grid-cols-[1fr_1fr]">
-              <InfoCard title="Client & Case Intake">
+              <InfoCard title="Client & Opportunity">
+                <Read label="Project Name" value={record.project_name} />
                 <Read label="Client Name" value={record.client_name} />
                 <Read label="Client Email" value={record.client_email} />
                 <Read label="Client Phone" value={record.client_phone} />
-                <Read label="Client Type" value={niceLabel(record.client_type)} />
                 <Read
-                  label="Business Name"
-                  value={record.business_name || record.business}
+                  label="Client Type"
+                  value={niceLabel(record.client_type)}
                 />
-                <Read label="Industry" value={record.industry} />
-                <Read label="City / Town" value={record.city_town} />
                 <Read
-                  label="Request Type"
+                  label="Business / Organisation"
+                  value={firstValue(
+                    record.business_name,
+                    record.business,
+                    record.company_name
+                  )}
+                />
+                <Read
+                  label="Country / Region"
+                  value={firstValue(record.country_region, record.city_town)}
+                />
+                <Read label="Lead Source" value={niceLabel(record.source)} />
+                <Read label="Agent / Partner Name" value={record.agent_name} />
+                <Read label="Agent / Partner Email" value={record.agent_email} />
+                <Read label="Commission Terms" value={record.commission_terms} />
+                <Read
+                  label="Commission Status"
+                  value={niceLabel(record.commission_status)}
+                />
+              </InfoCard>
+
+              <InfoCard title="Project, Proof & Commercial Tracking">
+                <Read label="Project Type" value={projectType} />
+                <Read label="Package Selected" value={packageSelected} />
+                <Read label="Pipeline Stage" value={pipelineStage} />
+                <Read label="Status" value={niceLabel(record.status)} />
+                <Read
+                  label="Proof Status"
+                  value={niceLabel(record.proof_status)}
+                />
+                <Read
+                  label="Proposal Status"
+                  value={niceLabel(record.proposal_status)}
+                />
+                <Read
+                  label="Contract Status"
+                  value={niceLabel(record.contract_status)}
+                />
+                <Read
+                  label="Payment Status"
+                  value={niceLabel(record.payment_status)}
+                />
+                <Read
+                  label="Support Plan"
+                  value={niceLabel(record.support_plan)}
+                />
+                <Read
+                  label="Support Status"
+                  value={niceLabel(record.support_status)}
+                />
+                <Read
+                  label="Monthly Support Amount"
+                  value={record.monthly_support_amount}
+                />
+                <Read
+                  label="Client Hub Access"
+                  value={portalAccess ? "Yes" : "No"}
+                />
+              </InfoCard>
+
+              <InfoCard title="Intake & Scope">
+                <Read
+                  label="Intake Summary"
+                  value={firstValue(record.intake_summary, record.support_summary)}
+                />
+                <Read label="Business Goals" value={record.business_goals} />
+                <Read label="Pain Points" value={record.pain_points} />
+                <Read
+                  label="Requested Pages / Areas"
+                  value={record.requested_pages}
+                />
+                <Read
+                  label="Requested Features / Modules"
+                  value={record.requested_features}
+                />
+                <Read label="Branding Notes" value={record.branding_notes} />
+                <Read label="Industry" value={record.industry} />
+                <Read
+                  label="Legacy Request Type"
                   value={niceLabel(record.request_type)}
                 />
-                <Read label="Cover Type" value={niceLabel(record.cover_type)} />
                 <Read
-                  label="Product / Policy Interest"
+                  label="Legacy Product Interest"
                   value={record.product_interest}
                 />
               </InfoCard>
 
-              <InfoCard title="Servicing & Internal Notes">
-                <Read label="Current Insurer" value={record.current_insurer} />
-                <Read label="Policy Number" value={record.policy_number} />
+              <InfoCard title="Onboarding, Assets & Notes">
                 <Read
-                  label="Risk Items / What Needs Cover"
-                  value={record.risk_items}
+                  label="Onboarding Checklist"
+                  value={record.onboarding_checklist}
                 />
-                <Read label="Support Summary" value={record.support_summary} />
                 <Read
-                  label="Required Documents"
-                  value={record.required_documents}
+                  label="Required Assets"
+                  value={firstValue(
+                    record.required_assets,
+                    record.required_documents
+                  )}
                 />
-                <Read label="Status" value={niceLabel(record.status)} />
+                <Read
+                  label="Client-facing Progress Update"
+                  value={firstValue(
+                    record.progress_update,
+                    record.latest_update,
+                    record.next_action
+                  )}
+                />
                 <Read label="Admin Notes" value={record.admin_notes} />
                 <Read
-                  label="Portal Access"
-                  value={portalAccess ? "Yes" : "No"}
-                />
-                <Read
-                  label="Saved Case File"
+                  label="Saved Project File"
                   value={record.documentName || record.documentUrl}
                 />
+                <Read label="Document Type" value={record.documentType} />
+                <Read label="Shared Resource Link" value={record.resource_link} />
               </InfoCard>
             </section>
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
               <b className="text-[var(--text-primary)]">Admin note:</b> this
-              page serves as an insurance servicing record, not a generic web
-              project page. Keep updates clear, operational, and client-safe.
+              page is now an AdminHub Global project workspace, not an insurance
+              case page. It preserves the existing Firestore project record,
+              ChatPanel wiring, file links, PDF export, and edit route while
+              changing the labels, styling, and data interpretation for the
+              lead → proof → convert → onboard → build → monthly support
+              workflow.
             </div>
           </div>
         </div>
@@ -733,7 +1017,7 @@ function MiniStat({
   value: string;
 }) {
   return (
-    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
       <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {icon}
         {label}
@@ -755,7 +1039,7 @@ function SnapshotRow({
   const text = value && value.trim().length > 0 ? value.trim() : "—";
 
   return (
-    <div className="rounded-[1rem] border border-[var(--border)] bg-white/80 px-4 py-3">
+    <div className="rounded-[1rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-4 py-3">
       <div className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {label}
       </div>

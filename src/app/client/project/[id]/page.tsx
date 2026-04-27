@@ -9,24 +9,27 @@ import { doc, getDoc } from "firebase/firestore";
 import {
   ArrowLeft,
   BadgeCheck,
+  BriefcaseBusiness,
+  ClipboardList,
   Download,
   ExternalLink,
   FileText,
+  LayoutDashboard,
   Mail,
   MessageCircle,
-  Phone,
   RefreshCw,
   ShieldCheck,
   UserRound,
   Wifi,
   WifiOff,
+  Workflow,
 } from "lucide-react";
 
 import { firestore } from "@/utils/firebaseConfig";
 import AdminHubLoader from "@/components/AdminHubLoader";
 import ChatPanel from "@/components/ChatPanel";
 
-type ClientCase = {
+type ClientProject = {
   id: string;
 
   client_name?: string;
@@ -34,55 +37,72 @@ type ClientCase = {
   client_phone?: string;
   client_type?: string;
 
+  project_name?: string;
   business?: string;
   business_name?: string;
+  organisation?: string;
   city_town?: string;
+  country?: string;
+  region?: string;
+  industry?: string;
 
   request_type?: string;
-  cover_type?: string;
-  product_interest?: string;
-  industry?: string;
-  current_insurer?: string;
-  policy_number?: string;
+  service_type?: string;
+  selected_package?: string;
+  package_name?: string;
+  solution_interest?: string;
 
-  risk_items?: string;
-  support_summary?: string;
+  status?: string;
+  stage?: string;
+  onboarding_status?: string;
+  support_status?: string;
+  recurring_status?: string;
+
+  progress_update?: string;
+  onboarding_requests?: string;
   required_documents?: string;
+  build_notes?: string;
+  support_summary?: string;
+  next_steps?: string;
+  internal_safe_summary?: string;
 
   portal_access?: boolean;
   admin_panel?: boolean;
 
-  status?: string;
-  admin_notes?: string;
-  progress_update?: string;
   resource_link?: string;
 
   documentUrl?: string;
   documentName?: string;
   documentType?: string;
+
+  proposalUrl?: string;
+  proposalName?: string;
+  proposalType?: string;
 };
 
-type CachedCase = {
-  caseRecord: ClientCase;
+type CachedProject = {
+  projectRecord: ClientProject;
   cachedAt: string;
 };
 
 type CachedDashboard = {
-  cases: ClientCase[];
+  projects: ClientProject[];
   messageCounts?: Record<string, number>;
   cachedAt: string;
 };
 
-const SPARKLE_WHATSAPP = "+267 72 971 852";
-const SPARKLE_BRAND_GOLD: [number, number, number] = [136, 115, 55];
-const SPARKLE_SOFT_GOLD: [number, number, number] = [248, 243, 232];
-const SPARKLE_DARK: [number, number, number] = [28, 25, 20];
+const PDF_BRAND_BLUE: [number, number, number] = [77, 163, 255];
+const PDF_BRAND_TEAL: [number, number, number] = [24, 199, 184];
+const PDF_DARK: [number, number, number] = [10, 18, 32];
+const PDF_SOFT_BG: [number, number, number] = [236, 245, 255];
+const PDF_TEXT: [number, number, number] = [24, 31, 42];
+const PDF_MUTED: [number, number, number] = [92, 104, 121];
 
-const CASE_CACHE_PREFIX = "sparkle_client_case_cache_v1";
-const DASHBOARD_CACHE_PREFIX = "sparkle_client_dashboard_cache_v1";
+const PROJECT_CACHE_PREFIX = "adminhub_global_client_project_cache_v1";
+const DASHBOARD_CACHE_PREFIX = "adminhub_global_client_dashboard_cache_v1";
 
-function caseCacheKey(email: string, id: string) {
-  return `${CASE_CACHE_PREFIX}_${email.toLowerCase().trim()}_${id}`;
+function projectCacheKey(email: string, id: string) {
+  return `${PROJECT_CACHE_PREFIX}_${email.toLowerCase().trim()}_${id}`;
 }
 
 function dashboardCacheKey(email: string) {
@@ -99,25 +119,25 @@ function safeJsonParse<T>(value: string | null): T | null {
   }
 }
 
-function readCachedCase(email: string, id: string): CachedCase | null {
+function readCachedProject(email: string, id: string): CachedProject | null {
   if (typeof window === "undefined") return null;
 
   try {
-    const direct = safeJsonParse<CachedCase>(
-      localStorage.getItem(caseCacheKey(email, id))
+    const direct = safeJsonParse<CachedProject>(
+      localStorage.getItem(projectCacheKey(email, id))
     );
 
-    if (direct?.caseRecord) return direct;
+    if (direct?.projectRecord) return direct;
 
     const dashboard = safeJsonParse<CachedDashboard>(
       localStorage.getItem(dashboardCacheKey(email))
     );
 
-    const fromDashboard = dashboard?.cases?.find((item) => item.id === id);
+    const fromDashboard = dashboard?.projects?.find((item) => item.id === id);
 
     if (fromDashboard) {
       return {
-        caseRecord: fromDashboard,
+        projectRecord: fromDashboard,
         cachedAt: dashboard?.cachedAt || new Date().toISOString(),
       };
     }
@@ -128,19 +148,23 @@ function readCachedCase(email: string, id: string): CachedCase | null {
   }
 }
 
-function saveCachedCase(email: string, id: string, caseRecord: ClientCase) {
+function saveCachedProject(
+  email: string,
+  id: string,
+  projectRecord: ClientProject
+) {
   if (typeof window === "undefined") return;
 
   try {
     localStorage.setItem(
-      caseCacheKey(email, id),
+      projectCacheKey(email, id),
       JSON.stringify({
-        caseRecord,
+        projectRecord,
         cachedAt: new Date().toISOString(),
       })
     );
   } catch (error) {
-    console.warn("Could not save client case cache:", error);
+    console.warn("Could not save Client Hub project cache:", error);
   }
 }
 
@@ -163,20 +187,39 @@ function niceLabel(value?: string) {
 
   return value
     .replace(/-/g, " ")
+    .replace(/_/g, " ")
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
-function getCaseTitle(item: ClientCase) {
+function getProjectTitle(item: ClientProject) {
   return (
-    item.product_interest?.trim() ||
+    item.project_name?.trim() ||
     item.business_name?.trim() ||
     item.business?.trim() ||
+    item.organisation?.trim() ||
+    item.selected_package?.trim() ||
+    item.package_name?.trim() ||
     item.client_name?.trim() ||
-    "Insurance Case"
+    "AdminHub Global Project"
   );
 }
 
-function portalEnabled(item: ClientCase) {
+function getProjectPackage(item: ClientProject) {
+  return (
+    item.selected_package?.trim() ||
+    item.package_name?.trim() ||
+    item.service_type?.trim() ||
+    item.request_type?.trim() ||
+    item.solution_interest?.trim() ||
+    "—"
+  );
+}
+
+function getProjectStage(item: ClientProject) {
+  return item.stage?.trim() || item.status?.trim() || "active";
+}
+
+function portalEnabled(item: ClientProject) {
   return item.portal_access === true || item.admin_panel === true;
 }
 
@@ -201,7 +244,7 @@ function pdfFileName(name: string, id: string) {
     .replace(/(^-|-$)/g, "")
     .slice(0, 50);
 
-  return `sparkle-legacy-client-case-${safeName || id}.pdf`;
+  return `adminhub-global-client-workspace-${safeName || id}.pdf`;
 }
 
 async function imageToDataUrl(path: string) {
@@ -227,13 +270,13 @@ async function imageToDataUrl(path: string) {
   }
 }
 
-async function generateClientCasePdf({
+async function generateClientWorkspacePdf({
   id,
   record,
   title,
 }: {
   id: string;
-  record: ClientCase;
+  record: ClientProject;
   title: string;
 }) {
   const pdf = new jsPDF("p", "mm", "a4");
@@ -249,18 +292,18 @@ async function generateClientCasePdf({
   const logoDataUrl = await imageToDataUrl("/logo.png");
 
   const addSmallHeader = () => {
-    pdf.setFillColor(...SPARKLE_SOFT_GOLD);
-    pdf.rect(0, 0, pageWidth, 13, "F");
+    pdf.setFillColor(...PDF_DARK);
+    pdf.rect(0, 0, pageWidth, 14, "F");
 
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8);
-    pdf.setTextColor(...SPARKLE_BRAND_GOLD);
-    pdf.text("SPARKLE LEGACY INSURANCE BROKERS", marginX, 8.5);
+    pdf.setTextColor(...PDF_BRAND_BLUE);
+    pdf.text("ADMINHUB GLOBAL", marginX, 9);
 
-    pdf.setDrawColor(...SPARKLE_BRAND_GOLD);
-    pdf.line(marginX, 13, pageWidth - marginX, 13);
+    pdf.setDrawColor(...PDF_BRAND_TEAL);
+    pdf.line(marginX, 14, pageWidth - marginX, 14);
 
-    y = 22;
+    y = 23;
   };
 
   const addPageIfNeeded = (needed = 18) => {
@@ -278,12 +321,12 @@ async function generateClientCasePdf({
 
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(12);
-    pdf.setTextColor(...SPARKLE_DARK);
+    pdf.setTextColor(...PDF_DARK);
     pdf.text(sectionTitle, marginX, y);
 
     y += 3;
 
-    pdf.setDrawColor(...SPARKLE_BRAND_GOLD);
+    pdf.setDrawColor(...PDF_BRAND_BLUE);
     pdf.line(marginX, y, pageWidth - marginX, y);
 
     y += 7;
@@ -297,14 +340,14 @@ async function generateClientCasePdf({
 
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8.5);
-    pdf.setTextColor(100, 91, 70);
+    pdf.setTextColor(...PDF_BRAND_BLUE);
     pdf.text(label.toUpperCase(), marginX, y);
 
     y += 5;
 
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
-    pdf.setTextColor(30, 30, 30);
+    pdf.setTextColor(...PDF_TEXT);
     pdf.text(lines, marginX, y);
 
     y += lines.length * 5 + 4;
@@ -316,15 +359,15 @@ async function generateClientCasePdf({
     for (let page = 1; page <= pageCount; page += 1) {
       pdf.setPage(page);
 
-      pdf.setDrawColor(220, 210, 185);
+      pdf.setDrawColor(210, 220, 235);
       pdf.line(marginX, pageHeight - 16, pageWidth - marginX, pageHeight - 16);
 
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(7.5);
-      pdf.setTextColor(115, 115, 115);
+      pdf.setTextColor(...PDF_MUTED);
 
       pdf.text(
-        "Sparkle Legacy Insurance Brokers | WhatsApp: +267 72 971 852 | NBFIRA License No: [To be added] | CIPA Registration No: [To be added]",
+        "AdminHub Global | Client workspace summary | Structured inquiry before private follow-up",
         marginX,
         pageHeight - 10
       );
@@ -337,93 +380,100 @@ async function generateClientCasePdf({
     }
   };
 
-  pdf.setFillColor(...SPARKLE_SOFT_GOLD);
-  pdf.rect(0, 0, pageWidth, 54, "F");
+  pdf.setFillColor(...PDF_DARK);
+  pdf.rect(0, 0, pageWidth, 58, "F");
 
   if (logoDataUrl) {
-    pdf.addImage(logoDataUrl, "PNG", marginX, 12, 26, 26);
+    pdf.addImage(logoDataUrl, "PNG", marginX, 13, 24, 24);
   }
 
   pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(17);
-  pdf.setTextColor(...SPARKLE_DARK);
-  pdf.text("Sparkle Legacy", logoDataUrl ? marginX + 33 : marginX, 22);
+  pdf.setFontSize(18);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text("AdminHub Global", logoDataUrl ? marginX + 31 : marginX, 23);
 
-  pdf.setFontSize(10);
-  pdf.setTextColor(...SPARKLE_BRAND_GOLD);
-  pdf.text("INSURANCE BROKERS", logoDataUrl ? marginX + 33 : marginX, 29);
+  pdf.setFontSize(9);
+  pdf.setTextColor(...PDF_BRAND_BLUE);
+  pdf.text("CUSTOM PWA OS", logoDataUrl ? marginX + 31 : marginX, 30);
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(8.5);
-  pdf.setTextColor(85, 85, 85);
-  pdf.text("Client Case Summary", logoDataUrl ? marginX + 33 : marginX, 36);
+  pdf.setTextColor(210, 225, 245);
+  pdf.text("Client Workspace Summary", logoDataUrl ? marginX + 31 : marginX, 37);
+
+  pdf.setFillColor(...PDF_SOFT_BG);
+  pdf.rect(0, 58, pageWidth, 28, "F");
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(14);
-  pdf.setTextColor(...SPARKLE_DARK);
-  pdf.text(cleanPdfText(title), marginX, 66);
+  pdf.setTextColor(...PDF_DARK);
+  pdf.text(cleanPdfText(title), marginX, 69);
 
-  y = 74;
+  y = 77;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
-  pdf.setTextColor(90, 90, 90);
+  pdf.setTextColor(...PDF_MUTED);
   pdf.text(`Generated: ${new Date().toLocaleString("en-BW")}`, marginX, y);
 
   y += 6;
-  pdf.text(`Case ID: ${id}`, marginX, y);
+  pdf.text(`Workspace ID: ${id}`, marginX, y);
 
-  y += 8;
+  y += 10;
 
-  pdf.setFillColor(...SPARKLE_BRAND_GOLD);
+  pdf.setFillColor(...PDF_BRAND_BLUE);
   pdf.rect(marginX, y, pageWidth - marginX * 2, 9, "F");
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(255, 255, 255);
-  pdf.text("CLIENT-SAFE CASE COPY", marginX + 4, y + 6);
+  pdf.text("CLIENT-SAFE WORKSPACE COPY", marginX + 4, y + 6);
 
   y += 18;
 
   addSectionTitle("Client Overview");
   addField("Client Name", record.client_name);
   addField("Client Email", record.client_email);
-  addField("Client Phone", record.client_phone);
   addField("Client Type", niceLabel(record.client_type));
-  addField("Business Name", record.business_name || record.business);
-  addField("City / Town", record.city_town);
+  addField("Business / Organisation", record.business_name || record.business || record.organisation);
+  addField("Country / Region", record.country || record.region || record.city_town);
 
-  addSectionTitle("Case Details");
-  addField("Case Title", title);
+  addSectionTitle("Project Overview");
+  addField("Project Title", title);
   addField("Status", niceLabel(record.status));
-  addField("Request Type", niceLabel(record.request_type));
-  addField("Cover Type", niceLabel(record.cover_type));
-  addField("Product / Policy Interest", record.product_interest);
+  addField("Stage", niceLabel(getProjectStage(record)));
+  addField("Package / Solution", getProjectPackage(record));
   addField("Industry", record.industry);
-  addField("Current Insurer", record.current_insurer);
-  addField("Policy Number", record.policy_number);
+  addField("Onboarding Status", niceLabel(record.onboarding_status));
+  addField("Support Status", niceLabel(record.support_status));
+  addField("Recurring Support Status", niceLabel(record.recurring_status));
 
   addSectionTitle("Latest Update");
   addField("Progress Update", record.progress_update);
-  addField("Required Documents", record.required_documents);
+  addField("Onboarding / Requested Items", record.onboarding_requests || record.required_documents);
+  addField("Next Steps", record.next_steps);
   addField("Support Summary", record.support_summary);
-  addField("Risk Items / What Needs Cover", record.risk_items);
+  addField("Build Notes", record.build_notes);
+  addField("Client-Safe Summary", record.internal_safe_summary);
 
   addSectionTitle("Files & Links");
-  addField("Saved Case File", record.documentName || record.documentUrl);
+  addField("Workspace File", record.documentName || record.documentUrl);
   addField("Document Type", record.documentType);
   addField("Document URL", record.documentUrl);
+  addField("Proposal", record.proposalName || record.proposalUrl);
+  addField("Proposal URL", record.proposalUrl);
   addField("Shared Resource Link", record.resource_link);
 
-  addSectionTitle("Sparkle Legacy Contact Details");
-  addField("WhatsApp / Phone", SPARKLE_WHATSAPP);
-  addField("NBFIRA License No", "[To be added]");
-  addField("CIPA Registration No", "[To be added]");
+  addSectionTitle("Important Contact Policy");
+  addField(
+    "Private Follow-Up",
+    "AdminHub Global does not publish direct personal phone or email details publicly. Client support and access issues should go through structured inquiry capture first so identity and context are recorded before private follow-up."
+  );
 
   addSectionTitle("Important Note");
   addField(
     "Disclaimer",
-    "This document is a client-facing case summary for reference and communication support. Final cover terms, premiums, claim outcomes, benefits, acceptance, exclusions, and settlement decisions remain subject to insurer underwriting, policy wording, and applicable conditions."
+    "This document is a client-facing workspace summary for reference, onboarding, delivery visibility, and communication support. It is not a contract, invoice, or final implementation scope unless separately confirmed in an approved proposal or agreement."
   );
 
   addFooter();
@@ -436,7 +486,7 @@ export default function ClientProjectDetails() {
   const router = useRouter();
 
   const [clientEmail, setClientEmail] = useState("");
-  const [caseRecord, setCaseRecord] = useState<ClientCase | null>(null);
+  const [projectRecord, setProjectRecord] = useState<ClientProject | null>(null);
   const [cachedAt, setCachedAt] = useState("");
 
   const [loading, setLoading] = useState(true);
@@ -461,10 +511,10 @@ export default function ClientProjectDetails() {
     };
   }, []);
 
-  async function loadCaseFromNetwork(email: string, hasCachedCase: boolean) {
+  async function loadProjectFromNetwork(email: string, hasCachedProject: boolean) {
     setError("");
 
-    if (hasCachedCase) {
+    if (hasCachedProject) {
       setRefreshing(true);
     } else {
       setLoading(true);
@@ -475,39 +525,41 @@ export default function ClientProjectDetails() {
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
-        throw new Error("Client case not found.");
+        throw new Error("Client workspace not found.");
       }
 
       const data = {
         id: snap.id,
-        ...(snap.data() as Omit<ClientCase, "id">),
+        ...(snap.data() as Omit<ClientProject, "id">),
       };
 
       if (data.client_email !== email) {
-        throw new Error("You are not authorized to view this case.");
+        throw new Error("You are not authorized to view this workspace.");
       }
 
       if (!portalEnabled(data)) {
-        throw new Error("This case is not enabled for client portal access yet.");
+        throw new Error(
+          "This workspace is not enabled for Client Hub access yet."
+        );
       }
 
-      setCaseRecord(data);
+      setProjectRecord(data);
 
       const savedAt = new Date().toISOString();
       setCachedAt(savedAt);
 
-      saveCachedCase(email, id, data);
+      saveCachedProject(email, id, data);
     } catch (err: any) {
-      console.error("Failed to load client case:", err);
+      console.error("Failed to load Client Hub workspace:", err);
 
-      const cached = readCachedCase(email, id);
+      const cached = readCachedProject(email, id);
 
-      if (cached?.caseRecord) {
-        setCaseRecord(cached.caseRecord);
+      if (cached?.projectRecord) {
+        setProjectRecord(cached.projectRecord);
         setCachedAt(cached.cachedAt || "");
         setError("");
       } else {
-        setError(err?.message || "Failed to load client case.");
+        setError(err?.message || "Failed to load Client Hub workspace.");
       }
     } finally {
       setLoading(false);
@@ -520,7 +572,7 @@ export default function ClientProjectDetails() {
       .split("; ")
       .find((row) => row.startsWith("role="));
 
-    const email = cookie ? decodeURIComponent(cookie.split("=")[1]) : "";
+    const email = cookie ? decodeURIComponent(cookie.split("=")[1] || "") : "";
 
     if (!email || !email.includes("@")) {
       router.replace("/client/login");
@@ -529,11 +581,11 @@ export default function ClientProjectDetails() {
 
     setClientEmail(email);
 
-    const cached = readCachedCase(email, id);
-    const hasCachedCase = !!cached?.caseRecord;
+    const cached = readCachedProject(email, id);
+    const hasCachedProject = !!cached?.projectRecord;
 
-    if (cached?.caseRecord) {
-      setCaseRecord(cached.caseRecord);
+    if (cached?.projectRecord) {
+      setProjectRecord(cached.projectRecord);
       setCachedAt(cached.cachedAt || "");
       setLoading(false);
     }
@@ -543,33 +595,33 @@ export default function ClientProjectDetails() {
       return;
     }
 
-    loadCaseFromNetwork(email, hasCachedCase);
+    loadProjectFromNetwork(email, hasCachedProject);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router, online]);
 
   const title = useMemo(() => {
-    if (!caseRecord) return "Insurance Case";
-    return getCaseTitle(caseRecord);
-  }, [caseRecord]);
+    if (!projectRecord) return "AdminHub Global Project";
+    return getProjectTitle(projectRecord);
+  }, [projectRecord]);
 
   const handleRefresh = () => {
     if (!clientEmail || !online) return;
-    loadCaseFromNetwork(clientEmail, !!caseRecord);
+    loadProjectFromNetwork(clientEmail, !!projectRecord);
   };
 
   const handleDownloadPdf = async () => {
-    if (!caseRecord) return;
+    if (!projectRecord) return;
 
     setPdfBusy(true);
 
     try {
-      await generateClientCasePdf({
+      await generateClientWorkspacePdf({
         id,
-        record: caseRecord,
+        record: projectRecord,
         title,
       });
     } catch (err) {
-      console.error("Failed to generate client case PDF:", err);
+      console.error("Failed to generate Client Hub PDF:", err);
       window.alert("Failed to generate PDF. Please try again.");
     } finally {
       setPdfBusy(false);
@@ -581,30 +633,32 @@ export default function ClientProjectDetails() {
   if (error) {
     return (
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-        <section className="section-shell">
-          <div className="container">
+        <section className="section-shell relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+
+          <div className="container relative">
             <div className="mx-auto max-w-3xl">
               <div className="mb-5">
                 <Link
                   href="/client/dashboard"
                   prefetch={false}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
                 >
                   <ArrowLeft size={16} />
-                  Back to Dashboard
+                  Back to Client Hub
                 </Link>
               </div>
 
               <div className="frame-gold p-8 text-center">
-                <h1 className="text-2xl">Unable to open case</h1>
-                <p className="mt-3 text-sm leading-7 text-red-700">{error}</p>
+                <h1 className="text-2xl">Unable to open workspace</h1>
+                <p className="mt-3 text-sm leading-7 text-red-200">{error}</p>
 
                 <button
                   type="button"
                   onClick={() => router.push("/client/dashboard")}
                   className="btn btn-outline mt-5"
                 >
-                  Back to Dashboard
+                  Back to Client Hub
                 </button>
               </div>
             </div>
@@ -614,32 +668,39 @@ export default function ClientProjectDetails() {
     );
   }
 
-  if (!caseRecord) return null;
+  if (!projectRecord) return null;
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+    <main
+      id="main"
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+    >
+      <section className="section-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           <div className="mx-auto max-w-7xl">
             {!online ? (
-              <div className="mb-5 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+              <div className="mb-5 rounded-[1.25rem] border border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] px-4 py-3 text-sm leading-7 text-[#fcd34d]">
                 <div className="flex items-start gap-2">
                   <WifiOff size={17} className="mt-1 shrink-0" />
                   <p>
-                    You are offline. This case page is showing saved case data
-                    from this device. Messages and new updates will refresh when
-                    you are online again.
+                    You are offline. This workspace is showing saved project
+                    data from this device. Messages, files, proposals, and new
+                    updates will refresh when you are online again.
                   </p>
                 </div>
               </div>
             ) : cachedAt ? (
-              <div className="mb-5 rounded-[1.25rem] border border-green-200 bg-green-50 px-4 py-3 text-sm leading-7 text-green-700">
+              <div className="mb-5 rounded-[1.25rem] border border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] px-4 py-3 text-sm leading-7 text-[#86efac]">
                 <div className="flex items-start gap-2">
                   <Wifi size={17} className="mt-1 shrink-0" />
                   <p>
-                    Online. This case was last saved on{" "}
+                    Online. This workspace was last saved on{" "}
                     <b>{formatCachedAt(cachedAt)}</b>.
-                    {refreshing ? " Refreshing latest case updates…" : ""}
+                    {refreshing ? " Refreshing latest workspace updates…" : ""}
                   </p>
                 </div>
               </div>
@@ -649,10 +710,10 @@ export default function ClientProjectDetails() {
               <Link
                 href="/client/dashboard"
                 prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
               >
                 <ArrowLeft size={16} />
-                Back to Dashboard
+                Back to Client Hub
               </Link>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -669,6 +730,11 @@ export default function ClientProjectDetails() {
                   {refreshing ? "Refreshing..." : "Refresh"}
                 </button>
 
+                <Link href="/contact" prefetch={false} className="btn btn-outline">
+                  <ClipboardList size={16} />
+                  Request Help
+                </Link>
+
                 <button
                   type="button"
                   onClick={handleDownloadPdf}
@@ -676,47 +742,52 @@ export default function ClientProjectDetails() {
                   className="btn btn-primary"
                 >
                   <Download size={16} />
-                  {pdfBusy ? "Preparing PDF..." : "Download Case PDF"}
+                  {pdfBusy ? "Preparing PDF..." : "Download Workspace PDF"}
                 </button>
               </div>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-                  <div className="eyebrow">
-                    <ShieldCheck size={15} />
-                    Sparkle Legacy • Client Case
-                  </div>
+                <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+                  <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
 
-                  <h1 className="max-w-[15ch]">{title}</h1>
+                  <div className="relative">
+                    <div className="eyebrow">
+                      <ShieldCheck size={15} />
+                      AdminHub Global • Client Workspace
+                    </div>
 
-                  <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    View your case status, progress update, required documents,
-                    saved files, and messages from the Sparkle Legacy team.
-                  </p>
+                    <h1 className="max-w-[15ch]">{title}</h1>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <MiniStat
-                      icon={<UserRound size={16} />}
-                      label="Client"
-                      value={caseRecord.client_name || "Not provided"}
-                    />
-                    <MiniStat
-                      icon={<Mail size={16} />}
-                      label="Email"
-                      value={clientEmail}
-                    />
-                    <MiniStat
-                      icon={<Phone size={16} />}
-                      label="Phone"
-                      value={caseRecord.client_phone || "Not provided"}
-                    />
-                    <MiniStat
-                      icon={<BadgeCheck size={16} />}
-                      label="Status"
-                      value={niceLabel(caseRecord.status)}
-                    />
+                    <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
+                      View your project status, delivery stage, onboarding
+                      requests, files, proposal links, progress updates, support
+                      notes, and project messages from AdminHub Global.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <MiniStat
+                        icon={<UserRound size={16} />}
+                        label="Client"
+                        value={projectRecord.client_name || "Not provided"}
+                      />
+                      <MiniStat
+                        icon={<Mail size={16} />}
+                        label="Account"
+                        value={clientEmail}
+                      />
+                      <MiniStat
+                        icon={<Workflow size={16} />}
+                        label="Stage"
+                        value={niceLabel(getProjectStage(projectRecord))}
+                      />
+                      <MiniStat
+                        icon={<BadgeCheck size={16} />}
+                        label="Status"
+                        value={niceLabel(projectRecord.status)}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -724,71 +795,98 @@ export default function ClientProjectDetails() {
               <div className="card-outline-gold self-start">
                 <div className="card-inner md:p-8">
                   <div className="eyebrow mb-0">
-                    <FileText size={15} />
-                    Case Summary
+                    <LayoutDashboard size={15} />
+                    Workspace Summary
                   </div>
 
-                  <h2 className="mt-2 text-2xl">Your case details</h2>
+                  <h2 className="mt-2 text-2xl">Project details</h2>
 
                   <div className="mt-5 grid gap-3">
                     <SnapshotRow
-                      label="Request Type"
-                      value={niceLabel(caseRecord.request_type)}
+                      label="Package / Solution"
+                      value={niceLabel(getProjectPackage(projectRecord))}
                     />
                     <SnapshotRow
-                      label="Cover Type"
-                      value={niceLabel(caseRecord.cover_type)}
+                      label="Industry"
+                      value={niceLabel(projectRecord.industry)}
                     />
                     <SnapshotRow
-                      label="Product / Policy"
-                      value={caseRecord.product_interest}
+                      label="Onboarding"
+                      value={niceLabel(projectRecord.onboarding_status)}
                     />
                     <SnapshotRow
-                      label="City / Town"
-                      value={caseRecord.city_town}
+                      label="Support"
+                      value={niceLabel(
+                        projectRecord.support_status ||
+                          projectRecord.recurring_status
+                      )}
                     />
                   </div>
 
-                  {caseRecord.documentUrl ? (
+                  {projectRecord.documentUrl ? (
                     <a
-                      href={caseRecord.documentUrl}
+                      href={projectRecord.documentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4 transition hover:bg-[var(--surface)]"
+                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4 transition hover:bg-[rgba(77,163,255,0.08)]"
                     >
                       <div>
                         <div className="text-sm font-extrabold text-[var(--text-primary)]">
-                          Saved Case File
+                          Workspace File
                         </div>
                         <div className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">
-                          {caseRecord.documentName || "Open uploaded PDF/image"}
+                          {projectRecord.documentName ||
+                            "Open uploaded document"}
                         </div>
                       </div>
                       <ExternalLink
                         size={18}
-                        className="mt-1 shrink-0 text-[var(--brand-primary-strong)]"
+                        className="mt-1 shrink-0 text-[var(--brand-primary)]"
                       />
                     </a>
                   ) : null}
 
-                  {caseRecord.resource_link ? (
+                  {projectRecord.proposalUrl ? (
                     <a
-                      href={caseRecord.resource_link}
+                      href={projectRecord.proposalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4 transition hover:bg-[var(--surface)]"
+                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4 transition hover:bg-[rgba(77,163,255,0.08)]"
+                    >
+                      <div>
+                        <div className="text-sm font-extrabold text-[var(--text-primary)]">
+                          Proposal / Scope File
+                        </div>
+                        <div className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">
+                          {projectRecord.proposalName ||
+                            "Open proposal or project scope"}
+                        </div>
+                      </div>
+                      <ExternalLink
+                        size={18}
+                        className="mt-1 shrink-0 text-[var(--brand-primary)]"
+                      />
+                    </a>
+                  ) : null}
+
+                  {projectRecord.resource_link ? (
+                    <a
+                      href={projectRecord.resource_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-5 flex items-start justify-between gap-3 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4 transition hover:bg-[rgba(77,163,255,0.08)]"
                     >
                       <div>
                         <div className="text-sm font-extrabold text-[var(--text-primary)]">
                           Shared Resource Link
                         </div>
                         <div className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">
-                          Open linked document or shared file.
+                          Open linked document, preview, or shared file.
                         </div>
                       </div>
                       <ExternalLink
                         size={18}
-                        className="mt-1 shrink-0 text-[var(--brand-primary-strong)]"
+                        className="mt-1 shrink-0 text-[var(--brand-primary)]"
                       />
                     </a>
                   ) : null}
@@ -801,44 +899,54 @@ export default function ClientProjectDetails() {
                 <Read
                   label="Progress Update"
                   value={
-                    caseRecord.progress_update ||
-                    "No update has been added yet."
+                    projectRecord.progress_update ||
+                    "No progress update has been added yet."
                   }
                 />
 
                 <Read
-                  label="Required Documents"
+                  label="Onboarding / Requested Items"
                   value={
-                    caseRecord.required_documents ||
-                    "No document request has been added yet."
+                    projectRecord.onboarding_requests ||
+                    projectRecord.required_documents ||
+                    "No onboarding request has been added yet."
                   }
                 />
 
+                <Read label="Next Steps" value={projectRecord.next_steps} />
                 <Read
                   label="Support Summary"
-                  value={caseRecord.support_summary}
+                  value={projectRecord.support_summary}
                 />
               </InfoCard>
 
-              <InfoCard title="Case Information">
+              <InfoCard title="Project Information">
                 <Read
                   label="Client Type"
-                  value={niceLabel(caseRecord.client_type)}
+                  value={niceLabel(projectRecord.client_type)}
                 />
                 <Read
-                  label="Business Name"
-                  value={caseRecord.business_name || caseRecord.business}
+                  label="Business / Organisation"
+                  value={
+                    projectRecord.business_name ||
+                    projectRecord.business ||
+                    projectRecord.organisation
+                  }
                 />
-                <Read label="Industry" value={caseRecord.industry} />
                 <Read
-                  label="Current Insurer"
-                  value={caseRecord.current_insurer}
+                  label="Country / Region"
+                  value={
+                    projectRecord.country ||
+                    projectRecord.region ||
+                    projectRecord.city_town
+                  }
                 />
-                <Read label="Policy Number" value={caseRecord.policy_number} />
+                <Read label="Industry" value={projectRecord.industry} />
                 <Read
-                  label="Risk Items / What Needs Cover"
-                  value={caseRecord.risk_items}
+                  label="Package / Solution"
+                  value={getProjectPackage(projectRecord)}
                 />
+                <Read label="Build Notes" value={projectRecord.build_notes} />
               </InfoCard>
             </section>
 
@@ -850,19 +958,19 @@ export default function ClientProjectDetails() {
                 </div>
                 <h2 className="mt-2 text-2xl">Continue the conversation</h2>
                 <p className="mt-2 max-w-[65ch] text-sm leading-7 text-[var(--text-secondary)]">
-                  Send updates, questions, documents, or links directly to the
-                  Sparkle Legacy team.
+                  Send updates, questions, documents, or links directly inside
+                  this Client Hub workspace.
                 </p>
               </div>
 
               {online ? (
                 <ChatPanel
                   projectId={id}
-                  senderName={caseRecord.client_name || "Client"}
+                  senderName={projectRecord.client_name || "Client"}
                   canDeleteAll={false}
                   brand={{
-                    primary: "#887337",
-                    accent: "#d6b678",
+                    primary: "#4da3ff",
+                    accent: "#18c7b8",
                   }}
                 />
               ) : (
@@ -870,18 +978,19 @@ export default function ClientProjectDetails() {
                   <b className="text-[var(--text-primary)]">
                     Messages are paused offline.
                   </b>{" "}
-                  You can still read this saved case summary and download the
-                  case PDF. Reconnect to the internet to send messages or view
-                  the latest conversation.
+                  You can still read this saved workspace summary and download
+                  the workspace PDF. Reconnect to the internet to send messages
+                  or view the latest conversation.
                 </div>
               )}
             </section>
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
-              <b className="text-[var(--text-primary)]">Note:</b> This portal
-              helps you track updates and communicate with Sparkle Legacy. Final
-              cover terms, claims decisions, benefits, and acceptance remain
-              subject to insurer underwriting and policy wording.
+              <b className="text-[var(--text-primary)]">Contact policy:</b>{" "}
+              This Client Hub supports project updates, files, messaging, and
+              support visibility. If access or follow-up is needed outside this
+              workspace, use the structured inquiry page so identity and context
+              are recorded before private follow-up.
             </div>
           </div>
         </div>
@@ -937,7 +1046,7 @@ function MiniStat({
   value: string;
 }) {
   return (
-    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
       <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {icon}
         {label}
@@ -953,7 +1062,7 @@ function SnapshotRow({ label, value }: { label: string; value?: string }) {
   const text = value && value.trim().length > 0 ? value.trim() : "—";
 
   return (
-    <div className="rounded-[1rem] border border-[var(--border)] bg-white/80 px-4 py-3">
+    <div className="rounded-[1rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-4 py-3">
       <div className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {label}
       </div>

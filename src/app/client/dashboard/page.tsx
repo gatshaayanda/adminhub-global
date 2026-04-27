@@ -14,49 +14,69 @@ import {
 import {
   ArrowRight,
   BadgeCheck,
+  BriefcaseBusiness,
+  ClipboardList,
   FileText,
+  LayoutDashboard,
   LogOut,
   Mail,
   MessageCircle,
-  Phone,
   RefreshCw,
   ShieldCheck,
   UserRound,
   Wifi,
   WifiOff,
+  Workflow,
 } from "lucide-react";
 
 import { firestore } from "@/utils/firebaseConfig";
 import AdminHubLoader from "@/components/AdminHubLoader";
 
-type ClientCase = {
+type ClientProject = {
   id: string;
+
   client_name?: string;
   client_email?: string;
   client_phone?: string;
-  client_type?: string;
+
+  project_name?: string;
   business?: string;
   business_name?: string;
-  city_town?: string;
+  organisation?: string;
+  industry?: string;
+
   request_type?: string;
-  cover_type?: string;
-  product_interest?: string;
+  service_type?: string;
+  selected_package?: string;
+  package_name?: string;
+
   status?: string;
+  stage?: string;
   progress_update?: string;
+  onboarding_status?: string;
+  support_status?: string;
+  recurring_status?: string;
+
   required_documents?: string;
+  onboarding_requests?: string;
+  build_notes?: string;
+
   documentUrl?: string;
   documentName?: string;
+  proposalUrl?: string;
+  proposalName?: string;
+
   portal_access?: boolean;
   admin_panel?: boolean;
 };
 
 type CachedDashboard = {
-  cases: ClientCase[];
+  projects: ClientProject[];
   messageCounts: Record<string, number>;
   cachedAt: string;
 };
 
-const CACHE_PREFIX = "sparkle_client_dashboard_cache_v1";
+const CACHE_PREFIX = "adminhub_global_client_dashboard_cache_v1";
 
 function cacheKey(email: string) {
   return `${CACHE_PREFIX}_${email.toLowerCase().trim()}`;
@@ -82,7 +102,10 @@ function readCachedDashboard(email: string): CachedDashboard | null {
   }
 }
 
-function saveCachedDashboard(email: string, data: Omit<CachedDashboard, "cachedAt">) {
+function saveCachedDashboard(
+  email: string,
+  data: Omit<CachedDashboard, "cachedAt">
+) {
   if (typeof window === "undefined") return;
 
   try {
@@ -94,7 +117,7 @@ function saveCachedDashboard(email: string, data: Omit<CachedDashboard, "cachedA
       })
     );
   } catch (error) {
-    console.warn("Could not save client dashboard cache:", error);
+    console.warn("Could not save AdminHub Global Client Hub cache:", error);
   }
 }
 
@@ -117,27 +140,45 @@ function niceLabel(value?: string) {
 
   return value
     .replace(/-/g, " ")
+    .replace(/_/g, " ")
     .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
-function getCaseTitle(item: ClientCase) {
+function getProjectTitle(item: ClientProject) {
   return (
-    item.product_interest?.trim() ||
+    item.project_name?.trim() ||
     item.business_name?.trim() ||
     item.business?.trim() ||
+    item.organisation?.trim() ||
+    item.selected_package?.trim() ||
+    item.package_name?.trim() ||
     item.client_name?.trim() ||
-    "Insurance Case"
+    "AdminHub Global Project"
   );
 }
 
-function canShowInPortal(item: ClientCase) {
+function getProjectPackage(item: ClientProject) {
+  return (
+    item.selected_package?.trim() ||
+    item.package_name?.trim() ||
+    item.service_type?.trim() ||
+    item.request_type?.trim() ||
+    "—"
+  );
+}
+
+function getProjectStage(item: ClientProject) {
+  return item.stage?.trim() || item.status?.trim() || "active";
+}
+
+function canShowInPortal(item: ClientProject) {
   return item.portal_access === true || item.admin_panel === true;
 }
 
 export default function ClientDashboard() {
   const router = useRouter();
 
-  const [cases, setCases] = useState<ClientCase[]>([]);
+  const [projects, setProjects] = useState<ClientProject[]>([]);
   const [messageCounts, setMessageCounts] = useState<Record<string, number>>({});
   const [clientEmail, setClientEmail] = useState("");
   const [cachedAt, setCachedAt] = useState("");
@@ -183,7 +224,7 @@ export default function ClientDashboard() {
       const rows = snap.docs
         .map((docSnap) => ({
           id: docSnap.id,
-          ...(docSnap.data() as Omit<ClientCase, "id">),
+          ...(docSnap.data() as Omit<ClientProject, "id">),
         }))
         .filter(canShowInPortal);
 
@@ -191,40 +232,45 @@ export default function ClientDashboard() {
 
       await Promise.all(
         rows.map(async (item) => {
-          const messagesCol = collection(
-            firestore,
-            "projects",
-            item.id,
-            "messages"
-          );
+          try {
+            const messagesCol = collection(
+              firestore,
+              "projects",
+              item.id,
+              "messages"
+            );
 
-          const countSnap = await getCountFromServer(messagesCol);
-          counts[item.id] = countSnap.data().count || 0;
+            const countSnap = await getCountFromServer(messagesCol);
+            counts[item.id] = countSnap.data().count || 0;
+          } catch (countError) {
+            console.warn("Could not count project messages:", countError);
+            counts[item.id] = 0;
+          }
         })
       );
 
-      setCases(rows);
+      setProjects(rows);
       setMessageCounts(counts);
 
       const savedAt = new Date().toISOString();
       setCachedAt(savedAt);
 
       saveCachedDashboard(email, {
-        cases: rows,
+        projects: rows,
         messageCounts: counts,
       });
     } catch (err) {
-      console.error("Client dashboard load failed:", err);
+      console.error("Client Hub load failed:", err);
 
       const cached = readCachedDashboard(email);
 
       if (cached) {
-        setCases(cached.cases || []);
+        setProjects(cached.projects || []);
         setMessageCounts(cached.messageCounts || {});
         setCachedAt(cached.cachedAt || "");
         setError("");
       } else {
-        setError("Could not load your client portal records.");
+        setError("Could not load your Client Hub records.");
       }
     } finally {
       setLoading(false);
@@ -237,7 +283,7 @@ export default function ClientDashboard() {
       .split("; ")
       .find((row) => row.startsWith("role="));
 
-    const email = cookie ? decodeURIComponent(cookie.split("=")[1]) : "";
+    const email = cookie ? decodeURIComponent(cookie.split("=")[1] || "") : "";
 
     if (!email || !email.includes("@")) {
       router.replace("/client/login");
@@ -250,7 +296,7 @@ export default function ClientDashboard() {
     const hasCachedData = !!cached;
 
     if (cached) {
-      setCases(cached.cases || []);
+      setProjects(cached.projects || []);
       setMessageCounts(cached.messageCounts || {});
       setCachedAt(cached.cachedAt || "");
       setLoading(false);
@@ -267,12 +313,20 @@ export default function ClientDashboard() {
 
   const stats = useMemo(() => {
     return {
-      total: cases.length,
-      open: cases.filter((item) => item.status !== "closed").length,
-      withMessages: cases.filter((item) => (messageCounts[item.id] || 0) > 0)
+      total: projects.length,
+      active: projects.filter((item) => getProjectStage(item) !== "closed")
         .length,
+      withMessages: projects.filter((item) => (messageCounts[item.id] || 0) > 0)
+        .length,
+      onSupport: projects.filter((item) =>
+        ["active", "monthly", "managed", "retainer"].some((word) =>
+          `${item.support_status || ""} ${item.recurring_status || ""}`
+            .toLowerCase()
+            .includes(word)
+        )
+      ).length,
     };
-  }, [cases, messageCounts]);
+  }, [projects, messageCounts]);
 
   const handleLogout = () => {
     document.cookie = "role=; path=/; max-age=0;";
@@ -281,7 +335,7 @@ export default function ClientDashboard() {
 
   const handleRefresh = () => {
     if (!clientEmail || !online) return;
-    loadFromNetwork(clientEmail, cases.length > 0);
+    loadFromNetwork(clientEmail, projects.length > 0);
   };
 
   if (loading) return <AdminHubLoader />;
@@ -289,11 +343,13 @@ export default function ClientDashboard() {
   if (error) {
     return (
       <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-        <section className="section-shell">
-          <div className="container">
+        <section className="section-shell relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+
+          <div className="container relative">
             <div className="frame-gold mx-auto max-w-2xl p-8 text-center">
-              <h1 className="text-2xl">Unable to load portal</h1>
-              <p className="mt-3 text-sm leading-7 text-red-700">{error}</p>
+              <h1 className="text-2xl">Unable to load Client Hub</h1>
+              <p className="mt-3 text-sm leading-7 text-red-200">{error}</p>
 
               <button
                 type="button"
@@ -310,27 +366,34 @@ export default function ClientDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+    <main
+      id="main"
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+    >
+      <section className="section-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           <div className="mx-auto max-w-6xl">
             {!online ? (
-              <div className="mb-5 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+              <div className="mb-5 rounded-[1.25rem] border border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] px-4 py-3 text-sm leading-7 text-[#fcd34d]">
                 <div className="flex items-start gap-2">
                   <WifiOff size={17} className="mt-1 shrink-0" />
                   <p>
-                    You are offline. This dashboard is showing saved portal data
-                    from this device. Messages, new files, and case updates will
-                    refresh when you are online again.
+                    You are offline. This Client Hub is showing saved project
+                    data from this device. New messages, files, project updates,
+                    and support records will refresh when you are online again.
                   </p>
                 </div>
               </div>
             ) : cachedAt ? (
-              <div className="mb-5 rounded-[1.25rem] border border-green-200 bg-green-50 px-4 py-3 text-sm leading-7 text-green-700">
+              <div className="mb-5 rounded-[1.25rem] border border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] px-4 py-3 text-sm leading-7 text-[#86efac]">
                 <div className="flex items-start gap-2">
                   <Wifi size={17} className="mt-1 shrink-0" />
                   <p>
-                    Online. Portal data was last saved on{" "}
+                    Online. Client Hub data was last saved on{" "}
                     <b>{formatCachedAt(cachedAt)}</b>.
                     {refreshing ? " Refreshing latest updates…" : ""}
                   </p>
@@ -342,9 +405,11 @@ export default function ClientDashboard() {
               <div>
                 <div className="eyebrow mb-2">
                   <ShieldCheck size={15} />
-                  Sparkle Legacy • Client Portal
+                  AdminHub Global • Client Hub
                 </div>
-                <h1 className="max-w-[14ch]">Your insurance support cases.</h1>
+                <h1 className="max-w-[14ch]">
+                  Your project workspace and support view.
+                </h1>
               </div>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -361,9 +426,18 @@ export default function ClientDashboard() {
                   {refreshing ? "Refreshing..." : "Refresh"}
                 </button>
 
+                <Link
+                  href="/contact"
+                  prefetch={false}
+                  className="btn btn-outline"
+                >
+                  <ClipboardList size={18} />
+                  Request Help
+                </Link>
+
                 <button
                   onClick={handleLogout}
-                  className="btn btn-outline"
+                  className="btn btn-ghost"
                   type="button"
                 >
                   <LogOut size={18} />
@@ -374,36 +448,41 @@ export default function ClientDashboard() {
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-                  <div className="eyebrow">
-                    <UserRound size={15} />
-                    Logged in client
-                  </div>
+                <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+                  <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
 
-                  <h2 className="text-2xl">Welcome back.</h2>
+                  <div className="relative">
+                    <div className="eyebrow">
+                      <UserRound size={15} />
+                      Logged in client
+                    </div>
 
-                  <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    This portal lets you view your active Sparkle Legacy
-                    insurance cases, track updates, open attached documents, and
-                    continue secure communication with the team.
-                  </p>
+                    <h2 className="text-2xl">Welcome back.</h2>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                    <InfoMini
-                      label="Email"
-                      value={clientEmail}
-                      icon={<Mail size={15} />}
-                    />
-                    <InfoMini
-                      label="Cases"
-                      value={String(stats.total)}
-                      icon={<FileText size={15} />}
-                    />
-                    <InfoMini
-                      label="Messages"
-                      value={String(stats.withMessages)}
-                      icon={<MessageCircle size={15} />}
-                    />
+                    <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
+                      This Client Hub lets you view assigned AdminHub Global
+                      project workspaces, track progress updates, open files or
+                      proposals, continue project communication, and follow
+                      onboarding or support requests.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                      <InfoMini
+                        label="Account"
+                        value={clientEmail}
+                        icon={<Mail size={15} />}
+                      />
+                      <InfoMini
+                        label="Projects"
+                        value={String(stats.total)}
+                        icon={<FileText size={15} />}
+                      />
+                      <InfoMini
+                        label="Conversations"
+                        value={String(stats.withMessages)}
+                        icon={<MessageCircle size={15} />}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -412,44 +491,64 @@ export default function ClientDashboard() {
                 <div className="card-inner md:p-8">
                   <div className="eyebrow mb-0">
                     <BadgeCheck size={15} />
-                    Portal status
+                    Workspace status
                   </div>
 
                   <h2 className="mt-2 text-2xl">At a glance</h2>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <div className="mt-5 grid gap-3 sm:grid-cols-4 xl:grid-cols-2">
                     <StatCard label="Total" value={String(stats.total)} />
-                    <StatCard label="Open" value={String(stats.open)} />
+                    <StatCard label="Active" value={String(stats.active)} />
                     <StatCard label="Chats" value={String(stats.withMessages)} />
+                    <StatCard label="Support" value={String(stats.onSupport)} />
                   </div>
 
-                  <div className="mt-5 rounded-[1.25rem] border border-[var(--border)] bg-[var(--surface)] p-4">
-                    <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                      Need urgent help?
+                  <div className="mt-5 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+                    <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                      <LayoutDashboard
+                        size={16}
+                        className="text-[var(--brand-primary)]"
+                      />
+                      Client Hub purpose
                     </p>
                     <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                      For urgent claim or quote support, use WhatsApp or call
-                      Sparkle Legacy directly.
+                      Your workspace is for project visibility, onboarding
+                      requests, files, support updates, and structured
+                      communication. For login or support issues, use the
+                      structured inquiry page.
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {cases.length === 0 ? (
+            {projects.length === 0 ? (
               <div className="mt-8 frame-gold p-8 text-center">
                 <h2 className="text-2xl">
-                  {online ? "No active portal cases yet" : "No saved cases available offline"}
-                </h2>
-                <p className="mx-auto mt-3 max-w-[56ch] text-sm leading-7 text-[var(--text-secondary)]">
                   {online
-                    ? "Your account is active, but no client cases have been assigned to this email yet. Sparkle Legacy will notify you once a case is ready for portal access."
-                    : "This device does not have saved portal case data yet. Go online once, open your dashboard, and the PWA will save your latest visible case records for offline viewing."}
+                    ? "No active Client Hub projects yet"
+                    : "No saved projects available offline"}
+                </h2>
+                <p className="mx-auto mt-3 max-w-[58ch] text-sm leading-7 text-[var(--text-secondary)]">
+                  {online
+                    ? "Your login is active, but no AdminHub Global project workspaces have been assigned to this email yet. Once a project is ready for portal access, it will appear here."
+                    : "This device does not have saved Client Hub project data yet. Go online once, open your dashboard, and the PWA will save your latest visible records for offline-aware viewing."}
                 </p>
+
+                <div className="mt-5 flex justify-center">
+                  <Link
+                    href="/contact"
+                    prefetch={false}
+                    className="btn btn-outline"
+                  >
+                    <ClipboardList size={18} />
+                    Request Access Review
+                  </Link>
+                </div>
               </div>
             ) : (
               <section className="mt-8 grid gap-4">
-                {cases.map((item) => {
+                {projects.map((item) => {
                   const count = messageCounts[item.id] || 0;
 
                   return (
@@ -458,14 +557,26 @@ export default function ClientDashboard() {
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h2 className="text-xl">{getCaseTitle(item)}</h2>
+                              <h2 className="text-xl">
+                                {getProjectTitle(item)}
+                              </h2>
 
-                              <span className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)]">
-                                {niceLabel(item.status)}
+                              <span className="rounded-full border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-2.5 py-1 text-xs font-bold text-[var(--text-muted)]">
+                                {niceLabel(getProjectStage(item))}
                               </span>
 
+                              {item.support_status || item.recurring_status ? (
+                                <span className="rounded-full border border-[rgba(77,163,255,0.32)] bg-[rgba(77,163,255,0.1)] px-2.5 py-1 text-xs font-bold text-[var(--brand-primary)]">
+                                  {niceLabel(
+                                    item.support_status ||
+                                      item.recurring_status ||
+                                      "support"
+                                  )}
+                                </span>
+                              ) : null}
+
                               {count > 0 ? (
-                                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
+                                <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] px-2.5 py-1 text-xs font-bold text-[#86efac]">
                                   <MessageCircle size={13} />
                                   Conversation available
                                 </span>
@@ -473,22 +584,22 @@ export default function ClientDashboard() {
                             </div>
 
                             <div className="mt-3 grid gap-3 md:grid-cols-3">
-                              <CaseMini
-                                label="Request"
-                                value={niceLabel(item.request_type)}
+                              <ProjectMini
+                                label="Package"
+                                value={niceLabel(getProjectPackage(item))}
                               />
-                              <CaseMini
-                                label="Cover"
-                                value={niceLabel(item.cover_type)}
+                              <ProjectMini
+                                label="Industry"
+                                value={niceLabel(item.industry)}
                               />
-                              <CaseMini
-                                label="Product"
-                                value={item.product_interest || "—"}
+                              <ProjectMini
+                                label="Onboarding"
+                                value={niceLabel(item.onboarding_status)}
                               />
                             </div>
 
                             {item.progress_update ? (
-                              <div className="mt-4 rounded-[1.25rem] border border-[var(--border)] bg-[var(--surface)] p-4">
+                              <div className="mt-4 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                                 <p className="text-sm font-extrabold text-[var(--text-primary)]">
                                   Latest update
                                 </p>
@@ -502,13 +613,15 @@ export default function ClientDashboard() {
                               </p>
                             )}
 
-                            {item.required_documents ? (
-                              <div className="mt-4 rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+                            {item.required_documents ||
+                            item.onboarding_requests ? (
+                              <div className="mt-4 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                                 <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                                  Documents requested
+                                  Onboarding / requested items
                                 </p>
                                 <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[var(--text-secondary)]">
-                                  {item.required_documents}
+                                  {item.required_documents ||
+                                    item.onboarding_requests}
                                 </p>
                               </div>
                             ) : null}
@@ -520,7 +633,7 @@ export default function ClientDashboard() {
                               className="btn btn-primary"
                               prefetch={false}
                             >
-                              Open Case
+                              Open Workspace
                               <ArrowRight size={18} />
                             </Link>
 
@@ -532,7 +645,21 @@ export default function ClientDashboard() {
                                 className="btn btn-outline"
                               >
                                 <FileText size={18} />
-                                Open File
+                                {item.documentName ? "Open File" : "Open File"}
+                              </a>
+                            ) : null}
+
+                            {item.proposalUrl ? (
+                              <a
+                                href={item.proposalUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-outline"
+                              >
+                                <BriefcaseBusiness size={18} />
+                                {item.proposalName
+                                  ? "Open Proposal"
+                                  : "Open Proposal"}
                               </a>
                             ) : null}
                           </div>
@@ -545,9 +672,11 @@ export default function ClientDashboard() {
             )}
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
-              <b className="text-[var(--text-primary)]">Note:</b> Portal access
-              is limited to cases assigned to your email by Sparkle Legacy. If a
-              case is missing, contact the team using your usual support channel.
+              <b className="text-[var(--text-primary)]">Contact policy:</b>{" "}
+              Client Hub access is limited to workspaces assigned to your email.
+              If a workspace is missing or you need login help, use the
+              structured inquiry page so your identity and context are recorded
+              before private follow-up.
             </div>
           </div>
         </div>
@@ -558,7 +687,7 @@ export default function ClientDashboard() {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4 text-center">
+    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4 text-center">
       <div className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {label}
       </div>
@@ -579,7 +708,7 @@ function InfoMini({
   icon: ReactNode;
 }) {
   return (
-    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
       <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {icon}
         {label}
@@ -591,9 +720,9 @@ function InfoMini({
   );
 }
 
-function CaseMini({ label, value }: { label: string; value: string }) {
+function ProjectMini({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[1rem] border border-[var(--border)] bg-white/80 px-4 py-3">
+    <div className="rounded-[1rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-4 py-3">
       <div className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--text-muted)]">
         {label}
       </div>

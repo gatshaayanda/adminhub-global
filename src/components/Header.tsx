@@ -5,16 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BadgeInfo,
-  BriefcaseBusiness,
   ChevronDown,
   ClipboardList,
-  FileText,
   Globe2,
   LayoutDashboard,
   LockKeyhole,
   LogOut,
   Menu,
-  MessageCircle,
   Network,
   RefreshCw,
   ShieldCheck,
@@ -55,10 +52,15 @@ const primaryNav = [
   { label: "Home", href: "/", icon: <Sparkles size={18} /> },
   { label: "Partner Portal", href: "/partners", icon: <Users size={18} /> },
   { label: "Insights", href: "/blog", icon: <BadgeInfo size={18} /> },
-  { label: "Submit Inquiry", href: "/contact", icon: <MessageCircle size={18} /> },
 ];
 
 const solutionNav = [
+  {
+    label: "Solutions Overview",
+    href: "/solutions",
+    icon: <Network size={18} />,
+    desc: "The full AdminHub Global solution structure for proof, build, launch, and support.",
+  },
   {
     label: "48-Hour Live Proof",
     href: "/c/rapid-proof",
@@ -76,12 +78,6 @@ const solutionNav = [
     href: "/c/operations-pwa",
     icon: <Workflow size={18} />,
     desc: "Custom workflow-heavy systems for cases, onboarding, files, requests, and support.",
-  },
-  {
-    label: "Client Hub",
-    href: CLIENT_PORTAL_PATH,
-    icon: <BriefcaseBusiness size={18} />,
-    desc: "Client-facing workspace for project progress, files, messages, and support.",
   },
 ];
 
@@ -284,14 +280,10 @@ export default function Header() {
               {online ? "Online" : "Offline-aware"}
             </span>
 
-            <Link
-              href="/contact"
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--border-glow)] hover:text-[var(--text-primary)]"
-              prefetch={false}
-            >
+            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary)]">
               <LockKeyhole size={14} className="text-[var(--brand-primary)]" />
-              Structured inquiry only
-            </Link>
+              Structured inquiry before private follow-up
+            </span>
           </div>
         </div>
       </div>
@@ -383,11 +375,7 @@ export default function Header() {
           </nav>
 
           <div className="hidden items-center gap-2 lg:flex">
-            <Link
-              href="/contact"
-              className="btn btn-primary"
-              prefetch={false}
-            >
+            <Link href="/contact" className="btn btn-primary" prefetch={false}>
               <ClipboardList size={18} />
               Submit Inquiry
             </Link>
@@ -523,7 +511,10 @@ export default function Header() {
 
             <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-4 py-3 text-xs leading-6 text-[var(--text-muted)]">
               <div className="mb-1 flex items-center gap-2 font-extrabold text-[var(--text-primary)]">
-                <LockKeyhole size={15} className="text-[var(--brand-primary)]" />
+                <LockKeyhole
+                  size={15}
+                  className="text-[var(--brand-primary)]"
+                />
                 Controlled contact flow
               </div>
               Direct personal phone or email details are not displayed publicly.
@@ -575,21 +566,6 @@ export default function Header() {
               ))}
             </div>
 
-            <Link
-              href="/about"
-              prefetch={false}
-              onClick={closeAll}
-              className={`menu-link justify-between ${
-                isActive("/about") ? "active" : ""
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <BadgeInfo size={18} />
-                About AdminHub
-              </span>
-              <span className="text-[var(--text-muted)]">›</span>
-            </Link>
-
             <div className="my-2 h-px bg-[var(--border)]" />
 
             <Link
@@ -600,16 +576,6 @@ export default function Header() {
             >
               <ClipboardList size={18} />
               Submit Inquiry
-            </Link>
-
-            <Link
-              href="/partners"
-              onClick={closeAll}
-              className="btn btn-outline w-full"
-              prefetch={false}
-            >
-              <Users size={18} />
-              Partner Access Request
             </Link>
 
             <button
@@ -674,8 +640,9 @@ export default function Header() {
             )}
 
             <div className="pt-2 text-xs font-medium leading-6 text-[var(--text-muted)]">
-              AdminHub Global uses structured inquiry capture before private
-              follow-up. No direct personal contact details are published here.
+              Insights is where AdminHub Global explains the platform,
+              credibility, proof process, and business thinking. There is no
+              separate About page.
             </div>
           </div>
         </div>

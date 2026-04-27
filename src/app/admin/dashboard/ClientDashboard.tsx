@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  collection,
-  getCountFromServer,
-} from "firebase/firestore";
+import { collection, getCountFromServer } from "firebase/firestore";
 import {
   BookOpen,
+  BriefcaseBusiness,
+  ClipboardList,
   Database,
   FileText,
   FolderKanban,
@@ -15,41 +14,109 @@ import {
   ImageIcon,
   LayoutDashboard,
   LogOut,
+  Network,
   RefreshCw,
   ShieldCheck,
   Trash2,
   Users,
   Wifi,
   WifiOff,
+  Workflow,
 } from "lucide-react";
 
 import { firestore } from "@/utils/firebaseConfig";
 
 const LOCAL_APP_KEYS = [
-  "sparkle_chat_history_v1",
-  "sparkle_chat_lead_v1",
-  "sparkle_blog_cache_v1",
-  "sparkle_blog_post_cache_v1",
-  "sparkle_home_cache_v1",
-  "sparkle_claims_cache_v1",
-  "sparkle_category_cache_v1",
-  "sparkle_contact_cache_v1",
+  "adminhub_global_chat_history_v1",
+  "adminhub_global_chat_lead_v1",
+  "adminhub_global_home_highlights_v1",
+  "adminhub_global_blog_cache_v1",
+  "adminhub_global_blog_post_cache_v1",
+  "adminhub_global_contact_cache_v1",
+  "adminhub_global_inquiry_cache_v1",
+  "adminhub_global_category_cache_v1",
+  "adminhub_global_client_dashboard_cache_v1",
+  "adminhub_global_client_case_cache_v1",
+];
+
+const OFFLINE_DB_NAME_HINTS = [
+  "firebase",
+  "firestore",
+  "adminhub",
+  "adminhub-global",
+  "workbox",
+  "pwa",
 ];
 
 type DashboardStats = {
+  projects: string;
   insights: string;
   highlights: string;
-  products: string;
+  solutions: string;
 };
+
+async function countCollection(collectionName: string) {
+  const snap = await getCountFromServer(collection(firestore, collectionName));
+  return snap.data().count || 0;
+}
+
+function getSettledCount(result: PromiseSettledResult<number>) {
+  return result.status === "fulfilled" ? String(result.value) : "—";
+}
+
+async function clearOfflineAppData() {
+  if (typeof window === "undefined") return;
+
+  if ("caches" in window) {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+  }
+
+  try {
+    LOCAL_APP_KEYS.forEach((key) => localStorage.removeItem(key));
+  } catch {}
+
+  if ("indexedDB" in window) {
+    const idb = window.indexedDB as IDBFactory & {
+      databases?: () => Promise<Array<{ name?: string | null }>>;
+    };
+
+    if (typeof idb.databases === "function") {
+      const databases = await idb.databases();
+
+      const appDatabaseNames = databases
+        .map((db) => db.name)
+        .filter((name): name is string => Boolean(name))
+        .filter((name) => {
+          const lower = name.toLowerCase();
+          return OFFLINE_DB_NAME_HINTS.some((hint) => lower.includes(hint));
+        });
+
+      await Promise.all(
+        appDatabaseNames.map(
+          (name) =>
+            new Promise<void>((resolve) => {
+              const request = indexedDB.deleteDatabase(name);
+
+              request.onsuccess = () => resolve();
+              request.onerror = () => resolve();
+              request.onblocked = () => resolve();
+            })
+        )
+      );
+    }
+  }
+}
 
 export default function AdminDashboard() {
   const router = useRouter();
 
   const [online, setOnline] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
+    projects: "—",
     insights: "—",
     highlights: "—",
-    products: "—",
+    solutions: "—",
   });
   const [statsLoading, setStatsLoading] = useState(true);
   const [clearingCache, setClearingCache] = useState(false);
@@ -76,28 +143,32 @@ export default function AdminDashboard() {
       try {
         setStatsLoading(true);
 
-        const [blogsSnap, highlightsSnap, productsSnap] = await Promise.all([
-          getCountFromServer(collection(firestore, "blogs")),
-          getCountFromServer(collection(firestore, "highlights")),
-          getCountFromServer(collection(firestore, "insurance_products")),
-        ]);
+        const [projectsSnap, blogsSnap, highlightsSnap, solutionsSnap] =
+          await Promise.allSettled([
+            countCollection("projects"),
+            countCollection("blogs"),
+            countCollection("highlights"),
+            countCollection("insurance_products"),
+          ]);
 
         if (!alive) return;
 
         setStats({
-          insights: String(blogsSnap.data().count || 0),
-          highlights: String(highlightsSnap.data().count || 0),
-          products: String(productsSnap.data().count || 0),
+          projects: getSettledCount(projectsSnap),
+          insights: getSettledCount(blogsSnap),
+          highlights: getSettledCount(highlightsSnap),
+          solutions: getSettledCount(solutionsSnap),
         });
       } catch (error) {
-        console.error("Failed to load admin dashboard stats:", error);
+        console.error("Failed to load AdminHub Global dashboard stats:", error);
 
         if (!alive) return;
 
         setStats({
+          projects: "—",
           insights: "—",
           highlights: "—",
-          products: "—",
+          solutions: "—",
         });
       } finally {
         if (alive) setStatsLoading(false);
@@ -118,7 +189,7 @@ export default function AdminDashboard() {
 
   const handleClearAppStorage = async () => {
     const ok = window.confirm(
-      "Clear local PWA cache and saved browser data for this app? This will not delete Firestore records."
+      "Clear local PWA cache and saved browser data for AdminHub Global? This will not delete Firestore records."
     );
 
     if (!ok) return;
@@ -127,91 +198,99 @@ export default function AdminDashboard() {
     setCacheMessage("");
 
     try {
-      if (typeof caches !== "undefined") {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
-      }
-
-      try {
-        LOCAL_APP_KEYS.forEach((key) => localStorage.removeItem(key));
-      } catch {}
+      await clearOfflineAppData();
 
       setCacheMessage(
-        "Local app cache cleared. Refresh the app to rebuild the latest cached version."
+        "Local AdminHub Global cache cleared. Refresh the app to rebuild the latest cached version."
       );
     } catch (error) {
-      console.error("Failed to clear app storage:", error);
+      console.error("Failed to clear AdminHub Global app storage:", error);
       setCacheMessage("Could not clear all local app cache. Please try again.");
     } finally {
       setClearingCache(false);
     }
   };
 
-  const sections = [
-    {
-      title: "Projects",
-      desc: "Manage client projects, update intake details, review progress, and handle project-linked communication.",
-      icon: <FolderKanban size={22} />,
-      href: "/admin/project",
-    },
-    {
-      title: "Manage Insights",
-      desc: "Create, edit, and publish blog articles and shareable insurance education content.",
-      icon: <BookOpen size={22} />,
-      href: "/admin/blog",
-    },
-    {
-      title: "Manage Highlights",
-      desc: "Update homepage highlights, featured messages, and visual homepage content.",
-      icon: <ImageIcon size={22} />,
-      href: "/admin/dashboard/highlights",
-    },
-    {
-      title: "Manage Insurance Products",
-      desc: "Organize short-term, long-term, SME, retirement, and related cover content.",
-      icon: <FolderKanban size={22} />,
-      href: "/admin/dashboard/products",
-    },
-    {
-      title: "Manage Claims Content",
-      desc: "Maintain claims guidance, required document info, and support content.",
-      icon: <FileText size={22} />,
-      href: "/admin/dashboard/claims",
-    },
-    {
-      title: "Manage Client Access",
-      desc: "Review client-facing access flows, secure portal visibility, and support paths.",
-      icon: <Users size={22} />,
-      href: "/admin/dashboard/clients",
-    },
-  ];
+  const sections = useMemo(
+    () => [
+      {
+        title: "Project Workspace",
+        desc: "Manage leads, opportunities, client onboarding, builds, delivery progress, messages, files, and support records.",
+        icon: <FolderKanban size={22} />,
+        href: "/admin/project",
+      },
+      {
+        title: "New Opportunity",
+        desc: "Capture a new lead, client intake, agent referral, proof sprint request, or implementation opportunity.",
+        icon: <ClipboardList size={22} />,
+        href: "/admin/project/create-project",
+      },
+      {
+        title: "Partner & Client Access",
+        desc: "Review portal access, client visibility, partner-facing flows, and secure workspace availability.",
+        icon: <Users size={22} />,
+        href: "/admin/dashboard/clients",
+      },
+      {
+        title: "Manage Insights",
+        desc: "Create and update the combined Insights page content for positioning, education, and trust-building posts.",
+        icon: <BookOpen size={22} />,
+        href: "/admin/blog",
+      },
+      {
+        title: "Homepage Highlights",
+        desc: "Update featured homepage cards, proof-process messaging, platform highlights, and visual content.",
+        icon: <ImageIcon size={22} />,
+        href: "/admin/dashboard/highlights",
+      },
+      {
+        title: "Solutions Catalogue",
+        desc: "Maintain solution/package content such as 48-Hour Live Proof, Business PWA, Operations PWA, and support tiers.",
+        icon: <Workflow size={22} />,
+        href: "/admin/dashboard/products",
+      },
+    ],
+    []
+  );
 
   const statCards = [
+    ["Projects", stats.projects],
     ["Insights", stats.insights],
     ["Highlights", stats.highlights],
-    ["Products", stats.products],
+    ["Solutions", stats.solutions],
   ];
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+    <main
+      id="main"
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+    >
+      <section className="section-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-12 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-12 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           {!online ? (
-            <div className="mb-6 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+            <div className="mb-6 rounded-[1.25rem] border border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] px-4 py-3 text-sm leading-7 text-[#fcd34d]">
               <div className="flex items-start gap-2">
                 <WifiOff size={17} className="mt-1 shrink-0" />
                 <p>
                   You are offline. Admin data may not refresh until the
-                  connection returns. Public cached pages can still work through
-                  the PWA cache.
+                  connection returns. Saved public PWA pages may still open, but
+                  new messages, uploads, Firestore updates, and dashboard counts
+                  need internet.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="mb-6 rounded-[1.25rem] border border-green-200 bg-green-50 px-4 py-3 text-sm leading-7 text-green-700">
+            <div className="mb-6 rounded-[1.25rem] border border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] px-4 py-3 text-sm leading-7 text-[#86efac]">
               <div className="flex items-start gap-2">
                 <Wifi size={17} className="mt-1 shrink-0" />
-                <p>Online. Admin content and dashboard data can refresh normally.</p>
+                <p>
+                  Online. AdminHub Global records, dashboard counts, portal
+                  updates, and project data can refresh normally.
+                </p>
               </div>
             </div>
           )}
@@ -220,21 +299,37 @@ export default function AdminDashboard() {
             <div>
               <div className="eyebrow">
                 <ShieldCheck size={15} />
-                Sparkle Legacy • Admin
+                AdminHub Global • Admin Control
               </div>
 
               <h1 className="mt-3 flex items-center gap-3">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--brand-tint)] text-[var(--brand-primary-strong)]">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--brand-tint)] text-[var(--brand-primary)] shadow-[var(--shadow-blue)]">
                   <LayoutDashboard size={22} />
                 </span>
-                Admin Dashboard
+                AdminHub Global Control
               </h1>
 
-              <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                Manage the public experience, insurance insights, content
-                updates, and operational areas that support Sparkle Legacy’s
-                digital platform.
+              <p className="mt-4 max-w-[66ch] text-base leading-8 text-[var(--text-secondary)]">
+                Manage the custom PWA operating system behind AdminHub Global:
+                lead intake, agent-supported opportunities, 48-hour live proof
+                work, client onboarding, project workspaces, messaging, files,
+                proposal-ready outputs, and recurring support tracking.
               </p>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="badge">
+                  <Network size={14} />
+                  Custom framework
+                </span>
+                <span className="badge">
+                  <BriefcaseBusiness size={14} />
+                  9th iteration
+                </span>
+                <span className="badge badge-neutral">
+                  <ShieldCheck size={14} />
+                  Structured inquiry only
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row md:flex-col">
@@ -264,11 +359,11 @@ export default function AdminDashboard() {
                 key={section.title}
                 type="button"
                 onClick={() => router.push(section.href)}
-                className="card-outline-gold h-full text-left transition hover:-translate-y-[2px]"
+                className="card-outline-gold h-full text-left transition hover:-translate-y-[2px] hover:border-[var(--border-glow)]"
               >
                 <div className="card-inner md:p-6">
                   <div className="flex items-start gap-3">
-                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--brand-tint)] text-[var(--brand-primary-strong)]">
+                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--brand-tint)] text-[var(--brand-primary)]">
                       {section.icon}
                     </span>
 
@@ -293,7 +388,7 @@ export default function AdminDashboard() {
               <h2 className="mt-2 text-2xl">Dashboard summary</h2>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {statCards.map(([label, value]) => (
                 <div key={label} className="card">
                   <div className="card-inner text-center md:p-6">
@@ -321,16 +416,17 @@ export default function AdminDashboard() {
 
                     <h2 className="mt-2 text-2xl">Clear local app cache</h2>
 
-                    <p className="mt-3 max-w-[70ch] text-sm leading-7 text-[var(--text-secondary)]">
-                      Use this when the installed app is showing old cached
-                      content or after major design/content changes. This clears
-                      browser-side PWA cache and saved local app helper data. It
-                      does not delete Firestore records, blog posts, client
-                      cases, products, or uploaded files.
+                    <p className="mt-3 max-w-[72ch] text-sm leading-7 text-[var(--text-secondary)]">
+                      Use this after major design, content, navigation, or PWA
+                      updates if the installed app is showing old cached content.
+                      This clears browser-side cache, saved helper data, and
+                      matching local IndexedDB databases. It does not delete
+                      Firestore records, projects, insights, highlights, client
+                      portal data, messages, uploaded files, or admin content.
                     </p>
 
                     {cacheMessage ? (
-                      <div className="mt-4 rounded-[1rem] border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)]">
+                      <div className="mt-4 rounded-[1rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)]">
                         {cacheMessage}
                       </div>
                     ) : null}
@@ -357,7 +453,7 @@ export default function AdminDashboard() {
                       className="btn btn-ghost"
                     >
                       <Database size={18} />
-                      View Public Site
+                      View Public App
                     </button>
                   </div>
                 </div>
@@ -367,9 +463,11 @@ export default function AdminDashboard() {
 
           <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
             <b className="text-[var(--text-primary)]">Admin note:</b> this
-            dashboard is intended for Sparkle Legacy internal management only.
-            Use it to keep the site current, helpful, and aligned with the
-            public-facing insurance experience.
+            dashboard is for AdminHub Global internal control. It keeps the
+            existing reusable framework wiring intact while reframing the system
+            around agents, leads, live proof, client onboarding, delivery,
+            messaging, files, PDFs, and managed support. Public direct personal
+            contact details should stay hidden behind structured inquiry flows.
           </div>
         </div>
       </section>

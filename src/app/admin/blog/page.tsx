@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
@@ -37,6 +38,9 @@ type BlogPost = {
   imageName?: string;
   imageType?: string;
   admin_id?: string;
+  category?: string;
+  topic?: string;
+  visibility?: string;
   created_at?: FirestoreDate;
   createdAt?: FirestoreDate;
   updated_at?: FirestoreDate;
@@ -109,14 +113,23 @@ function splitParagraphs(body?: string) {
     .filter(Boolean);
 }
 
-function getExcerpt(body?: string, max = 220) {
+function getExcerpt(body?: string, max = 230) {
   const text = (body || "").replace(/\s+/g, " ").trim();
 
   if (!text) {
-    return "No article body has been added yet.";
+    return "No insight body has been added yet. Add platform explanation, founder-led context, framework credibility, or useful guidance before publishing.";
   }
 
   return text.length > max ? `${text.slice(0, max).trim()}…` : text;
+}
+
+function niceLabel(value?: string) {
+  if (!value) return "—";
+
+  return value
+    .replace(/-/g, " ")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
 export default function AdminBlogViewPage() {
@@ -147,7 +160,7 @@ export default function AdminBlogViewPage() {
         if (!alive) return;
 
         if (!snap.exists()) {
-          setError("This post could not be found.");
+          setError("This insight could not be found.");
           setPost(null);
           return;
         }
@@ -160,11 +173,11 @@ export default function AdminBlogViewPage() {
         setPost(data);
         setImageSrc(safeImageSrc(data.imageUrl));
       } catch (err: any) {
-        console.error("Failed to load admin blog post:", err);
+        console.error("Failed to load AdminHub Global insight:", err);
 
         if (!alive) return;
 
-        setError(err?.message || "Failed to load this post.");
+        setError(err?.message || "Failed to load this insight.");
         setPost(null);
       } finally {
         if (alive) setLoading(false);
@@ -178,7 +191,7 @@ export default function AdminBlogViewPage() {
     };
   }, [id, router]);
 
-  const title = post?.title?.trim() || "Untitled Post";
+  const title = post?.title?.trim() || "Untitled Insight";
   const paragraphs = useMemo(() => splitParagraphs(post?.body), [post?.body]);
   const createdDate = formatDate(post?.created_at || post?.createdAt);
   const updatedDate = formatDate(post?.updated_at || post?.updatedAt);
@@ -187,25 +200,30 @@ export default function AdminBlogViewPage() {
 
   if (error || !post) {
     return (
-      <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-        <section className="section-shell">
-          <div className="container">
+      <main
+        id="main"
+        className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+      >
+        <section className="section-shell relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+
+          <div className="container relative">
             <div className="mx-auto max-w-3xl">
               <div className="mb-5">
                 <Link
                   href="/admin/blog"
                   prefetch={false}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
                 >
                   <ArrowLeft size={16} />
-                  Back to Posts
+                  Back to Insights
                 </Link>
               </div>
 
               <div className="frame-gold p-8 text-center">
-                <h1 className="text-2xl">Post not found</h1>
-                <p className="mt-3 text-sm leading-7 text-red-700">
-                  {error || "This post could not be loaded."}
+                <h1 className="text-2xl">Insight not found</h1>
+                <p className="mt-3 text-sm leading-7 text-red-200">
+                  {error || "This insight could not be loaded."}
                 </p>
 
                 <div className="mt-5 flex justify-center">
@@ -214,7 +232,7 @@ export default function AdminBlogViewPage() {
                     prefetch={false}
                     className="btn btn-outline"
                   >
-                    Back to Blog Posts
+                    Back to Admin Insights
                   </Link>
                 </div>
               </div>
@@ -226,67 +244,78 @@ export default function AdminBlogViewPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+    <main
+      id="main"
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+    >
+      <section className="section-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           <div className="mx-auto max-w-7xl">
             <div className="mb-5">
               <Link
                 href="/admin/blog"
                 prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
               >
                 <ArrowLeft size={16} />
-                Back to Posts
+                Back to Insights
               </Link>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-                  <div className="eyebrow">
-                    <BookOpen size={15} />
-                    Sparkle Legacy • Admin Post View
-                  </div>
+                <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+                  <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
 
-                  <h1 className="max-w-[14ch]">{title}</h1>
+                  <div className="relative">
+                    <div className="eyebrow">
+                      <BookOpen size={15} />
+                      AdminHub Global • Admin Insight View
+                    </div>
 
-                  <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-[var(--text-muted)]">
-                    <span className="inline-flex items-center gap-2">
-                      <CalendarDays size={16} />
-                      {createdDate}
-                    </span>
+                    <h1 className="max-w-[15ch]">{title}</h1>
 
-                    {post.updated_at || post.updatedAt ? (
+                    <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-[var(--text-muted)]">
                       <span className="inline-flex items-center gap-2">
-                        <ShieldCheck size={16} />
-                        Updated {updatedDate}
+                        <CalendarDays size={16} />
+                        {createdDate}
                       </span>
-                    ) : null}
-                  </div>
 
-                  <p className="mt-5 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    {getExcerpt(post.body)}
-                  </p>
+                      {post.updated_at || post.updatedAt ? (
+                        <span className="inline-flex items-center gap-2">
+                          <ShieldCheck size={16} />
+                          Updated {updatedDate}
+                        </span>
+                      ) : null}
+                    </div>
 
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    <Link
-                      href={`/admin/blog/${post.id}/edit`}
-                      prefetch={false}
-                      className="btn btn-primary"
-                    >
-                      <Pencil size={18} />
-                      Edit This Post
-                    </Link>
+                    <p className="mt-5 max-w-[64ch] text-base leading-8 text-[var(--text-secondary)]">
+                      {getExcerpt(post.body)}
+                    </p>
 
-                    <Link
-                      href={`/blog/${post.id}`}
-                      prefetch={false}
-                      className="btn btn-outline"
-                    >
-                      <Eye size={18} />
-                      View Public Page
-                    </Link>
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                      <Link
+                        href={`/admin/blog/${post.id}/edit`}
+                        prefetch={false}
+                        className="btn btn-primary"
+                      >
+                        <Pencil size={18} />
+                        Edit This Insight
+                      </Link>
+
+                      <Link
+                        href={`/blog/${post.id}`}
+                        prefetch={false}
+                        className="btn btn-outline"
+                      >
+                        <Eye size={18} />
+                        View Public Page
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -298,7 +327,7 @@ export default function AdminBlogViewPage() {
                     Featured Image
                   </div>
 
-                  <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-[var(--border)] bg-[var(--surface-2)]">
+                  <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)]">
                     <img
                       src={imageSrc}
                       alt={title}
@@ -309,7 +338,7 @@ export default function AdminBlogViewPage() {
                     />
                   </div>
 
-                  <div className="mt-4 rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+                  <div className="mt-4 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                     <p className="text-sm font-extrabold text-[var(--text-primary)]">
                       Image details
                     </p>
@@ -344,7 +373,7 @@ export default function AdminBlogViewPage() {
                 <div className="card-inner md:p-8">
                   <div className="eyebrow mb-0">
                     <FileText size={15} />
-                    Post Body
+                    Insight Body
                   </div>
 
                   <div className="mt-5 h-px bg-[var(--border)]" />
@@ -367,77 +396,135 @@ export default function AdminBlogViewPage() {
               </article>
 
               <aside className="space-y-4 xl:sticky xl:top-24">
-                <section className="card-outline-gold">
-                  <div className="card-inner md:p-6">
-                    <div className="eyebrow mb-0">
-                      <ShieldCheck size={15} />
-                      Admin Checks
-                    </div>
-
-                    <h2 className="mt-2 text-xl">Before sharing</h2>
-
-                    <ul className="mt-4 space-y-2">
-                      {[
-                        "Confirm the image displays correctly.",
-                        "Check the post title is clear.",
-                        "Check paragraph spacing on mobile.",
-                        "Open the public page before sharing.",
-                      ].map((item) => (
-                        <li
-                          key={item}
-                          className="flex gap-2 text-sm leading-7 text-[var(--text-secondary)]"
-                        >
-                          <span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-primary)]" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="mt-5 flex flex-col gap-2">
-                      <Link
-                        href={`/admin/blog/${post.id}/edit`}
-                        prefetch={false}
-                        className="btn btn-primary w-full"
+                <InfoCard
+                  eyebrow="Admin Checks"
+                  title="Before publishing or sharing"
+                  icon={<ShieldCheck size={15} />}
+                >
+                  <ul className="mt-4 space-y-2">
+                    {[
+                      "Confirm this belongs on the combined Insights page, which also carries platform explanation and credibility.",
+                      "Check that the title explains the business point clearly.",
+                      "Confirm the image displays properly on mobile and desktop.",
+                      "Make sure no private phone, email, or sensitive internal detail is exposed.",
+                      "Open the public page before sharing externally.",
+                    ].map((item) => (
+                      <li
+                        key={item}
+                        className="flex gap-2 text-sm leading-7 text-[var(--text-secondary)]"
                       >
-                        <Pencil size={18} />
-                        Edit Post
-                      </Link>
+                        <span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-primary)]" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
 
-                      <Link
-                        href={`/blog/${post.id}`}
-                        prefetch={false}
-                        className="btn btn-outline w-full"
-                      >
-                        <Eye size={18} />
-                        Public View
-                      </Link>
-                    </div>
+                  <div className="mt-5 flex flex-col gap-2">
+                    <Link
+                      href={`/admin/blog/${post.id}/edit`}
+                      prefetch={false}
+                      className="btn btn-primary w-full"
+                    >
+                      <Pencil size={18} />
+                      Edit Insight
+                    </Link>
+
+                    <Link
+                      href={`/blog/${post.id}`}
+                      prefetch={false}
+                      className="btn btn-outline w-full"
+                    >
+                      <Eye size={18} />
+                      Public View
+                    </Link>
                   </div>
-                </section>
+                </InfoCard>
 
-                <section className="card-outline-gold">
-                  <div className="card-inner md:p-6">
-                    <div className="eyebrow mb-0">
-                      <BookOpen size={15} />
-                      Post ID
-                    </div>
+                <InfoCard
+                  eyebrow="Public Role"
+                  title="Insights is the About + Blog area"
+                  icon={<BookOpen size={15} />}
+                >
+                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                    AdminHub Global does not use a separate About page. Public
+                    platform explanation, founder credibility, proof-process
+                    context, framework positioning, and useful articles all live
+                    through the Insights structure.
+                  </p>
+                </InfoCard>
 
-                    <p className="mt-3 break-all text-xs leading-6 text-[var(--text-muted)]">
+                <InfoCard
+                  eyebrow="Metadata"
+                  title="Internal reference"
+                  icon={<FileText size={15} />}
+                >
+                  <div className="mt-3 space-y-3 text-xs leading-6 text-[var(--text-muted)]">
+                    <p className="break-all">
+                      <b className="text-[var(--text-secondary)]">Post ID:</b>{" "}
                       {post.id}
                     </p>
+
+                    <p>
+                      <b className="text-[var(--text-secondary)]">Topic:</b>{" "}
+                      {niceLabel(post.topic || post.category)}
+                    </p>
+
+                    <p>
+                      <b className="text-[var(--text-secondary)]">
+                        Visibility:
+                      </b>{" "}
+                      {niceLabel(post.visibility)}
+                    </p>
+
+                    {post.admin_id ? (
+                      <p className="break-all">
+                        <b className="text-[var(--text-secondary)]">
+                          Admin ID:
+                        </b>{" "}
+                        {post.admin_id}
+                      </p>
+                    ) : null}
                   </div>
-                </section>
+                </InfoCard>
               </aside>
             </section>
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
               <b className="text-[var(--text-primary)]">Admin note:</b> this is
-              the internal admin preview. Use the public view button to confirm
-              how clients will see the article on the live Insights page.
+              the internal preview for AdminHub Global Insights. Use the public
+              view button to confirm how visitors will see the article on the
+              live combined Insights page.
             </div>
           </div>
         </div>
       </section>
     </main>
+  );
+}
+
+function InfoCard({
+  eyebrow,
+  title,
+  icon,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="card-outline-gold">
+      <div className="card-inner md:p-6">
+        <div className="eyebrow mb-0">
+          {icon}
+          {eyebrow}
+        </div>
+
+        <h2 className="mt-2 text-xl">{title}</h2>
+
+        {children}
+      </div>
+    </section>
   );
 }

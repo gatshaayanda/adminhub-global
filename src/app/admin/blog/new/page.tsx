@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, FormEvent } from "react";
+import type { FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import {
   ArrowLeft,
   BookOpen,
+  CheckCircle2,
   ImageIcon,
+  LayoutDashboard,
   Loader2,
   MessageSquareText,
+  Network,
   PencilLine,
   ShieldCheck,
+  Sparkles,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -27,10 +32,26 @@ type UploadThingResult = {
   type?: string;
 };
 
+const TOPIC_OPTIONS = [
+  "Platform positioning",
+  "48-hour live proof",
+  "Partner sales",
+  "Client portals",
+  "Admin dashboards",
+  "PWA operations",
+  "Custom framework",
+  "Managed support",
+];
+
+function getUploadUrl(uploaded?: UploadThingResult) {
+  return uploaded?.url || uploaded?.ufsUrl || uploaded?.appUrl || "";
+}
+
 export default function NewBlogPage() {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
+  const [topic, setTopic] = useState(TOPIC_OPTIONS[0]);
   const [body, setBody] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -55,20 +76,21 @@ export default function NewBlogPage() {
     }
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErr("");
 
     const cleanTitle = title.trim();
+    const cleanTopic = topic.trim();
     const cleanBody = body.trim();
 
     if (!cleanTitle) {
-      setErr("Please enter a blog title.");
+      setErr("Please enter an insight title.");
       return;
     }
 
     if (!cleanBody) {
-      setErr("Please enter the blog body.");
+      setErr("Please enter the insight body.");
       return;
     }
 
@@ -86,9 +108,7 @@ export default function NewBlogPage() {
 
         const firstUpload = uploaded?.[0] as UploadThingResult | undefined;
 
-        imageUrl =
-          firstUpload?.url || firstUpload?.ufsUrl || firstUpload?.appUrl || "";
-
+        imageUrl = getUploadUrl(firstUpload);
         imageName = firstUpload?.name || imageFile.name || "";
         imageType = firstUpload?.type || imageFile.type || "";
 
@@ -101,76 +121,103 @@ export default function NewBlogPage() {
       await addDoc(collection(firestore, "blogs"), {
         admin_id: "admin",
         title: cleanTitle,
+        topic: cleanTopic,
+        category: cleanTopic.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        visibility: "public",
         body: cleanBody,
         imageUrl,
         imageName,
         imageType,
         created_at: serverTimestamp(),
         createdAt: serverTimestamp(),
+        updated_at: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
       router.push("/admin/blog");
     } catch (e: any) {
-      console.error("Failed to save blog post:", e);
-      setErr(e?.message || "Failed to save blog post.");
+      console.error("Failed to save AdminHub Global insight:", e);
+      setErr(e?.message || "Failed to save insight.");
       setSaving(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+    <main
+      id="main"
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+    >
+      <section className="section-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           <div className="mx-auto max-w-5xl">
             <div className="mb-5">
               <Link
                 href="/admin/blog"
                 prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
               >
                 <ArrowLeft size={16} />
-                Back to Blog Posts
+                Back to Insights
               </Link>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-                  <div className="eyebrow">
-                    <BookOpen size={15} />
-                    Sparkle Legacy • New Insight
-                  </div>
+                <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+                  <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
 
-                  <h1 className="max-w-[12ch]">
-                    Write a practical, shareable insight post.
-                  </h1>
-
-                  <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    Use this form to publish educational content that Sparkle
-                    Legacy can share through the public Insights page, WhatsApp,
-                    and client follow-ups.
-                  </p>
-
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
-                      <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                        Best-performing topics
-                      </p>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        Storm damage, life cover, claims guidance, home
-                        insurance, SME risk, and practical insurance education.
-                      </p>
+                  <div className="relative">
+                    <div className="eyebrow">
+                      <BookOpen size={15} />
+                      AdminHub Global • New Insight
                     </div>
 
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
-                      <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                        UploadThing image support
-                      </p>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        Upload a featured image directly. The hosted image URL
-                        will be saved automatically with the blog post.
-                      </p>
+                    <h1 className="max-w-[13ch]">
+                      Write a useful platform insight.
+                    </h1>
+
+                    <p className="mt-4 max-w-[64ch] text-base leading-8 text-[var(--text-secondary)]">
+                      Use this form to publish content for the public Insights
+                      area. Insights is where AdminHub Global explains the
+                      platform, the 48-hour proof process, custom framework
+                      thinking, partner sales value, Client Hub workflows, and
+                      founder-led delivery credibility.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+                        <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                          <Network
+                            size={16}
+                            className="text-[var(--brand-primary)]"
+                          />
+                          Best topics
+                        </p>
+                        <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                          48-hour live proof, agent-led sales, custom PWA
+                          systems, portals, dashboards, messaging, uploads,
+                          proposals, and managed support.
+                        </p>
+                      </div>
+
+                      <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+                        <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                          <ShieldCheck
+                            size={16}
+                            className="text-[var(--brand-primary)]"
+                          />
+                          Public safety
+                        </p>
+                        <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                          Do not publish private phone numbers, personal email
+                          addresses, internal passwords, or sensitive client
+                          information in public insights.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -187,33 +234,36 @@ export default function NewBlogPage() {
 
                   <ul className="mt-5 space-y-3">
                     {[
-                      "Use a clear title tied to a real insurance situation.",
-                      "Keep the body practical, readable, and easy to share.",
-                      "Link the post to a real problem clients recognize.",
-                      "End with a direction that naturally leads to follow-up or cover guidance.",
+                      "Keep the insight tied to AdminHub Global’s real business model.",
+                      "Explain the custom framework value without sounding like a generic DIY website builder.",
+                      "Use serious, founder-led language with clear commercial credibility.",
+                      "Make the post useful for prospects, agents, clients, or future reviewers.",
+                      "Use structured inquiry as the next step, not public personal contact details.",
                     ].map((item) => (
                       <li
                         key={item}
                         className="flex gap-2 text-sm leading-7 text-[var(--text-secondary)]"
                       >
-                        <span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-primary)]" />
+                        <CheckCircle2
+                          size={16}
+                          className="mt-[5px] shrink-0 text-[var(--brand-primary)]"
+                        />
                         <span>{item}</span>
                       </li>
                     ))}
                   </ul>
 
-                  <div className="mt-6 rounded-[1.25rem] border border-[var(--border)] bg-[var(--surface)] p-4">
+                  <div className="mt-6 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                     <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
-                      <ShieldCheck
+                      <LayoutDashboard
                         size={16}
-                        className="text-[var(--brand-primary-strong)]"
+                        className="text-[var(--brand-primary)]"
                       />
-                      WhatsApp conversion note
+                      Insights role
                     </p>
                     <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                      Public blog posts should help readers move from awareness
-                      to action through WhatsApp sharing and product-specific
-                      follow-up prompts.
+                      There is no separate About page. The public Insights area
+                      carries both platform explanation and article content.
                     </p>
                   </div>
                 </div>
@@ -225,24 +275,46 @@ export default function NewBlogPage() {
                 <div className="card-inner space-y-5 md:p-8">
                   <div className="eyebrow mb-0">
                     <MessageSquareText size={15} />
-                    Post details
+                    Insight details
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="title"
-                      className="text-sm font-semibold text-[var(--text-primary)]"
-                    >
+                    <label htmlFor="title" className="label">
                       Title
                     </label>
                     <input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Example: Why Home Insurance Matters After Storm Damage"
+                      placeholder="Example: Why a 48-hour live proof makes custom PWA sales easier"
                       required
                       className="input mt-2"
+                      disabled={saving}
                     />
+                  </div>
+
+                  <div>
+                    <label htmlFor="topic" className="label">
+                      Topic
+                    </label>
+                    <select
+                      id="topic"
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      className="select mt-2"
+                      disabled={saving}
+                    >
+                      {TOPIC_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+
+                    <p className="mt-2 text-xs leading-6 text-[var(--text-muted)]">
+                      This helps organize public insights around the AdminHub
+                      Global platform story.
+                    </p>
                   </div>
 
                   <div>
@@ -270,12 +342,12 @@ export default function NewBlogPage() {
                     />
 
                     <p className="mt-2 text-xs leading-6 text-[var(--text-muted)]">
-                      Upload an image for this article. If left blank, the
-                      public insight page will use the default placeholder image.
+                      Upload a featured image for this insight. If left blank,
+                      the public page will use the default placeholder image.
                     </p>
 
                     {previewUrl ? (
-                      <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-[var(--border)] bg-[var(--surface)]">
+                      <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)]">
                         <img
                           src={previewUrl}
                           alt="Featured image preview"
@@ -283,14 +355,14 @@ export default function NewBlogPage() {
                         />
 
                         <div className="flex items-center justify-between gap-3 p-3">
-                          <span className="text-xs text-[var(--text-muted)]">
+                          <span className="min-w-0 truncate text-xs text-[var(--text-muted)]">
                             Selected image: {imageFile?.name}
                           </span>
 
                           <button
                             type="button"
                             onClick={() => handleImageChange(null)}
-                            className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--border)] bg-[rgba(6,10,18,0.58)] px-3 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition hover:bg-[rgba(77,163,255,0.08)] hover:text-[var(--text-primary)]"
                             disabled={saving}
                           >
                             <X size={14} />
@@ -302,24 +374,22 @@ export default function NewBlogPage() {
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="body"
-                      className="text-sm font-semibold text-[var(--text-primary)]"
-                    >
+                    <label htmlFor="body" className="label">
                       Body
                     </label>
                     <textarea
                       id="body"
                       value={body}
                       onChange={(e) => setBody(e.target.value)}
-                      placeholder="Write the post body here..."
+                      placeholder="Write the insight body here..."
                       required
-                      className="input mt-2 min-h-[220px] resize-y rounded-[1.25rem]"
+                      className="textarea mt-2 min-h-[260px] rounded-[1.25rem]"
+                      disabled={saving}
                     />
                   </div>
 
                   {err ? (
-                    <div className="rounded-[1rem] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <div className="rounded-[1rem] border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-7 text-red-200">
                       {err}
                     </div>
                   ) : null}
@@ -328,7 +398,7 @@ export default function NewBlogPage() {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="btn btn-primary"
+                      className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {saving ? (
                         <Loader2 size={18} className="animate-spin" />
@@ -355,8 +425,9 @@ export default function NewBlogPage() {
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
               <b className="text-[var(--text-primary)]">Admin note:</b> strong
-              insight posts are practical, relevant, and easy for clients to
-              understand and share.
+              AdminHub Global insights should make the platform easier to
+              understand, easier for agents to explain, and safer for prospects
+              to evaluate before submitting a structured inquiry.
             </div>
           </div>
         </div>

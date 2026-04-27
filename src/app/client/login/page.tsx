@@ -1,25 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  ClipboardList,
+  LayoutDashboard,
   Loader2,
   Lock,
+  LockKeyhole,
   LogIn,
-  MessageCircle,
   ShieldCheck,
   Wifi,
   WifiOff,
 } from "lucide-react";
-
-const WHATSAPP_NUMBER = "+26772971852";
-
-function waLink(message: string) {
-  const digits = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
 
 export default function ClientLoginPage() {
   const router = useRouter();
@@ -45,13 +41,13 @@ export default function ClientLoginPage() {
     };
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
 
     if (!online) {
       setError(
-        "Client login needs an internet connection. Public pages may still open offline, but your client dashboard must be verified online."
+        "Client login needs an internet connection. Public cached pages may still open offline, but Client Hub access must be verified online."
       );
       return;
     }
@@ -91,28 +87,46 @@ export default function ClientLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+    <main
+      id="main"
+      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
+    >
+      <section className="section-shell relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           <div className="mx-auto max-w-5xl">
-            <div className="mb-5">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Link
                 href="/"
                 prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
               >
                 <ArrowLeft size={16} />
                 Back to Home
               </Link>
+
+              <div
+                className={`inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${
+                  online
+                    ? "border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] text-[#86efac]"
+                    : "border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] text-[#fcd34d]"
+                }`}
+              >
+                {online ? <Wifi size={16} /> : <WifiOff size={16} />}
+                {online ? "Online" : "Offline-aware"}
+              </div>
             </div>
 
             {!online ? (
-              <div className="mb-5 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+              <div className="mb-5 rounded-[1.25rem] border border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] px-4 py-3 text-sm leading-7 text-[#fcd34d]">
                 <div className="flex items-start gap-2">
                   <WifiOff size={17} className="mt-1 shrink-0" />
                   <p>
                     You are offline. Public PWA pages may still load from saved
-                    content, but client login requires internet because your
+                    content, but Client Hub login requires internet because your
                     password and dashboard access must be verified securely.
                   </p>
                 </div>
@@ -121,65 +135,75 @@ export default function ClientLoginPage() {
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-                  <div className="eyebrow">
-                    <ShieldCheck size={15} />
-                    Sparkle Legacy • Client Access
-                  </div>
+                <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+                  <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
 
-                  <h1 className="max-w-[12ch]">
-                    Secure client login for your dashboard.
-                  </h1>
-
-                  <p className="mt-4 max-w-[60ch] text-base leading-8 text-[var(--text-secondary)]">
-                    Use your access password to enter your client dashboard.
-                    This area is designed for secure follow-up, case visibility,
-                    document access, and direct support communication.
-                  </p>
-
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
-                      <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                        Private access
-                      </p>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        Your dashboard is separated from the public site for a
-                        cleaner and more secure client experience.
-                      </p>
+                  <div className="relative">
+                    <div className="eyebrow">
+                      <ShieldCheck size={15} />
+                      AdminHub Global • Client Hub Access
                     </div>
 
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
-                      <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                        Online verification
-                      </p>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        Login only works online so Sparkle Legacy can confirm
-                        the correct client account before opening dashboard
-                        records.
-                      </p>
+                    <h1 className="max-w-[12ch]">
+                      Secure client login for project visibility.
+                    </h1>
+
+                    <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
+                      Use your access password to enter the Client Hub. This
+                      area supports private project updates, files, messaging,
+                      onboarding requests, support visibility, and delivery
+                      follow-up inside AdminHub Global.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+                        <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                          <LockKeyhole
+                            size={16}
+                            className="text-[var(--brand-primary)]"
+                          />
+                          Private client area
+                        </p>
+                        <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                          Client workspaces are separated from the public site
+                          for cleaner project and support management.
+                        </p>
+                      </div>
+
+                      <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+                        <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                          <Wifi
+                            size={16}
+                            className="text-[var(--brand-primary)]"
+                          />
+                          Online verification
+                        </p>
+                        <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                          Login stays online-only so AdminHub Global can confirm
+                          the correct client account before opening dashboard
+                          records.
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    <a
-                      href={waLink(
-                        "Hi Sparkle Legacy 👋 I need help accessing my client dashboard."
-                      )}
-                      className="btn btn-outline"
-                    >
-                      <MessageCircle size={18} />
-                      Get Login Help on WhatsApp
-                    </a>
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                      <Link
+                        href="/contact"
+                        prefetch={false}
+                        className="btn btn-outline"
+                      >
+                        <ClipboardList size={18} />
+                        Request Login Help
+                      </Link>
 
-                    <div
-                      className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${
-                        online
-                          ? "border-green-200 bg-green-50 text-green-700"
-                          : "border-amber-200 bg-amber-50 text-amber-800"
-                      }`}
-                    >
-                      {online ? <Wifi size={16} /> : <WifiOff size={16} />}
-                      {online ? "Online" : "Offline"}
+                      <Link
+                        href="/solutions"
+                        prefetch={false}
+                        className="btn btn-ghost"
+                      >
+                        <LayoutDashboard size={18} />
+                        View Solutions
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -187,30 +211,27 @@ export default function ClientLoginPage() {
 
               <div className="card-outline-gold self-start">
                 <div className="card-inner md:p-8">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--brand-tint)] text-[var(--brand-primary-strong)]">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary)]">
                     <Lock size={24} />
                   </div>
 
                   <div className="mt-5 text-center">
                     <div className="eyebrow justify-center">
                       <Lock size={15} />
-                      Secure Sign In
+                      Client Hub Sign In
                     </div>
 
                     <h2 className="mt-2 text-2xl">Client Login</h2>
 
                     <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
                       Enter your secure access password to continue to your
-                      dashboard.
+                      Client Hub.
                     </p>
                   </div>
 
                   <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                     <div>
-                      <label
-                        htmlFor="password"
-                        className="text-sm font-semibold text-[var(--text-primary)]"
-                      >
+                      <label htmlFor="password" className="label">
                         Password
                       </label>
 
@@ -246,25 +267,29 @@ export default function ClientLoginPage() {
                       {loading
                         ? "Logging In..."
                         : online
-                          ? "Login"
+                          ? "Login to Client Hub"
                           : "Offline"}
                     </button>
 
                     {error ? (
-                      <div className="rounded-[1rem] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      <div className="rounded-[1rem] border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-7 text-red-200">
                         {error}
                       </div>
                     ) : null}
                   </form>
 
-                  <div className="mt-6 rounded-[1.25rem] border border-[var(--border)] bg-[var(--surface)] p-4">
-                    <p className="text-sm font-extrabold text-[var(--text-primary)]">
+                  <div className="mt-6 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+                    <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                      <LayoutDashboard
+                        size={16}
+                        className="text-[var(--brand-primary)]"
+                      />
                       Access note
                     </p>
                     <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                       Keep your login details private. Public pages may support
-                      offline viewing, but your personal dashboard should only
-                      open after online verification.
+                      offline viewing, but your Client Hub should only open after
+                      online verification.
                     </p>
                   </div>
                 </div>
@@ -272,9 +297,9 @@ export default function ClientLoginPage() {
             </div>
 
             <div className="mt-6 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
-              <b className="text-[var(--text-primary)]">Note:</b> Client access
-              remains subject to the current Sparkle Legacy portal setup and
-              security process.
+              <b className="text-[var(--text-primary)]">Contact policy:</b>{" "}
+              Login help should go through structured inquiry capture first. No
+              direct personal phone or email details are displayed publicly.
             </div>
           </div>
         </div>

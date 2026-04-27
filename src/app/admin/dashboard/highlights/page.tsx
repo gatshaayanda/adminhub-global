@@ -10,19 +10,24 @@ import {
   getDocs,
   orderBy,
   query,
+  serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
 import {
   ArrowLeft,
+  CheckCircle2,
   Eye,
   FileImage,
   Home,
   ImagePlus,
   Loader2,
+  RefreshCw,
   Save,
   ShieldCheck,
+  Star,
   Trash2,
   UploadCloud,
+  XCircle,
 } from "lucide-react";
 
 import { firestore } from "@/utils/firebaseConfig";
@@ -45,40 +50,74 @@ type EditableHighlight = Highlight & {
   saving?: boolean;
 };
 
+type UploadThingResult = {
+  url?: string;
+  ufsUrl?: string;
+  appUrl?: string;
+  name?: string;
+  type?: string;
+};
+
+const COLLECTION_PATH = "highlights";
+
+function getUploadUrl(uploaded?: UploadThingResult) {
+  return uploaded?.url || uploaded?.ufsUrl || uploaded?.appUrl || "";
+}
+
+function normalizeOrder(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 999;
+}
+
 export default function HighlightsAdminPage() {
   const [items, setItems] = useState<EditableHighlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [newImage, setNewImage] = useState<File | null>(null);
-  const [newPreview, setNewPreview] = useState<string>("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
-  const collectionPath = "highlights";
+  const [newImage, setNewImage] = useState<File | null>(null);
+  const [newPreview, setNewPreview] = useState("");
 
   const loadHighlights = async () => {
     setLoading(true);
+    setRefreshing(true);
+    setLoadError("");
 
     try {
-      const q = query(
-        collection(firestore, collectionPath),
+      const qRef = query(
+        collection(firestore, COLLECTION_PATH),
         orderBy("order", "asc")
       );
 
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(qRef);
 
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...(docSnap.data() as Highlight),
-        imageFile: null,
-        previewUrl: "",
-        saving: false,
-      }));
+      const data = snapshot.docs.map((docSnap) => {
+        const raw = docSnap.data() as Partial<Highlight>;
+
+        return {
+          id: docSnap.id,
+          title: raw.title || "Untitled Highlight",
+          desc: raw.desc || "",
+          imageUrl: raw.imageUrl || "",
+          order: normalizeOrder(raw.order),
+          showOnHome: !!raw.showOnHome,
+          isHero: !!raw.isHero,
+          admin_id: raw.admin_id || "admin",
+          imageFile: null,
+          previewUrl: "",
+          saving: false,
+        };
+      });
 
       setItems(data);
     } catch (err) {
-      console.error("Error fetching highlights:", err);
+      console.error("Error fetching AdminHub highlights:", err);
       setItems([]);
+      setLoadError("Could not load homepage highlights. Please refresh and try again.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -86,18 +125,22 @@ export default function HighlightsAdminPage() {
     loadHighlights();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (newPreview) URL.revokeObjectURL(newPreview);
+
+      items.forEach((item) => {
+        if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleNewImage = (file: File | null) => {
+    if (newPreview) URL.revokeObjectURL(newPreview);
+
     setNewImage(file);
-
-    if (newPreview) {
-      URL.revokeObjectURL(newPreview);
-    }
-
-    if (file) {
-      setNewPreview(URL.createObjectURL(file));
-    } else {
-      setNewPreview("");
-    }
+    setNewPreview(file ? URL.createObjectURL(file) : "");
   };
 
   const handleAddHighlight = async () => {
@@ -113,31 +156,43 @@ export default function HighlightsAdminPage() {
         files: [newImage],
       });
 
-      const imageUrl = uploaded?.[0]?.url || "";
+      const imageUrl = getUploadUrl(uploaded?.[0] as UploadThingResult | undefined);
 
       if (!imageUrl) {
+        console.log("UploadThing response:", uploaded);
         throw new Error("Upload completed but no image URL was returned.");
       }
 
-      const order = items.length + 1;
+      const order =
+        items.length > 0
+          ? Math.max(...items.map((item) => normalizeOrder(item.order))) + 1
+          : 1;
 
-      const payload: Highlight = {
-        title: "New Highlight",
-        desc: "Enter description...",
+      const payload = {
+        title: "New AdminHub Highlight",
+        desc: "Add a clear homepage update, proof-stage message, platform highlight, or support note.",
         imageUrl,
         order,
         showOnHome: false,
         isHero: false,
         admin_id: "admin",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
-      const newDoc = await addDoc(collection(firestore, collectionPath), payload);
+      const newDoc = await addDoc(collection(firestore, COLLECTION_PATH), payload);
 
       setItems((prev) => [
         ...prev,
         {
           id: newDoc.id,
-          ...payload,
+          title: payload.title,
+          desc: payload.desc,
+          imageUrl,
+          order,
+          showOnHome: false,
+          isHero: false,
+          admin_id: "admin",
           imageFile: null,
           previewUrl: "",
           saving: false,
@@ -146,7 +201,7 @@ export default function HighlightsAdminPage() {
 
       handleNewImage(null);
     } catch (err) {
-      console.error("Failed to add highlight:", err);
+      console.error("Failed to add AdminHub highlight:", err);
       window.alert("Failed to add highlight.");
     } finally {
       setAdding(false);
@@ -163,9 +218,7 @@ export default function HighlightsAdminPage() {
         if (item.id !== id) return item;
 
         if (field === "imageFile") {
-          if (item.previewUrl) {
-            URL.revokeObjectURL(item.previewUrl);
-          }
+          if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
 
           const file = value instanceof File ? value : null;
 
@@ -193,7 +246,10 @@ export default function HighlightsAdminPage() {
   const handleSaveItem = async (item: EditableHighlight) => {
     if (!item.id) return;
 
-    if (!item.title.trim()) {
+    const cleanTitle = item.title.trim();
+    const cleanDesc = item.desc.trim();
+
+    if (!cleanTitle) {
       window.alert("Highlight title is required.");
       return;
     }
@@ -208,24 +264,26 @@ export default function HighlightsAdminPage() {
           files: [item.imageFile],
         });
 
-        imageUrl = uploaded?.[0]?.url || "";
+        imageUrl = getUploadUrl(uploaded?.[0] as UploadThingResult | undefined);
 
         if (!imageUrl) {
+          console.log("UploadThing response:", uploaded);
           throw new Error("Upload completed but no image URL was returned.");
         }
       }
 
-      const payload: Highlight = {
-        title: item.title.trim(),
-        desc: item.desc.trim(),
+      const payload = {
+        title: cleanTitle,
+        desc: cleanDesc,
         imageUrl,
-        order: Number.isFinite(Number(item.order)) ? Number(item.order) : 999,
+        order: normalizeOrder(item.order),
         showOnHome: !!item.showOnHome,
         isHero: !!item.isHero,
         admin_id: "admin",
+        updatedAt: serverTimestamp(),
       };
 
-      await updateDoc(doc(firestore, collectionPath, item.id), payload);
+      await updateDoc(doc(firestore, COLLECTION_PATH, item.id), payload);
 
       if (payload.isHero) {
         const otherHeroItems = items.filter(
@@ -236,9 +294,10 @@ export default function HighlightsAdminPage() {
           otherHeroItems
             .filter((other) => !!other.id)
             .map((other) =>
-              updateDoc(doc(firestore, collectionPath, other.id!), {
+              updateDoc(doc(firestore, COLLECTION_PATH, other.id!), {
                 isHero: false,
                 admin_id: "admin",
+                updatedAt: serverTimestamp(),
               })
             )
         );
@@ -247,6 +306,8 @@ export default function HighlightsAdminPage() {
       setItems((prev) =>
         prev.map((current) => {
           if (current.id === item.id) {
+            if (current.previewUrl) URL.revokeObjectURL(current.previewUrl);
+
             return {
               ...current,
               ...payload,
@@ -274,14 +335,20 @@ export default function HighlightsAdminPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const ok = window.confirm("Delete this highlight?");
+    const ok = window.confirm("Delete this AdminHub highlight?");
     if (!ok) return;
 
     try {
-      await deleteDoc(doc(firestore, collectionPath, id));
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      await deleteDoc(doc(firestore, COLLECTION_PATH, id));
+
+      setItems((prev) => {
+        const found = prev.find((item) => item.id === id);
+        if (found?.previewUrl) URL.revokeObjectURL(found.previewUrl);
+
+        return prev.filter((item) => item.id !== id);
+      });
     } catch (err) {
-      console.error("Delete failed", err);
+      console.error("Delete failed:", err);
       window.alert("Delete failed.");
     }
   };
@@ -295,7 +362,7 @@ export default function HighlightsAdminPage() {
               <Link
                 href="/admin/dashboard"
                 prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
               >
                 <ArrowLeft size={16} />
                 Back to Dashboard
@@ -304,20 +371,20 @@ export default function HighlightsAdminPage() {
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
+                <div className="bg-[linear-gradient(180deg,rgba(15,23,42,0.98)_0%,rgba(6,10,18,0.98)_100%)] p-6 md:p-10">
                   <div className="eyebrow">
                     <Home size={15} />
-                    Sparkle Legacy • Homepage Highlights
+                    AdminHub Global • Homepage Highlights
                   </div>
 
                   <h1 className="max-w-[13ch]">
-                    Manage the homepage hero and highlight cards.
+                    Manage homepage proof, trust, and platform highlights.
                   </h1>
 
                   <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    Use highlights for homepage messaging, featured visuals,
-                    trust-building moments, seasonal reminders, product pushes,
-                    and important public-facing guidance.
+                    Use highlights for the homepage hero image, platform updates,
+                    proof-stage messaging, service package pushes, partner-facing
+                    notices, and managed support reminders.
                   </p>
 
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -335,7 +402,20 @@ export default function HighlightsAdminPage() {
                       {adding ? "Uploading..." : "Add Highlight"}
                     </button>
 
-                    <Link href="/" prefetch={false} className="btn btn-outline">
+                    <button
+                      type="button"
+                      onClick={loadHighlights}
+                      disabled={refreshing}
+                      className="btn btn-outline"
+                    >
+                      <RefreshCw
+                        size={18}
+                        className={refreshing ? "animate-spin" : ""}
+                      />
+                      {refreshing ? "Refreshing..." : "Refresh"}
+                    </button>
+
+                    <Link href="/" prefetch={false} className="btn btn-ghost">
                       <Eye size={18} />
                       View Homepage
                     </Link>
@@ -347,45 +427,56 @@ export default function HighlightsAdminPage() {
                 <div className="card-inner md:p-8">
                   <div className="eyebrow mb-0">
                     <ShieldCheck size={15} />
-                    What this changes
+                    What this controls
                   </div>
 
                   <h2 className="mt-2 text-2xl">Homepage content areas</h2>
 
                   <div className="mt-5 space-y-3">
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
-                      <p className="text-sm font-extrabold text-[var(--text-primary)]">
+                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+                      <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                        <Star size={15} className="text-[var(--brand-primary)]" />
                         Hero area
                       </p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        The item marked as <b>Set as Hero</b> can supply the main
-                        homepage feature image and supporting hero message.
+                        The item marked <b>Set as Hero</b> supplies the main
+                        homepage feature image and message area.
                       </p>
                     </div>
 
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
-                      <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                        Updates & highlights
+                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
+                      <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                        <CheckCircle2
+                          size={15}
+                          className="text-[var(--brand-primary)]"
+                        />
+                        Updates grid
                       </p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                         Items marked <b>Show on Home</b> appear in the homepage
-                        highlights grid.
+                        updates and platform highlights grid.
                       </p>
                     </div>
 
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                       <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                        UploadThing images
+                        UploadThing image storage
                       </p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        Images are uploaded through UploadThing and saved as
-                        hosted URLs in Firestore.
+                        Uploaded images are hosted through UploadThing and saved
+                        as Firestore URLs inside the <b>highlights</b> collection.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            {loadError ? (
+              <div className="mt-6 rounded-[1.25rem] border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm leading-7 text-red-200">
+                {loadError}
+              </div>
+            ) : null}
 
             <section className="mt-8">
               <div className="card-outline-gold">
@@ -404,10 +495,13 @@ export default function HighlightsAdminPage() {
                           handleNewImage(e.target.files?.[0] || null)
                         }
                         className="input"
+                        disabled={adding}
                       />
-                      <p className="mt-2 text-xs text-[var(--text-muted)]">
-                        Upload image only. Video should not be used here unless
-                        the public homepage is changed to support video display.
+
+                      <p className="mt-2 text-xs leading-6 text-[var(--text-muted)]">
+                        Select an image first, then click <b>Add Highlight</b>.
+                        After it is created, edit the title, description,
+                        homepage visibility, hero status, and order below.
                       </p>
                     </div>
 
@@ -415,7 +509,7 @@ export default function HighlightsAdminPage() {
                       {newPreview ? (
                         <img
                           src={newPreview}
-                          alt="New highlight preview"
+                          alt="New AdminHub highlight preview"
                           className="max-h-72 w-full rounded-[1.25rem] border border-[var(--border)] object-cover"
                         />
                       ) : (
@@ -431,17 +525,25 @@ export default function HighlightsAdminPage() {
 
             <section className="mt-8">
               {loading ? (
-                <div className="card p-8">
-                  <div className="text-sm text-[var(--text-secondary)]">
-                    Loading highlights...
-                  </div>
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="card overflow-hidden">
+                      <div className="h-52 loading-shimmer" />
+                      <div className="card-inner">
+                        <div className="h-5 w-2/3 rounded loading-shimmer" />
+                        <div className="mt-3 h-4 w-full rounded loading-shimmer" />
+                        <div className="mt-2 h-4 w-5/6 rounded loading-shimmer" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : items.length === 0 ? (
                 <div className="frame-gold p-8 text-center">
                   <h3 className="text-2xl">No highlights yet</h3>
+
                   <p className="mx-auto mt-3 max-w-[54ch] text-sm leading-7 text-[var(--text-secondary)]">
                     Add your first highlight to start controlling the homepage
-                    hero and homepage highlight cards.
+                    hero and AdminHub platform highlight cards.
                   </p>
                 </div>
               ) : (
@@ -451,35 +553,67 @@ export default function HighlightsAdminPage() {
                       key={item.id}
                       className="card-outline-gold overflow-hidden"
                     >
-                      <img
-                        src={
-                          item.previewUrl ||
-                          item.imageUrl ||
-                          "/placeholder.png"
-                        }
-                        alt={item.title}
-                        className="h-52 w-full object-cover"
-                      />
+                      <div className="relative">
+                        <img
+                          src={item.previewUrl || item.imageUrl || "/placeholder.png"}
+                          alt={item.title || "AdminHub highlight"}
+                          className="h-52 w-full object-cover"
+                          onError={(event) => {
+                            event.currentTarget.src = "/placeholder.png";
+                          }}
+                        />
+
+                        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                          {item.isHero ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(77,163,255,0.42)] bg-[rgba(6,10,18,0.86)] px-2.5 py-1 text-xs font-bold text-[var(--brand-primary)] backdrop-blur-md">
+                              <Star size={13} />
+                              Hero
+                            </span>
+                          ) : null}
+
+                          {item.showOnHome ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-green-400/30 bg-[rgba(6,10,18,0.86)] px-2.5 py-1 text-xs font-bold text-green-300 backdrop-blur-md">
+                              <CheckCircle2 size={13} />
+                              Home
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-[rgba(6,10,18,0.86)] px-2.5 py-1 text-xs font-bold text-amber-200 backdrop-blur-md">
+                              <XCircle size={13} />
+                              Hidden
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
                       <div className="card-inner flex flex-col gap-4 md:p-6">
-                        <input
-                          type="text"
-                          value={item.title}
-                          onChange={(e) =>
-                            updateLocalItem(item.id!, "title", e.target.value)
-                          }
-                          className="input font-semibold"
-                          placeholder="Highlight title"
-                        />
+                        <div>
+                          <label className="text-sm font-semibold text-[var(--text-primary)]">
+                            Title
+                          </label>
+                          <input
+                            type="text"
+                            value={item.title}
+                            onChange={(e) =>
+                              updateLocalItem(item.id!, "title", e.target.value)
+                            }
+                            className="input mt-2 font-semibold"
+                            placeholder="Highlight title"
+                          />
+                        </div>
 
-                        <textarea
-                          value={item.desc}
-                          onChange={(e) =>
-                            updateLocalItem(item.id!, "desc", e.target.value)
-                          }
-                          className="input min-h-[120px] resize-none rounded-[1.25rem]"
-                          placeholder="Highlight description"
-                        />
+                        <div>
+                          <label className="text-sm font-semibold text-[var(--text-primary)]">
+                            Description
+                          </label>
+                          <textarea
+                            value={item.desc}
+                            onChange={(e) =>
+                              updateLocalItem(item.id!, "desc", e.target.value)
+                            }
+                            className="input mt-2 min-h-[120px] resize-y rounded-[1.25rem]"
+                            placeholder="Highlight description"
+                          />
+                        </div>
 
                         <div>
                           <label className="text-sm font-semibold text-[var(--text-primary)]">
@@ -496,6 +630,7 @@ export default function HighlightsAdminPage() {
                               )
                             }
                             className="input mt-2"
+                            disabled={!!item.saving}
                           />
                         </div>
 
@@ -512,6 +647,7 @@ export default function HighlightsAdminPage() {
                                   e.target.checked
                                 )
                               }
+                              disabled={!!item.saving}
                             />
                           </label>
 
@@ -527,6 +663,7 @@ export default function HighlightsAdminPage() {
                                   e.target.checked
                                 )
                               }
+                              disabled={!!item.saving}
                             />
                           </label>
                         </div>
@@ -545,7 +682,8 @@ export default function HighlightsAdminPage() {
                                 Number(e.target.value)
                               )
                             }
-                            className="input mt-2 max-w-[120px]"
+                            className="input mt-2 max-w-[140px]"
+                            disabled={!!item.saving}
                           />
                         </div>
 
@@ -570,6 +708,7 @@ export default function HighlightsAdminPage() {
                             onClick={() => handleDelete(item.id!)}
                             className="btn btn-ghost"
                             type="button"
+                            disabled={!!item.saving}
                           >
                             <Trash2 size={16} />
                             Delete
@@ -584,8 +723,9 @@ export default function HighlightsAdminPage() {
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
               <b className="text-[var(--text-primary)]">Admin note:</b> use
-              highlights for homepage messaging, featured visuals, seasonal
-              reminders, promotions, and important public-facing guidance.
+              highlights for AdminHub proof-stage messaging, featured visuals,
+              platform credibility, partner updates, service package pushes, and
+              managed support reminders.
             </div>
           </div>
         </div>

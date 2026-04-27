@@ -6,16 +6,25 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import {
   ArrowRight,
+  BadgeDollarSign,
+  Bot,
   CalendarDays,
   CheckCircle2,
+  ClipboardList,
   FileText,
+  Globe2,
+  LayoutDashboard,
+  LockKeyhole,
   MessageCircle,
+  Network,
   RefreshCw,
-  Send,
   Share2,
   ShieldCheck,
   Sparkles,
+  UploadCloud,
+  Users,
   WifiOff,
+  Workflow,
 } from "lucide-react";
 
 import { firestore } from "@/utils/firebaseConfig";
@@ -34,17 +43,7 @@ type BlogCachePayload = {
   savedAt: string;
 };
 
-const WHATSAPP_NUMBER = "+26772971852";
-const BLOG_CACHE_KEY = "sparkle_legacy_blog_posts_v1";
-
-function waLink(message: string) {
-  const digits = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
-}
-
-function whatsAppShareLink(message: string) {
-  return `https://wa.me/?text=${encodeURIComponent(message)}`;
-}
+const BLOG_CACHE_KEY = "adminhub_global_blog_posts_v1";
 
 async function shareArticle({
   title,
@@ -53,7 +52,7 @@ async function shareArticle({
   title: string;
   url: string;
 }) {
-  const text = "This Sparkle Legacy insurance insight may help:";
+  const text = "This AdminHub Global insight may be useful:";
   const message = [text, "", title, "", url].join("\n");
 
   if (
@@ -72,8 +71,11 @@ async function shareArticle({
     }
   }
 
-  if (typeof window !== "undefined") {
-    window.open(whatsAppShareLink(message), "_blank", "noopener,noreferrer");
+  try {
+    await navigator.clipboard.writeText(message);
+    window.alert("Insight link copied.");
+  } catch {
+    window.alert("Sharing is not available right now. Please copy the page link.");
   }
 }
 
@@ -104,7 +106,7 @@ function saveBlogCache(posts: Blog[]) {
 
     localStorage.setItem(BLOG_CACHE_KEY, JSON.stringify(payload));
   } catch (error) {
-    console.warn("Could not save blog posts for offline use:", error);
+    console.warn("Could not save AdminHub Global insights for offline use:", error);
   }
 }
 
@@ -144,7 +146,7 @@ function getExcerpt(body?: string, max = 150) {
   const text = (body || "").replace(/\s+/g, " ").trim();
 
   if (!text) {
-    return "Practical insurance guidance from Sparkle Legacy to help clients understand real-world risk, cover, and the right next step.";
+    return "AdminHub Global insight on custom PWA delivery, agent-led sales, client portals, project workflows, and managed support.";
   }
 
   return text.length > max ? `${text.slice(0, max).trim()}…` : text;
@@ -152,19 +154,6 @@ function getExcerpt(body?: string, max = 150) {
 
 function getPostUrl(origin: string, postId: string) {
   return origin ? `${origin}/blog/${postId}` : `/blog/${postId}`;
-}
-
-function getAskMessage(post: Blog) {
-  return [
-    "Hi Sparkle Legacy 👋",
-    `I read your article about: ${post.title || "Sparkle Legacy Insight"}`,
-    "",
-    "I would like guidance on this topic.",
-    "",
-    "Name:",
-    "City/Town:",
-    "Question:",
-  ].join("\n");
 }
 
 function safeImageSrc(src?: string) {
@@ -227,7 +216,7 @@ export default function BlogPage() {
       setCacheSavedAt(new Date().toISOString());
       saveBlogCache(freshPosts);
     } catch (error) {
-      console.error("Failed to load blog posts:", error);
+      console.error("Failed to load AdminHub Global insights:", error);
 
       const fallback = readBlogCache();
 
@@ -261,15 +250,17 @@ export default function BlogPage() {
 
   return (
     <main id="main" className="bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+      <section className="section-shell relative">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+
+        <div className="container relative">
           {usingCachedData ? (
-            <div className="mb-5 rounded-[1.25rem] border border-[var(--border)] bg-white/80 px-4 py-3 text-sm leading-7 text-[var(--text-secondary)]">
+            <div className="mb-5 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.78)] px-4 py-3 text-sm leading-7 text-[var(--text-secondary)]">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-2">
                   <WifiOff
                     size={17}
-                    className="mt-1 shrink-0 text-[var(--brand-primary-strong)]"
+                    className="mt-1 shrink-0 text-[var(--brand-primary)]"
                   />
                   <p>
                     Showing saved offline insights
@@ -296,69 +287,77 @@ export default function BlogPage() {
           ) : null}
 
           <div className="card-elevated overflow-hidden">
-            <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-              <div className="eyebrow">
-                <ShieldCheck size={15} />
-                Sparkle Legacy • About & Insights
-              </div>
+            <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+              <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
+              <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[rgba(77,163,255,0.14)] blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
 
-              <h1 className="max-w-[13ch]">
-                A clearer, more modern insurance broker experience.
-              </h1>
+              <div className="relative">
+                <div className="eyebrow">
+                  <ShieldCheck size={15} />
+                  AdminHub Global • About & Insights
+                </div>
 
-              <p className="mt-4 max-w-[64ch] text-base leading-8 text-[var(--text-secondary)]">
-                Sparkle Legacy helps individuals and businesses in Botswana
-                request quotes, understand cover more clearly, and navigate
-                claims with confidence. The focus is simple: clearer guidance,
-                practical support, and a faster WhatsApp-first experience when
-                clients need help.
-              </p>
+                <h1 className="max-w-[13ch]">
+                  Proof, portals, workflows, and managed support explained.
+                </h1>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <a
-                  href={waLink(
-                    "Hi Sparkle Legacy 👋 I’d like help choosing the right cover.\n\nName:\nCity/Town:\nWhat do you need insured?"
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary"
-                >
-                  <MessageCircle size={18} />
-                  Chat on WhatsApp
-                </a>
+                <p className="mt-4 max-w-[66ch] text-base leading-8 text-[var(--text-secondary)]">
+                  AdminHub Global is a custom 9th-iteration PWA framework for
+                  agents, leads, client onboarding, project delivery, proposal
+                  tools, messaging, uploads, and recurring managed support.
+                  These insights help explain the platform, the sales process,
+                  and why custom infrastructure matters beyond basic website
+                  builders.
+                </p>
 
-                <Link
-                  href="/c/short-term"
-                  className="btn btn-outline"
-                  prefetch={false}
-                >
-                  Browse Cover Types
-                  <ArrowRight size={18} />
-                </Link>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <Link
+                    href="/contact"
+                    className="btn btn-primary"
+                    prefetch={false}
+                  >
+                    <ClipboardList size={18} />
+                    Submit Inquiry
+                  </Link>
 
-                <Link href="/claims" className="btn btn-ghost" prefetch={false}>
-                  <FileText size={18} />
-                  Claims Help
-                </Link>
+                  <Link
+                    href="/solutions"
+                    className="btn btn-outline"
+                    prefetch={false}
+                  >
+                    View Solutions
+                    <ArrowRight size={18} />
+                  </Link>
 
-                <button
-                  type="button"
-                  onClick={refreshPosts}
-                  disabled={refreshing}
-                  className="btn btn-outline"
-                >
-                  <RefreshCw
-                    size={18}
-                    className={refreshing ? "animate-spin" : ""}
-                  />
-                  {refreshing ? "Refreshing..." : "Refresh Insights"}
-                </button>
+                  <Link
+                    href="/partners"
+                    className="btn btn-ghost"
+                    prefetch={false}
+                  >
+                    <Users size={18} />
+                    Partner Portal
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={refreshPosts}
+                    disabled={refreshing}
+                    className="btn btn-outline"
+                  >
+                    <RefreshCw
+                      size={18}
+                      className={refreshing ? "animate-spin" : ""}
+                    />
+                    {refreshing ? "Refreshing..." : "Refresh Insights"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {loadError ? (
-            <div className="mt-6 rounded-[1.25rem] border border-red-200 bg-red-50 p-4 text-sm leading-7 text-red-700">
+            <div className="mt-6 rounded-[1.25rem] border border-red-500/30 bg-red-500/10 p-4 text-sm leading-7 text-red-200">
               {loadError}
             </div>
           ) : null}
@@ -369,17 +368,17 @@ export default function BlogPage() {
         <div className="container">
           <div className="grid gap-6 lg:grid-cols-3">
             <InfoPanel
-              eyebrow="What we help with"
-              title="Support across key cover areas"
+              eyebrow="What the platform explains"
+              title="From live proof to operating system"
               icon={<Sparkles size={18} />}
             >
               <ul className="mt-4 space-y-3">
                 {[
-                  "Short-Term cover such as motor, home and contents, travel, gadgets, and liability-related products.",
-                  "Long-Term cover such as life, funeral, disability, and other people-focused protection.",
-                  "Retirement and longer-term planning support depending on the product structure.",
-                  "Business and SME cover such as assets, liability, fleet, and business continuity-related needs.",
-                  "Claims support with guidance on likely steps, forms, and supporting documents.",
+                  "Why the 48-hour live proof process helps prospects understand value before a full build.",
+                  "How agents can sell a visible proof stage instead of an abstract development promise.",
+                  "How Client Hub, messaging, uploads, and project workspaces support delivery after conversion.",
+                  "Why the custom framework can go beyond boxed-in DIY website builders.",
+                  "How recurring support keeps launched projects useful after the first deployment.",
                 ].map((item) => (
                   <li
                     key={item}
@@ -387,7 +386,7 @@ export default function BlogPage() {
                   >
                     <CheckCircle2
                       size={16}
-                      className="mt-[5px] shrink-0 text-[var(--brand-primary-strong)]"
+                      className="mt-[5px] shrink-0 text-[var(--brand-primary)]"
                     />
                     <span>{item}</span>
                   </li>
@@ -396,11 +395,11 @@ export default function BlogPage() {
 
               <div className="mt-5">
                 <Link
-                  href="/contact"
+                  href="/solutions"
                   className="btn btn-outline w-full"
                   prefetch={false}
                 >
-                  Contact
+                  Explore Solutions
                   <ArrowRight size={18} />
                 </Link>
               </div>
@@ -415,32 +414,32 @@ export default function BlogPage() {
             )}
 
             <InfoPanel
-              eyebrow="How it works"
-              title="A simpler process from question to action"
-              icon={<ShieldCheck size={18} />}
+              eyebrow="How the model works"
+              title="A cleaner path from lead to support"
+              icon={<Workflow size={18} />}
             >
               <ol className="mt-4 space-y-3">
                 {[
                   {
-                    title: "Tell us what you need",
-                    desc: "Share the product, your city or town, and the basics of what you want insured.",
+                    title: "Lead or inquiry enters",
+                    desc: "A prospect, agent, or partner submits identity, business context, region, and project need.",
                   },
                   {
-                    title: "We confirm what is needed",
-                    desc: "The team helps clarify the likely details or documents needed for a cleaner quote or claim process.",
+                    title: "Rapid proof creates clarity",
+                    desc: "A live preliminary direction helps the client see the solution instead of imagining it.",
                   },
                   {
-                    title: "We help you understand your options",
-                    desc: "The goal is to explain things more simply before you commit, not leave you guessing.",
+                    title: "Implementation becomes structured",
+                    desc: "Approved projects move into onboarding, dashboard/portal wiring, messaging, uploads, and launch prep.",
                   },
                   {
-                    title: "We stay useful after the first step",
-                    desc: "If you need help updating cover, following up, or starting a claim, Sparkle Legacy can guide the process.",
+                    title: "Support continues after launch",
+                    desc: "The relationship can move into monthly managed support, updates, refinements, and platform continuity.",
                   },
                 ].map((step, index) => (
                   <li
                     key={step.title}
-                    className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4"
+                    className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4"
                   >
                     <div className="flex items-start gap-3">
                       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-primary)] text-xs font-extrabold text-[var(--text-on-brand)]">
@@ -461,47 +460,26 @@ export default function BlogPage() {
             </InfoPanel>
 
             <InfoPanel
-              eyebrow="Helpful preparation"
-              title="What to send for faster help"
+              eyebrow="Inquiry preparation"
+              title="What to include before private follow-up"
               icon={<FileText size={18} />}
             >
               <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                Sharing the right information early usually makes quotes and
-                claims easier to handle.
+                AdminHub Global uses a structured inquiry flow instead of
+                exposing direct personal phone or email details publicly.
               </p>
 
-              <div className="mt-4 rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+              <div className="mt-4 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                 <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                  For quotes
+                  Useful inquiry details
                 </p>
                 <ul className="mt-3 space-y-2">
                   {[
-                    "Cover type and product",
-                    "City or town",
-                    "Important details such as vehicle model, sum assured, dependants, or anything relevant to the request",
-                    "Name and phone number if you are comfortable sharing them",
-                  ].map((item) => (
-                    <li
-                      key={item}
-                      className="flex gap-2 text-sm leading-7 text-[var(--text-secondary)]"
-                    >
-                      <span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-primary)]" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="mt-3 rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
-                <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                  For claims
-                </p>
-                <ul className="mt-3 space-y-2">
-                  {[
-                    "Incident date and what happened",
-                    "Location and any photos or evidence",
-                    "Supporting forms or documents if available",
-                    "Policy number or reference if you have it",
+                    "Name and preferred contact detail",
+                    "Business or organisation name",
+                    "Country or region",
+                    "Whether you are asking as a client, agent, or partner",
+                    "What workflow, portal, dashboard, or support need you want reviewed",
                   ].map((item) => (
                     <li
                       key={item}
@@ -515,24 +493,21 @@ export default function BlogPage() {
               </div>
 
               <div className="mt-5 flex flex-col gap-2">
-                <a
-                  href={waLink(
-                    "Hi Sparkle Legacy 👋 What documents do you need for my quote/claim?\n\nProduct:\nCover type:\nCity/Town:"
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/contact"
                   className="btn btn-primary w-full"
+                  prefetch={false}
                 >
-                  <MessageCircle size={18} />
-                  Ask on WhatsApp
-                </a>
+                  <ClipboardList size={18} />
+                  Submit Inquiry
+                </Link>
 
                 <Link
-                  href="/claims"
+                  href="/c/rapid-proof"
                   className="btn btn-outline w-full"
                   prefetch={false}
                 >
-                  Claims Page
+                  View Proof Process
                   <ArrowRight size={18} />
                 </Link>
               </div>
@@ -563,13 +538,14 @@ export default function BlogPage() {
             <div className="mb-6">
               <div className="eyebrow">
                 <CalendarDays size={15} />
-                More from Sparkle Legacy
+                More from AdminHub Global
               </div>
 
               <h2 className="section-title">More insights and updates</h2>
               <p className="section-copy mt-2">
-                More educational articles clients can open, read, share, and use
-                as a direct starting point for WhatsApp guidance.
+                Educational posts that explain the proof process, custom PWA
+                delivery, partner-led sales, client portals, dashboards,
+                workflows, and managed support.
               </p>
             </div>
 
@@ -585,9 +561,11 @@ export default function BlogPage() {
       <section className="section-shell pt-0">
         <div className="container">
           <div className="frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
-            <b className="text-[var(--text-primary)]">Note:</b> Cover terms,
-            premiums, exclusions, benefits, and acceptance remain subject to
-            insurer underwriting and the relevant policy wording.
+            <b className="text-[var(--text-primary)]">Contact policy:</b>{" "}
+            AdminHub Global intentionally avoids publishing direct personal
+            contact details on public pages. Use structured inquiry capture first
+            so identity, business context, region, role, and project need are
+            recorded before private follow-up.
           </div>
         </div>
       </section>
@@ -596,9 +574,8 @@ export default function BlogPage() {
 }
 
 function InsightCard({ post, origin }: { post: Blog; origin: string }) {
-  const title = post.title?.trim() || "Sparkle Legacy Insight";
+  const title = post.title?.trim() || "AdminHub Global Insight";
   const imageSrc = safeImageSrc(post.imageUrl);
-  const askMessage = getAskMessage(post);
   const articleUrl = getPostUrl(origin, post.id);
 
   const handleShare = async () => {
@@ -614,7 +591,7 @@ function InsightCard({ post, origin }: { post: Blog; origin: string }) {
         <img
           src={imageSrc}
           alt={title}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover opacity-90"
           onError={(event) => {
             event.currentTarget.src = "/placeholder.png";
           }}
@@ -622,7 +599,7 @@ function InsightCard({ post, origin }: { post: Blog; origin: string }) {
       </div>
 
       <div className="card-inner md:p-6">
-        <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--brand-primary-strong)]">
+        <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
           <CalendarDays size={14} />
           {formatDate(post)}
         </div>
@@ -649,18 +626,17 @@ function InsightCard({ post, origin }: { post: Blog; origin: string }) {
             className="btn btn-ghost w-full justify-center"
           >
             <Share2 size={18} />
-            Share Article
+            Share Insight
           </button>
 
-          <a
-            href={waLink(askMessage)}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/contact"
+            prefetch={false}
             className="btn btn-primary w-full justify-center"
           >
-            <Send size={18} />
-            Ask about this topic
-          </a>
+            <MessageCircle size={18} />
+            Ask via Inquiry
+          </Link>
         </div>
       </div>
     </article>
@@ -679,22 +655,15 @@ function PlaceholderInsightCard() {
         <h2 className="mt-2 text-xl">No insights published yet</h2>
 
         <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-          Once articles are published in the blog collection, they will appear
-          inside this mixed About and Insights layout.
+          Once posts are published in the blog collection, they will appear
+          inside this blended About and Insights layout.
         </p>
 
         <div className="mt-5">
-          <a
-            href={waLink(
-              "Hi Sparkle Legacy 👋 I have a question about insurance guidance and would like help."
-            )}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-primary"
-          >
-            <MessageCircle size={18} />
-            Ask on WhatsApp
-          </a>
+          <Link href="/contact" prefetch={false} className="btn btn-primary">
+            <ClipboardList size={18} />
+            Submit Inquiry
+          </Link>
         </div>
       </div>
     </section>
@@ -706,29 +675,23 @@ function QuickHelpCard() {
     <section className="card-outline-gold">
       <div className="card-inner md:p-6">
         <div className="eyebrow mb-0">
-          <MessageCircle size={18} />
-          Fast support
+          <LockKeyhole size={18} />
+          Controlled follow-up
         </div>
 
-        <h2 className="mt-2 text-xl">Need an answer quickly?</h2>
+        <h2 className="mt-2 text-xl">Need to discuss AdminHub Global?</h2>
 
         <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-          If you already know what you need, go straight to WhatsApp with your
-          product, city or town, and a short explanation of the situation.
+          Submit structured details first: your identity, business context,
+          region, role, and what you need. AdminHub can then review the request
+          and follow up privately.
         </p>
 
         <div className="mt-5">
-          <a
-            href={waLink(
-              "Hi Sparkle Legacy 👋 I need help.\n\nProduct:\nCity/Town:\nQuestion:"
-            )}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-primary w-full"
-          >
-            <MessageCircle size={18} />
-            Chat on WhatsApp
-          </a>
+          <Link href="/contact" prefetch={false} className="btn btn-primary w-full">
+            <ClipboardList size={18} />
+            Submit Inquiry
+          </Link>
         </div>
       </div>
     </section>
@@ -745,12 +708,13 @@ function WhyInsightsCard() {
         </div>
 
         <h2 className="mt-2 text-xl">
-          Useful articles clients can actually share.
+          Sales education, proof, and credibility.
         </h2>
 
         <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-          These insights help Sparkle Legacy turn real-life insurance examples
-          into useful guidance people can open, understand, share, and act on.
+          These insights help explain why AdminHub Global is more than a simple
+          website service: it is a custom PWA framework for workflows, portals,
+          dashboards, delivery, and recurring support.
         </p>
       </div>
     </section>
@@ -760,12 +724,12 @@ function WhyInsightsCard() {
 function LoadingCard() {
   return (
     <div className="card overflow-hidden">
-      <div className="h-[220px] animate-pulse bg-[var(--surface-2)]" />
+      <div className="h-[220px] loading-shimmer" />
       <div className="card-inner md:p-6">
-        <div className="h-4 w-32 animate-pulse rounded bg-[var(--surface-2)]" />
-        <div className="mt-4 h-8 w-3/4 animate-pulse rounded bg-[var(--surface-2)]" />
-        <div className="mt-3 h-4 w-full animate-pulse rounded bg-[var(--surface-2)]" />
-        <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-[var(--surface-2)]" />
+        <div className="h-4 w-32 rounded loading-shimmer" />
+        <div className="mt-4 h-8 w-3/4 rounded loading-shimmer" />
+        <div className="mt-3 h-4 w-full rounded loading-shimmer" />
+        <div className="mt-2 h-4 w-5/6 rounded loading-shimmer" />
       </div>
     </div>
   );

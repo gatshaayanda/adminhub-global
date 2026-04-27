@@ -1,46 +1,146 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import {
   ArrowRight,
   Check,
-  Clock,
+  CheckCircle2,
+  ClipboardList,
   Copy,
   FileText,
-  Mail,
-  MapPin,
+  Globe2,
+  LayoutDashboard,
+  LockKeyhole,
   MessageCircle,
-  PhoneCall,
+  Network,
+  RefreshCw,
+  Send,
   ShieldCheck,
+  Users,
   Wifi,
   WifiOff,
+  Workflow,
 } from "lucide-react";
 
-const WHATSAPP_NUMBER = "+26772971852";
-const EMAIL = "sparklelegacyinsurancebrokers@gmail.com";
+import { firestore } from "@/utils/firebaseConfig";
 
-function waLink(message: string) {
-  const digits = WHATSAPP_NUMBER.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+type InquiryForm = {
+  name: string;
+  preferredContact: string;
+  role: string;
+  business: string;
+  country: string;
+  solutionInterest: string;
+  projectNeed: string;
+  timeline: string;
+  notes: string;
+};
+
+const INQUIRY_DRAFT_KEY = "adminhub_global_contact_inquiry_draft_v1";
+
+const initialForm: InquiryForm = {
+  name: "",
+  preferredContact: "",
+  role: "",
+  business: "",
+  country: "",
+  solutionInterest: "",
+  projectNeed: "",
+  timeline: "",
+  notes: "",
+};
+
+const solutionOptions = [
+  "48-Hour Live Proof",
+  "Business PWA",
+  "Operations PWA",
+  "Partner / Agent Access",
+  "Client Hub",
+  "Managed Support",
+  "Proposal / PDF Tools",
+  "Not sure yet",
+];
+
+const roleOptions = [
+  "Client / Business Owner",
+  "Agent / Sales Partner",
+  "Partner / Referrer",
+  "Existing Client",
+  "Internal Admin / Team",
+];
+
+const timelineOptions = [
+  "As soon as possible",
+  "This week",
+  "This month",
+  "Exploring for later",
+  "Not sure yet",
+];
+
+function cleanValue(value: string) {
+  return value.trim();
 }
 
-const GENERAL_MESSAGE =
-  "Hi Sparkle Legacy 👋 I need help with a quote / policy / claim.\n\nName:\nCity/Town:\nTopic:\nDetails:";
+function buildInquirySummary(form: InquiryForm) {
+  return [
+    "AdminHub Global Inquiry",
+    "",
+    `Name: ${form.name || "-"}`,
+    `Preferred contact detail: ${form.preferredContact || "-"}`,
+    `Role: ${form.role || "-"}`,
+    `Business / Organisation: ${form.business || "-"}`,
+    `Country / Region: ${form.country || "-"}`,
+    `Solution interest: ${form.solutionInterest || "-"}`,
+    `Timeline: ${form.timeline || "-"}`,
+    "",
+    "Project / workflow need:",
+    form.projectNeed || "-",
+    "",
+    "Extra notes:",
+    form.notes || "-",
+  ].join("\n");
+}
 
-const QUOTE_MESSAGE =
-  "Hi Sparkle Legacy 👋 I’d like a quote.\n\nCover type (Short-Term / Long-Term / SME / Retirement):\nProduct:\nCity/Town:\nName:\nPhone (optional):\nNotes (optional):";
+function saveDraft(form: InquiryForm) {
+  try {
+    localStorage.setItem(INQUIRY_DRAFT_KEY, JSON.stringify(form));
+  } catch {}
+}
 
-const CLAIM_MESSAGE =
-  "Hi Sparkle Legacy 👋 I need help with a claim.\n\nClaim type (Motor/Home/Life/Funeral/Business):\nIncident date:\nLocation:\nWhat happened:\nName:\nPhone:\n\n(Attach photos/documents if available.)";
+function readDraft(): Partial<InquiryForm> | null {
+  try {
+    const raw = localStorage.getItem(INQUIRY_DRAFT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Partial<InquiryForm>;
+  } catch {
+    return null;
+  }
+}
 
-const CALLBACK_MESSAGE =
-  "Hi Sparkle Legacy 👋 Please call me back.\n\nName:\nBest time:\nTopic (quote/policy/claim):";
+function clearDraft() {
+  try {
+    localStorage.removeItem(INQUIRY_DRAFT_KEY);
+  } catch {}
+}
 
 export default function ContactPage() {
   const [online, setOnline] = useState(true);
   const [copiedLabel, setCopiedLabel] = useState("");
+  const [form, setForm] = useState<InquiryForm>(initialForm);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    const saved = readDraft();
+
+    if (saved && typeof saved === "object") {
+      setForm((prev) => ({ ...prev, ...saved }));
+    }
+  }, []);
 
   useEffect(() => {
     const updateStatus = () => setOnline(navigator.onLine);
@@ -56,6 +156,21 @@ export default function ContactPage() {
     };
   }, []);
 
+  useEffect(() => {
+    saveDraft(form);
+  }, [form]);
+
+  const inquirySummary = useMemo(() => buildInquirySummary(form), [form]);
+
+  function updateField<K extends keyof InquiryForm>(
+    key: K,
+    value: InquiryForm[K]
+  ) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setSubmitError("");
+    setSubmitted(false);
+  }
+
   async function copyMessage(label: string, message: string) {
     try {
       await navigator.clipboard.writeText(message);
@@ -66,280 +181,496 @@ export default function ContactPage() {
     }
   }
 
-  const waGeneral = waLink(GENERAL_MESSAGE);
-  const waQuote = waLink(QUOTE_MESSAGE);
-  const waClaim = waLink(CLAIM_MESSAGE);
-  const waCallback = waLink(CALLBACK_MESSAGE);
+  async function submitInquiry(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const payload: InquiryForm = {
+      name: cleanValue(form.name),
+      preferredContact: cleanValue(form.preferredContact),
+      role: cleanValue(form.role),
+      business: cleanValue(form.business),
+      country: cleanValue(form.country),
+      solutionInterest: cleanValue(form.solutionInterest),
+      projectNeed: cleanValue(form.projectNeed),
+      timeline: cleanValue(form.timeline),
+      notes: cleanValue(form.notes),
+    };
+
+    if (!payload.name || !payload.preferredContact || !payload.projectNeed) {
+      setSubmitError(
+        "Please add your name, preferred contact detail, and what you need reviewed."
+      );
+      return;
+    }
+
+    if (!online) {
+      saveDraft(payload);
+      setSubmitError(
+        "You are offline. Your inquiry draft is saved on this device. Copy it now, then submit again when you reconnect."
+      );
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError("");
+    setSubmitted(false);
+
+    try {
+      await addDoc(collection(firestore, "inquiries"), {
+        ...payload,
+        source: "contact_page",
+        product: "AdminHub Global",
+        status: "new",
+        stage: "new_inquiry",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      clearDraft();
+      setForm(initialForm);
+      setSubmitted(true);
+    } catch (error) {
+      console.error("AdminHub Global inquiry submit failed:", error);
+      saveDraft(payload);
+      setSubmitError(
+        "The inquiry could not be submitted right now. Your draft is still saved on this device."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <main id="main" className="bg-[var(--background)] text-[var(--foreground)]">
-      <section className="section-shell">
-        <div className="container">
+      <section className="section-shell relative">
+        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
+        <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+
+        <div className="container relative">
           {!online ? (
-            <div className="mb-5 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+            <div className="mb-5 rounded-[1.25rem] border border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] px-4 py-3 text-sm leading-7 text-[#fcd34d]">
               <div className="flex items-start gap-2">
                 <WifiOff size={17} className="mt-1 shrink-0" />
                 <p>
-                  You are offline. This contact page can still be viewed, but
-                  WhatsApp, email, and external links need internet. You can copy
-                  a prepared message and send it when you reconnect.
+                  You are offline. This page can still be viewed, and your draft
+                  can be copied, but new inquiry submission needs internet.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="mb-5 rounded-[1.25rem] border border-green-200 bg-green-50 px-4 py-3 text-sm leading-7 text-green-700">
+            <div className="mb-5 rounded-[1.25rem] border border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] px-4 py-3 text-sm leading-7 text-[#86efac]">
               <div className="flex items-start gap-2">
                 <Wifi size={17} className="mt-1 shrink-0" />
-                <p>Online. WhatsApp and email contact buttons are ready.</p>
+                <p>
+                  Online. Structured inquiry capture is ready. Direct private
+                  phone or email details are intentionally not published here.
+                </p>
               </div>
             </div>
           )}
 
           <div className="card-elevated overflow-hidden">
-            <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
-              <div className="eyebrow">
-                <ShieldCheck size={15} />
-                Sparkle Legacy • Contact
-              </div>
+            <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
+              <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
 
-              <h1 className="max-w-[11ch]">Contact Sparkle Legacy.</h1>
+              <div className="relative grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+                <div>
+                  <div className="eyebrow">
+                    <ShieldCheck size={15} />
+                    AdminHub Global • Structured Inquiry
+                  </div>
 
-              <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                WhatsApp-first support for quotes, policy guidance, and claims
-                help. If you prefer a longer written explanation or formal
-                follow-up, email works too.
-              </p>
+                  <h1 className="max-w-[12ch]">
+                    Submit details before private follow-up.
+                  </h1>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <a
-                  href={waGeneral}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary"
-                >
-                  <MessageCircle size={18} />
-                  Chat on WhatsApp
-                </a>
+                  <p className="mt-4 max-w-[64ch] text-base leading-8 text-[var(--text-secondary)]">
+                    AdminHub Global uses a controlled inquiry flow. Share your
+                    identity, business context, region, role, and what you need
+                    reviewed first. Then AdminHub can assess the request and
+                    follow up privately.
+                  </p>
 
-                <a href={`mailto:${EMAIL}`} className="btn btn-outline">
-                  <Mail size={18} />
-                  Email Us
-                </a>
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <a href="#inquiry-form" className="btn btn-primary">
+                      <ClipboardList size={18} />
+                      Start Inquiry
+                    </a>
 
-                <button
-                  type="button"
-                  onClick={() => copyMessage("general", GENERAL_MESSAGE)}
-                  className="btn btn-outline"
-                >
-                  {copiedLabel === "general" ? <Check size={18} /> : <Copy size={18} />}
-                  {copiedLabel === "general" ? "Copied" : "Copy Message"}
-                </button>
+                    <Link
+                      href="/solutions"
+                      prefetch={false}
+                      className="btn btn-outline"
+                    >
+                      View Solutions
+                      <ArrowRight size={18} />
+                    </Link>
 
-                <Link href="/claims" className="btn btn-ghost" prefetch={false}>
-                  <FileText size={18} />
-                  Claims Help
-                </Link>
+                    <Link
+                      href="/partners"
+                      prefetch={false}
+                      className="btn btn-ghost"
+                    >
+                      <Users size={18} />
+                      Partner Portal
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="frame-gold p-5 md:p-6">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 text-[var(--brand-primary)]">
+                      <LockKeyhole size={20} />
+                    </span>
+
+                    <div>
+                      <p className="text-sm font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                        Contact policy
+                      </p>
+
+                      <h2 className="mt-2 text-2xl">
+                        No public phone or email exposure.
+                      </h2>
+
+                      <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                        The public site should record who is making contact,
+                        what they need, where they are based, and whether they
+                        are a client, agent, partner, or existing user before
+                        any private contact details are used.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
+          {submitted ? (
+            <div className="mt-6 rounded-[1.25rem] border border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] p-4 text-sm leading-7 text-[#86efac]">
+              <div className="flex items-start gap-2">
+                <Check size={18} className="mt-1 shrink-0" />
+                <p>
+                  Inquiry submitted. AdminHub can now review the details before
+                  private follow-up.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {submitError ? (
+            <div className="mt-6 rounded-[1.25rem] border border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] p-4 text-sm leading-7 text-[#fcd34d]">
+              {submitError}
+            </div>
+          ) : null}
         </div>
       </section>
 
       <section className="section-shell pt-0">
         <div className="container">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <InfoPanel
-              eyebrow="Fastest support"
-              title="WhatsApp support"
-              icon={<MessageCircle size={18} />}
-            >
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                Best for faster replies, document sharing, claim follow-up, and
-                practical quote requests.
-              </p>
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <section id="inquiry-form" className="card-elevated overflow-hidden">
+              <form onSubmit={submitInquiry} className="card-inner space-y-5 md:p-6">
+                <div>
+                  <div className="eyebrow mb-0">
+                    <ClipboardList size={15} />
+                    Inquiry form
+                  </div>
 
-              <div className="mt-4 space-y-3 text-sm text-[var(--text-secondary)]">
-                <div className="flex items-center gap-2">
-                  <PhoneCall
-                    size={16}
-                    className="text-[var(--brand-primary-strong)]"
-                  />
-                  <span>{WHATSAPP_NUMBER}</span>
+                  <h2 className="mt-2 text-2xl">
+                    Tell AdminHub what needs review.
+                  </h2>
+
+                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                    Required fields are name, preferred contact detail, and what
+                    you need reviewed. The rest helps qualify the request faster.
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Clock
-                    size={16}
-                    className="text-[var(--brand-primary-strong)]"
-                  />
-                  <span>Typical response: as soon as possible</span>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="label">Name *</label>
+                    <input
+                      value={form.name}
+                      onChange={(event) =>
+                        updateField("name", event.target.value)
+                      }
+                      className="input"
+                      placeholder="Your name"
+                      autoComplete="name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">Preferred contact detail *</label>
+                    <input
+                      value={form.preferredContact}
+                      onChange={(event) =>
+                        updateField("preferredContact", event.target.value)
+                      }
+                      className="input"
+                      placeholder="Email, phone, LinkedIn, or preferred method"
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">I am interested as</label>
+                    <select
+                      value={form.role}
+                      onChange={(event) =>
+                        updateField("role", event.target.value)
+                      }
+                      className="select"
+                    >
+                      <option value="">Select role</option>
+                      {roleOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="label">Country / Region</label>
+                    <input
+                      value={form.country}
+                      onChange={(event) =>
+                        updateField("country", event.target.value)
+                      }
+                      className="input"
+                      placeholder="Country or region"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">Business / Organisation</label>
+                    <input
+                      value={form.business}
+                      onChange={(event) =>
+                        updateField("business", event.target.value)
+                      }
+                      className="input"
+                      placeholder="Business or organisation name"
+                      autoComplete="organization"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">Solution interest</label>
+                    <select
+                      value={form.solutionInterest}
+                      onChange={(event) =>
+                        updateField("solutionInterest", event.target.value)
+                      }
+                      className="select"
+                    >
+                      <option value="">Select solution</option>
+                      {solutionOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="label">Timeline</label>
+                    <select
+                      value={form.timeline}
+                      onChange={(event) =>
+                        updateField("timeline", event.target.value)
+                      }
+                      className="select"
+                    >
+                      <option value="">Select timeline</option>
+                      {timelineOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="label">What do you need reviewed? *</label>
+                    <textarea
+                      value={form.projectNeed}
+                      onChange={(event) =>
+                        updateField("projectNeed", event.target.value)
+                      }
+                      className="textarea"
+                      rows={5}
+                      placeholder="Example: I need a 48-hour live proof for a training business, with a public site, admin dashboard, client portal, messaging, uploads, and monthly support."
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="label">Extra notes</label>
+                    <textarea
+                      value={form.notes}
+                      onChange={(event) =>
+                        updateField("notes", event.target.value)
+                      }
+                      className="textarea"
+                      rows={4}
+                      placeholder="Anything else AdminHub should know before private follow-up."
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-5 flex flex-col gap-2">
-                <a
-                  href={waQuote}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary w-full"
-                >
-                  <MessageCircle size={18} />
-                  Request a Quote
-                </a>
-
-                <button
-                  type="button"
-                  onClick={() => copyMessage("quote", QUOTE_MESSAGE)}
-                  className="btn btn-outline w-full"
-                >
-                  {copiedLabel === "quote" ? <Check size={18} /> : <Copy size={18} />}
-                  {copiedLabel === "quote" ? "Quote Message Copied" : "Copy Quote Message"}
-                </button>
-
-                <a
-                  href={waClaim}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-outline w-full"
-                >
-                  <FileText size={18} />
-                  Start a Claim
-                </a>
-
-                <button
-                  type="button"
-                  onClick={() => copyMessage("claim", CLAIM_MESSAGE)}
-                  className="btn btn-outline w-full"
-                >
-                  {copiedLabel === "claim" ? <Check size={18} /> : <Copy size={18} />}
-                  {copiedLabel === "claim" ? "Claim Message Copied" : "Copy Claim Message"}
-                </button>
-
-                <a
-                  href={waCallback}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-outline w-full"
-                >
-                  <PhoneCall size={18} />
-                  Request a Callback
-                </a>
-              </div>
-
-              <p className="mt-4 text-xs leading-6 text-[var(--text-muted)]">
-                Tip: attach clear photos or PDFs such as ID, forms, evidence, or
-                supporting documents where relevant.
-              </p>
-            </InfoPanel>
-
-            <InfoPanel
-              eyebrow="Formal follow-up"
-              title="Email"
-              icon={<Mail size={18} />}
-            >
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                Use email for longer detail, more formal submissions, or written
-                follow-ups.
-              </p>
-
-              <div className="mt-4 space-y-3 text-sm text-[var(--text-secondary)]">
-                <div className="flex items-center gap-2">
-                  <Mail
-                    size={16}
-                    className="text-[var(--brand-primary-strong)]"
-                  />
-                  <a
-                    className="transition hover:text-[var(--text-primary)] hover:underline"
-                    href={`mailto:${EMAIL}`}
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn btn-primary"
                   >
-                    {EMAIL}
-                  </a>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock
-                    size={16}
-                    className="text-[var(--brand-primary-strong)]"
-                  />
-                  <span>Response: same day where possible</span>
-                </div>
-              </div>
+                    {submitting ? (
+                      <RefreshCw size={18} className="animate-spin" />
+                    ) : (
+                      <Send size={18} />
+                    )}
+                    {submitting ? "Submitting..." : "Submit Inquiry"}
+                  </button>
 
-              <div className="mt-5">
-                <a href={`mailto:${EMAIL}`} className="btn btn-primary w-full">
-                  <Mail size={18} />
-                  Compose Email
-                </a>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => copyMessage("summary", inquirySummary)}
+                    className="btn btn-outline"
+                  >
+                    {copiedLabel === "summary" ? (
+                      <Check size={18} />
+                    ) : (
+                      <Copy size={18} />
+                    )}
+                    {copiedLabel === "summary"
+                      ? "Copied"
+                      : "Copy Inquiry Summary"}
+                  </button>
 
-              <div className="mt-4 frame-gold p-4">
-                <p className="text-sm leading-7 text-[var(--text-secondary)]">
-                  Helpful details to include: cover type, product, city or town,
-                  and the practical facts that matter most to your request.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearDraft();
+                      setForm(initialForm);
+                      setSubmitted(false);
+                      setSubmitError("");
+                    }}
+                    className="btn btn-ghost"
+                  >
+                    Clear Draft
+                  </button>
+                </div>
+
+                <p className="text-xs leading-6 text-[var(--text-muted)]">
+                  This inquiry is saved to Firestore as a new AdminHub Global
+                  inquiry. If you go offline before submitting, your draft stays
+                  saved locally on this device.
                 </p>
-              </div>
-            </InfoPanel>
+              </form>
+            </section>
 
-            <InfoPanel
-              eyebrow="Helpful details"
-              title="What to send for faster help"
-              icon={<MapPin size={18} />}
-            >
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                If you want guidance faster, sending the basics early usually
-                helps.
-              </p>
+            <div className="space-y-6">
+              <InfoPanel
+                eyebrow="What to include"
+                title="Details that help qualify faster"
+                icon={<FileText size={18} />}
+              >
+                <ul className="mt-4 space-y-2">
+                  {[
+                    "Whether you are asking as a client, agent, partner, or existing user",
+                    "Your business or organisation name",
+                    "Country, region, or target market",
+                    "The workflow, portal, dashboard, or support problem",
+                    "Whether this is a proof sprint, full PWA, or managed support inquiry",
+                    "Any existing website, PDF, company profile, or system context",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex gap-2 text-sm leading-7 text-[var(--text-secondary)]"
+                    >
+                      <CheckCircle2
+                        size={16}
+                        className="mt-1 shrink-0 text-[var(--brand-primary)]"
+                      />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </InfoPanel>
 
-              <ul className="mt-4 space-y-2">
-                {[
-                  "Your name and city or town",
-                  "Cover type such as Short-Term, Long-Term, SME, or Retirement",
-                  "Product such as Motor, Home, Funeral, Life, or similar",
-                  "If it is a claim: the incident date and what happened",
-                  "Any supporting photos or documents",
-                ].map((item) => (
-                  <li
-                    key={item}
-                    className="flex gap-2 text-sm leading-7 text-[var(--text-secondary)]"
+              <InfoPanel
+                eyebrow="Useful routes"
+                title="Explore before submitting"
+                icon={<LayoutDashboard size={18} />}
+              >
+                <div className="mt-4 grid gap-2">
+                  <Link
+                    href="/solutions"
+                    prefetch={false}
+                    className="btn btn-outline w-full"
                   >
-                    <span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-primary)]" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+                    <Globe2 size={18} />
+                    Solutions Overview
+                  </Link>
 
-              <div className="mt-5 flex flex-col gap-2">
-                <Link
-                  href="/c/short-term"
-                  className="btn btn-outline w-full"
-                  prefetch={false}
-                >
-                  Browse Short-Term
-                  <ArrowRight size={18} />
-                </Link>
+                  <Link
+                    href="/c/rapid-proof"
+                    prefetch={false}
+                    className="btn btn-outline w-full"
+                  >
+                    <Workflow size={18} />
+                    48-Hour Live Proof
+                  </Link>
 
-                <Link
-                  href="/c/long-term"
-                  className="btn btn-outline w-full"
-                  prefetch={false}
-                >
-                  Browse Long-Term
-                  <ArrowRight size={18} />
-                </Link>
+                  <Link
+                    href="/partners"
+                    prefetch={false}
+                    className="btn btn-outline w-full"
+                  >
+                    <Users size={18} />
+                    Partner Portal
+                  </Link>
 
-                <Link
-                  href="/c/retirement"
-                  className="btn btn-outline w-full"
-                  prefetch={false}
-                >
-                  Retirement & Wealth
-                  <ArrowRight size={18} />
-                </Link>
-              </div>
+                  <Link
+                    href="/blog"
+                    prefetch={false}
+                    className="btn btn-outline w-full"
+                  >
+                    <FileText size={18} />
+                    Insights
+                  </Link>
+                </div>
+              </InfoPanel>
 
-              <p className="mt-4 text-xs leading-6 text-[var(--text-muted)]">
-                Cover terms, premiums, and benefits remain subject to insurer
-                underwriting and policy wording.
-              </p>
-            </InfoPanel>
+              <InfoPanel
+                eyebrow="Privacy-first contact"
+                title="Why there is no public number here"
+                icon={<LockKeyhole size={18} />}
+              >
+                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  AdminHub Global is intentionally set up so visitors submit
+                  identity and project context first. This avoids exposing
+                  private contact details publicly while still creating a clear
+                  path for serious inquiries, partner requests, and client
+                  follow-up.
+                </p>
+              </InfoPanel>
+
+              <InfoPanel
+                eyebrow="Platform scope"
+                title="Custom, not boxed-in"
+                icon={<Network size={18} />}
+              >
+                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  AdminHub Global is built around a custom Next.js, TailwindCSS,
+                  Firebase, UploadThing, and PWA framework for workflows,
+                  portals, dashboards, files, messaging, PDFs, and managed
+                  support.
+                </p>
+              </InfoPanel>
+            </div>
           </div>
         </div>
       </section>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import {
@@ -15,96 +15,81 @@ import {
 
 import { firestore } from "@/utils/firebaseConfig";
 
-type InsuranceCategory = "short-term" | "long-term" | "business" | "retirement";
-
-type ProductType =
-  | "motor"
-  | "home-contents"
-  | "travel"
-  | "gadget"
-  | "personal-accident"
-  | "life"
-  | "funeral"
-  | "disability-income"
-  | "credit-life"
-  | "retirement-annuity"
-  | "wealth-planning"
-  | "sme-cover"
-  | "liability"
-  | "fleet"
-  | "business-interruption"
-  | "agriculture"
-  | "other";
+type ServiceCategory =
+  | "rapid-proof"
+  | "business-pwa"
+  | "operations-pwa"
+  | "partner-led-sales"
+  | "client-hub"
+  | "managed-support"
+  | "proposal-tools"
+  | "agent-operations"
+  | "custom-framework";
 
 type FormState = {
   name: string;
-  category: InsuranceCategory;
-  productType: ProductType;
+  category: ServiceCategory;
   summary: string;
   bullets: string;
   whatItCovers: string;
   whoItsFor: string;
   keyNotes: string;
+  priceRange: string;
   order: string;
   active: boolean;
 };
 
-const CATEGORY_OPTIONS: { value: InsuranceCategory; label: string; help: string }[] = [
+const CATEGORY_OPTIONS: {
+  value: ServiceCategory;
+  label: string;
+  help: string;
+}[] = [
   {
-    value: "short-term",
-    label: "Short-Term Insurance",
-    help: "Motor, home, contents, travel, gadgets, accident, and similar cover.",
+    value: "rapid-proof",
+    label: "48-Hour Live Proof",
+    help: "Rapid proof sprint for moving a prospect from intake/profile to a live preliminary PWA direction.",
   },
   {
-    value: "long-term",
-    label: "Long-Term Insurance",
-    help: "Life, funeral, disability, credit life, and protection products.",
+    value: "business-pwa",
+    label: "Business PWA Systems",
+    help: "Public site, admin dashboard, client portal, messaging, uploads, and support workflow.",
   },
   {
-    value: "business",
-    label: "Business / SME Cover",
-    help: "Business assets, liability, fleet, interruption, agriculture, and SME risk.",
+    value: "operations-pwa",
+    label: "Operations PWA Builds",
+    help: "Workflow-heavy systems for cases, onboarding, files, requests, approvals, and support.",
   },
   {
-    value: "retirement",
-    label: "Retirement & Planning",
-    help: "Retirement, annuities, wealth planning, and long-term financial security.",
+    value: "partner-led-sales",
+    label: "Partner-Led Sales",
+    help: "Sales partner model for agents, qualified leads, proof-backed conversion, and recurring support potential.",
+  },
+  {
+    value: "client-hub",
+    label: "Client Hub",
+    help: "Client-facing workspace for progress updates, messages, files, onboarding, and support visibility.",
+  },
+  {
+    value: "managed-support",
+    label: "Managed Support",
+    help: "Recurring post-launch support, updates, fixes, content changes, and system continuity.",
+  },
+  {
+    value: "proposal-tools",
+    label: "Proposal & PDF Tools",
+    help: "Reusable PDFs, proposal sheets, scope summaries, onboarding summaries, and project documents.",
+  },
+  {
+    value: "agent-operations",
+    label: "Agent Operations",
+    help: "Lead tracking, attribution, agent activity, commissions, payout status, and partner operations.",
+  },
+  {
+    value: "custom-framework",
+    label: "Custom Framework",
+    help: "The reusable Next.js, TailwindCSS, Firebase, UploadThing, and PWA framework behind AdminHub Global.",
   },
 ];
-
-const PRODUCT_TYPE_OPTIONS: Record<
-  InsuranceCategory,
-  { value: ProductType; label: string }[]
-> = {
-  "short-term": [
-    { value: "motor", label: "Motor Insurance" },
-    { value: "home-contents", label: "Home & Contents" },
-    { value: "travel", label: "Travel Insurance" },
-    { value: "gadget", label: "Gadget Insurance" },
-    { value: "personal-accident", label: "Personal Accident" },
-    { value: "other", label: "Other Short-Term Cover" },
-  ],
-  "long-term": [
-    { value: "life", label: "Life Cover" },
-    { value: "funeral", label: "Funeral Cover" },
-    { value: "disability-income", label: "Disability & Income Protection" },
-    { value: "credit-life", label: "Credit Life" },
-    { value: "other", label: "Other Long-Term Cover" },
-  ],
-  business: [
-    { value: "sme-cover", label: "Business & SME Cover" },
-    { value: "liability", label: "Liability Cover" },
-    { value: "fleet", label: "Fleet Cover" },
-    { value: "business-interruption", label: "Business Interruption" },
-    { value: "agriculture", label: "Agriculture Insurance" },
-    { value: "other", label: "Other Business Cover" },
-  ],
-  retirement: [
-    { value: "retirement-annuity", label: "Retirement & Annuities" },
-    { value: "wealth-planning", label: "Wealth Planning" },
-    { value: "other", label: "Other Retirement / Planning Product" },
-  ],
-};
 
 function toList(value: string) {
   return value
@@ -113,26 +98,19 @@ function toList(value: string) {
     .filter(Boolean);
 }
 
-function getProductTypeLabel(category: InsuranceCategory, productType: ProductType) {
-  return (
-    PRODUCT_TYPE_OPTIONS[category].find((item) => item.value === productType)
-      ?.label || "Other"
-  );
-}
-
-export default function NewProductPage() {
+export default function NewServicePackagePage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState<FormState>({
     name: "",
-    category: "short-term",
-    productType: "motor",
+    category: "rapid-proof",
     summary: "",
     bullets: "",
     whatItCovers: "",
     whoItsFor: "",
     keyNotes: "",
+    priceRange: "",
     order: "",
     active: true,
   });
@@ -142,9 +120,11 @@ export default function NewProductPage() {
     [form.category]
   );
 
-  const save = async () => {
+  async function save(e: FormEvent) {
+    e.preventDefault();
+
     if (!form.name.trim()) {
-      window.alert("Product name is required.");
+      window.alert("Service package name is required.");
       return;
     }
 
@@ -161,32 +141,29 @@ export default function NewProductPage() {
       return;
     }
 
-    const productTypeLabel = getProductTypeLabel(
-      form.category,
-      form.productType
-    );
-
     setSaving(true);
 
     try {
-      await addDoc(collection(firestore, "insurance_products"), {
+      await addDoc(collection(firestore, "service_packages"), {
         name: form.name.trim(),
 
-        // Public page bucket. This must match /c/[category]
+        // Public /c/[category] bucket.
+        // This must match the category slugs used in the public /c/ page.
         category: form.category,
-
-        // Detailed insurance type shown inside the public bucket.
-        productType: form.productType,
-        productTypeLabel,
 
         summary: form.summary.trim(),
         bullets: toList(form.bullets),
         whatItCovers: toList(form.whatItCovers),
         whoItsFor: toList(form.whoItsFor),
         keyNotes: toList(form.keyNotes),
+        priceRange: form.priceRange.trim(),
         order: orderValue,
         active: form.active,
+
+        // Admin ownership / compatibility
         admin_id: "admin",
+
+        // Timestamp compatibility
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -194,21 +171,11 @@ export default function NewProductPage() {
       router.push("/admin/dashboard/products");
     } catch (err) {
       console.error("Save failed:", err);
-      window.alert("Failed to save insurance product.");
+      window.alert("Failed to save service package.");
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleCategoryChange = (value: InsuranceCategory) => {
-    const firstProductType = PRODUCT_TYPE_OPTIONS[value][0]?.value || "other";
-
-    setForm((prev) => ({
-      ...prev,
-      category: value,
-      productType: firstProductType,
-    }));
-  };
+  }
 
   return (
     <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -219,50 +186,50 @@ export default function NewProductPage() {
               <Link
                 href="/admin/dashboard/products"
                 prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary-strong)] transition hover:opacity-80"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
               >
                 <ArrowLeft size={16} />
-                Back to Insurance Products
+                Back to Service Packages
               </Link>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
               <div className="card-elevated overflow-hidden">
-                <div className="bg-[linear-gradient(180deg,#fffefb_0%,#f7f1e4_100%)] p-6 md:p-10">
+                <div className="bg-[linear-gradient(180deg,rgba(15,23,42,0.98)_0%,rgba(6,10,18,0.98)_100%)] p-6 md:p-10">
                   <div className="eyebrow">
                     <FolderKanban size={15} />
-                    Sparkle Legacy • New Insurance Product
+                    AdminHub Global • New Service Package
                   </div>
 
                   <h1 className="max-w-[13ch]">
-                    Add a new public insurance product.
+                    Add a new AdminHub service package.
                   </h1>
 
                   <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    Create an insurance product entry under one of the four main
-                    public product buckets. Detailed products such as Motor,
-                    Home, Life, Funeral, or Agriculture now sit inside those
-                    broader public categories.
+                    The public <b>/c/</b> pages already include the built-in
+                    AdminHub catalogue baseline. Use this form only when you
+                    want to add a new package, extension, pricing note, or
+                    custom offer on top of that default catalogue.
                   </p>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                       <p className="text-sm font-extrabold text-[var(--text-primary)]">
                         Public category
                       </p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        This controls which public page the product appears on:
-                        Short-Term, Long-Term, Business / SME, or Retirement.
+                        This controls which <b>/c/</b> page the package appears
+                        on.
                       </p>
                     </div>
 
-                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-white/80 p-4">
+                    <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
                       <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                        Product type
+                        Add-on behavior
                       </p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        This is the specific insurance product shown inside the
-                        selected public category.
+                        Saved Firestore packages are merged with the built-in
+                        service catalogue, not used to replace it.
                       </p>
                     </div>
                   </div>
@@ -273,17 +240,17 @@ export default function NewProductPage() {
                 <div className="card-inner md:p-8">
                   <div className="eyebrow mb-0">
                     <ShieldCheck size={15} />
-                    Product checklist
+                    Package checklist
                   </div>
 
                   <h2 className="mt-2 text-2xl">Before saving</h2>
 
                   <ul className="mt-5 space-y-3">
                     {[
-                      "Choose the broad public category first.",
-                      "Then choose the detailed product type inside that category.",
-                      "Use a product name clients can recognize quickly.",
-                      "Only mark inactive if the product should stay hidden from public pages.",
+                      "Choose the correct public /c/ category.",
+                      "Do not recreate the whole PDF catalogue here.",
+                      "Use a package name prospects or partners can understand quickly.",
+                      "Only mark inactive if the package should stay hidden from public pages.",
                     ].map((item) => (
                       <li
                         key={item}
@@ -291,7 +258,7 @@ export default function NewProductPage() {
                       >
                         <CheckCircle2
                           size={16}
-                          className="mt-[5px] shrink-0 text-[var(--brand-primary-strong)]"
+                          className="mt-[5px] shrink-0 text-[var(--brand-primary)]"
                         />
                         <span>{item}</span>
                       </li>
@@ -313,11 +280,11 @@ export default function NewProductPage() {
             </div>
 
             <section className="mt-8">
-              <div className="card-outline-gold">
+              <form onSubmit={save} className="card-outline-gold">
                 <div className="card-inner space-y-5 md:p-8">
                   <div className="eyebrow mb-0">
                     <FileText size={15} />
-                    Product details
+                    Service package details
                   </div>
 
                   <div>
@@ -325,12 +292,12 @@ export default function NewProductPage() {
                       htmlFor="name"
                       className="text-sm font-semibold text-[var(--text-primary)]"
                     >
-                      Product Name
+                      Package Name
                     </label>
                     <input
                       id="name"
                       className="input mt-2"
-                      placeholder="Example: Comprehensive Motor Cover"
+                      placeholder="Example: Rapid Proof + Launch Sprint"
                       value={form.name}
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, name: e.target.value }))
@@ -351,9 +318,10 @@ export default function NewProductPage() {
                         className="input mt-2"
                         value={form.category}
                         onChange={(e) =>
-                          handleCategoryChange(
-                            e.target.value as InsuranceCategory
-                          )
+                          setForm((prev) => ({
+                            ...prev,
+                            category: e.target.value as ServiceCategory,
+                          }))
                         }
                       >
                         {CATEGORY_OPTIONS.map((option) => (
@@ -366,28 +334,23 @@ export default function NewProductPage() {
 
                     <div>
                       <label
-                        htmlFor="productType"
+                        htmlFor="priceRange"
                         className="text-sm font-semibold text-[var(--text-primary)]"
                       >
-                        Product Type
+                        Price Range / Commercial Note
                       </label>
-                      <select
-                        id="productType"
+                      <input
+                        id="priceRange"
                         className="input mt-2"
-                        value={form.productType}
+                        placeholder="Example: USD 2,500–5,000 or Custom quote"
+                        value={form.priceRange}
                         onChange={(e) =>
                           setForm((prev) => ({
                             ...prev,
-                            productType: e.target.value as ProductType,
+                            priceRange: e.target.value,
                           }))
                         }
-                      >
-                        {PRODUCT_TYPE_OPTIONS[form.category].map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                   </div>
 
@@ -401,7 +364,7 @@ export default function NewProductPage() {
                     <textarea
                       id="summary"
                       className="input mt-2 min-h-[110px] resize-y rounded-[1.25rem]"
-                      placeholder="Write a short practical summary of what this product is and why it matters."
+                      placeholder="Write a short practical summary of what this package is and why it matters."
                       value={form.summary}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -417,12 +380,12 @@ export default function NewProductPage() {
                       htmlFor="bullets"
                       className="text-sm font-semibold text-[var(--text-primary)]"
                     >
-                      Bullets
+                      Key Points
                     </label>
                     <textarea
                       id="bullets"
                       className="input mt-2 min-h-[140px] resize-y rounded-[1.25rem]"
-                      placeholder={`One item per line\nExample:\nCovers accidental damage\nCan include third-party protection\nSupports repair or replacement depending on policy`}
+                      placeholder={`One item per line\nExample:\nLive preliminary version\nStructured intake review\nEarly backend/admin direction`}
                       value={form.bullets}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -438,12 +401,12 @@ export default function NewProductPage() {
                       htmlFor="whatItCovers"
                       className="text-sm font-semibold text-[var(--text-primary)]"
                     >
-                      What It Covers
+                      What It Includes
                     </label>
                     <textarea
                       id="whatItCovers"
                       className="input mt-2 min-h-[140px] resize-y rounded-[1.25rem]"
-                      placeholder={`One item per line\nExample:\nVehicle accident damage\nTheft or attempted theft\nThird-party liability`}
+                      placeholder={`One item per line\nExample:\nPublic PWA direction\nAdmin dashboard foundation\nClient portal planning\nPDF/output workflow direction`}
                       value={form.whatItCovers}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -464,7 +427,7 @@ export default function NewProductPage() {
                     <textarea
                       id="whoItsFor"
                       className="input mt-2 min-h-[120px] resize-y rounded-[1.25rem]"
-                      placeholder={`One item per line\nExample:\nPrivate vehicle owners\nFamilies protecting their home\nSMEs with business assets`}
+                      placeholder={`One item per line\nExample:\nSMEs that need more than a brochure website\nAgents selling proof-backed digital infrastructure\nBusinesses with client communication and file workflows`}
                       value={form.whoItsFor}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -480,12 +443,12 @@ export default function NewProductPage() {
                       htmlFor="keyNotes"
                       className="text-sm font-semibold text-[var(--text-primary)]"
                     >
-                      Key Notes
+                      Important Notes
                     </label>
                     <textarea
                       id="keyNotes"
                       className="input mt-2 min-h-[120px] resize-y rounded-[1.25rem]"
-                      placeholder={`One item per line\nExample:\nSubject to underwriting\nBenefits depend on policy wording\nSupporting documents may be required`}
+                      placeholder={`One item per line\nExample:\nFinal scope depends on submitted project details\nPricing depends on implementation depth\nManaged support is quoted separately where applicable`}
                       value={form.keyNotes}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -538,16 +501,15 @@ export default function NewProductPage() {
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <button
                       disabled={saving}
-                      onClick={save}
                       className="btn btn-primary"
-                      type="button"
+                      type="submit"
                     >
                       {saving ? (
                         <Loader2 size={18} className="animate-spin" />
                       ) : (
                         <FolderKanban size={18} />
                       )}
-                      {saving ? "Saving..." : "Save Product"}
+                      {saving ? "Saving..." : "Save Service Package"}
                     </button>
 
                     <button
@@ -560,14 +522,14 @@ export default function NewProductPage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </form>
             </section>
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
               <b className="text-[var(--text-primary)]">Admin note:</b> the
-              public website stays clean with four main product categories,
-              while the admin can still manage detailed insurance products
-              inside each category.
+              built-in AdminHub service catalogue remains available on the
+              public <b>/c/</b> pages. Anything saved here is an extra Firestore
+              add-on package that gets merged into that catalogue.
             </div>
           </div>
         </div>

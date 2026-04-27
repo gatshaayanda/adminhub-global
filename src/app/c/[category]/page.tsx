@@ -10,19 +10,15 @@ import jsPDF from "jspdf";
 import { firestore } from "@/utils/firebaseConfig";
 import {
   BadgeDollarSign,
-  Bot,
   BriefcaseBusiness,
   ChevronRight,
   Clock3,
   Download,
   FileText,
-  Globe2,
   LayoutDashboard,
   MessageCircle,
   Network,
   ShieldCheck,
-  Sparkles,
-  UploadCloud,
   Users,
   WifiOff,
   Workflow,
@@ -52,6 +48,8 @@ type ServicePackage = {
   keyNotes?: string[];
   active?: boolean;
   order?: number;
+  priceRange?: string;
+  source?: "default" | "admin";
 };
 
 type ProductCachePayload = {
@@ -152,7 +150,7 @@ const CATEGORY_META: Record<
   "proposal-tools": {
     title: "Proposal & PDF Tools",
     subtitle:
-      "Reusable proposal, scope, catalog, onboarding summary, and project document tools that support both sales and delivery workflows.",
+      "Reusable proposal, scope, catalogue, onboarding summary, and project document tools that support both sales and delivery workflows.",
     eyebrow: "Sales and delivery documents",
     icon: <FileText size={18} />,
     ctaLabel: "Submit Proposal Tool Inquiry",
@@ -184,20 +182,951 @@ const CATEGORY_META: Record<
   },
 };
 
+const DEFAULT_SERVICE_PACKAGES: Record<ServiceCategory, ServicePackage[]> = {
+  "rapid-proof": [
+    {
+      id: "default-rapid-launch-preview",
+      category: "rapid-proof",
+      name: "Rapid Launch Preview Model",
+      order: 10,
+      source: "default",
+      summary:
+        "A proof-first process where a client submits a minimum intake or company profile, then receives a live preliminary version quickly before full implementation.",
+      bullets: [
+        "Minimum intake form or company profile/PDF starts the process.",
+        "A live preliminary version is created on a .vercel.app domain.",
+        "Public-facing preview can be shown within 24 hours.",
+        "Basic backend or admin logic can be added within another 24 hours where relevant.",
+        "The client sees a working proof before moving into revisions and production setup.",
+      ],
+      whatItCovers: [
+        "Intake review",
+        "Live preview direction",
+        "Initial layout and content structure",
+        "Early backend/admin direction where relevant",
+        "Revision and implementation pathway",
+      ],
+      whoItsFor: [
+        "Prospects who need to see something real before committing.",
+        "Sales partners who need a stronger proof-backed offer.",
+        "SMEs comparing AdminHub against ordinary web design promises.",
+      ],
+      keyNotes: [
+        "This is not the final full build.",
+        "The proof stage is designed to improve trust, speed up decision-making, and support deposit conversion.",
+      ],
+    },
+    {
+      id: "default-proof-to-managed-build",
+      category: "rapid-proof",
+      name: "Proof-to-Implementation Path",
+      order: 20,
+      source: "default",
+      summary:
+        "After the preview is approved, the project moves into revisions, production setup, deployment, and managed support.",
+      bullets: [
+        "Live proof creates belief first.",
+        "Client feedback shapes revisions and scope direction.",
+        "Production setup follows once the build path is approved.",
+        "Managed support keeps the platform useful after launch.",
+      ],
+      whatItCovers: [
+        "Revisions",
+        "Production configuration",
+        "Deployment",
+        "Client onboarding",
+        "Post-launch support direction",
+      ],
+      whoItsFor: [
+        "Clients who want a real working direction before committing to a larger build.",
+        "Businesses that need a practical path from idea to system.",
+      ],
+      keyNotes: [
+        "Final scope, pricing, and timeline depend on the approved implementation requirements.",
+      ],
+    },
+  ],
+
+  "business-pwa": [
+    {
+      id: "default-launch-website",
+      category: "business-pwa",
+      name: "Launch Website",
+      order: 10,
+      source: "default",
+      priceRange: "P3,500-P6,800",
+      summary:
+        "A professional online presence for small businesses that need a clean, credible public website.",
+      bullets: [
+        "Home page",
+        "About section/page structure where relevant",
+        "Services page",
+        "Contact flow",
+        "Responsive design",
+        "Basic SEO",
+        "Deployment",
+      ],
+      whatItCovers: [
+        "Public website structure",
+        "Brand styling",
+        "Mobile-friendly layout",
+        "WhatsApp or structured inquiry actions",
+      ],
+      whoItsFor: [
+        "Small businesses that need to look professional online.",
+        "Founders who need a credible starting point before adding deeper systems.",
+      ],
+      keyNotes: [
+        "This is the simpler website-first package, not the full portal or operations system.",
+      ],
+    },
+    {
+      id: "default-business-website-cms",
+      category: "business-pwa",
+      name: "Business Website + CMS",
+      order: 20,
+      source: "default",
+      priceRange: "P10,000-P15,000",
+      summary:
+        "A business website with admin-managed content, blog/insights publishing, homepage highlights, image support, and editable service/product content.",
+      bullets: [
+        "Everything in Launch Website",
+        "Admin-managed blog/insights",
+        "Dynamic homepage highlights",
+        "Editable service/product content",
+        "Image upload support",
+        "Structured content layout",
+        "Basic admin dashboard",
+      ],
+      whatItCovers: [
+        "Public website",
+        "Admin content management",
+        "Blog/insights publishing",
+        "Dynamic content sections",
+      ],
+      whoItsFor: [
+        "Businesses that need credibility plus ongoing content updates.",
+        "Professional service businesses that publish insights or service updates.",
+      ],
+      keyNotes: [
+        "Useful when the business needs more than a static website but does not yet need a full client portal.",
+      ],
+    },
+    {
+      id: "default-conversion-website",
+      category: "business-pwa",
+      name: "Conversion Website",
+      order: 30,
+      source: "default",
+      priceRange: "P15,000-P25,000",
+      summary:
+        "A conversion-focused business website with CMS, WhatsApp automation, smart chatbot guidance, shareable articles, and structured lead actions.",
+      bullets: [
+        "Business website",
+        "CMS",
+        "WhatsApp automation",
+        "Smart chatbot",
+        "Quote/contact flows",
+        "Shareable articles",
+        "Structured landing sections",
+        "Mobile conversion improvements",
+      ],
+      whatItCovers: [
+        "Lead capture",
+        "Guided user actions",
+        "Article sharing",
+        "Chat-based assistance",
+        "Structured inquiry flows",
+      ],
+      whoItsFor: [
+        "Businesses that want leads and guided action, not just information pages.",
+        "Service businesses that rely on WhatsApp-first conversion.",
+      ],
+      keyNotes: [
+        "This package is stronger when the business has clear services and a follow-up process.",
+      ],
+    },
+  ],
+
+  "operations-pwa": [
+    {
+      id: "default-client-portal-platform",
+      category: "operations-pwa",
+      name: "Client Portal Platform",
+      order: 10,
+      source: "default",
+      priceRange: "P25,000-P45,000",
+      summary:
+        "A platform for businesses that manage clients, cases, applications, bookings, or support records.",
+      bullets: [
+        "Public website",
+        "Client login",
+        "Client dashboard",
+        "Admin dashboard",
+        "Case/project records",
+        "Progress updates",
+        "Required documents",
+        "Messaging",
+        "File links/uploads",
+        "PDF case summaries",
+        "Status tracking",
+      ],
+      whatItCovers: [
+        "Client-facing access",
+        "Admin-side case management",
+        "Status and progress tracking",
+        "Document handling",
+        "Client-safe summaries",
+      ],
+      whoItsFor: [
+        "Businesses with recurring client communication.",
+        "Service firms managing cases, requests, applications, or support workflows.",
+      ],
+      keyNotes: [
+        "This is where AdminHub starts becoming a real operating system, not only a public website.",
+      ],
+    },
+    {
+      id: "default-custom-operations-pwa",
+      category: "operations-pwa",
+      name: "Custom Operations PWA",
+      order: 20,
+      source: "default",
+      priceRange: "P45,000-P85,000+",
+      summary:
+        "A serious internal and client-facing system with public PWA, admin control center, client portal, CRM-style records, messaging, uploads, PDFs, dynamic content, and offline-aware features.",
+      bullets: [
+        "Public PWA",
+        "Admin control center",
+        "Client portal",
+        "CRM-style records",
+        "Messaging",
+        "Uploads",
+        "PDF generation",
+        "Dynamic content management",
+        "Offline-aware features",
+        "Refresh app data",
+        "WhatsApp automation",
+        "Analytics foundations",
+        "Future module expansion",
+      ],
+      whatItCovers: [
+        "Operational workflows",
+        "Client servicing",
+        "Digital records",
+        "Reusable document outputs",
+        "Scalable future modules",
+      ],
+      whoItsFor: [
+        "Businesses that need a serious custom operating system.",
+        "Premium clients who require portals, workflows, files, PDFs, and admin controls.",
+      ],
+      keyNotes: [
+        "Final value depends on modules, complexity, client requirements, and support needs.",
+      ],
+    },
+    {
+      id: "default-crm-compliance-portal",
+      category: "operations-pwa",
+      name: "CRM / Compliance / Client Portal System",
+      order: 30,
+      source: "default",
+      priceRange: "P20,000-P30,000",
+      summary:
+        "A workflow system for internal records and client management, including leads, case files, portals, messaging, status tracking, documents, and progress updates.",
+      bullets: [
+        "Client records",
+        "Lead records",
+        "Case files",
+        "Client portal",
+        "Admin portal",
+        "Messaging",
+        "Status tracking",
+        "Document uploads",
+        "Case PDFs",
+        "Secure access",
+        "Staff/admin workflow",
+        "Progress updates",
+        "Client-safe summaries",
+      ],
+      whatItCovers: [
+        "CRM-style records",
+        "Compliance-style case handling",
+        "Client-facing visibility",
+        "Secure admin workflows",
+      ],
+      whoItsFor: [
+        "Insurance brokers",
+        "Consultants",
+        "Training institutions",
+        "Professional service firms",
+        "Businesses with client follow-up processes",
+      ],
+      keyNotes: [
+        "A strong fit when the business needs structured client servicing and internal accountability.",
+      ],
+    },
+  ],
+
+  "partner-led-sales": [
+    {
+      id: "default-proof-backed-agent-sales",
+      category: "partner-led-sales",
+      name: "Proof-Backed Agent Sales Model",
+      order: 10,
+      source: "default",
+      summary:
+        "A partner sales model where agents sell a visible preview and implementation path instead of an abstract website promise.",
+      bullets: [
+        "Agents can sell a visible proof stage.",
+        "Prospects can see a live working version within 48 hours.",
+        "Proof improves trust and speeds up decision-making.",
+        "Qualified leads can move into implementation and managed support.",
+      ],
+      whatItCovers: [
+        "Agent sales framing",
+        "Lead qualification",
+        "Proof-stage positioning",
+        "Implementation handoff",
+        "Recurring support potential",
+      ],
+      whoItsFor: [
+        "Sales partners",
+        "Referral agents",
+        "Business development partners",
+        "People selling digital systems to SMEs",
+      ],
+      keyNotes: [
+        "The agent advantage is selling something concrete instead of asking the prospect to imagine the solution.",
+      ],
+    },
+    {
+      id: "default-sales-framing-pack",
+      category: "partner-led-sales",
+      name: "AdminHub Sales Framing Pack",
+      order: 20,
+      source: "default",
+      summary:
+        "Reusable positioning for different client types: small businesses, service businesses, businesses with clients, agents, and premium clients.",
+      bullets: [
+        "Small business framing",
+        "Service business framing",
+        "Client-portal business framing",
+        "Agent/sales partner framing",
+        "Premium platform framing",
+      ],
+      whatItCovers: [
+        "Clearer offer explanation",
+        "Benefit-led sales language",
+        "Proof-driven conversion",
+        "Premium system positioning",
+      ],
+      whoItsFor: [
+        "Partners who need a simple way to explain AdminHub.",
+        "Agents who need confidence selling higher-value platform builds.",
+      ],
+      keyNotes: [
+        "The strongest framing is that AdminHub turns a business website into a working digital operating system.",
+      ],
+    },
+  ],
+
+  "client-hub": [
+    {
+      id: "default-client-portal",
+      category: "client-hub",
+      name: "Client Portal",
+      order: 10,
+      source: "default",
+      priceRange: "P15,000-P22,800",
+      summary:
+        "Secure client portal areas where clients can log in, view assigned records, see updates, access files, message the business, and download PDFs.",
+      bullets: [
+        "Client login",
+        "Client dashboard",
+        "Assigned records/cases/projects",
+        "Progress updates",
+        "Required documents",
+        "Uploaded files",
+        "Shared links",
+        "Status badges",
+        "Case details",
+        "Messaging",
+        "PDF download",
+        "Logout flow",
+        "Mobile/PWA visibility fixes",
+      ],
+      whatItCovers: [
+        "Client-facing workspace",
+        "Project/case visibility",
+        "File and message access",
+        "Downloadable client-safe documents",
+      ],
+      whoItsFor: [
+        "Businesses that manage clients after the first sale.",
+        "Service providers needing structured updates, files, and communication.",
+      ],
+      keyNotes: [
+        "Portal access should be controlled and only shown to assigned client records.",
+      ],
+    },
+    {
+      id: "default-case-messaging-system",
+      category: "client-hub",
+      name: "Case Messaging System",
+      order: 20,
+      source: "default",
+      priceRange: "P6,500-P15,000",
+      summary:
+        "Project-linked or case-linked communication stored under the relevant record, with sender labels, optional files, links, and conversation history.",
+      bullets: [
+        "Client/admin messages",
+        "Firestore message storage",
+        "Sender labels",
+        "Real-time syncing where enabled",
+        "File or link support",
+        "Conversation history",
+        "Project/case-specific communication",
+      ],
+      whatItCovers: [
+        "Structured communication",
+        "Client replies",
+        "Admin follow-up",
+        "Document or link sharing",
+      ],
+      whoItsFor: [
+        "Businesses that need communication attached to a specific case or project.",
+        "Client-service teams that want to avoid scattered WhatsApp-only follow-up.",
+      ],
+      keyNotes: [
+        "Messaging works best when each record has a clear project or case ID.",
+      ],
+    },
+    {
+      id: "default-client-case-pdf-system",
+      category: "client-hub",
+      name: "Client Case PDF System",
+      order: 30,
+      source: "default",
+      priceRange: "P4,000-P8,000",
+      summary:
+        "Client-safe downloadable records generated from portal or case data.",
+      bullets: [
+        "Client details",
+        "Case title",
+        "Status",
+        "Request type",
+        "Progress update",
+        "Required documents",
+        "Support summary",
+        "Uploaded file links",
+        "Shared resources",
+        "Disclaimers",
+        "Client-safe downloadable record",
+      ],
+      whatItCovers: [
+        "Case summaries",
+        "Client-safe PDF outputs",
+        "Portal download buttons",
+        "Structured case documentation",
+      ],
+      whoItsFor: [
+        "Insurance brokers",
+        "Consultants",
+        "Client-service businesses",
+        "Any business that needs clean records clients can keep.",
+      ],
+      keyNotes: [
+        "PDF content should be client-safe and avoid exposing internal admin notes unless intentionally included.",
+      ],
+    },
+  ],
+
+  "managed-support": [
+    {
+      id: "default-starter-support",
+      category: "managed-support",
+      name: "Starter Support",
+      order: 10,
+      source: "default",
+      priceRange: "P650-P1,500/month",
+      summary:
+        "Small updates and basic maintenance for simple live websites.",
+      bullets: [
+        "Minor text/image updates",
+        "Basic monitoring",
+        "Small fixes",
+        "Deployment checks",
+      ],
+      whatItCovers: [
+        "Light website maintenance",
+        "Small fixes",
+        "Simple deployment checks",
+      ],
+      whoItsFor: [
+        "Small websites",
+        "Simple public presence builds",
+      ],
+      keyNotes: [
+        "Best for clients without heavy portal, dashboard, or workflow needs.",
+      ],
+    },
+    {
+      id: "default-business-support",
+      category: "managed-support",
+      name: "Business Support",
+      order: 20,
+      source: "default",
+      priceRange: "P1,500-P3,500/month",
+      summary:
+        "Monthly support for active business websites and CMS projects.",
+      bullets: [
+        "Content updates",
+        "Blog posting support",
+        "Product/service updates",
+        "Bug fixes",
+        "Small feature adjustments",
+        "Monthly check-in",
+        "Backup review",
+      ],
+      whatItCovers: [
+        "CMS support",
+        "Content refreshes",
+        "Small improvements",
+        "Regular maintenance",
+      ],
+      whoItsFor: [
+        "Businesses actively updating their website.",
+        "CMS clients who need help keeping content current.",
+      ],
+      keyNotes: [
+        "Good fit for websites that publish insights, services, products, or homepage updates.",
+      ],
+    },
+    {
+      id: "default-managed-platform-support",
+      category: "managed-support",
+      name: "Managed Platform Support",
+      order: 30,
+      source: "default",
+      priceRange: "P3,500-P5,000+/month",
+      summary:
+        "Ongoing support for client portals, dashboards, CRM systems, active PWAs, and workflow-heavy platforms.",
+      bullets: [
+        "Admin support",
+        "Client portal updates",
+        "Workflow fixes",
+        "PDF template updates",
+        "Data structure support",
+        "Firebase review",
+        "Security rule adjustments",
+        "Priority fixes",
+        "Monthly improvement work",
+      ],
+      whatItCovers: [
+        "Operational platform support",
+        "Client portal continuity",
+        "Dashboard improvements",
+        "Security and data structure review",
+      ],
+      whoItsFor: [
+        "Clients running portals, dashboards, messaging, PDFs, or active PWA systems.",
+      ],
+      keyNotes: [
+        "This is the correct support tier for serious AdminHub-style platforms.",
+      ],
+    },
+  ],
+
+  "proposal-tools": [
+    {
+      id: "default-pdf-generation-system",
+      category: "proposal-tools",
+      name: "PDF Generation System",
+      order: 10,
+      source: "default",
+      priceRange: "P4,000-P8,000",
+      summary:
+        "Downloadable PDFs generated directly from platform data or page content.",
+      bullets: [
+        "Product guides",
+        "Category guides",
+        "Client case summaries",
+        "Project summaries",
+        "Proposal PDFs",
+        "Lead summaries",
+        "Support reports",
+        "Policy/service information sheets",
+        "Custom branded documents",
+      ],
+      whatItCovers: [
+        "Brand colors",
+        "Logo",
+        "Structured sections",
+        "Client-safe content",
+        "Disclaimers",
+        "Generated file names",
+        "Download buttons",
+        "Dynamic data from Firestore or page content",
+      ],
+      whoItsFor: [
+        "Businesses that need professional documents generated from their platform.",
+        "AdminHub builds where service guides, proposals, or client summaries matter.",
+      ],
+      keyNotes: [
+        "Advanced multi-template PDF systems can be valued higher depending on complexity.",
+      ],
+    },
+    {
+      id: "default-advanced-document-system",
+      category: "proposal-tools",
+      name: "Advanced PDF / Document System",
+      order: 20,
+      source: "default",
+      priceRange: "P8,000-P15,000+",
+      summary:
+        "A higher-depth document system with multiple templates, branded outputs, and different document types for sales, onboarding, support, or client records.",
+      bullets: [
+        "Multiple PDF templates",
+        "Proposal-ready outputs",
+        "Scope summaries",
+        "Client-safe records",
+        "Support reports",
+        "Custom document structures",
+      ],
+      whatItCovers: [
+        "Reusable template logic",
+        "Dynamic document sections",
+        "File naming",
+        "Branding and disclaimers",
+      ],
+      whoItsFor: [
+        "Businesses needing polished documents as part of their workflow.",
+        "Platform builds that need more than one PDF output type.",
+      ],
+      keyNotes: [
+        "Final scope depends on the number of templates and how much data must feed into each PDF.",
+      ],
+    },
+    {
+      id: "default-article-sharing-system",
+      category: "proposal-tools",
+      name: "Article Sharing System",
+      order: 30,
+      source: "default",
+      priceRange: "P1,500-P3,500",
+      summary:
+        "Shareable article functionality that separates content sharing from direct contact actions.",
+      bullets: [
+        "Native device share where supported",
+        "WhatsApp fallback sharing",
+        "Article title and URL sharing",
+        "Separate ask-about-this-topic action",
+        "Cleaner distinction between sharing content and contacting the business",
+      ],
+      whatItCovers: [
+        "Public article sharing",
+        "WhatsApp fallback",
+        "Topic-based inquiry action",
+        "Conversion-friendly insight pages",
+      ],
+      whoItsFor: [
+        "Businesses publishing insights, education, case examples, or trust-building content.",
+      ],
+      keyNotes: [
+        "Works especially well with a combined About + Insights layout.",
+      ],
+    },
+  ],
+
+  "agent-operations": [
+    {
+      id: "default-agent-operations-layer",
+      category: "agent-operations",
+      name: "Agent Operations Layer",
+      order: 10,
+      source: "default",
+      summary:
+        "Operational tooling for tracking agents, submitted leads, stages, attribution, commissions, payouts, notes, and partner activity.",
+      bullets: [
+        "Agent records",
+        "Submitted leads",
+        "Lead status",
+        "Attribution",
+        "Commission tracking",
+        "Payout status",
+        "Partner notes",
+        "Partner activity",
+      ],
+      whatItCovers: [
+        "Lead ownership",
+        "Partner accountability",
+        "Sales pipeline visibility",
+        "Commission/payout tracking direction",
+      ],
+      whoItsFor: [
+        "AdminHub partners",
+        "Sales agents",
+        "Founder-led sales operations",
+      ],
+      keyNotes: [
+        "This helps AdminHub know who brought a lead, what happened to it, and what follow-up or payout status applies.",
+      ],
+    },
+    {
+      id: "default-whatsapp-automation-system",
+      category: "agent-operations",
+      name: "Structured WhatsApp Automation",
+      order: 20,
+      source: "default",
+      priceRange: "P3,000-P6,000",
+      summary:
+        "Pre-filled WhatsApp conversion flows for quote requests, claims, callbacks, article questions, product-specific messages, and contact support.",
+      bullets: [
+        "Pre-filled quote messages",
+        "Claim messages",
+        "Callback messages",
+        "Ask-about-article messages",
+        "Product-specific messages",
+        "Contact messages",
+        "Client login support messages",
+        "Document request messages",
+      ],
+      whatItCovers: [
+        "Structured handoff messages",
+        "Reduced friction for users",
+        "Cleaner inquiry context",
+        "Better follow-up quality",
+      ],
+      whoItsFor: [
+        "WhatsApp-first businesses",
+        "Sales partners",
+        "Service businesses handling many inquiries manually",
+      ],
+      keyNotes: [
+        "For AdminHub Global public flows, structured inquiry capture should happen before private follow-up.",
+      ],
+    },
+  ],
+
+  "custom-framework": [
+    {
+      id: "default-adminhub-foundation",
+      category: "custom-framework",
+      name: "AdminHub Foundation",
+      order: 10,
+      source: "default",
+      summary:
+        "The reusable full-stack foundation behind AdminHub builds, designed to deliver faster without starting from zero each time.",
+      bullets: [
+        "Next.js",
+        "React",
+        "TypeScript",
+        "TailwindCSS",
+        "Firebase / Firestore",
+        "Firebase security rules",
+        "UploadThing file uploads",
+        "Vercel deployment",
+        "PWA support",
+        "Admin dashboards",
+        "Client dashboards",
+        "Messaging systems",
+        "Chat assistant logic",
+        "PDF generation tools",
+        "Reusable layout and content systems",
+      ],
+      whatItCovers: [
+        "Reusable project foundation",
+        "Dashboard and portal architecture",
+        "Content systems",
+        "Uploads",
+        "Messaging",
+        "PWA delivery",
+        "PDF outputs",
+      ],
+      whoItsFor: [
+        "Businesses that need custom digital infrastructure.",
+        "Projects that need more than a boxed-in page builder.",
+      ],
+      keyNotes: [
+        "This foundation is why AdminHub can adapt faster without rebuilding every project from scratch.",
+      ],
+    },
+    {
+      id: "default-admin-cms",
+      category: "custom-framework",
+      name: "Admin Content Management System",
+      order: 20,
+      source: "default",
+      priceRange: "P8,000-P15,000",
+      summary:
+        "Admin dashboards that manage dynamic business content and operational records.",
+      bullets: [
+        "Blog / insights",
+        "Homepage highlights",
+        "Products / services",
+        "Claims content",
+        "Resources",
+        "Events",
+        "Client records",
+        "Project records",
+        "Progress updates",
+        "Required documents",
+        "Uploaded files",
+        "Shared links",
+        "Portal visibility controls",
+      ],
+      whatItCovers: [
+        "Admin-managed content",
+        "Dynamic public pages",
+        "Client/project records",
+        "Portal visibility",
+      ],
+      whoItsFor: [
+        "Businesses that need to update content without editing code.",
+        "AdminHub platform clients with active operations.",
+      ],
+      keyNotes: [
+        "Larger operational dashboards can move into higher value ranges depending on complexity.",
+      ],
+    },
+    {
+      id: "default-smart-chat-assistant",
+      category: "custom-framework",
+      name: "Smart Site-Aware Chat Assistant",
+      order: 30,
+      source: "default",
+      priceRange: "P6,000-P12,000",
+      summary:
+        "A chatbot-style assistant that guides users around the site, helps them discover features, and prepares structured next steps.",
+      bullets: [
+        "Page guidance",
+        "Product guidance",
+        "Quote help",
+        "Claims help",
+        "Login help",
+        "Contact help",
+        "Required document guidance",
+        "WhatsApp message preparation",
+        "Lead detail collection",
+        "Suggestions / quick replies",
+        "Guidance to PDFs, share buttons, portals, and dashboards",
+      ],
+      whatItCovers: [
+        "Site guidance",
+        "Feature discovery",
+        "Lead/inquiry preparation",
+        "Fallback help",
+        "Quick replies",
+      ],
+      whoItsFor: [
+        "Businesses with features users might miss.",
+        "Sites with portals, PDFs, articles, products, and structured flows.",
+      ],
+      keyNotes: [
+        "More advanced AI-backed versions can be priced higher depending on API integration and knowledge-base setup.",
+      ],
+    },
+    {
+      id: "default-offline-aware-pwa",
+      category: "custom-framework",
+      name: "Offline-Aware PWA Layer",
+      order: 40,
+      source: "default",
+      priceRange: "P3,000-P7,000",
+      summary:
+        "PWA improvements that help the app behave better when offline, while being clear that cloud features still require internet.",
+      bullets: [
+        "PWA install support",
+        "Offline page handling",
+        "Saved article cache",
+        "Previously loaded content availability",
+        "Offline contact guidance",
+        "Copy-message buttons for offline use",
+        "Online/offline status messages",
+        "Refresh App Data button",
+        "Cache clearing support",
+        "Mobile PWA navigation fixes",
+      ],
+      whatItCovers: [
+        "Better offline experience",
+        "Saved content access",
+        "Clear user messaging",
+        "Cache controls",
+      ],
+      whoItsFor: [
+        "PWAs used on mobile.",
+        "Businesses whose users may have unstable connectivity.",
+      ],
+      keyNotes: [
+        "Firebase updates, WhatsApp, email, and new content still require internet.",
+      ],
+    },
+  ],
+};
+
 const LOGO_PATH = "/logo.png";
 
 const BRAND = {
   blue: [77, 163, 255] as [number, number, number],
   blueDeep: [47, 125, 255] as [number, number, number],
-  teal: [24, 199, 184] as [number, number, number],
   navy: [6, 10, 18] as [number, number, number],
   surface: [15, 23, 42] as [number, number, number],
-  softSurface: [21, 31, 50] as [number, number, number],
   text: [244, 247, 251] as [number, number, number],
   darkText: [24, 24, 27] as [number, number, number],
   muted: [100, 116, 139] as [number, number, number],
-  lightMuted: [203, 213, 225] as [number, number, number],
 };
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+}
+
+function normalizePackage(
+  value: ServicePackage,
+  source: "default" | "admin"
+): ServicePackage {
+  return {
+    ...value,
+    source,
+    bullets: toStringArray(value.bullets),
+    whatItCovers: toStringArray(value.whatItCovers),
+    whoItsFor: toStringArray(value.whoItsFor),
+    keyNotes: toStringArray(value.keyNotes),
+  };
+}
+
+function getDefaultPackages(category: ServiceCategory) {
+  return (DEFAULT_SERVICE_PACKAGES[category] || []).map((item) =>
+    normalizePackage(item, "default")
+  );
+}
+
+function mergeServicePackages(
+  defaultItems: ServicePackage[],
+  adminItems: ServicePackage[]
+) {
+  const byId = new Map<string, ServicePackage>();
+
+  defaultItems.forEach((item) => {
+    byId.set(item.id, normalizePackage(item, "default"));
+  });
+
+  adminItems
+    .filter((item) => item.active !== false)
+    .forEach((item) => {
+      byId.set(item.id, normalizePackage(item, item.source || "admin"));
+    });
+
+  return Array.from(byId.values()).sort((a, b) => {
+    const orderDiff = (a.order ?? 999) - (b.order ?? 999);
+    if (orderDiff !== 0) return orderDiff;
+    return a.name.localeCompare(b.name);
+  });
+}
 
 function readProductCache(): ProductCachePayload | null {
   if (typeof window === "undefined") return null;
@@ -519,7 +1448,10 @@ async function generateServicePdf({
   y += 40;
 
   addSectionTitle("Inquiry & Follow-Up");
-  addField("Public Contact Policy", "Direct personal phone and email details are intentionally not displayed publicly.");
+  addField(
+    "Public Contact Policy",
+    "Direct personal phone and email details are intentionally not displayed publicly."
+  );
   addField(
     "Next Step",
     "Submit a structured inquiry with your name, business or organisation, region, role, and project context. AdminHub can then review the request and follow up privately."
@@ -550,6 +1482,14 @@ async function generateServicePdf({
     pdf.text(`${index + 1}. ${cleanPdfText(product.name)}`, marginX, y);
 
     y += 6;
+
+    if (product.priceRange) {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(9);
+      pdf.setTextColor(...BRAND.blueDeep);
+      pdf.text(`Suggested value: ${cleanPdfText(product.priceRange)}`, marginX, y);
+      y += 5;
+    }
 
     if (product.summary) {
       const summaryLines = pdf.splitTextToSize(
@@ -623,7 +1563,9 @@ export default function CategoryPage() {
 
   const meta = useMemo(() => CATEGORY_META[category], [category]);
 
-  const [items, setItems] = useState<ServicePackage[]>([]);
+  const [items, setItems] = useState<ServicePackage[]>(() =>
+    getDefaultPackages(category)
+  );
   const [loading, setLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [usingCachedData, setUsingCachedData] = useState(false);
@@ -633,19 +1575,18 @@ export default function CategoryPage() {
     let alive = true;
 
     async function loadProducts() {
+      const defaultItems = getDefaultPackages(category);
       const cached = getCachedProducts(category);
 
-      if (cached.products.length > 0) {
-        setItems(cached.products);
-        setUsingCachedData(true);
-        setCacheSavedAt(cached.savedAt);
-        setLoading(false);
-      } else {
-        setItems([]);
-        setUsingCachedData(false);
-        setCacheSavedAt("");
-        setLoading(true);
-      }
+      const initialItems =
+        cached.products.length > 0
+          ? mergeServicePackages(defaultItems, cached.products)
+          : defaultItems;
+
+      setItems(initialItems);
+      setUsingCachedData(cached.products.length > 0);
+      setCacheSavedAt(cached.savedAt);
+      setLoading(false);
 
       try {
         const qRef = query(
@@ -657,19 +1598,22 @@ export default function CategoryPage() {
 
         if (!alive) return;
 
-        const data = snap.docs.map((d) => ({
+        const firestoreItems = snap.docs.map((d) => ({
           id: d.id,
           ...(d.data() as Record<string, unknown>),
         })) as ServicePackage[];
 
-        const cleaned = data
-          .filter((p) => p.active !== false)
-          .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+        const adminItems = firestoreItems
+          .filter((item) => item.active !== false)
+          .map((item) => normalizePackage(item, "admin"));
 
-        setItems(cleaned);
+        const merged = mergeServicePackages(defaultItems, adminItems);
+
+        setItems(merged);
         setUsingCachedData(false);
         setCacheSavedAt(new Date().toISOString());
-        saveProductsToCache(category, cleaned);
+
+        saveProductsToCache(category, merged);
       } catch (error) {
         console.error("Load AdminHub Global service packages failed:", error);
 
@@ -678,11 +1622,11 @@ export default function CategoryPage() {
         const fallback = getCachedProducts(category);
 
         if (fallback.products.length > 0) {
-          setItems(fallback.products);
+          setItems(mergeServicePackages(defaultItems, fallback.products));
           setUsingCachedData(true);
           setCacheSavedAt(fallback.savedAt);
         } else {
-          setItems([]);
+          setItems(defaultItems);
           setUsingCachedData(false);
           setCacheSavedAt("");
         }
@@ -796,19 +1740,11 @@ export default function CategoryPage() {
                   Operations PWA
                 </Link>
 
-                <Link
-                  href="/partners"
-                  prefetch={false}
-                  className="menu-link"
-                >
+                <Link href="/partners" prefetch={false} className="menu-link">
                   Partner Portal
                 </Link>
 
-                <Link
-                  href="/contact"
-                  prefetch={false}
-                  className="menu-link"
-                >
+                <Link href="/contact" prefetch={false} className="menu-link">
                   Submit Inquiry
                 </Link>
               </div>
@@ -829,7 +1765,7 @@ export default function CategoryPage() {
 
               <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <Link href="/contact" prefetch={false} className="btn btn-primary">
-                  <ClipboardIcon />
+                  <FileText size={18} />
                   {meta.ctaLabel}
                 </Link>
 
@@ -888,9 +1824,9 @@ export default function CategoryPage() {
             <div className="frame-gold p-8 text-center">
               <h2 className="text-2xl">No service packages listed here yet</h2>
               <p className="mx-auto mt-3 max-w-[58ch] text-sm leading-7 text-[var(--text-secondary)]">
-                This solution area has not been fully populated from Firestore
-                yet. You can still submit a structured inquiry with your project
-                context, and AdminHub can review the best next step privately.
+                This solution area has not been fully populated yet. Submit a
+                structured inquiry with your project context, and AdminHub can
+                review the best next step privately.
               </p>
 
               <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row sm:flex-wrap">
@@ -923,9 +1859,9 @@ export default function CategoryPage() {
                   Explore packages in this solution area.
                 </h2>
                 <p className="section-copy mt-2">
-                  Each card can explain what is included, who it suits, what the
-                  workflow covers, and practical notes to help prospects or
-                  partners understand the next step.
+                  These default catalogue packages are always available from the
+                  AdminHub baseline. Any new service packages created in the
+                  admin/products area are added on top of this list.
                 </p>
               </div>
 
@@ -935,7 +1871,20 @@ export default function CategoryPage() {
                     <div className="card-inner flex h-full flex-col">
                       <div className="flex items-start justify-between gap-3">
                         <div>
+                          <div className="mb-3 flex flex-wrap gap-2">
+                            <span className="badge badge-neutral">
+                              {product.source === "admin"
+                                ? "Admin-added"
+                                : "Catalogue baseline"}
+                            </span>
+
+                            {product.priceRange ? (
+                              <span className="badge">{product.priceRange}</span>
+                            ) : null}
+                          </div>
+
                           <h3 className="text-xl">{product.name}</h3>
+
                           {product.summary ? (
                             <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                               {product.summary}
@@ -1006,8 +1955,4 @@ export default function CategoryPage() {
       </section>
     </main>
   );
-}
-
-function ClipboardIcon() {
-  return <FileText size={18} />;
 }

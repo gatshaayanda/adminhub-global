@@ -61,6 +61,18 @@ function safeImageSrc(src?: string) {
   return FALLBACK_IMAGE;
 }
 
+function hasUsableImage(src?: string) {
+  const clean = src?.trim();
+  if (!clean) return false;
+
+  return (
+    clean.startsWith("/") ||
+    clean.startsWith("http://") ||
+    clean.startsWith("https://") ||
+    clean.startsWith("data:")
+  );
+}
+
 function readHomeCache(): HomeCachePayload | null {
   if (typeof window === "undefined") return null;
 
@@ -142,10 +154,15 @@ export default function HomePage() {
           }))
           .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
-        const heroPick = data.find((item) => !!item.isHero) || data[0] || null;
+        const heroPick =
+          data.find((item) => item.isHero && hasUsableImage(item.imageUrl)) ||
+          data.find((item) => item.isHero) ||
+          data.find((item) => hasUsableImage(item.imageUrl)) ||
+          data[0] ||
+          null;
 
         const homeCards = data
-          .filter((item) => item.showOnHome && !item.isHero)
+          .filter((item) => item.showOnHome && item.id !== heroPick?.id)
           .slice(0, 4);
 
         if (!alive) return;
@@ -361,29 +378,30 @@ export default function HomePage() {
 
             <div className="relative">
               <div className="card-elevated overflow-hidden">
-                <div className="relative min-h-[430px] bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(6,10,18,0.98)_100%)]">
-                  <div className="absolute inset-0">
+                <div className="relative bg-[linear-gradient(180deg,rgba(15,23,42,0.98)_0%,rgba(6,10,18,0.98)_100%)]">
+                  <div className="relative h-[260px] w-full overflow-hidden bg-[var(--surface-2)] md:h-[320px]">
                     <img
                       src={safeImageSrc(hero?.imageUrl)}
                       alt={hero?.title || "AdminHub Global highlight"}
-                      className="h-full w-full object-cover opacity-[0.16]"
+                      className="h-full w-full object-cover opacity-95"
                       onError={(event) => {
                         event.currentTarget.src = FALLBACK_IMAGE;
                       }}
                     />
+
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.02)_0%,rgba(6,10,18,0.34)_100%)]" />
+
+                    <div className="absolute left-5 top-5 inline-flex w-fit items-center rounded-full border border-[var(--border-strong)] bg-[rgba(6,10,18,0.74)] px-3 py-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)] backdrop-blur-md">
+                      AdminHub Global Control
+                    </div>
                   </div>
 
-                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.76)_0%,rgba(6,10,18,0.94)_72%,rgba(6,10,18,1)_100%)]" />
-                  <div className="absolute inset-0 panel-grid opacity-50" />
-                  <div className="absolute right-[-80px] top-[-80px] h-64 w-64 rounded-full bg-[rgba(77,163,255,0.16)] blur-3xl" />
-                  <div className="absolute bottom-[-90px] left-[-90px] h-72 w-72 rounded-full bg-[rgba(24,199,184,0.11)] blur-3xl" />
+                  <div className="relative p-6 md:p-8">
+                    <div className="absolute inset-0 panel-grid opacity-35" />
+                    <div className="absolute right-[-80px] top-[-80px] h-64 w-64 rounded-full bg-[rgba(77,163,255,0.13)] blur-3xl" />
+                    <div className="absolute bottom-[-90px] left-[-90px] h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
 
-                  <div className="relative z-10 flex min-h-[430px] flex-col justify-between p-6 md:p-8">
-                    <div className="space-y-4">
-                      <div className="inline-flex w-fit items-center rounded-full border border-[var(--border-strong)] bg-[rgba(15,23,42,0.88)] px-3 py-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
-                        AdminHub Global Control
-                      </div>
-
+                    <div className="relative z-10 space-y-5">
                       <div className="frame-gold p-5">
                         <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary)]">
                           Operating model
@@ -399,35 +417,33 @@ export default function HomePage() {
                             "Prospects do not need to imagine the solution. AdminHub can move from intake or company profile to a live working direction, then into implementation, client onboarding, launch, and ongoing support."}
                         </p>
                       </div>
-                    </div>
 
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                      <div className="card-outline-gold">
-                        <div className="card-inner">
-                          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
-                            Sales engine
-                          </p>
-                          <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                            Agents submit leads, track opportunities, and sell a
-                            proof-backed process.
-                          </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="card-outline-gold">
+                          <div className="card-inner">
+                            <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                              Sales engine
+                            </p>
+                            <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                              Agents submit leads, track opportunities, and sell
+                              a proof-backed process.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="card-outline-gold">
+                          <div className="card-inner">
+                            <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                              Delivery system
+                            </p>
+                            <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                              AdminHub manages onboarding, messaging, files,
+                              proposals, projects, and support.
+                            </p>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="card-outline-gold">
-                        <div className="card-inner">
-                          <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
-                            Delivery system
-                          </p>
-                          <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                            AdminHub manages onboarding, messaging, files,
-                            proposals, projects, and support.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-5">
                       <Link
                         href="/contact"
                         prefetch={false}
@@ -642,13 +658,13 @@ export default function HomePage() {
                     <img
                       src={safeImageSrc(item.imageUrl)}
                       alt={item.title || "AdminHub Global highlight"}
-                      className="h-full w-full object-cover opacity-85"
+                      className="h-full w-full object-cover opacity-95"
                       onError={(event) => {
                         event.currentTarget.src = FALLBACK_IMAGE;
                       }}
                     />
 
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.08)_0%,rgba(6,10,18,0.54)_100%)]" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.04)_0%,rgba(6,10,18,0.38)_100%)]" />
                   </div>
 
                   <div className="card-inner">

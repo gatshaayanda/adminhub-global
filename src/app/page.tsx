@@ -42,6 +42,24 @@ type HomeCachePayload = {
 };
 
 const HOME_CACHE_KEY = "adminhub_global_home_highlights_v1";
+const FALLBACK_IMAGE = "/placeholder.png";
+
+function safeImageSrc(src?: string) {
+  const clean = src?.trim();
+
+  if (!clean) return FALLBACK_IMAGE;
+
+  if (
+    clean.startsWith("/") ||
+    clean.startsWith("http://") ||
+    clean.startsWith("https://") ||
+    clean.startsWith("data:")
+  ) {
+    return clean;
+  }
+
+  return FALLBACK_IMAGE;
+}
 
 function readHomeCache(): HomeCachePayload | null {
   if (typeof window === "undefined") return null;
@@ -242,7 +260,6 @@ export default function HomePage() {
       id="main"
       className="overflow-hidden bg-[var(--background)] text-[var(--foreground)]"
     >
-      {/* HERO */}
       <section className="page-shell relative">
         <div className="pointer-events-none absolute inset-0 panel-grid opacity-70" />
 
@@ -345,24 +362,20 @@ export default function HomePage() {
             <div className="relative">
               <div className="card-elevated overflow-hidden">
                 <div className="relative min-h-[430px] bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(6,10,18,0.98)_100%)]">
-                  {hero?.imageUrl ? (
-                    <>
-                      <div className="absolute inset-0">
-                        <img
-                          src={hero.imageUrl}
-                          alt={hero.title || "AdminHub Global highlight"}
-                          className="h-full w-full object-cover opacity-[0.16]"
-                        />
-                      </div>
-                      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.76)_0%,rgba(6,10,18,0.94)_72%,rgba(6,10,18,1)_100%)]" />
-                    </>
-                  ) : null}
+                  <div className="relative h-[260px] w-full overflow-hidden bg-[var(--surface-2)] md:h-[300px]">
+                    <img
+                      src={safeImageSrc(hero?.imageUrl)}
+                      alt={hero?.title || "AdminHub Global highlight"}
+                      className="h-full w-full object-cover opacity-85"
+                      onError={(event) => {
+                        event.currentTarget.src = FALLBACK_IMAGE;
+                      }}
+                    />
 
-                  <div className="absolute inset-0 panel-grid opacity-50" />
-                  <div className="absolute right-[-80px] top-[-80px] h-64 w-64 rounded-full bg-[rgba(77,163,255,0.16)] blur-3xl" />
-                  <div className="absolute bottom-[-90px] left-[-90px] h-72 w-72 rounded-full bg-[rgba(24,199,184,0.11)] blur-3xl" />
+                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.06)_0%,rgba(6,10,18,0.42)_100%)]" />
+                  </div>
 
-                  <div className="relative z-10 flex min-h-[430px] flex-col justify-between p-6 md:p-8">
+                  <div className="relative z-10 flex flex-col justify-between p-6 md:p-8">
                     <div className="space-y-4">
                       <div className="inline-flex w-fit items-center rounded-full border border-[var(--border-strong)] bg-[rgba(15,23,42,0.88)] px-3 py-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
                         AdminHub Global Control
@@ -435,7 +448,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* SOLUTIONS / PACKAGES */}
       <section className="section-shell">
         <div className="container">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -471,6 +483,7 @@ export default function HomePage() {
                   </div>
 
                   <h3 className="text-lg">{item.title}</h3>
+
                   <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                     {item.desc}
                   </p>
@@ -489,7 +502,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* VALUE CARDS */}
       <section className="section-shell border-y border-[var(--border)] bg-[rgba(11,18,32,0.58)]">
         <div className="container">
           <div className="grid gap-4 md:grid-cols-3">
@@ -513,7 +525,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
       <section className="section-shell">
         <div className="container">
           <div className="mb-6 space-y-2">
@@ -585,7 +596,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ADMIN-MANAGED HIGHLIGHTS */}
       <section className="section-shell border-y border-[var(--border)] bg-[rgba(11,18,32,0.58)]">
         <div className="container">
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -613,11 +623,11 @@ export default function HomePage() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, idx) => (
                 <div key={idx} className="card overflow-hidden">
-                  <div className="h-40 loading-shimmer" />
+                  <div className="h-40 animate-pulse bg-[var(--surface-2)]" />
                   <div className="card-inner">
-                    <div className="h-5 w-3/4 rounded loading-shimmer" />
-                    <div className="mt-3 h-4 w-full rounded loading-shimmer" />
-                    <div className="mt-2 h-4 w-5/6 rounded loading-shimmer" />
+                    <div className="h-5 w-3/4 animate-pulse rounded bg-[var(--surface-2)]" />
+                    <div className="mt-3 h-4 w-full animate-pulse rounded bg-[var(--surface-2)]" />
+                    <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-[var(--surface-2)]" />
                   </div>
                 </div>
               ))}
@@ -627,15 +637,14 @@ export default function HomePage() {
               {gallery.map((item) => (
                 <article key={item.id} className="card overflow-hidden">
                   <div className="relative h-48 bg-[var(--surface-2)]">
-                    {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.title || "AdminHub Global highlight"}
-                        className="h-full w-full object-cover opacity-85"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(21,31,50,1)_0%,rgba(11,18,32,1)_100%)]" />
-                    )}
+                    <img
+                      src={safeImageSrc(item.imageUrl)}
+                      alt={item.title || "AdminHub Global highlight"}
+                      className="h-full w-full object-cover opacity-85"
+                      onError={(event) => {
+                        event.currentTarget.src = FALLBACK_IMAGE;
+                      }}
+                    />
 
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.08)_0%,rgba(6,10,18,0.54)_100%)]" />
                   </div>

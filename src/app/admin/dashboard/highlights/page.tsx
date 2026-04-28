@@ -12,16 +12,20 @@ import {
 } from "firebase/firestore";
 import {
   ArrowLeft,
+  CheckCircle2,
   Eye,
   FileImage,
   Home,
   ImagePlus,
   Loader2,
+  RefreshCw,
   Save,
   ShieldCheck,
+  Star,
   Trash2,
   UploadCloud,
   X,
+  XCircle,
 } from "lucide-react";
 
 import { firestore } from "@/utils/firebaseConfig";
@@ -68,6 +72,30 @@ function getUploadUrl(uploaded?: UploadThingResult) {
   return uploaded?.url || uploaded?.ufsUrl || uploaded?.appUrl || "";
 }
 
+async function uploadFileWithTimeout(file: File, timeoutMs = 30000) {
+  let timeoutId: number | undefined;
+
+  const uploadPromise = uploadFiles("fileUploader" as any, {
+    files: [file],
+  }) as Promise<UploadThingResult[]>;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(
+        new Error(
+          "Image upload timed out. Check UploadThing setup or try a smaller image."
+        )
+      );
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([uploadPromise, timeoutPromise]);
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId);
+  }
+}
+
 function normalizeHighlight(
   id: string,
   data: Record<string, unknown>
@@ -106,11 +134,16 @@ export default function HighlightsAdminPage() {
   const [items, setItems] = useState<EditableHighlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
   const [newImage, setNewImage] = useState<File | null>(null);
   const [newPreview, setNewPreview] = useState("");
 
   const loadHighlights = async () => {
     setLoading(true);
+    setRefreshing(true);
+    setLoadError("");
 
     try {
       const snapshot = await getDocs(collection(firestore, COLLECTION_PATH));
@@ -128,9 +161,10 @@ export default function HighlightsAdminPage() {
     } catch (err) {
       console.error("Error fetching AdminHub highlights:", err);
       setItems([]);
-      window.alert("Failed to load highlights.");
+      setLoadError("Could not load homepage highlights. Please refresh.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -148,9 +182,7 @@ export default function HighlightsAdminPage() {
   }, []);
 
   const handleNewImage = (file: File | null) => {
-    if (newPreview) {
-      URL.revokeObjectURL(newPreview);
-    }
+    if (newPreview) URL.revokeObjectURL(newPreview);
 
     setNewImage(file);
     setNewPreview(file ? URL.createObjectURL(file) : "");
@@ -163,23 +195,25 @@ export default function HighlightsAdminPage() {
       let imageUrl = FALLBACK_IMAGE;
 
       if (newImage) {
-        const uploaded = await uploadFiles("fileUploader" as any, {
-          files: [newImage],
-        });
-
+        const uploaded = await uploadFileWithTimeout(newImage);
         const firstUpload = uploaded?.[0] as UploadThingResult | undefined;
+
         imageUrl = getUploadUrl(firstUpload);
 
         if (!imageUrl) {
+          console.log("UploadThing response:", uploaded);
           throw new Error("Upload completed, but no image URL was returned.");
         }
       }
 
-      const order = items.length + 1;
+      const order =
+        items.length > 0
+          ? Math.max(...items.map((item) => cleanNumber(item.order))) + 1
+          : 1;
 
       const payload: Highlight = {
         title: "New AdminHub Highlight",
-        desc: "Add a homepage update, proof-stage message, platform highlight, partner note, or support reminder.",
+        desc: "Add a homepage update, proof-stage message, platform highlight, partner notice, or managed support reminder.",
         imageUrl,
         order,
         showOnHome: false,
@@ -187,7 +221,10 @@ export default function HighlightsAdminPage() {
         admin_id: "admin",
       };
 
-      const newDoc = await addDoc(collection(firestore, COLLECTION_PATH), payload);
+      const newDoc = await addDoc(
+        collection(firestore, COLLECTION_PATH),
+        payload
+      );
 
       setItems((prev) =>
         [
@@ -204,7 +241,7 @@ export default function HighlightsAdminPage() {
 
       handleNewImage(null);
     } catch (err: any) {
-      console.error("Failed to add highlight:", err);
+      console.error("Failed to add AdminHub highlight:", err);
       window.alert(err?.message || "Failed to add highlight.");
     } finally {
       setAdding(false);
@@ -221,9 +258,7 @@ export default function HighlightsAdminPage() {
         if (item.id !== id) return item;
 
         if (field === "imageFile") {
-          if (item.previewUrl) {
-            URL.revokeObjectURL(item.previewUrl);
-          }
+          if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
 
           const file = value instanceof File ? value : null;
 
@@ -262,14 +297,13 @@ export default function HighlightsAdminPage() {
       let imageUrl = item.imageUrl || FALLBACK_IMAGE;
 
       if (item.imageFile) {
-        const uploaded = await uploadFiles("fileUploader" as any, {
-          files: [item.imageFile],
-        });
-
+        const uploaded = await uploadFileWithTimeout(item.imageFile);
         const firstUpload = uploaded?.[0] as UploadThingResult | undefined;
+
         imageUrl = getUploadUrl(firstUpload);
 
         if (!imageUrl) {
+          console.log("UploadThing response:", uploaded);
           throw new Error("Upload completed, but no image URL was returned.");
         }
       }
@@ -337,7 +371,7 @@ export default function HighlightsAdminPage() {
   const handleDelete = async (id?: string) => {
     if (!id) return;
 
-    const ok = window.confirm("Delete this highlight?");
+    const ok = window.confirm("Delete this AdminHub highlight?");
     if (!ok) return;
 
     try {
@@ -384,9 +418,9 @@ export default function HighlightsAdminPage() {
                   </h1>
 
                   <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                    Use highlights for homepage messaging, featured visuals,
-                    proof-stage credibility, partner updates, service package
-                    pushes, and managed support reminders.
+                    Use highlights for the homepage hero image, platform updates,
+                    proof-stage messaging, service package pushes, partner-facing
+                    notices, and managed support reminders.
                   </p>
 
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -410,7 +444,20 @@ export default function HighlightsAdminPage() {
                           : "Add Placeholder Highlight"}
                     </button>
 
-                    <Link href="/" prefetch={false} className="btn btn-outline">
+                    <button
+                      type="button"
+                      onClick={loadHighlights}
+                      disabled={refreshing}
+                      className="btn btn-outline"
+                    >
+                      <RefreshCw
+                        size={18}
+                        className={refreshing ? "animate-spin" : ""}
+                      />
+                      {refreshing ? "Refreshing..." : "Refresh"}
+                    </button>
+
+                    <Link href="/" prefetch={false} className="btn btn-ghost">
                       <Eye size={18} />
                       View Homepage
                     </Link>
@@ -422,29 +469,34 @@ export default function HighlightsAdminPage() {
                 <div className="card-inner md:p-8">
                   <div className="eyebrow mb-0">
                     <ShieldCheck size={15} />
-                    What this changes
+                    What this controls
                   </div>
 
                   <h2 className="mt-2 text-2xl">Homepage content areas</h2>
 
                   <div className="mt-5 space-y-3">
                     <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
-                      <p className="text-sm font-extrabold text-[var(--text-primary)]">
+                      <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                        <Star size={15} className="text-[var(--brand-primary)]" />
                         Hero area
                       </p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        The item marked as <b>Set as Hero</b> supplies the main
-                        homepage feature image and supporting hero message.
+                        The item marked <b>Set as Hero</b> supplies the main
+                        homepage feature image and message area.
                       </p>
                     </div>
 
                     <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
-                      <p className="text-sm font-extrabold text-[var(--text-primary)]">
-                        Updates & highlights
+                      <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
+                        <CheckCircle2
+                          size={15}
+                          className="text-[var(--brand-primary)]"
+                        />
+                        Updates grid
                       </p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                         Items marked <b>Show on Home</b> appear in the homepage
-                        highlights grid.
+                        updates and platform highlights grid.
                       </p>
                     </div>
 
@@ -454,13 +506,19 @@ export default function HighlightsAdminPage() {
                       </p>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                         Images are uploaded through UploadThing and saved as
-                        hosted URLs in Firestore.
+                        Firestore URLs inside the <b>highlights</b> collection.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            {loadError ? (
+              <div className="mt-6 rounded-[1.25rem] border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm leading-7 text-red-200">
+                {loadError}
+              </div>
+            ) : null}
 
             <section className="mt-8">
               <div className="card-outline-gold">
@@ -479,12 +537,13 @@ export default function HighlightsAdminPage() {
                           handleNewImage(e.target.files?.[0] || null)
                         }
                         className="input"
+                        disabled={adding}
                       />
 
                       <p className="mt-2 text-xs leading-6 text-[var(--text-muted)]">
-                        Select an image, then click “Upload & Add Highlight”.
-                        You can also add a placeholder highlight and replace the
-                        image later.
+                        Select an image, then click <b>Upload & Add Highlight</b>.
+                        You can also add a placeholder highlight first and
+                        replace the image later.
                       </p>
 
                       {newImage ? (
@@ -519,14 +578,22 @@ export default function HighlightsAdminPage() {
 
             <section className="mt-8">
               {loading ? (
-                <div className="card p-8">
-                  <div className="text-sm text-[var(--text-secondary)]">
-                    Loading highlights...
-                  </div>
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="card overflow-hidden">
+                      <div className="h-52 loading-shimmer" />
+                      <div className="card-inner">
+                        <div className="h-5 w-2/3 rounded loading-shimmer" />
+                        <div className="mt-3 h-4 w-full rounded loading-shimmer" />
+                        <div className="mt-2 h-4 w-5/6 rounded loading-shimmer" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : items.length === 0 ? (
                 <div className="frame-gold p-8 text-center">
                   <h3 className="text-2xl">No highlights yet</h3>
+
                   <p className="mx-auto mt-3 max-w-[54ch] text-sm leading-7 text-[var(--text-secondary)]">
                     Add your first highlight to start controlling the homepage
                     hero and AdminHub platform highlight cards.
@@ -539,34 +606,67 @@ export default function HighlightsAdminPage() {
                       key={item.id}
                       className="card-outline-gold overflow-hidden"
                     >
-                      <img
-                        src={item.previewUrl || item.imageUrl || FALLBACK_IMAGE}
-                        alt={item.title || "AdminHub highlight"}
-                        className="h-52 w-full object-cover"
-                        onError={(event) => {
-                          event.currentTarget.src = FALLBACK_IMAGE;
-                        }}
-                      />
+                      <div className="relative">
+                        <img
+                          src={item.previewUrl || item.imageUrl || FALLBACK_IMAGE}
+                          alt={item.title || "AdminHub highlight"}
+                          className="h-52 w-full object-cover"
+                          onError={(event) => {
+                            event.currentTarget.src = FALLBACK_IMAGE;
+                          }}
+                        />
+
+                        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                          {item.isHero ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(77,163,255,0.42)] bg-[rgba(6,10,18,0.86)] px-2.5 py-1 text-xs font-bold text-[var(--brand-primary)] backdrop-blur-md">
+                              <Star size={13} />
+                              Hero
+                            </span>
+                          ) : null}
+
+                          {item.showOnHome ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-green-400/30 bg-[rgba(6,10,18,0.86)] px-2.5 py-1 text-xs font-bold text-green-300 backdrop-blur-md">
+                              <CheckCircle2 size={13} />
+                              Home
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-[rgba(6,10,18,0.86)] px-2.5 py-1 text-xs font-bold text-amber-200 backdrop-blur-md">
+                              <XCircle size={13} />
+                              Hidden
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
                       <div className="card-inner flex flex-col gap-4 md:p-6">
-                        <input
-                          type="text"
-                          value={item.title}
-                          onChange={(e) =>
-                            updateLocalItem(item.id!, "title", e.target.value)
-                          }
-                          className="input font-semibold"
-                          placeholder="Highlight title"
-                        />
+                        <div>
+                          <label className="text-sm font-semibold text-[var(--text-primary)]">
+                            Title
+                          </label>
+                          <input
+                            type="text"
+                            value={item.title}
+                            onChange={(e) =>
+                              updateLocalItem(item.id!, "title", e.target.value)
+                            }
+                            className="input mt-2 font-semibold"
+                            placeholder="Highlight title"
+                          />
+                        </div>
 
-                        <textarea
-                          value={item.desc}
-                          onChange={(e) =>
-                            updateLocalItem(item.id!, "desc", e.target.value)
-                          }
-                          className="input min-h-[120px] resize-none rounded-[1.25rem]"
-                          placeholder="Highlight description"
-                        />
+                        <div>
+                          <label className="text-sm font-semibold text-[var(--text-primary)]">
+                            Description
+                          </label>
+                          <textarea
+                            value={item.desc}
+                            onChange={(e) =>
+                              updateLocalItem(item.id!, "desc", e.target.value)
+                            }
+                            className="input mt-2 min-h-[120px] resize-y rounded-[1.25rem]"
+                            placeholder="Highlight description"
+                          />
+                        </div>
 
                         <div>
                           <label className="text-sm font-semibold text-[var(--text-primary)]">
@@ -583,6 +683,7 @@ export default function HighlightsAdminPage() {
                               )
                             }
                             className="input mt-2"
+                            disabled={!!item.saving}
                           />
                         </div>
 
@@ -599,6 +700,7 @@ export default function HighlightsAdminPage() {
                                   e.target.checked
                                 )
                               }
+                              disabled={!!item.saving}
                             />
                           </label>
 
@@ -614,6 +716,7 @@ export default function HighlightsAdminPage() {
                                   e.target.checked
                                 )
                               }
+                              disabled={!!item.saving}
                             />
                           </label>
                         </div>
@@ -632,7 +735,8 @@ export default function HighlightsAdminPage() {
                                 Number(e.target.value)
                               )
                             }
-                            className="input mt-2 max-w-[120px]"
+                            className="input mt-2 max-w-[140px]"
+                            disabled={!!item.saving}
                           />
                         </div>
 
@@ -657,6 +761,7 @@ export default function HighlightsAdminPage() {
                             onClick={() => handleDelete(item.id)}
                             className="btn btn-ghost"
                             type="button"
+                            disabled={!!item.saving}
                           >
                             <Trash2 size={16} />
                             Delete
@@ -671,7 +776,7 @@ export default function HighlightsAdminPage() {
 
             <div className="mt-8 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
               <b className="text-[var(--text-primary)]">Admin note:</b> use
-              highlights for homepage proof-stage messaging, featured visuals,
+              highlights for AdminHub proof-stage messaging, featured visuals,
               platform credibility, partner updates, service package pushes, and
               managed support reminders.
             </div>

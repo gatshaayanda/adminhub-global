@@ -362,20 +362,23 @@ export default function HomePage() {
             <div className="relative">
               <div className="card-elevated overflow-hidden">
                 <div className="relative min-h-[430px] bg-[linear-gradient(180deg,rgba(15,23,42,0.96)_0%,rgba(6,10,18,0.98)_100%)]">
-                  <div className="relative h-[260px] w-full overflow-hidden bg-[var(--surface-2)] md:h-[300px]">
+                  <div className="absolute inset-0">
                     <img
                       src={safeImageSrc(hero?.imageUrl)}
                       alt={hero?.title || "AdminHub Global highlight"}
-                      className="h-full w-full object-cover opacity-85"
+                      className="h-full w-full object-cover opacity-[0.16]"
                       onError={(event) => {
                         event.currentTarget.src = FALLBACK_IMAGE;
                       }}
                     />
-
-                    <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.06)_0%,rgba(6,10,18,0.42)_100%)]" />
                   </div>
 
-                  <div className="relative z-10 flex flex-col justify-between p-6 md:p-8">
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,18,0.76)_0%,rgba(6,10,18,0.94)_72%,rgba(6,10,18,1)_100%)]" />
+                  <div className="absolute inset-0 panel-grid opacity-50" />
+                  <div className="absolute right-[-80px] top-[-80px] h-64 w-64 rounded-full bg-[rgba(77,163,255,0.16)] blur-3xl" />
+                  <div className="absolute bottom-[-90px] left-[-90px] h-72 w-72 rounded-full bg-[rgba(24,199,184,0.11)] blur-3xl" />
+
+                  <div className="relative z-10 flex min-h-[430px] flex-col justify-between p-6 md:p-8">
                     <div className="space-y-4">
                       <div className="inline-flex w-fit items-center rounded-full border border-[var(--border-strong)] bg-[rgba(15,23,42,0.88)] px-3 py-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
                         AdminHub Global Control
@@ -483,7 +486,6 @@ export default function HomePage() {
                   </div>
 
                   <h3 className="text-lg">{item.title}</h3>
-
                   <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                     {item.desc}
                   </p>
@@ -623,11 +625,11 @@ export default function HomePage() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, idx) => (
                 <div key={idx} className="card overflow-hidden">
-                  <div className="h-40 animate-pulse bg-[var(--surface-2)]" />
+                  <div className="h-40 loading-shimmer" />
                   <div className="card-inner">
-                    <div className="h-5 w-3/4 animate-pulse rounded bg-[var(--surface-2)]" />
-                    <div className="mt-3 h-4 w-full animate-pulse rounded bg-[var(--surface-2)]" />
-                    <div className="mt-2 h-4 w-5/6 animate-pulse rounded bg-[var(--surface-2)]" />
+                    <div className="h-5 w-3/4 rounded loading-shimmer" />
+                    <div className="mt-3 h-4 w-full rounded loading-shimmer" />
+                    <div className="mt-2 h-4 w-5/6 rounded loading-shimmer" />
                   </div>
                 </div>
               ))}

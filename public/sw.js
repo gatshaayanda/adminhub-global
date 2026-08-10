@@ -1,4 +1,4 @@
-const CACHE_VERSION = "boardsignal-v10-shell-v1";
+const CACHE_VERSION = "boardsignal-v10-shell-v2";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGE_CACHE = `${CACHE_VERSION}-pages`;
 
@@ -10,7 +10,6 @@ const APP_SHELL = [
   "/pricing",
   "/join",
   "/connect",
-  "/app",
   "/manifest.webmanifest",
 ];
 
@@ -44,6 +43,13 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
+
+  // Player Rooms and founder routes can contain sensitive material. Never
+  // persist their responses in the public app-shell cache.
+  if (url.pathname.startsWith("/app") || url.pathname.startsWith("/admin")) {
+    event.respondWith(fetch(request).catch(() => caches.match("/offline")));
+    return;
+  }
 
   if (url.origin !== self.location.origin) {
     event.respondWith(networkFirst(request));

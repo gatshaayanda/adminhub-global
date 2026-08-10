@@ -1,3 +1,5 @@
+export type StoryTone = "blue" | "lime" | "coral" | "violet" | "ink";
+
 export type CoverageStory = {
   id: string;
   eyebrow: string;
@@ -5,58 +7,358 @@ export type CoverageStory = {
   summary: string;
   stat: string;
   detail: string;
-  tone: "blue" | "lime" | "coral" | "ink";
-  handle?: string;
+  tone: StoryTone;
+  period: string;
+  feature?: boolean;
 };
 
-export const leadStory: CoverageStory = {
-  id: "eight-game-surge",
-  eyebrow: "Lead story · Breakthrough Desk",
-  headline: "An eight-game surge changed the shape of the week.",
-  summary: "After a difficult opening, Player 001 found a run that proved the week was not defined by its first four games.",
-  stat: "8 straight",
-  detail: "Longest winning streak",
-  tone: "lime",
+export type BetaDesk = {
+  handle: string;
+  period: string;
+  games: number;
+  record: string;
+  score: string;
+  format: string;
+  headline: string;
+  green: string;
+  red: string;
+  blue: string;
+  publicStory: CoverageStory;
+  status?: "current" | "last-active";
 };
 
-export const coverageStories: CoverageStory[] = [
+/**
+ * Real beta evidence. Public pages consume only publicStory, which is deliberately
+ * anonymous. Handles and private signals are reserved for Player Room/founder views.
+ */
+export const betaDesks: BetaDesk[] = [
   {
-    id: "recovery-line",
-    eyebrow: "Comeback of the week",
-    headline: "Five wins rebuilt the rating line after Thursday's slide.",
-    summary: "The recovery did not erase the dip. It showed the player could interrupt it before the week ended.",
-    stat: "+47",
-    detail: "From weekly low",
-    tone: "blue",
+    handle: "bada_billa",
+    period: "3–9 Aug 2026",
+    games: 8,
+    record: "5W · 1D · 2L",
+    score: "68.8%",
+    format: "10+0 Rapid",
+    headline: "A positive week. The clock decided both losses.",
+    green: "When the king is exposed, keep the moves forcing.",
+    red: "Protect the final minute.",
+    blue: "Under 1:00: checks → captures → safe move. Move.",
+    publicStory: {
+      id: "final-minute",
+      eyebrow: "Clock watch",
+      headline: "Four wins closed the week. The two defeats shared one exact clock signal.",
+      summary: "A positive eight-game episode ended with four wins. Both losses were timeouts and the only finishes below one minute.",
+      stat: "4 straight",
+      detail: "Closing wins",
+      tone: "lime",
+      period: "3–9 Aug",
+    },
   },
   {
-    id: "volume-week",
-    eyebrow: "Newsroom watch",
-    headline: "A 285-game week tested stamina—and the limits of the desk.",
-    summary: "Extreme volume exposed patterns that disappear inside a normal game list: session fatigue, reset points and recovery windows.",
-    stat: "285",
-    detail: "Games in seven days",
-    tone: "coral",
+    handle: "Bekzatt1",
+    period: "13–19 Apr 2026",
+    games: 18,
+    record: "13W · 1D · 4L",
+    score: "75.0%",
+    format: "Rapid · Blitz · Bullet",
+    headline: "No games this week, so BoardSignal found the last active one.",
+    green: "Forcing checks and passed-pawn conversion.",
+    red: "Their forcing move first.",
+    blue: "Their force first: check? mate? promotion?",
+    status: "last-active",
+    publicStory: {
+      id: "last-active",
+      eyebrow: "Last-active Desk",
+      headline: "No current games. The Desk went back 17 complete weeks—and said exactly why.",
+      summary: "The latest period had zero games, so BoardSignal found the most recent active seven-day chapter without pretending April was current form.",
+      stat: "17 blocks",
+      detail: "Checked backward",
+      tone: "violet",
+      period: "13–19 Apr",
+    },
   },
   {
-    id: "calm-finish",
-    eyebrow: "Strongest finish",
-    headline: "Shorter sessions produced the calmer finish.",
-    summary: "The final sessions were not the biggest. They were the most controlled—and that became the useful signal.",
-    stat: "3–1",
-    detail: "Closing session",
-    tone: "ink",
+    handle: "Kylian_Mbappe_LottinREAL",
+    period: "3–9 Aug 2026",
+    games: 56,
+    record: "23W · 5D · 28L",
+    score: "45.5%",
+    format: "Rapid · Blitz · Bullet",
+    headline: "Four losses to start. Two checkmates to finish.",
+    green: "When mate is there, finish it.",
+    red: "Before the material grab, see whether they can end the game.",
+    blue: "Their finish first: mate? check? promotion?",
+    publicStory: {
+      id: "mate-finisher",
+      eyebrow: "Finishing signature",
+      headline: "Thirteen wins ended in mate—and the whole week closed with two more.",
+      summary: "The mixed-pool score was difficult, but the positive signature was unmistakable: direct mating finishes kept appearing.",
+      stat: "13 mates",
+      detail: "Of 23 wins",
+      tone: "blue",
+      period: "3–9 Aug",
+      feature: true,
+    },
   },
   {
-    id: "clock-signal",
-    eyebrow: "Signal spotted",
-    headline: "The losses ended with time still available.",
-    summary: "The desk found a repeated decision-speed pattern and turned it into one practical scan for the next week.",
-    stat: "8:37",
-    detail: "Typical time left in losses",
-    tone: "blue",
+    handle: "MrInbetween23",
+    period: "3–9 Aug 2026",
+    games: 19,
+    record: "10W · 1D · 8L",
+    score: "55.3%",
+    format: "3+0 Blitz",
+    headline: "Six losses. Then five wins.",
+    green: "When the finish is concrete, convert it.",
+    red: "Before a quiet move, ask whether they can end the game now.",
+    blue: "Mate? check? promotion? Then my move.",
+    publicStory: {
+      id: "six-then-five",
+      eyebrow: "Sequence of the week",
+      headline: "A six-game slide was followed immediately by five straight wins.",
+      summary: "Nineteen Blitz games produced the beta season’s sharpest reversal—without turning the result sequence into a claim about mindset.",
+      stat: "6L → 5W",
+      detail: "Immediate reversal",
+      tone: "coral",
+      period: "3–9 Aug",
+      feature: true,
+    },
+  },
+  {
+    handle: "Phonkrum",
+    period: "3–9 Aug 2026",
+    games: 4,
+    record: "1W · 0D · 3L",
+    score: "25.0%",
+    format: "5+0 Blitz",
+    headline: "A tiny sample. One useful lesson worth keeping.",
+    green: "When the position got sharp, keep creating problems.",
+    red: "One extra reply would have changed the decision.",
+    blue: "After my move: their check? capture? mate?",
+    publicStory: {
+      id: "tiny-sample",
+      eyebrow: "Small-sample desk",
+      headline: "Four games were enough for one useful insight—not a giant diagnosis.",
+      summary: "One 21-minute session showed how BoardSignal narrows its language when the evidence is small.",
+      stat: "4 games",
+      detail: "One session",
+      tone: "ink",
+      period: "3–9 Aug",
+    },
+  },
+  {
+    handle: "CaptainRangade",
+    period: "3–9 Aug 2026",
+    games: 9,
+    record: "3W · 1D · 5L",
+    score: "38.9%",
+    format: "Rapid · Bullet",
+    headline: "Every win ended in mate.",
+    green: "When mate was there, find it.",
+    red: "Their checks before your plan.",
+    blue: "Their checks → their mate threats → my move.",
+    publicStory: {
+      id: "all-wins-mate",
+      eyebrow: "Clean finish",
+      headline: "Every victory in the episode ended the same way: checkmate.",
+      summary: "A mixed nine-game week still revealed a clear strength—three wins, three mates, three different finishing patterns.",
+      stat: "3 of 3",
+      detail: "Wins by mate",
+      tone: "lime",
+      period: "3–9 Aug",
+    },
+  },
+  {
+    handle: "I_pd_I",
+    period: "2–8 Aug 2026",
+    games: 36,
+    record: "18W · 2D · 16L",
+    score: "52.8%",
+    format: "10+0 Rapid",
+    headline: "The lowest point came first. The strongest day followed.",
+    green: "When the finish became forcing, close it out.",
+    red: "A winning ending became an immediate draw.",
+    blue: "Checks? promotion? legal move?",
+    publicStory: {
+      id: "rebound-day",
+      eyebrow: "Rebound day",
+      headline: "The rating low came first. The next day finished 5–0–1.",
+      summary: "A four-game losing run set the floor; the following day answered with five wins and three consecutive checkmates.",
+      stat: "5–0–1",
+      detail: "Best day",
+      tone: "blue",
+      period: "2–8 Aug",
+      feature: true,
+    },
+  },
+  {
+    handle: "snoopyissocute",
+    period: "2–8 Aug 2026",
+    games: 98,
+    record: "51W · 4D · 43L",
+    score: "54.1%",
+    format: "Rapid · Blitz · Bullet",
+    headline: "Two winning surges powered the week.",
+    green: "Passed pawns became forcing weapons.",
+    red: "Move chosen? Check their forcing reply.",
+    blue: "Move chosen? Check their checks, captures and forcing threats.",
+    publicStory: {
+      id: "two-surges",
+      eyebrow: "High-volume story",
+      headline: "Two substantial winning runs carried a 98-game week.",
+      summary: "A seven-game streak and a six-game streak built a positive overall result across three rating pools.",
+      stat: "7 + 6",
+      detail: "Winning streaks",
+      tone: "violet",
+      period: "2–8 Aug",
+      feature: true,
+    },
+  },
+  {
+    handle: "JefsonFS",
+    period: "1–7 Aug 2026",
+    games: 12,
+    record: "6W · 3D · 3L",
+    score: "62.5%",
+    format: "Rapid",
+    headline: "Every loss stayed isolated.",
+    green: "When the advantage was concrete, convert it.",
+    red: "Check what a piece was blocking before it moves.",
+    blue: "What line opens when this piece leaves?",
+    publicStory: {
+      id: "isolated-losses",
+      eyebrow: "Steadiest week",
+      headline: "Twelve games, three defeats—and not one became a losing streak.",
+      summary: "Every loss was followed by a non-loss. The episode ended at its highest recorded rating boundary.",
+      stat: "+27",
+      detail: "Rating movement",
+      tone: "lime",
+      period: "1–7 Aug",
+    },
+  },
+  {
+    handle: "IIZORGII",
+    period: "31 Jul–6 Aug 2026",
+    games: 89,
+    record: "39W · 3D · 47L",
+    score: "45.5%",
+    format: "10+0 Rapid",
+    headline: "You could finish attacks. The danger was seeing theirs first.",
+    green: "When the attack becomes forcing, finish it.",
+    red: "Protect the king before returning to your own plan.",
+    blue: "Their forcing move first.",
+    publicStory: {
+      id: "fifteen-mates",
+      eyebrow: "Attack desk",
+      headline: "Fifteen checkmate wins stood out inside a difficult 89-game week.",
+      summary: "The score finished below fifty percent, but direct attacking finishes gave the episode a genuine positive identity.",
+      stat: "15 mates",
+      detail: "Checkmate wins",
+      tone: "coral",
+      period: "31 Jul–6 Aug",
+    },
+  },
+  {
+    handle: "I-Know-KungFu",
+    period: "30 Jul–5 Aug 2026",
+    games: 24,
+    record: "13W · 1D · 10L",
+    score: "56.3%",
+    format: "Rapid",
+    headline: "The attack was real. The danger was too.",
+    green: "Forcing play is one of your weapons.",
+    red: "Their forcing moves come before your plan.",
+    blue: "Their move first: check, capture, direct threat.",
+    publicStory: {
+      id: "five-game-surge",
+      eyebrow: "Midweek surge",
+      headline: "Five straight wins lifted the rating from 652 to a 705 peak.",
+      summary: "A strong first half carried a positive 24-game episode and produced four checkmate wins.",
+      stat: "5 straight",
+      detail: "Best run",
+      tone: "blue",
+      period: "30 Jul–5 Aug",
+    },
+  },
+  {
+    handle: "harshhmishra",
+    period: "30 Jul–5 Aug 2026",
+    games: 285,
+    record: "145W · 11D · 129L",
+    score: "52.8%",
+    format: "Bullet",
+    headline: "The board was winning. The clock still won.",
+    green: "You can finish on the board—not only on the clock.",
+    red: "Final-second chess needs a different decision process.",
+    blue: "At 15 seconds: check. Force. Simplify. Move.",
+    publicStory: {
+      id: "extreme-volume",
+      eyebrow: "Lead story · Extreme-volume Desk",
+      headline: "A 285-game week climbed 91 rating points—and forced the Desk to separate clock from board.",
+      summary: "The peak reached 2060. The deeper story was more useful: not every timeout meant the same thing, so BoardSignal separated lost boards from good positions that simply ran out of seconds.",
+      stat: "+91",
+      detail: "Rating movement",
+      tone: "lime",
+      period: "30 Jul–5 Aug",
+      feature: true,
+    },
+  },
+  {
+    handle: "hxertzzz",
+    period: "29 Jul–4 Aug 2026",
+    games: 29,
+    record: "16W · 1D · 12L",
+    score: "56.9%",
+    format: "Live · Daily · Coach",
+    headline: "The queen was there to take. Mate was there first.",
+    green: "Make the opponent prove the win.",
+    red: "King safety gets checked before the capture.",
+    blue: "Before I take: what checks do they have?",
+    publicStory: {
+      id: "practical-resistance",
+      eyebrow: "Defensive moment",
+      headline: "A theoretically lost ending became a draw because the player kept asking questions.",
+      summary: "The best available defence removed the biggest threat, prolonged the game and earned a practical reward.",
+      stat: "63 moves",
+      detail: "Fought to a draw",
+      tone: "violet",
+      period: "29 Jul–4 Aug",
+    },
+  },
+  {
+    handle: "Alexcet8",
+    period: "5–11 Jul 2026",
+    games: 8,
+    record: "2W · 0D · 6L",
+    score: "25.0%",
+    format: "30+0",
+    headline: "A difficult score hid a useful signal.",
+    green: "Your wins contained real chess, not lucky endings.",
+    red: "The queen is not safe just because the move looks active.",
+    blue: "Queen landing there—who takes her?",
+    publicStory: {
+      id: "real-winning-positions",
+      eyebrow: "Beneath the score",
+      headline: "A 2–6 record still contained two real winning positions.",
+      summary: "The useful story was not the difficult score. Both victories were supported by concrete chess, giving the next Desk something real to preserve.",
+      stat: "2 wins",
+      detail: "Both clearly better",
+      tone: "ink",
+      period: "5–11 Jul",
+    },
   },
 ];
+
+export const leadStory = betaDesks.find((desk) => desk.handle === "harshhmishra")!.publicStory;
+export const coverageStories = betaDesks
+  .filter((desk) => desk.publicStory.id !== leadStory.id)
+  .map((desk) => desk.publicStory);
+
+export const betaProof = {
+  desks: betaDesks.length,
+  games: betaDesks.reduce((total, desk) => total + desk.games, 0),
+  smallestWeek: Math.min(...betaDesks.map((desk) => desk.games)),
+  largestWeek: Math.max(...betaDesks.map((desk) => desk.games)),
+};
 
 export const privateWeek = {
   player: "Ayandakopano",
@@ -76,10 +378,9 @@ export const privateWeek = {
   blueSignal: "Before every committed move, scan checks → captures → forcing threats.",
 };
 
-export const pipeline = [
-  { player: "Bekzatt1", period: "3–9 Aug", state: "Ready", games: 41 },
-  { player: "CaptainRangade", period: "3–9 Aug", state: "Editorial review", games: 18 },
-  { player: "Phonkrum", period: "3–9 Aug", state: "Processing", games: 62 },
-  { player: "MrInbetween23", period: "3–9 Aug", state: "Ready", games: 27 },
-  { player: "Kylian_Mbappe_LottinREAL", period: "3–9 Aug", state: "Exception", games: 0 },
-];
+export const pipeline = betaDesks.map((desk) => ({
+  player: desk.handle,
+  period: desk.period.replace(" 2026", ""),
+  state: desk.status === "last-active" ? "Last-active" : "Ready",
+  games: desk.games,
+}));

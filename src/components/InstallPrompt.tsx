@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Download, X } from "lucide-react";
 
 type BeforeInstallPromptEvent = Event & {
@@ -9,10 +10,12 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 export default function InstallPrompt() {
+  const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const onBeforeInstallPrompt = (event: Event) => {
@@ -34,7 +37,17 @@ export default function InstallPrompt() {
     };
   }, []);
 
-  if (installed || dismissed || !deferredPrompt) return null;
+  useEffect(() => {
+    if (!pathname.startsWith("/app")) {
+      setReady(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setReady(true), 9000);
+    return () => window.clearTimeout(timer);
+  }, [pathname]);
+
+  if (installed || dismissed || !deferredPrompt || !ready) return null;
 
   async function handleInstall() {
     if (!deferredPrompt) return;
@@ -48,14 +61,14 @@ export default function InstallPrompt() {
   }
 
   return (
-    <div className="fixed bottom-24 right-6 z-40 max-w-[320px] rounded-[1.25rem] border border-[var(--border)] bg-white p-4 shadow-[var(--shadow-lg)]">
+    <div className="install-card" role="region" aria-label="Install BoardSignal">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-extrabold text-[var(--text-primary)]">
-            Install Sparkle Legacy
+            Keep your Desk close
           </p>
           <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-            Add the app to your phone for quicker access to quotes, claims, and support.
+            Install BoardSignal for quicker access to your Player Room and latest Desk.
           </p>
         </div>
 

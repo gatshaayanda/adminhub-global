@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Clock3 } from "lucide-react";
+import { ArrowRight, BookOpen, Clock3, Eye, ShieldCheck, Target } from "lucide-react";
 import PlayerHeader from "@/components/PlayerHeader";
 import PlayerNav from "@/components/PlayerNav";
 import { privateWeek } from "@/data/boardsignal";
@@ -9,22 +9,54 @@ export const metadata = { title: "My Player Room" };
 export default function PlayerRoomPage() {
   return (
     <div id="main" className="container player-shell">
-      <PlayerHeader /><PlayerNav />
-      <div className="dashboard-grid">
-        <section className="desk-hero">
-          <div><p className="kicker">Latest Desk · {privateWeek.period}</p><h1>{privateWeek.headline}</h1></div>
-          <div className="desk-summary"><p>{privateWeek.standfirst}</p><Link href="/app/desk/week-001" className="button button-lime">Open my Desk <ArrowRight size={17} /></Link></div>
-        </section>
-        <aside className="side-stack">
-          <div className="metric-card lime"><span>Week at a glance</span><strong>{privateWeek.games}</strong><p>{privateWeek.wins}W · {privateWeek.losses}L · {privateWeek.draws}D · {privateWeek.score} score</p></div>
-          <div className="metric-card"><span>Rating movement</span><strong>{privateWeek.ratingChange}</strong><p>{privateWeek.ratingStart} → {privateWeek.ratingEnd} · peak {privateWeek.peak}</p></div>
-          <div className="metric-card blue"><span><Clock3 size={14} style={{ display: "inline", marginRight: 6 }} />Next Desk window</span><strong>3 days</strong><p>Your fixed episode does not slide daily.</p></div>
-        </aside>
-      </div>
-      <div className="desk-section">
-        <p className="kicker">Your Blue Signal</p><h2>One thing to carry into the next game.</h2>
-        <div className="signal-box"><strong>{privateWeek.blueSignal}</strong><p>The week repeatedly showed committed decisions arriving while forcing options were still available to inspect.</p></div>
-      </div>
+      <PlayerHeader />
+      <PlayerNav />
+
+      <section className="room-welcome">
+        <div>
+          <span className="live-pill">Desk 001 ready</span>
+          <p className="kicker">{privateWeek.period} · 55 Rapid games</p>
+          <h1>{privateWeek.headline}</h1>
+          <p>{privateWeek.standfirst}</p>
+          <div className="lead-actions">
+            <Link href="/app/desk/week-001" className="button button-lime">Start this Desk <ArrowRight size={17} /></Link>
+            <span className="read-time"><Clock3 size={15} /> About 6 minutes</span>
+          </div>
+        </div>
+        <div className="room-score" aria-label="Weekly result">
+          <span>Week at a glance</span>
+          <strong>{privateWeek.wins}–{privateWeek.losses}–{privateWeek.draws}</strong>
+          <p>{privateWeek.score} score · {privateWeek.ratingStart} → {privateWeek.ratingEnd}</p>
+        </div>
+      </section>
+
+      <section className="room-grid" aria-label="Your latest Desk sections">
+        <Link href="/app/desk/week-001#replay" className="room-card room-card-feature">
+          <BookOpen />
+          <div><span>01 · Replay</span><h2>See how the week actually unfolded.</h2><p>The streak, the slide and the days that changed the direction.</p></div>
+          <ArrowRight className="room-card-arrow" />
+        </Link>
+        <Link href="/app/desk/week-001#signal" className="room-card room-card-blue">
+          <Target />
+          <div><span>02 · Signal Board</span><h3>One strength. One watch. One fix.</h3></div>
+          <ArrowRight className="room-card-arrow" />
+        </Link>
+        <Link href="/app/desk/week-001#positions" className="room-card">
+          <Eye />
+          <div><span>03 · Your positions</span><h3>Return to the exact moments.</h3></div>
+          <ArrowRight className="room-card-arrow" />
+        </Link>
+      </section>
+
+      <section className="room-signal" id="signal-preview">
+        <div className="signal-orb"><Target size={28} /></div>
+        <div>
+          <p className="kicker">Your Blue Signal</p>
+          <h2>{privateWeek.blueSignal}</h2>
+          <p>A short decision cue from this episode—not homework that the next Desk will grade.</p>
+        </div>
+        <div className="privacy-chip"><ShieldCheck size={16} /> Private to your Room</div>
+      </section>
     </div>
   );
 }

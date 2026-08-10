@@ -42,8 +42,8 @@ export default function Header() {
 
       <div className="news-ticker">
         <div className="container ticker-inner">
-          <span className="ticker-label"><Radio size={13} /> Live desk</span>
-          <span className="ticker-copy">Your games already contain the story.</span>
+          <span className="ticker-label"><Radio size={13} /> Beta universe live</span>
+          <span className="ticker-copy">14 real Desks · 695 games · one week at a time</span>
           <span className={online ? "status-dot online" : "status-dot"}>
             {online ? "Online" : "Offline"}
           </span>

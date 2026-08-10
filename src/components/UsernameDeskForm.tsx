@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Search, ShieldCheck } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 
 type UsernameDeskFormProps = {
   compact?: boolean;
@@ -46,7 +46,6 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
         </button>
       </div>
       {error ? <p className="form-error" id="username-error">{error}</p> : null}
-      <p className="username-trust"><ShieldCheck size={15} /> Public username only. Never your Chess.com password.</p>
     </form>
   );
 }

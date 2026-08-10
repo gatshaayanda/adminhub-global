@@ -61,7 +61,7 @@ export function findSeededDesk(requestedUsername: string): BoardSignalDesk | und
         reconstruction: "legal",
       })),
       caveats: [
-        "This is a completed Founder Lab beta Desk built from Ayandakopano's real games.",
+        "This Desk is based on Ayandakopano's completed seven-day period and reviewed game evidence.",
         "The Blue Signal is advice from this episode, not a cross-week mission BoardSignal grades later.",
       ],
     };
@@ -93,14 +93,14 @@ export function findSeededDesk(requestedUsername: string): BoardSignalDesk | und
     pools: [{ pool: beta.format, games: beta.games, record: beta.record }],
     openings: [],
     signals: {
-      green: { label: "Green · Preserve", title: beta.green, copy: "A positive quality supported by the completed beta Desk." },
+      green: { label: "Green · Preserve", title: beta.green, copy: "The strongest positive quality supported by this week." },
       amber: { label: "Amber · Keep context", title: "Keep pool, opponent and sample-size context visible.", copy: "BoardSignal does not turn one week into a permanent claim about the player." },
-      red: { label: "Red · Fix first", title: beta.red, copy: "The first correction selected from the reviewed beta evidence." },
+      red: { label: "Red · Fix first", title: beta.red, copy: "The first correction selected from the reviewed evidence." },
       blue: { label: "Blue · Carry with you", title: beta.blue, copy: "Advice for this player's next games, not a cross-week task BoardSignal grades." },
     },
     candidates: [],
     caveats: [
-      "This is a completed real beta Desk, not freshly regenerated live data.",
+      "This Desk preserves the reviewed findings from its completed seven-day period.",
       ...(beta.status === "last-active" ? ["This is an older last-active period; current form cannot be inferred from it."] : []),
     ],
   };

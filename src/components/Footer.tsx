@@ -3,10 +3,7 @@ import SignalMark from "@/components/SignalMark";
 
 const footerLinks = [
   { label: "Find my Desk", href: "/#find-my-desk" },
-  { label: "Completed example", href: "/player/Ayandakopano" },
-  { label: "How it works", href: "/how-it-works" },
-  { label: "Around BoardSignal", href: "/feed" },
-  { label: "Founder Newsroom", href: "/admin" },
+  { label: "BoardSignal Universe", href: "/feed" },
 ];
 
 export default function Footer() {

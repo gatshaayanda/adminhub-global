@@ -4,6 +4,8 @@
 
 Work layer by layer. Finish and verify the current layer before starting the next one.
 
+`BOARD_SIGNAL_PRODUCT_CONTRACT.md` is the cumulative product authority. Follow-up requests refine that contract unless the user explicitly replaces an earlier requirement. Do not narrow the product to the most recent visible correction.
+
 Current sequence:
 
 1. Universal player-first Shell 01: username → seeded Desk when approved, otherwise live Chess.com retrieval → fixed week → factual Replay → legal positions → browser Stockfish → signals and evidence.

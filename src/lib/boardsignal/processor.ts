@@ -320,20 +320,20 @@ export async function buildLiveDesk(requestedUsername: string): Promise<BoardSig
 
   const red = resignationLosses
     ? {
-        label: "Red · Review first",
+        label: "Red · Fix first",
         title: `${resignationLosses} loss${resignationLosses === 1 ? "" : "es"} ended by resignation.`,
-        copy: "Stockfish checks the final legal positions before BoardSignal decides whether any were still playable.",
+        copy: "Before leaving the game, use the selected positions below to look once more for a legal reply.",
       }
     : timeoutLosses
       ? {
-          label: "Red · Review first",
+          label: "Red · Fix first",
           title: `${timeoutLosses} loss${timeoutLosses === 1 ? "" : "es"} ended on time.`,
           copy: "Separate clock losses from board losses before choosing the correction.",
         }
       : {
-          label: "Red · Review first",
-          title: "The selected losses need position-level review.",
-          copy: "BoardSignal sends the legal final positions to Stockfish instead of inventing a cause from the result alone.",
+          label: "Red · Look here first",
+          title: "The selected losses hold the clearest correction.",
+          copy: "Open the positions below and compare the move played with the strongest available continuation.",
         };
 
   const headline = buildHeadline({ games: selectedGames.length, score, winStreak: bestWin, timeoutLosses, losses, checkmateWins });
@@ -363,7 +363,7 @@ export async function buildLiveDesk(requestedUsername: string): Promise<BoardSig
     headline,
     summary: isLastActive
       ? `The latest completed week had no games, so BoardSignal found ${canonical}'s most recent active Monday–Sunday chapter. It does not treat older games as current form.`
-      : `${canonical}'s latest completed Monday–Sunday chapter is ready. The Replay stays factual; the position-level diagnosis waits for legal reconstruction and engine review.`,
+      : `${canonical}'s latest completed week is ready. Start with the Replay, then carry the clearest signal into the next game.`,
     longestWinStreak: bestWin,
     longestLossStreak: bestLoss,
     sessions,
@@ -378,7 +378,7 @@ export async function buildLiveDesk(requestedUsername: string): Promise<BoardSig
       green: {
         label: "Green · Preserve",
         title: bestWin >= 2 ? `${bestWin} straight wins formed the strongest positive run.` : checkmateWins ? `${checkmateWins} win${checkmateWins === 1 ? "" : "s"} ended in checkmate.` : "Every completed win is evidence worth locating.",
-        copy: "This is a result-level signal. Exact chess claims come only from the reviewed positions.",
+        copy: "This is the strongest positive result pattern in the week.",
       },
       amber: {
         label: "Amber · Monitor",
@@ -387,16 +387,15 @@ export async function buildLiveDesk(requestedUsername: string): Promise<BoardSig
       },
       red,
       blue: {
-        label: "Blue · Provisional action",
+        label: "Blue · Carry with you",
         title: resignationLosses ? "Before resigning, check whether a legal reply remains." : timeoutLosses ? "When the clock is low: check, force, simplify, move." : "Open the reviewed position before choosing the next action.",
-        copy: "Stockfish can sharpen this cue after the candidate positions finish in the browser.",
+        copy: "Keep this cue short enough to use during the next game.",
       },
     },
     candidates,
     caveats: [
-      "The live shell uses public Chess.com data only and requests no Chess.com password.",
       "Ratings are separated by Chess.com time class; first and last values are recorded game boundaries, not an invented pre-game rating.",
-      "Automatic narrative is deliberately restrained until Stockfish finishes the selected legal positions.",
+      "Position claims are shown only where the available game evidence supports them.",
       ...(isLastActive ? ["This is an older last-active period. Current form cannot be inferred from it."] : []),
     ],
   };

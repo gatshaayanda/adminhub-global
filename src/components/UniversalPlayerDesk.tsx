@@ -4,11 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  ArrowLeft,
   ArrowRight,
   BarChart3,
-  Check,
-  CircleCheckBig,
   ExternalLink,
   LoaderCircle,
   LockKeyhole,
@@ -26,27 +23,16 @@ type EngineResult = {
   mate?: number;
 };
 
-const stages = [
-  "Confirming the Chess.com player",
-  "Finding the latest completed week",
-  "Retrieving the public games",
-  "Building the factual Replay",
-  "Preparing Stockfish positions",
-];
-
 export default function UniversalPlayerDesk({ requestedUsername }: { requestedUsername: string }) {
   const seeded = useMemo(() => findSeededDesk(requestedUsername), [requestedUsername]);
   const [desk, setDesk] = useState<BoardSignalDesk | null>(seeded ?? null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!seeded);
-  const [stage, setStage] = useState(0);
   const [engineResults, setEngineResults] = useState<Record<string, EngineResult>>({});
-  const [engineStatus, setEngineStatus] = useState<"idle" | "loading" | "running" | "complete" | "unavailable">("idle");
 
   useEffect(() => {
     if (seeded) return;
     let active = true;
-    const timer = window.setInterval(() => setStage((value) => Math.min(value + 1, stages.length - 1)), 900);
 
     fetch(`/api/boardsignal/${encodeURIComponent(requestedUsername)}`, { cache: "no-store" })
       .then(async (response) => ({ response, body: await response.json() as DeskApiResponse }))
@@ -60,15 +46,12 @@ export default function UniversalPlayerDesk({ requestedUsername }: { requestedUs
       })
       .finally(() => {
         if (active) {
-          window.clearInterval(timer);
           setLoading(false);
-          setStage(stages.length - 1);
         }
       });
 
     return () => {
       active = false;
-      window.clearInterval(timer);
     };
   }, [requestedUsername, seeded]);
 
@@ -76,16 +59,13 @@ export default function UniversalPlayerDesk({ requestedUsername }: { requestedUs
     if (!desk || desk.source !== "live") return;
     const candidates = desk.candidates.filter((candidate) => candidate.fen);
     if (!candidates.length) {
-      setEngineStatus("unavailable");
       return;
     }
 
     if (!window.crossOriginIsolated || typeof Worker === "undefined") {
-      setEngineStatus("unavailable");
       return;
     }
 
-    setEngineStatus("loading");
     const worker = new Worker("/stockfish/engine-worker.js");
     let queueIndex = 0;
     let current: DeskCandidate | undefined;
@@ -95,11 +75,9 @@ export default function UniversalPlayerDesk({ requestedUsername }: { requestedUs
       current = candidates[queueIndex];
       latest = current ? { id: current.id, depth: 0 } : undefined;
       if (!current?.fen) {
-        setEngineStatus("complete");
         worker.terminate();
         return;
       }
-      setEngineStatus("running");
       worker.postMessage(`position fen ${current.fen}`);
       worker.postMessage("go depth 11");
     };
@@ -141,31 +119,24 @@ export default function UniversalPlayerDesk({ requestedUsername }: { requestedUs
     };
 
     worker.onerror = () => {
-      setEngineStatus("unavailable");
       worker.terminate();
     };
 
     return () => worker.terminate();
   }, [desk]);
 
-  if (loading) return <DeskLoading username={requestedUsername} stage={stage} />;
+  if (loading) return <DeskLoading username={requestedUsername} />;
   if (error || !desk) return <DeskError username={requestedUsername} error={error} />;
 
-  const engineReviewed = Object.keys(engineResults).length;
-  const playableResignations = desk.candidates.filter((candidate) => {
-    const result = engineResults[candidate.id];
-    return candidate.reason.toLowerCase().includes("resign") && typeof result?.cp === "number" && result.cp > -200;
-  }).length;
+  const hasPositions = desk.candidates.some((candidate) => candidate.fen || candidate.gameUrl);
 
   return (
     <div id="main" className="universal-desk-page">
       <section className="container universal-desk-shell">
-        <Link href="/#find-my-desk" className="desk-back"><ArrowLeft size={16} /> Check another username</Link>
-
         <header className="universal-player-bar">
           <div className="universal-avatar">{desk.player.username.slice(0, 2).toUpperCase()}</div>
-          <div><span>Chess.com player confirmed</span><h1>{desk.player.username}</h1><p>{desk.primaryPool} · {desk.period.label}</p></div>
-          <div className="private-access"><LockKeyhole size={16} /> Private session Desk</div>
+          <div><span>Chess.com account</span><h1>{desk.player.username}</h1><p>{desk.primaryPool} · {desk.period.label}</p></div>
+          <div className="private-access"><LockKeyhole size={16} /> Latest Desk</div>
         </header>
 
         {desk.period.isLastActive ? (
@@ -174,7 +145,7 @@ export default function UniversalPlayerDesk({ requestedUsername }: { requestedUs
 
         <section className="universal-cover">
           <div className="universal-cover-copy">
-            <span className="live-pill">{desk.source === "seeded" ? "Completed beta Desk" : "Live Desk built"}</span>
+            <span className="live-pill">Your latest Desk</span>
             <p className="kicker">{desk.period.label} · {desk.games} games</p>
             <h2>{desk.headline}</h2>
             <p>{desk.summary}</p>
@@ -195,8 +166,7 @@ export default function UniversalPlayerDesk({ requestedUsername }: { requestedUs
           <a href="#replay">My week</a>
           <a href="#pools">Ratings & pools</a>
           <a href="#signals">My signals</a>
-          <a href="#engine">Stockfish</a>
-          <a href="#evidence">Evidence</a>
+          {hasPositions ? <a href="#evidence">My evidence</a> : null}
         </nav>
 
         <section className="universal-metrics" aria-label="Desk facts">
@@ -216,7 +186,7 @@ export default function UniversalPlayerDesk({ requestedUsername }: { requestedUs
                 </article>
               ))}
             </div>
-          ) : <p className="section-empty">The completed beta narrative is available below; day-by-day structured import belongs to the next seed-conversion pass.</p>}
+          ) : <div className="section-empty"><strong>Your week in one view</strong><p>{desk.summary}</p></div>}
           <div className="replay-callouts">
             <div><Sparkles /><span>Positive run</span><strong>{desk.longestWinStreak || "See Green Signal"}</strong><p>{desk.longestWinStreak ? "consecutive wins" : desk.signals.green.title}</p></div>
             <div><BarChart3 /><span>Watch run</span><strong>{desk.longestLossStreak || "See Amber Signal"}</strong><p>{desk.longestLossStreak ? "consecutive losses" : desk.signals.amber.title}</p></div>
@@ -247,39 +217,27 @@ export default function UniversalPlayerDesk({ requestedUsername }: { requestedUs
           </div>
         </section>
 
-        <section className="universal-section engine-section" id="engine">
-          <div className="universal-section-heading"><span>04</span><div><p className="kicker">Stockfish review</p><h2>Result patterns become chess claims only after position review.</h2></div></div>
-          <EngineStatus status={engineStatus} reviewed={engineReviewed} total={desk.candidates.filter((candidate) => candidate.fen).length} seeded={desk.source === "seeded"} />
-          {playableResignations ? <div className="engine-finding"><CircleCheckBig /><div><strong>{playableResignations} resignation position{playableResignations === 1 ? " was" : "s were"} still within a playable range.</strong><p>This sharpens the Red Signal from a termination pattern into a position-supported finding.</p></div></div> : null}
-        </section>
-
-        <section className="universal-section" id="evidence">
-          <div className="universal-section-heading"><span>05</span><div><p className="kicker">Exact evidence</p><h2>Open the games behind the guidance.</h2></div></div>
-          {desk.candidates.length ? (
-            <div className="universal-evidence-list">
-              {desk.candidates.map((candidate) => <EvidenceCard key={candidate.id} candidate={candidate} engine={engineResults[candidate.id]} />)}
-            </div>
-          ) : <p className="section-empty">This seeded Desk&apos;s exact position cards have not yet been converted into the structured shell. The signal text remains the approved beta output.</p>}
-        </section>
+        {hasPositions ? <section className="universal-section" id="evidence">
+          <div className="universal-section-heading"><span>04</span><div><p className="kicker">The evidence</p><h2>Open the games behind the guidance.</h2></div></div>
+          <div className="universal-evidence-list">
+            {desk.candidates.map((candidate) => <EvidenceCard key={candidate.id} candidate={candidate} engine={engineResults[candidate.id]} />)}
+          </div>
+        </section> : null}
 
         <section className="desk-caveats">
           <ShieldCheck size={20} />
           <div><strong>What this Desk is careful about</strong><ul>{desk.caveats.map((caveat) => <li key={caveat}>{caveat}</li>)}</ul></div>
         </section>
 
-        {desk.player.username.toLowerCase() === "ayandakopano" && desk.source === "seeded" ? (
-          <div className="full-seed-link"><Link href="/app/desk/week-001" className="button button-lime">Open Ayandakopano&apos;s full approved Desk <ArrowRight size={17} /></Link></div>
-        ) : null}
       </section>
     </div>
   );
 }
 
-function DeskLoading({ username, stage }: { username: string; stage: number }) {
+function DeskLoading({ username }: { username: string }) {
   return (
     <div id="main" className="desk-processing-page"><section className="container desk-processing-card">
-      <div className="processing-orb"><LoaderCircle /></div><p className="kicker">Building a real Desk</p><h1>{username}</h1><p>BoardSignal is retrieving public data and closing one fixed seven-day chapter.</p>
-      <div className="processing-stages">{stages.map((item, index) => <div className={index < stage ? "done" : index === stage ? "active" : ""} key={item}>{index < stage ? <Check /> : index === stage ? <LoaderCircle className="spin" /> : <span />}{item}</div>)}</div>
+      <div className="processing-orb"><LoaderCircle /></div><p className="kicker">Preparing your Desk</p><h1>{username}</h1><p>Your latest week is being covered.</p>
     </section></div>
   );
 }
@@ -296,16 +254,14 @@ function SignalCard({ tone, signal }: { tone: "green" | "amber" | "red" | "blue"
   return <article className={`universal-signal signal-${tone}`}><span>{signal.label}</span><h3>{signal.title}</h3><p>{signal.copy}</p></article>;
 }
 
-function EngineStatus({ status, reviewed, total, seeded }: { status: "idle" | "loading" | "running" | "complete" | "unavailable"; reviewed: number; total: number; seeded: boolean }) {
-  if (seeded) return <div className="engine-status complete"><CircleCheckBig /><div><strong>Founder Lab engine review already completed.</strong><p>This seeded Desk uses the approved position findings from its report.</p></div></div>;
-  if (status === "unavailable") return <div className="engine-status unavailable"><AlertTriangle /><div><strong>Factual Desk complete; browser engine unavailable.</strong><p>The result-level signals remain labelled provisional. No engine claim has been invented.</p></div></div>;
-  if (status === "complete") return <div className="engine-status complete"><CircleCheckBig /><div><strong>Stockfish review complete.</strong><p>{reviewed} of {total} selected legal positions reviewed in this browser.</p></div></div>;
-  return <div className="engine-status running"><LoaderCircle className="spin" /><div><strong>{status === "loading" ? "Loading Stockfish…" : "Reviewing selected positions…"}</strong><p>{reviewed} of {total} complete. The rest of the Desk stays usable.</p></div></div>;
-}
-
 function EvidenceCard({ candidate, engine }: { candidate: DeskCandidate; engine?: EngineResult }) {
+  const gameLabel = /^G\d+$/i.test(candidate.id)
+    ? `Game ${Number(candidate.id.slice(1))}`
+    : /^P\d+$/i.test(candidate.id)
+      ? `Position ${Number(candidate.id.slice(1))}`
+      : candidate.id;
   const evaluation = engine?.mate !== undefined
     ? engine.mate > 0 ? `Mate in ${engine.mate}` : `Mated in ${Math.abs(engine.mate)}`
-    : engine?.cp !== undefined ? `${engine.cp >= 0 ? "+" : ""}${(engine.cp / 100).toFixed(2)}` : candidate.reconstruction === "legal" ? "Awaiting engine" : "FEN unavailable";
-  return <article><div className="evidence-eval"><span>{candidate.id}</span><strong>{evaluation}</strong>{engine ? <small>Depth {engine.depth} · player view</small> : null}</div><div><p>{candidate.reason} · {candidate.playerColor}</p><h3>vs {candidate.opponent}</h3><p>{candidate.reconstruction === "legal" ? "Legal reconstruction available for review." : "The game remains linked, but an engine position was not reconstructed."}</p></div><a href={candidate.gameUrl} target="_blank" rel="noreferrer" className="button button-outline">Open game <ExternalLink size={15} /></a></article>;
+    : engine?.cp !== undefined ? `${engine.cp >= 0 ? "+" : ""}${(engine.cp / 100).toFixed(2)}` : candidate.reconstruction === "legal" ? "Position" : "Game link";
+  return <article><div className="evidence-eval"><span>{gameLabel}</span><strong>{evaluation}</strong></div><div><p>{candidate.reason} · {candidate.playerColor}</p><h3>vs {candidate.opponent}</h3><p>{candidate.reconstruction === "legal" ? "This position supports the guidance above." : "Open the game to see the moment in context."}</p></div><a href={candidate.gameUrl} target="_blank" rel="noreferrer" className="button button-outline">Open game <ExternalLink size={15} /></a></article>;
 }

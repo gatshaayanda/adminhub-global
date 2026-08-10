@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Radio } from "lucide-react";
 import { betaProof, coverageStories, leadStory } from "@/data/boardsignal";
 
-export const metadata = { title: "Coverage Feed" };
+export const metadata = { title: "BoardSignal Universe" };
 
 export default function CoverageFeedPage() {
   const stories = [leadStory, ...coverageStories];
@@ -10,9 +10,9 @@ export default function CoverageFeedPage() {
     <div id="main" className="interior-page">
       <header className="interior-hero feed-hero">
         <div className="container">
-          <p className="kicker"><Radio size={15} /> Around BoardSignal · Secondary coverage</p>
-          <h1>The wider game, after your own Desk.</h1>
-          <p className="standfirst">Fourteen completed Desks and {betaProof.games} real games make the world feel alive. Positive moments appear anonymously unless a player chooses to attach their identity; private weaknesses never enter this feed.</p>
+          <p className="kicker"><Radio size={15} /> BoardSignal Universe</p>
+          <h1>The wider game, through its players.</h1>
+          <p className="standfirst">Coverage drawn from {betaProof.games} real games makes the wider BoardSignal world feel alive. Positive moments appear anonymously unless a player chooses to attach their identity; private weaknesses never enter this feed.</p>
         </div>
       </header>
       <section className="container section-pad">

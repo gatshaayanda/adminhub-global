@@ -1,125 +1,108 @@
 import Link from "next/link";
-import type { CSSProperties } from "react";
 import {
   ArrowRight,
   BarChart3,
   CalendarDays,
   ChevronRight,
+  CircleCheckBig,
   LockKeyhole,
-  Radio,
-  Sparkles,
+  Target,
+  UserRoundSearch,
 } from "lucide-react";
-import { betaProof, coverageStories, leadStory } from "@/data/boardsignal";
+import UsernameDeskForm from "@/components/UsernameDeskForm";
+import { betaProof, coverageStories } from "@/data/boardsignal";
 
-const frontPageStories = coverageStories.slice(0, 6);
+const secondaryStories = coverageStories.slice(0, 3);
 
-export default function UniversePage() {
+export default function HomePage() {
   return (
-    <div id="main" className="universe-page">
-      <section className="universe-hero">
-        <div className="container universe-hero-grid">
-          <article className="universe-lead motion-enter">
-            <div className="live-pill"><Radio size={14} /> Beta season · 14 real Desks</div>
-            <p className="story-kicker">{leadStory.eyebrow} · {leadStory.period}</p>
-            <h1>{leadStory.headline}</h1>
-            <p className="hero-deck">{leadStory.summary}</p>
-            <div className="lead-actions">
-              <Link href="/player/player-001" className="button button-lime">
-                Explore the lead story <ArrowRight size={17} />
+    <div id="main" className="personal-home">
+      <section className="personal-hero">
+        <div className="container personal-hero-grid">
+          <div className="personal-hero-copy motion-enter">
+            <p className="kicker">Your personal chess sports desk</p>
+            <h1>Enter your username. BoardSignal builds the week around you.</h1>
+            <p className="hero-deck">For a completed beta player, the approved seeded Desk opens immediately. For anyone else, BoardSignal confirms the real Chess.com account, retrieves the public games and builds the latest fixed seven-day chapter.</p>
+            <div id="find-my-desk" className="hero-username-card">
+              <UsernameDeskForm />
+              <Link href="/player/Ayandakopano" className="demo-link">
+                Or open one finished beta example <ArrowRight size={16} />
               </Link>
-              <Link href="/join" className="text-link">What would my week say?</Link>
             </div>
-          </article>
+          </div>
 
-          <aside className="hero-story-rail motion-enter motion-delay-1" aria-label="This week in BoardSignal">
-            <div className="hero-score-card">
-              <span>Lead number</span>
-              <strong>{leadStory.stat}</strong>
-              <p>{leadStory.detail}</p>
+          <aside className="player-preview pipeline-preview motion-enter motion-delay-1" aria-label="BoardSignal processing flow">
+            <div className="pipeline-preview-top"><span>What happens next</span><strong>One username becomes one Desk</strong></div>
+            <div className="pipeline-preview-list">
+              <div><span>01</span><div><strong>Confirm the player</strong><p>Canonical Chess.com identity and public profile.</p></div><CircleCheckBig /></div>
+              <div><span>02</span><div><strong>Close the week</strong><p>Latest completed Monday–Sunday block; last-active fallback when needed.</p></div><CalendarDays /></div>
+              <div><span>03</span><div><strong>Build the evidence</strong><p>Record, pools, days, sessions, streaks, openings and legal positions.</p></div><BarChart3 /></div>
+              <div><span>04</span><div><strong>Review with Stockfish</strong><p>Selected legal positions sharpen the signal without inventing a story.</p></div><Target /></div>
             </div>
-            {frontPageStories.slice(0, 2).map((story) => (
-              <Link href="/feed" className="rail-story" key={story.id}>
-                <span>{story.eyebrow}</span>
-                <strong>{story.headline}</strong>
-                <ChevronRight size={18} aria-hidden="true" />
-              </Link>
-            ))}
-            <p className="privacy-note"><LockKeyhole size={15} /> Real evidence. Public stories stay anonymous unless the player approves their identity.</p>
+            <Link href="/player/Ayandakopano" className="preview-open">See a completed output <ChevronRight size={19} /></Link>
           </aside>
         </div>
       </section>
 
-      <section className="signal-strip" aria-label="BoardSignal beta proof">
-        <div className="container signal-strip-inner">
-          <div><strong>{betaProof.desks}</strong><span>real beta Desks</span></div>
-          <div><strong>{betaProof.games}</strong><span>games represented</span></div>
-          <div><strong>{betaProof.smallestWeek}–{betaProof.largestWeek}</strong><span>games in one episode</span></div>
-          <div><strong>7 days</strong><span>one fixed chapter</span></div>
+      <section className="container personal-flow-section">
+        <div className="section-heading">
+          <p className="kicker">The first journey</p>
+          <h2>You are the story—not the audience for everybody else.</h2>
+          <p>BoardSignal starts with your identity, then moves through your week in a clear order.</p>
+        </div>
+        <div className="personal-flow-grid">
+          <article><span>01</span><UserRoundSearch /><h3>Find your player page</h3><p>One public username confirms whose games and Desk you want.</p></article>
+          <article><span>02</span><CalendarDays /><h3>Understand your week</h3><p>See the record, rating movement, streak and the point where the direction changed.</p></article>
+          <article><span>03</span><Target /><h3>Reach the useful action</h3><p>Go straight to the weakness, guidance and exact game moments behind it.</p></article>
         </div>
       </section>
 
-      <section className="container section-pad coverage-section">
-        <div className="section-heading split-heading">
+      <section className="ayanda-proof-band">
+        <div className="container ayanda-proof-grid">
           <div>
-            <p className="kicker">Across the beta universe</p>
-            <h2>Fourteen weeks. Fourteen different stories.</h2>
-            <p>The same product has to make sense of a four-game sample, a 285-game sprint, three rating pools, an inactive account and everything between.</p>
+            <p className="kicker">Finished beta example · Ayandakopano</p>
+            <h2>See a complete player-first Desk before entering your own.</h2>
+            <p>This real 55-game week opens with the story, then lets the player choose: replay the week, go directly to the weakness, carry the guidance or inspect the three evidence games.</p>
+            <div className="lead-actions">
+              <Link href="/player/Ayandakopano" className="button button-lime">Open the player page <ArrowRight size={17} /></Link>
+              <Link href="/app/desk/week-001#weakness" className="button button-outline">See the weakness</Link>
+            </div>
           </div>
-          <Link href="/feed" className="button button-outline">See all 14 stories <ArrowRight size={17} /></Link>
+          <div className="ayanda-proof-stats">
+            <div><span>Games</span><strong>55</strong></div>
+            <div><span>Longest run</span><strong>8 wins</strong></div>
+            <div><span>Rating</span><strong>−35</strong></div>
+            <div><span>Evidence games</span><strong>3</strong></div>
+          </div>
         </div>
+      </section>
 
-        <div className="coverage-grid">
-          {frontPageStories.map((story, index) => (
-            <Link
-              href="/feed"
-              className={`coverage-card tone-${story.tone} ${story.feature || index === 0 ? "coverage-wide" : ""}`}
-              key={story.id}
-              style={{ "--story-index": index } as CSSProperties}
-            >
-              <div className="coverage-card-top">
-                <p className="story-kicker">{story.eyebrow}</p>
-                <span>{story.period}</span>
-              </div>
+      <section className="container secondary-coverage">
+        <div className="secondary-heading">
+          <div>
+            <p className="kicker">Around BoardSignal · Secondary coverage</p>
+            <h2>Other players make the world feel alive. They do not replace your Desk.</h2>
+          </div>
+          <p>{betaProof.desks} real beta Desks and {betaProof.games} games sit behind the product. Only safe positive coverage appears here.</p>
+        </div>
+        <div className="secondary-story-grid">
+          {secondaryStories.map((story) => (
+            <article className={`secondary-story tone-${story.tone}`} key={story.id}>
+              <p className="story-kicker">{story.eyebrow}</p>
               <h3>{story.headline}</h3>
-              <p>{story.summary}</p>
-              <div className="coverage-stat"><strong>{story.stat}</strong><span>{story.detail}</span></div>
-              <ArrowRight className="coverage-arrow" size={19} aria-hidden="true" />
-            </Link>
+              <div><strong>{story.stat}</strong><span>{story.detail}</span></div>
+            </article>
           ))}
         </div>
-      </section>
-
-      <section className="experience-band">
-        <div className="container experience-grid">
-          <div className="experience-copy">
-            <p className="kicker">From games to a living Desk</p>
-            <h2>This is web-app coverage—not a PDF pasted onto a screen.</h2>
-            <p>A player lands on the week’s story, moves through the Replay, opens the exact game moments and carries one useful signal back to the board. The experience reveals detail when it is needed instead of presenting eight report pages at once.</p>
-            <Link href="/app" className="button button-lime">Enter the seeded Player Room <ArrowRight size={17} /></Link>
-          </div>
-          <div className="experience-flow" aria-label="BoardSignal experience flow">
-            <article><span>01</span><CalendarDays /><div><strong>Your week</strong><p>One fixed, completed seven-day episode.</p></div></article>
-            <article><span>02</span><BarChart3 /><div><strong>The Replay</strong><p>The shape, score, sessions and turning points.</p></div></article>
-            <article><span>03</span><Sparkles /><div><strong>The Signal</strong><p>What to preserve, monitor and fix first.</p></div></article>
-          </div>
+        <div className="secondary-footer">
+          <p><LockKeyhole size={15} /> Public highlight. Private weakness.</p>
+          <Link href="/feed" className="text-link">See the wider coverage index</Link>
         </div>
       </section>
 
-      <section className="container section-pad privacy-callout">
-        <div>
-          <p className="kicker"><LockKeyhole size={15} /> Public highlight. Private weakness.</p>
-          <h2>The Universe attracts attention. The Player Room earns trust.</h2>
-        </div>
-        <p>Positive coverage can travel. Red weaknesses, Amber concerns, Blue guidance and personal reflections stay inside the player’s Desk unless the player deliberately chooses otherwise.</p>
-      </section>
-
-      <section className="container final-cta">
-        <div>
-          <p className="kicker">First Desk free</p>
-          <h2>Your games already contain the story.</h2>
-          <p>One Chess.com username. No routine PGN upload.</p>
-        </div>
-        <Link href="/join" className="button button-lime">Get my first Desk <ArrowRight size={18} /></Link>
+      <section className="container shell-boundary">
+        <CircleCheckBig size={22} />
+        <div><strong>This shell asks for no account, payment or Chess.com login.</strong><p>It proves the player journey first. Private links, claiming a Room and automated processing come later.</p></div>
       </section>
     </div>
   );

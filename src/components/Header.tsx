@@ -7,10 +7,9 @@ import { Menu, Radio, X } from "lucide-react";
 import SignalMark from "@/components/SignalMark";
 
 const primaryNav = [
-  { label: "Universe", href: "/" },
-  { label: "Coverage", href: "/feed" },
+  { label: "Home", href: "/" },
   { label: "How it works", href: "/how-it-works" },
-  { label: "Membership", href: "/pricing" },
+  { label: "Around BoardSignal", href: "/feed" },
 ];
 
 export default function Header() {
@@ -42,8 +41,8 @@ export default function Header() {
 
       <div className="news-ticker">
         <div className="container ticker-inner">
-          <span className="ticker-label"><Radio size={13} /> Beta universe live</span>
-          <span className="ticker-copy">14 real Desks · 695 games · one week at a time</span>
+          <span className="ticker-label"><Radio size={13} /> Founder beta</span>
+          <span className="ticker-copy">One player · one fixed week · one clear next action</span>
           <span className={online ? "status-dot online" : "status-dot"}>
             {online ? "Online" : "Offline"}
           </span>
@@ -68,8 +67,8 @@ export default function Header() {
         </nav>
 
         <div className="header-actions">
-          <Link href="/app" className="header-room-link">My Room</Link>
-          <Link href="/join" className="button button-dark header-join">Get my first Desk</Link>
+          <Link href="/player/Ayandakopano" className="header-room-link">Completed example</Link>
+          <Link href="/#find-my-desk" className="button button-dark header-join">Find my Desk</Link>
           <button
             type="button"
             className="menu-button"
@@ -89,8 +88,8 @@ export default function Header() {
               {item.label}
             </Link>
           ))}
-          <Link href="/app">My Room</Link>
-          <Link href="/join" className="button button-lime">Get my first Desk</Link>
+          <Link href="/player/Ayandakopano">Completed example</Link>
+          <Link href="/#find-my-desk" className="button button-lime">Find my Desk</Link>
         </nav>
       ) : null}
     </header>

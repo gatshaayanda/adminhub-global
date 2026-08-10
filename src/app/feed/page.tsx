@@ -10,9 +10,9 @@ export default function CoverageFeedPage() {
     <div id="main" className="interior-page">
       <header className="interior-hero feed-hero">
         <div className="container">
-          <p className="kicker"><Radio size={15} /> Beta universe · Live index</p>
-          <h1>Everyday players finally get the coverage.</h1>
-          <p className="standfirst">Fourteen completed Desks, {betaProof.games} real games and fourteen distinct week shapes. Positive moments appear anonymously unless a player chooses to attach their identity.</p>
+          <p className="kicker"><Radio size={15} /> Around BoardSignal · Secondary coverage</p>
+          <h1>The wider game, after your own Desk.</h1>
+          <p className="standfirst">Fourteen completed Desks and {betaProof.games} real games make the world feel alive. Positive moments appear anonymously unless a player chooses to attach their identity; private weaknesses never enter this feed.</p>
         </div>
       </header>
       <section className="container section-pad">
@@ -28,7 +28,7 @@ export default function CoverageFeedPage() {
           ))}
         </div>
         <div className="interior-actions">
-          <Link href="/join" className="button button-lime">Put my week on the desk <ArrowRight size={17} /></Link>
+          <Link href="/#find-my-desk" className="button button-lime">Find my Desk <ArrowRight size={17} /></Link>
         </div>
       </section>
     </div>

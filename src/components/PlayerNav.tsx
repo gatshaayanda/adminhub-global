@@ -2,10 +2,10 @@ import Link from "next/link";
 
 const links = [
   { label: "My Room", href: "/app" },
-  { label: "Latest Desk", href: "/app/desk/week-001" },
-  { label: "Archive", href: "/app/archive" },
-  { label: "My Feed", href: "/app/feed" },
-  { label: "Profile", href: "/app/profile" },
+  { label: "My Week", href: "/app/desk/week-001#replay" },
+  { label: "Weakness", href: "/app/desk/week-001#weakness" },
+  { label: "Guidance", href: "/app/desk/week-001#guidance" },
+  { label: "Positions", href: "/app/desk/week-001#positions" },
 ];
 
 export default function PlayerNav() {

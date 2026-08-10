@@ -16,8 +16,8 @@ export default function HowItWorksPage() {
       <header className="interior-hero">
         <div className="container">
           <p className="kicker">Username → games → Desk</p>
-          <h1>One fixed week. Four layers of intelligence.</h1>
-          <p className="standfirst">BoardSignal is not a chatbot glancing at a PGN. It is a publishing system built from factual analytics, chess review and explicit editorial rules.</p>
+          <h1>Your username opens one clear week.</h1>
+          <p className="standfirst">BoardSignal does complex work behind the scenes, but the player experience stays simple: confirm who you are, understand the week, reach the signal and open the evidence.</p>
         </div>
       </header>
       <section className="container section-pad">
@@ -42,7 +42,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
       <section className="container section-pad">
-        <Link href="/join" className="button button-lime">Get my first Desk <ArrowRight size={17} /></Link>
+        <Link href="/#find-my-desk" className="button button-lime">Find my Desk <ArrowRight size={17} /></Link>
       </section>
     </div>
   );

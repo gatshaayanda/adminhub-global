@@ -373,10 +373,41 @@ export const privateWeek = {
   ratingChange: -35,
   peak: 878,
   low: 796,
-  headline: "A week with two different lives",
-  standfirst: "An early surge showed what was possible. The second half showed where faster decisions began costing the position.",
-  blueSignal: "Before every committed move, scan checks → captures → forcing threats.",
+  headline: "Four opening losses. Eight straight wins. Then the week turned.",
+  standfirst: "The week recovered from a difficult opening, reached an 878 peak, then lost ground from 4–6 July. The most useful correction came from three games that ended before the position did.",
+  greenSignal: "The eight-game run showed sustained positive play—not one lucky result.",
+  amberSignal: "The direction weakened across 4–6 July before the final day settled at 3–3.",
+  redSignal: "Three losses ended by resignation while the engine still judged the position playable.",
+  blueSignal: "Before resigning: is there a legal reply? Check, capture, forcing threat—then play on.",
+  action: "Do not resign a 10+0 game while a legal reply remains.",
 };
+
+export const ayandaPositionMoments = [
+  {
+    game: "G30",
+    date: "4 July",
+    opponent: "hariom_2k4",
+    color: "Black",
+    evaluation: "about −0.85",
+    link: "https://www.chess.com/game/live/171098820950",
+  },
+  {
+    game: "G42",
+    date: "6 July",
+    opponent: "hakisff",
+    color: "White",
+    evaluation: "about −1.06",
+    link: "https://www.chess.com/game/live/171186266608",
+  },
+  {
+    game: "G43",
+    date: "6 July",
+    opponent: "Daksh10411",
+    color: "Black",
+    evaluation: "about −0.99",
+    link: "https://www.chess.com/game/live/171186333024",
+  },
+];
 
 export const pipeline = betaDesks.map((desk) => ({
   player: desk.handle,

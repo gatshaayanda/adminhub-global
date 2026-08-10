@@ -6,15 +6,15 @@ Work layer by layer. Finish and verify the current layer before starting the nex
 
 Current sequence:
 
-1. Shareable responsive shell using real beta evidence.
-2. Structured Desk data and manual founder import.
-3. Private beta Desk links and player-specific views.
+1. Universal player-first Shell 01: username → seeded Desk when approved, otherwise live Chess.com retrieval → fixed week → factual Replay → legal positions → browser Stockfish → signals and evidence.
+2. Convert every completed beta report into the full structured Desk schema, including exact position cards where available.
+3. Unguessable private beta Desk links and player-specific views.
 4. Public player pages and deliberate share cards.
-5. Authentication, persistence and PWA hardening.
-6. Automated Chess.com retrieval and Founder Lab processing.
+5. Authentication, persistence, caching and PWA hardening.
+6. Founder workflow scaling and processing observability.
 7. Payments only after the experience and delivery loop work.
 
-Do not add authentication writes, payments or an automated processing engine while Layer 1 is still being reviewed.
+Do not add authentication writes or payments while Layer 1 is still being reviewed. Runtime public-game retrieval and position review are part of the corrected Layer 1 because the username flow must work for players beyond the seed set.
 
 ## Architecture to preserve
 
@@ -42,10 +42,21 @@ Do not replace the stack or delete a legacy system merely because it is not yet 
 
 ## Data rules
 
-- Seed the interface from the real completed beta Desks in `src/data/boardsignal.ts`.
+- Seed the interface from the real completed beta Desks in `src/data/boardsignal.ts`, but keep other-player coverage secondary to the current player's journey.
 - Preserve factual caveats: pool separation, opponent context, sample size, historical last-active periods and unavailable rating boundaries.
 - Never invent emotions, motivation, tilt, resilience, causality or engine claims not supported by the source.
 - Public pages consume only each Desk's anonymous `publicStory`. Private/founder views may use the full seed.
+
+## Shell 01 acceptance rule
+
+The first useful flow is `PLAYER → THEIR WEEK → THEIR SIGNALS → THEIR ACTION`.
+
+- The homepage's primary interaction is Chess.com username entry.
+- Do not put membership, payment, account creation or email verification before a beta Desk.
+- Every approved beta username must open its own real seeded Desk. `Ayandakopano` is one complete example, not the app's default player or product centre.
+- A username outside the seed set must confirm the canonical Chess.com profile, retrieve public archives, select the latest completed Monday–Sunday block (or disclose the last-active fallback), build factual statistics, legally reconstruct selected positions and request browser-side Stockfish review.
+- Other-player stories prove the world is alive, but never become the homepage's main subject.
+- A nonexistent or unprocessable username must return an honest error; it must not pretend a Desk exists.
 
 ## Safe change and deployment rules
 

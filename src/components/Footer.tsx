@@ -2,11 +2,10 @@ import Link from "next/link";
 import SignalMark from "@/components/SignalMark";
 
 const footerLinks = [
-  { label: "Universe", href: "/" },
-  { label: "Coverage Feed", href: "/feed" },
+  { label: "Find my Desk", href: "/#find-my-desk" },
+  { label: "Completed example", href: "/player/Ayandakopano" },
   { label: "How it works", href: "/how-it-works" },
-  { label: "Membership", href: "/pricing" },
-  { label: "Player Room", href: "/app" },
+  { label: "Around BoardSignal", href: "/feed" },
   { label: "Founder Newsroom", href: "/admin" },
 ];
 

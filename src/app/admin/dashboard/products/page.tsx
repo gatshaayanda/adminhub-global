@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { collection, deleteDoc, doc, getDocs } from "firebase/firestore";
@@ -60,7 +60,7 @@ function safeCount(value?: string[]) {
   return Array.isArray(value) ? value.length : 0;
 }
 
-export default function AdminProductsPage() {
+function AdminProductsContent() {
   const [items, setItems] = useState<InsuranceProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -432,5 +432,13 @@ export default function AdminProductsPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function AdminProductsPage() {
+  return (
+    <Suspense fallback={<AdminHubLoader />}>
+      <AdminProductsContent />
+    </Suspense>
   );
 }

@@ -1,18 +1,16 @@
-const CACHE_VERSION = "sparkle-legacy-v1";
+const CACHE_VERSION = "boardsignal-v10-shell-v1";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGE_CACHE = `${CACHE_VERSION}-pages`;
 
 const APP_SHELL = [
   "/",
   "/offline",
-  "/claims",
-  "/blog",
-  "/c/short-term",
-  "/c/long-term",
-  "/c/business",
-  "/c/retirement",
-  "/client/login",
-  "/placeholder.png",
+  "/feed",
+  "/how-it-works",
+  "/pricing",
+  "/join",
+  "/connect",
+  "/app",
   "/manifest.webmanifest",
 ];
 

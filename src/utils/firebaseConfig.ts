@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
 import { getAuth, connectAuthEmulator } from 'firebase/auth'
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
-import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics'
+import { type Analytics } from 'firebase/analytics'
 import { getStorage } from 'firebase/storage' // ✅ Import storage
 
 const firebaseConfig = {

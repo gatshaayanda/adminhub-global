@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Montserrat, Inter } from "next/font/google";
+import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 
 import InstallPrompt from "@/components/InstallPrompt";
@@ -7,9 +7,7 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Loader from "@/components/AdminHubLoader";
-import ChatWidget from "@/components/ChatWidget";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
-
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -29,28 +27,17 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Sparkle Legacy Insurance Brokers",
-    template: "%s | Sparkle Legacy Insurance Brokers",
+    default: "BoardSignal — Your personal chess sports desk",
+    template: "%s | BoardSignal",
   },
-  description:
-    "Sparkle Legacy Insurance Brokers offers clear, modern insurance support in Botswana with quote guidance, claims help, and trusted policy assistance.",
-  applicationName: "Sparkle Legacy Insurance Brokers",
-  keywords: [
-    "Sparkle Legacy Insurance Brokers",
-    "Botswana insurance",
-    "insurance brokers Botswana",
-    "insurance quotes Botswana",
-    "claims support Botswana",
-    "short term insurance",
-    "long term insurance",
-    "SME insurance Botswana",
-  ],
+  description: "BoardSignal turns a fixed seven days of your Chess.com games into a factual sports story, a clear signal and a plan you can use.",
+  applicationName: "BoardSignal",
+  keywords: ["chess improvement", "Chess.com analysis", "weekly chess report", "chess insights", "BoardSignal"],
   manifest: "/manifest.webmanifest",
   openGraph: {
-    title: "Sparkle Legacy Insurance Brokers",
-    description:
-      "A modern digital insurance platform for Botswana focused on trust, clarity, quotes, and claims support.",
-    siteName: "Sparkle Legacy Insurance Brokers",
+    title: "BoardSignal — Your games, covered like sport",
+    description: "A personal sports desk for everyday chess players.",
+    siteName: "BoardSignal",
     type: "website",
   },
 };
@@ -58,41 +45,22 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#fcfbf7",
+  themeColor: "#101923",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      data-theme="light"
-      className={`${montserrat.variable} ${inter.variable}`}
-      suppressHydrationWarning
-    >
-      <body
-        suppressHydrationWarning
-        className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans antialiased"
-      >
+    <html lang="en" className={`${montserrat.variable} ${inter.variable}`} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <Loader />
-
         <AnalyticsProvider>
-          <div className="flex min-h-screen flex-col">
-            <div className="sticky top-0 z-40 border-b border-[var(--border)] bg-[rgba(255,253,249,0.88)] backdrop-blur-md">
-              <Header />
-            </div>
-
-            <main className="flex-1">{children}</main>
-
+          <div className="site-frame">
+            <Header />
+            <main className="site-main">{children}</main>
             <Footer />
           </div>
-
           <ServiceWorkerRegister />
           <InstallPrompt />
-          <ChatWidget />
           <Analytics />
           <SpeedInsights />
         </AnalyticsProvider>

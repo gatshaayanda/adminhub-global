@@ -1,23 +1,10 @@
-// src/app/admin/layout.tsx
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import React, { ReactNode } from "react";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Sparkle Legacy Admin",
+export const metadata: Metadata = {
+  title: "Founder Newsroom",
+  robots: { index: false, follow: false },
 };
 
-export default async function AdminLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const store = await cookies();
-  const token = store.get("admin_token")?.value;
-
-  if (!token) {
-    redirect("/login");
-  }
-
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }

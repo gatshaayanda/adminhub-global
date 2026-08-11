@@ -68,6 +68,16 @@ The Blue Signal is advice from this episode. The base workflow is stateless and 
 - `BoardSignal Universe` is the permanent name of the public player-centred sports world. The main navigation label is `Universe`.
 - The Universe grows from approved highlights into featured players, rivalries, rankings, Player of the Week, and later player voting. These features must remain grounded in completed Desk evidence and player sharing choices.
 
+#### Recognition and return loop V1
+
+- Universe achievement titles are deterministic factual comparisons, never generic editorial categories. Rating comparisons remain inside Rapid, Blitz or Bullet; no cross-pool rating table is allowed.
+- The public Universe shows positive Top 3 performances only. Bottom rankings and private Red, Amber, Blue or position evidence are never published.
+- The first comparison source is the approved SEED Desk field. FIXTURE data never enters rankings. A LIVE Desk may join only that player's private comparison until shared persistence and publication consent exist.
+- The field is labelled `FOUNDING BETA FIELD — Based on the approved BoardSignal Desks currently represented.` It must not be described as a real-time global leaderboard.
+- Private standings may show rank, denominator, percentile and sports-media labels only when the comparable sample supports them. A field below three comparable Desks is described as forming rather than awarded a podium label.
+- Between completed Desks, the latest supported Blue may remain as an ungraded `CARRY WITH YOU` reminder and the latest supported Amber may remain as awareness. Red does not nag between episodes. Every new Desk determines its own signals independently.
+- The presentation adapter may prepare `previousBlue`, `amberWatch`, `nextDeskDueAt` and `universeStanding` without adding notifications, email, push delivery, an LLM, or paid infrastructure.
+
 ### 6. Founder control tower
 
 Founder/admin surfaces manage:
@@ -152,4 +162,3 @@ Termination counts, streaks, volume, rating movement, openings, and opponent ban
 - A completed active block creates the next Desk idempotently.
 - A completed zero-game block records no activity and does not republish an older Desk as new.
 - The device-local beta cache retains at most four passing Desks per player. Durable cross-device persistence remains part of the account/persistence layer.
-

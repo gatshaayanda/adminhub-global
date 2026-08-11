@@ -13,9 +13,12 @@ import {
   Sparkles,
 } from "lucide-react";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
+import { PrivateUniverseSections } from "@/components/UniverseRecognition";
 import { findSeedCadence, findSeededDesk } from "@/data/seededDesks";
+import { foundingBetaField } from "@/data/universeField";
 import { applyEngineInterpretation, finalizeEngineResult } from "@/lib/boardsignal/interpretation";
 import { validateDeskForPublication } from "@/lib/boardsignal/quality";
+import { buildDeskReturnLoop, buildPlayerUniverseView } from "@/lib/boardsignal/universe";
 import type {
   BoardSignalDesk,
   DeskApiResponse,
@@ -28,6 +31,43 @@ import type {
 const ENGINE_JS_URL = "/stockfish/stockfish-18-lite-single.js";
 const ENGINE_WASM_URL = "/stockfish/stockfish-18-lite-single.wasm";
 const ENGINE_DEPTH = 11;
+const DESK_CACHE_VERSION = "v1";
+
+function storedDeskKey(username: string) {
+  return `boardsignal:desks:${DESK_CACHE_VERSION}:${username.toLowerCase()}`;
+}
+
+function legacyStoredDeskKey(username: string) {
+  return `boardsignal:desks:${username.toLowerCase()}`;
+}
+
+function readStoredDesks(username: string) {
+  if (typeof window === "undefined") return [];
+  const normalized = username.toLowerCase();
+  const collected = new Map<string, BoardSignalDesk>();
+  const inspect = (raw: string | null) => {
+    if (!raw) return;
+    try {
+      const desks = JSON.parse(raw) as BoardSignalDesk[];
+      for (const item of desks) {
+        if (item.source === "live" && item.player.username.toLowerCase() === normalized) {
+          collected.set(item.episodeKey ?? `${item.period.start}:${item.period.end}`, item);
+        }
+      }
+    } catch {
+      // A malformed convenience cache never changes Desk generation.
+    }
+  };
+  inspect(window.localStorage.getItem(storedDeskKey(username)));
+  inspect(window.localStorage.getItem(legacyStoredDeskKey(username)));
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith("boardsignal:desks:") && key !== storedDeskKey(username) && key !== legacyStoredDeskKey(username)) {
+      inspect(window.localStorage.getItem(key));
+    }
+  }
+  return [...collected.values()].sort((a, b) => b.period.end.localeCompare(a.period.end)).slice(0, 4);
+}
 
 export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }: { requestedUsername: string; mode?: "seed" | "live" }) {
   const seeded = useMemo(() => findSeededDesk(requestedUsername), [requestedUsername]);
@@ -39,6 +79,11 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
   const [engineResults, setEngineResults] = useState<Record<string, DeskEngineResult>>({});
   const [engineDiagnostic, setEngineDiagnostic] = useState<EngineDiagnostic | null>(null);
   const [engineAttempt, setEngineAttempt] = useState(0);
+  const [storedDesks, setStoredDesks] = useState<BoardSignalDesk[]>([]);
+
+  useEffect(() => {
+    if (mode === "live") setStoredDesks(readStoredDesks(requestedUsername));
+  }, [mode, requestedUsername]);
 
   useEffect(() => {
     let active = true;
@@ -394,21 +439,24 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
     if (!interpreted.complete) return;
     const quality = validateDeskForPublication(interpreted.desk, engineResults);
     if (quality.status !== "PASS") return;
-    const playerKey = desk.player.playerId ?? desk.player.username.toLowerCase();
-    const storageKey = `boardsignal:desks:${playerKey}`;
     try {
-      const existing = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]") as BoardSignalDesk[];
+      const existing = readStoredDesks(desk.player.username);
       const next = [interpreted.desk, ...existing.filter((item) => item.episodeKey !== interpreted.desk.episodeKey)]
         .sort((a, b) => b.period.end.localeCompare(a.period.end))
         .slice(0, 4);
-      window.localStorage.setItem(storageKey, JSON.stringify(next));
+      const storageKeys = new Set([
+        storedDeskKey(desk.player.username),
+        ...(desk.player.playerId ? [`boardsignal:desks:${DESK_CACHE_VERSION}:${desk.player.playerId}`] : []),
+      ]);
+      for (const storageKey of storageKeys) window.localStorage.setItem(storageKey, JSON.stringify(next));
+      setStoredDesks(next);
     } catch {
       // Device storage is a convenience cache; a completed Desk remains usable without it.
     }
   }, [desk, engineResults]);
 
   if (loading) return <DeskLoading username={requestedUsername} />;
-  if (noActivity && !desk) return <DeskNoActivity username={requestedUsername} message={noActivity} />;
+  if (noActivity && !desk) return <DeskNoActivity username={requestedUsername} message={noActivity} previousDesk={storedDesks[0]} />;
   if (error || !desk) return <DeskError username={requestedUsername} error={error} />;
 
   const retryAnalysis = () => {
@@ -427,6 +475,7 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
     return <DeskQualityHold username={desk.player.username} codes={quality.codes} diagnostic={engineDiagnostic} onRetry={retryAnalysis} />;
   }
   const hasPositions = shown.candidates.some((candidate) => candidate.fen || candidate.gameUrl);
+  const universeView = shown.source === "live" ? buildPlayerUniverseView(foundingBetaField, shown) : undefined;
 
   return (
     <div id="main" className="universal-desk-page">
@@ -466,6 +515,7 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
           <a href="#pools">Ratings & pools</a>
           <a href="#signals">My signals</a>
           {hasPositions ? <a href="#evidence">My evidence</a> : null}
+          {universeView ? <a href="#standing">My standing</a> : null}
         </nav>
 
         <section className="universal-metrics" aria-label="Desk facts">
@@ -541,6 +591,8 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
 
         {shown.pocketCard ? <section className="universal-section pocket-card"><p className="kicker">Pocket card</p><h2>{shown.pocketCard}</h2></section> : null}
 
+        {universeView ? <PrivateUniverseSections view={universeView} /> : null}
+
         <section className="desk-caveats">
           <ShieldCheck size={20} />
           <div><strong>Evidence notes</strong><ul>{shown.caveats.map((caveat) => <li key={caveat}>{caveat}</li>)}</ul></div>
@@ -574,10 +626,21 @@ function DeskError({ username, error }: { username: string; error: string }) {
   );
 }
 
-function DeskNoActivity({ username, message }: { username: string; message: string }) {
+function DeskNoActivity({ username, message, previousDesk }: { username: string; message: string; previousDesk?: BoardSignalDesk }) {
+  const universeView = previousDesk ? buildPlayerUniverseView(foundingBetaField, previousDesk) : undefined;
+  const returnLoop = previousDesk ? buildDeskReturnLoop(previousDesk, universeView?.standings) : undefined;
+  const dueLabel = returnLoop?.nextDeskDueAt
+    ? new Date(`${returnLoop.nextDeskDueAt}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
+    : undefined;
   return (
     <div id="main" className="desk-processing-page"><section className="container desk-processing-card">
-      <ShieldCheck /><p className="kicker">No new Desk this period</p><h1>{username}</h1><p>{message}</p><p>No populated Desk was invented and no historical seed was substituted for live processing.</p><Link href="/" className="text-link">Return to BoardSignal</Link>
+      <ShieldCheck /><p className="kicker">Between Desks</p><h1>{username}</h1><p>{message}</p><p>No populated Desk was invented and no historical seed was substituted for live processing.</p>
+      {returnLoop ? <div className="return-loop-grid">
+        {returnLoop.previousBlue ? <article className="return-loop-blue"><span>Carry with you</span><h2>{returnLoop.previousBlue.title}</h2><p>{returnLoop.previousBlue.copy}</p><small>From your last Desk · Not graded</small></article> : null}
+        {returnLoop.amberWatch ? <article className="return-loop-amber"><span>Watch</span><h2>{returnLoop.amberWatch.title}</h2><p>{returnLoop.amberWatch.copy}</p><small>Awareness only · From {returnLoop.amberWatch.sourcePeriod}</small></article> : null}
+        <article className="return-loop-next"><span>Your next Desk</span><h2>{dueLabel ?? "After the next fixed period closes"}</h2><p>Your next completed Desk will judge its own evidence independently.</p></article>
+      </div> : <div className="universe-empty"><p>No previous passing LIVE Desk is stored on this device, so BoardSignal has nothing truthful to carry forward.</p></div>}
+      <div className="quality-actions"><Link href="/feed" className="button button-outline">Explore the Universe</Link><Link href="/" className="text-link">Return to BoardSignal</Link></div>
     </section></div>
   );
 }

@@ -129,6 +129,34 @@ export type DeskReplay = {
 
 export type DeskSource = "seed" | "fixture" | "live";
 
+export type DeskCarrySignal = {
+  title: string;
+  copy: string;
+  sourcePeriod: string;
+};
+
+export type DeskUniverseStanding = {
+  categoryId: string;
+  categoryTitle: string;
+  scopeLabel?: string;
+  rank: number;
+  denominator: number;
+  percentile?: number;
+  label?: "PODIUM" | "TOP 10" | "TOP 25%" | "IN THE HUNT";
+  valueLabel: string;
+  nearestAbove?: {
+    player: string;
+    valueLabel: string;
+  };
+};
+
+export type DeskReturnLoop = {
+  previousBlue?: DeskCarrySignal;
+  amberWatch?: DeskCarrySignal;
+  nextDeskDueAt?: string;
+  universeStanding?: DeskUniverseStanding[];
+};
+
 export type ResolvedPlayer = {
   requestedUsername: string;
   username: string;
@@ -237,6 +265,7 @@ export type BoardSignalDesk = {
   };
   candidates: DeskCandidate[];
   caveats: string[];
+  returnLoop?: DeskReturnLoop;
 };
 
 export type DeskApiResponse =

@@ -135,3 +135,20 @@ Membership, account creation, payments, and email claiming belong after the user
 ## Definition of a complete core
 
 The core is complete only when a newly entered non-seeded username can automatically produce a Desk comparable in factual depth, position evidence, narrative specificity, Signal quality, privacy safety, and presentation to the best manually produced beta reports—without moving files or instructions through ChatGPT conversations.
+
+## Binary publication gate
+
+A Desk has only two publication outcomes:
+
+- `PASS`: identity and fixed period are complete; W/D/L totals reconcile; all seven dates are present; rating pools remain separate; every game legally reconstructs; selected positions finish review; Red and Blue are supported by the same evidence; no placeholder, internal, tutorial, or development copy remains.
+- `FAIL`: the Desk is not published. It enters the private exception path with stable failure codes. The product must never turn missing sessions, streaks, ratings, positions, or engine results into zeroes, filler, or a generic diagnosis.
+
+Termination counts, streaks, volume, rating movement, openings, and opponent bands may nominate questions. None of them alone proves a chess weakness. A resignation becomes guidance only when the reviewed final position was still playable; a timeout becomes clock guidance only when the reviewed board retained practical chances; a tactical theme becomes Red only after the engine-supported position evidence clears the configured threshold.
+
+## Cadence and later episodes
+
+- The first Desk fixes a player's cadence anchor.
+- Later episodes advance in exact seven-day blocks from that anchor; they never slide with the visit date.
+- A completed active block creates the next Desk idempotently.
+- A completed zero-game block records no activity and does not republish an older Desk as new.
+- The device-local beta cache retains at most four passing Desks per player. Durable cross-device persistence remains part of the account/persistence layer.

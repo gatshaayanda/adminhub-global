@@ -2,17 +2,45 @@ export type DeskSignal = {
   label: string;
   title: string;
   copy: string;
+  status?: "supported" | "withheld";
+  evidenceIds?: string[];
 };
 
 export type DeskCandidate = {
   id: string;
+  gameId?: string;
   gameUrl: string;
   opponent: string;
   playerColor: "white" | "black";
   result: "win" | "loss" | "draw";
   reason: string;
+  role?: "strength" | "correction";
+  kind?: "player-move" | "resignation" | "timeout" | "final-position";
+  motif?: "forcing-reply" | "queen-safety" | "king-safety" | "material" | "clock" | "resignation" | "general";
+  moveNumber?: number;
+  movePlayed?: string;
+  movePlayedUci?: string;
+  opponentReply?: string;
+  fenBefore?: string;
+  fenAfter?: string;
   fen?: string;
+  heuristicScore?: number;
   reconstruction: "legal" | "unavailable";
+};
+
+export type DeskEngineResult = {
+  id: string;
+  depth: number;
+  status?: "complete" | "failed";
+  failureReason?: string;
+  beforeCp?: number;
+  beforeMate?: number;
+  afterCp?: number;
+  afterMate?: number;
+  bestMove?: string;
+  bestMoveSan?: string;
+  evaluationLossCp?: number;
+  classification?: "major-miss" | "mistake" | "playable-resignation" | "sound-resignation" | "clock-opportunity" | "clock-lost" | "supported";
 };
 
 export type DeskDay = {
@@ -21,20 +49,74 @@ export type DeskDay = {
   wins: number;
   losses: number;
   draws: number;
+  games?: number;
+  primaryPool?: string;
+  firstRecordedRating?: number;
+  lastRecordedRating?: number;
+  ratingChange?: number;
 };
 
 export type DeskPool = {
   pool: string;
   games: number;
   record: string;
+  wins?: number;
+  draws?: number;
+  losses?: number;
   firstRecordedRating?: number;
   lastRecordedRating?: number;
+  change?: number;
   peak?: number;
   low?: number;
 };
 
+export type DeskSession = {
+  id: string;
+  startTime: string;
+  endTime: string;
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+};
+
+export type DeskWeekShape =
+  | "STRONG_UPWARD_WEEK"
+  | "EARLY_SURGE_LATE_SLIDE"
+  | "RECOVERY_WEEK"
+  | "VOLATILE_WEEK"
+  | "CONTROLLED_PROGRESS"
+  | "ROUGH_WEEK_STRONG_FINISH"
+  | "STRONG_START_COLLAPSE"
+  | "FLAT_MIXED_WEEK";
+
+export type DeskReplay = {
+  shape: DeskWeekShape;
+  title: string;
+  narrative: string;
+  start: string;
+  turningPoint?: string;
+  finish: string;
+};
+
+export type DeskSource = "seed" | "fixture" | "live";
+
+export type ResolvedPlayer = {
+  requestedUsername: string;
+  username: string;
+  playerId?: number;
+  avatar?: string;
+  profileUrl?: string;
+};
+
 export type BoardSignalDesk = {
-  source: "seeded" | "live";
+  source: DeskSource;
+  provenance: {
+    verified: boolean;
+    sourceLabel: string;
+    reportId?: string;
+    fixtureId?: string;
+  };
   player: {
     requestedUsername: string;
     username: string;
@@ -49,6 +131,13 @@ export type BoardSignalDesk = {
     isLastActive: boolean;
     latestCompletedLabel: string;
   };
+  episodeKey?: string;
+  cadence?: {
+    anchorStart: string;
+    nextStart: string;
+    nextEnd: string;
+    nextAvailableOn: string;
+  };
   games: number;
   wins: number;
   losses: number;
@@ -56,16 +145,62 @@ export type BoardSignalDesk = {
   score: number;
   headline: string;
   summary: string;
+  replay?: DeskReplay;
   longestWinStreak: number;
   longestLossStreak: number;
-  sessions: number;
-  checkmateWins: number;
-  timeoutLosses: number;
-  resignationLosses: number;
+  sessions: number | null;
+  sessionDetails?: DeskSession[];
+  checkmateWins: number | null;
+  timeoutLosses: number | null;
+  resignationLosses: number | null;
   primaryPool: string;
   days: DeskDay[];
   pools: DeskPool[];
   openings: Array<{ name: string; games: number }>;
+  colorRecords?: {
+    white: { games: number; wins: number; draws: number; losses: number; record: string };
+    black: { games: number; wins: number; draws: number; losses: number; record: string };
+  };
+  gameLength?: {
+    averageMoves: number;
+    medianMoves: number;
+    shortestMoves: number;
+    longestMoves: number;
+  };
+  terminations?: Array<{ type: string; games: number }>;
+  clockEvidence?: { gamesWithClockData: number; totalGames: number };
+  strengths?: {
+    forcingAdvancedPawnGames: number;
+    promotionGames: number;
+    passedPawnConversionGames?: number;
+  };
+  opponentBands?: Array<{
+    pool: string;
+    label: string;
+    games: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    score: number;
+  }>;
+  turningPoint?: {
+    title: string;
+    copy: string;
+  };
+  pocketCard?: string;
+  validation?: {
+    gamesRetrieved?: number;
+    gamesIncluded?: number;
+    gamesExcluded?: number;
+    duplicateGames?: number;
+    malformedGames?: number;
+    gamesReceived: number;
+    gamesReconstructed: number;
+    candidatePositions: number;
+    engineSucceeded?: number;
+    engineFailed?: number;
+    rulesVersion: string;
+  };
   signals: {
     green: DeskSignal;
     amber: DeskSignal;

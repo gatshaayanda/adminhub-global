@@ -59,6 +59,9 @@ The first useful flow is `PLAYER → THEIR WEEK → THEIR SIGNALS → THEIR ACTI
 - A username outside the seed set must confirm the canonical Chess.com profile, retrieve public archives, select the latest completed Monday–Sunday block (or disclose the last-active fallback), build factual statistics, legally reconstruct selected positions and request browser-side Stockfish review.
 - Other-player stories prove the world is alive, but never become the homepage's main subject.
 - A nonexistent or unprocessable username must return an honest error; it must not pretend a Desk exists.
+- Publication is binary. `PASS` shows the complete Desk; `FAIL` shows no diagnosis and records an exception. Never publish fake zeroes, combined rating pools, unreviewed position claims, or generic replacement copy.
+- Termination frequency may select candidates but cannot select Red. Red and Blue must be derived after position review.
+- A known player's next episode is anchored to their first period and advances by exact seven-day blocks. No-activity blocks do not duplicate the previous Desk.
 
 ## Safe change and deployment rules
 

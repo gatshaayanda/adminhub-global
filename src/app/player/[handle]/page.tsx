@@ -6,7 +6,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function PlayerPage({ params }: { params: Promise<{ handle: string }> }) {
+export default async function PlayerPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ handle: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { handle } = await params;
-  return <UniversalPlayerDesk requestedUsername={decodeURIComponent(handle).replace(/^@/, "")} />;
+  const { mode } = await searchParams;
+  return <UniversalPlayerDesk requestedUsername={decodeURIComponent(handle).replace(/^@/, "")} mode={mode === "seed" ? "seed" : "live"} />;
 }

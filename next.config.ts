@@ -46,11 +46,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
-  // Keep this if you still want builds to pass even with TS errors
-  typescript: {
-    ignoreBuildErrors: true,
-  },
 };
 
 export default nextConfig;

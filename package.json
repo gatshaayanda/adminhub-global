@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:core": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/*.test.js"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",

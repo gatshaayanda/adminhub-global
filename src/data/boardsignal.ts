@@ -15,6 +15,8 @@ export type CoverageStory = {
 export type BetaDesk = {
   handle: string;
   period: string;
+  periodStart: string;
+  periodEnd: string;
   games: number;
   record: string;
   score: string;
@@ -35,6 +37,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "bada_billa",
     period: "3–9 Aug 2026",
+    periodStart: "2026-08-03",
+    periodEnd: "2026-08-09",
     games: 8,
     record: "5W · 1D · 2L",
     score: "68.8%",
@@ -57,6 +61,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "Bekzatt1",
     period: "13–19 Apr 2026",
+    periodStart: "2026-04-13",
+    periodEnd: "2026-04-19",
     games: 18,
     record: "13W · 1D · 4L",
     score: "75.0%",
@@ -80,6 +86,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "Kylian_Mbappe_LottinREAL",
     period: "3–9 Aug 2026",
+    periodStart: "2026-08-03",
+    periodEnd: "2026-08-09",
     games: 56,
     record: "23W · 5D · 28L",
     score: "45.5%",
@@ -103,6 +111,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "MrInbetween23",
     period: "3–9 Aug 2026",
+    periodStart: "2026-08-03",
+    periodEnd: "2026-08-09",
     games: 19,
     record: "10W · 1D · 8L",
     score: "55.3%",
@@ -126,6 +136,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "Phonkrum",
     period: "3–9 Aug 2026",
+    periodStart: "2026-08-03",
+    periodEnd: "2026-08-09",
     games: 4,
     record: "1W · 0D · 3L",
     score: "25.0%",
@@ -148,6 +160,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "CaptainRangade",
     period: "3–9 Aug 2026",
+    periodStart: "2026-08-03",
+    periodEnd: "2026-08-09",
     games: 9,
     record: "3W · 1D · 5L",
     score: "38.9%",
@@ -170,6 +184,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "I_pd_I",
     period: "2–8 Aug 2026",
+    periodStart: "2026-08-02",
+    periodEnd: "2026-08-08",
     games: 36,
     record: "18W · 2D · 16L",
     score: "52.8%",
@@ -193,6 +209,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "snoopyissocute",
     period: "2–8 Aug 2026",
+    periodStart: "2026-08-02",
+    periodEnd: "2026-08-08",
     games: 98,
     record: "51W · 4D · 43L",
     score: "54.1%",
@@ -216,6 +234,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "JefsonFS",
     period: "1–7 Aug 2026",
+    periodStart: "2026-08-01",
+    periodEnd: "2026-08-07",
     games: 12,
     record: "6W · 3D · 3L",
     score: "62.5%",
@@ -238,6 +258,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "IIZORGII",
     period: "31 Jul–6 Aug 2026",
+    periodStart: "2026-07-31",
+    periodEnd: "2026-08-06",
     games: 89,
     record: "39W · 3D · 47L",
     score: "45.5%",
@@ -260,6 +282,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "I-Know-KungFu",
     period: "30 Jul–5 Aug 2026",
+    periodStart: "2026-07-30",
+    periodEnd: "2026-08-05",
     games: 24,
     record: "13W · 1D · 10L",
     score: "56.3%",
@@ -282,6 +306,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "harshhmishra",
     period: "30 Jul–5 Aug 2026",
+    periodStart: "2026-07-30",
+    periodEnd: "2026-08-05",
     games: 285,
     record: "145W · 11D · 129L",
     score: "52.8%",
@@ -305,6 +331,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "hxertzzz",
     period: "29 Jul–4 Aug 2026",
+    periodStart: "2026-07-29",
+    periodEnd: "2026-08-04",
     games: 29,
     record: "16W · 1D · 12L",
     score: "56.9%",
@@ -327,6 +355,8 @@ export const betaDesks: BetaDesk[] = [
   {
     handle: "Alexcet8",
     period: "5–11 Jul 2026",
+    periodStart: "2026-07-05",
+    periodEnd: "2026-07-11",
     games: 8,
     record: "2W · 0D · 6L",
     score: "25.0%",

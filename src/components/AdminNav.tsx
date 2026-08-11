@@ -11,3 +11,4 @@ const links = [
 export default function AdminNav() {
   return <nav className="player-nav" aria-label="Founder Newsroom navigation">{links.map((link) => <Link href={link.href} key={link.href}>{link.label}</Link>)}</nav>;
 }
+

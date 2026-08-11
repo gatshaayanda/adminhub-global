@@ -17,3 +17,4 @@ export default function SignalMark({ className = "h-8 w-8" }: SignalMarkProps) {
     </svg>
   );
 }
+

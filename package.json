@@ -3,11 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prepare:stockfish": "node scripts/prepare-stockfish.mjs",
+    "postinstall": "npm run prepare:stockfish",
+    "prebuild": "npm run prepare:stockfish",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:core": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/*.test.js"
+    "test:core": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/*.test.js",
+    "test:stockfish": "node scripts/stockfish-smoke.mjs"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",
@@ -21,7 +25,7 @@
     "next": "^15.5.15",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "stockfish.wasm": "^0.10.0",
+    "stockfish": "18.0.8",
     "uploadthing": "^7.7.4"
   },
   "devDependencies": {

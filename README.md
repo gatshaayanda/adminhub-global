@@ -50,3 +50,4 @@ npm run build
 ```
 
 The baseline architecture includes older routes with lint warnings. The v10 shell compiles, passes TypeScript and completes a production build.
+

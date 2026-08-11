@@ -445,3 +445,4 @@ export const pipeline = betaDesks.map((desk) => ({
   state: desk.status === "last-active" ? "Last-active" : "Ready",
   games: desk.games,
 }));
+

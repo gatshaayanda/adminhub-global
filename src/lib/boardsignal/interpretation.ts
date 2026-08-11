@@ -371,10 +371,15 @@ export function applyEngineInterpretation(
 
   const { red, blue } = redAndBlue(reviewed);
   const replay = buildReplay(desk);
-  const candidates = reviewed
-    .sort((a, b) => Number(b.candidate.role === "strength") - Number(a.candidate.role === "strength") || (b.result.evaluationLossCp ?? 0) - (a.result.evaluationLossCp ?? 0))
-    .slice(0, 8)
-    .map(({ candidate, result }) => ({ ...candidate, reason: evidenceReason(candidate, result) }));
+  const candidates = desk.candidates
+    .map((candidate) => {
+      const result = results[candidate.id];
+      return result && result.status !== "failed"
+        ? { ...candidate, reason: evidenceReason(candidate, result) }
+        : candidate;
+    })
+    .sort((a, b) => Number(b.role === "strength") - Number(a.role === "strength") || (results[b.id]?.evaluationLossCp ?? 0) - (results[a.id]?.evaluationLossCp ?? 0))
+    .slice(0, 8);
   const failed = attempted.length - reviewed.length;
 
   return {
@@ -397,11 +402,11 @@ export function applyEngineInterpretation(
       candidates,
       caveats: [
         ...desk.caveats,
-        ...(failed ? [`Stockfish completed ${reviewed.length} of ${attempted.length} selected position reviews; ${failed} failed and were excluded from every diagnosis.`] : []),
+        ...(failed ? [`Stockfish completed ${reviewed.length} of ${attempted.length} selected position reviews; ${failed} remained visible but were excluded from every diagnosis.`] : []),
       ],
       validation: {
         ...(desk.validation ?? { gamesReceived: desk.games, gamesReconstructed: desk.games, candidatePositions: desk.candidates.length, rulesVersion: RULES_VERSION }),
-        candidatePositions: reviewed.length,
+        candidatePositions: desk.candidates.length,
         engineSucceeded: reviewed.length,
         engineFailed: failed,
         rulesVersion: RULES_VERSION,

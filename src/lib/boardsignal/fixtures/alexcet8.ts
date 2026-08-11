@@ -22,3 +22,4 @@ export const alexcet8Fixture = {
     "Daily sequence, rating movement and game links must remain present.",
   ],
 } satisfies DeskRegressionFixture;
+

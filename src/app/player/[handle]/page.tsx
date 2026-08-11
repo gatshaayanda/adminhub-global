@@ -17,3 +17,4 @@ export default async function PlayerPage({
   const { mode } = await searchParams;
   return <UniversalPlayerDesk requestedUsername={decodeURIComponent(handle).replace(/^@/, "")} mode={mode === "seed" ? "seed" : "live"} />;
 }
+

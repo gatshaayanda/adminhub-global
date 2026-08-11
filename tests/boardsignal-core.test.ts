@@ -96,6 +96,23 @@ test("one reviewed mistake is evidence, not a behavioural Red diagnosis", () => 
   assert.equal(validateDeskForPublication(interpreted.desk, results).status, "PASS");
 });
 
+test("engine failure preserves candidates and reports the engine stage truthfully", () => {
+  const desk = fixture();
+  const results: Record<string, DeskEngineResult> = {
+    P01: { id: "P01", depth: 0, status: "failed", failureCode: "ENGINE_UCI_TIMEOUT", failureReason: "Position analysis did not start in time." },
+    P02: { id: "P02", depth: 0, status: "failed", failureCode: "ENGINE_UCI_TIMEOUT", failureReason: "Position analysis did not start in time." },
+  };
+  const interpreted = applyEngineInterpretation(desk, results);
+  assert.equal(interpreted.complete, true);
+  assert.equal(interpreted.desk.candidates.length, 2);
+  assert.equal(interpreted.desk.validation?.candidatePositions, 2);
+  const report = validateDeskForPublication(interpreted.desk, results);
+  assert.equal(report.status, "FAIL");
+  assert.ok(report.codes.includes("ENGINE_REVIEW_UNAVAILABLE"));
+  assert.ok(report.codes.includes("ENGINE_REVIEW_INCOMPLETE"));
+  assert.ok(!report.codes.includes("POSITION_EVIDENCE_MISSING"));
+});
+
 test("Snoopy-style evidence selects passed-pawn Green, opponent-band Amber, and forcing-reply Red", () => {
   const desk = fixture();
   const expected = snoopyFixture.expected as {

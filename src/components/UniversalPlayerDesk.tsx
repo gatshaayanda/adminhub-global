@@ -16,7 +16,18 @@ import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { findSeedCadence, findSeededDesk } from "@/data/seededDesks";
 import { applyEngineInterpretation, finalizeEngineResult } from "@/lib/boardsignal/interpretation";
 import { validateDeskForPublication } from "@/lib/boardsignal/quality";
-import type { BoardSignalDesk, DeskApiResponse, DeskCandidate, DeskEngineResult } from "@/lib/boardsignal/types";
+import type {
+  BoardSignalDesk,
+  DeskApiResponse,
+  DeskCandidate,
+  DeskEngineResult,
+  EngineDiagnostic,
+  EngineDiagnosticCode,
+} from "@/lib/boardsignal/types";
+
+const ENGINE_JS_URL = "/stockfish/stockfish-18-lite-single.js";
+const ENGINE_WASM_URL = "/stockfish/stockfish-18-lite-single.wasm";
+const ENGINE_DEPTH = 11;
 
 export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }: { requestedUsername: string; mode?: "seed" | "live" }) {
   const seeded = useMemo(() => findSeededDesk(requestedUsername), [requestedUsername]);
@@ -26,6 +37,8 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
   const [loading, setLoading] = useState(mode === "live");
   const [noActivity, setNoActivity] = useState("");
   const [engineResults, setEngineResults] = useState<Record<string, DeskEngineResult>>({});
+  const [engineDiagnostic, setEngineDiagnostic] = useState<EngineDiagnostic | null>(null);
+  const [engineAttempt, setEngineAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -38,6 +51,9 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
     setDesk(null);
     setError("");
     setNoActivity("");
+    setEngineResults({});
+    setEngineDiagnostic(null);
+    setEngineAttempt(0);
     setLoading(true);
     const anchor = cadenceAnchor ? `?anchorStart=${encodeURIComponent(cadenceAnchor)}` : "";
 
@@ -68,26 +84,75 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
   useEffect(() => {
     if (!desk || desk.source !== "live") return;
     const candidates = desk.candidates.filter((candidate) => candidate.fenBefore ?? candidate.fen);
-    if (!candidates.length) {
-      return;
-    }
+    if (!candidates.length) return;
 
-    const failCandidates = (items: DeskCandidate[], reason: string) => {
+    let cancelled = false;
+    let worker: Worker | undefined;
+    let bootTimer: ReturnType<typeof setTimeout> | undefined;
+    let taskTimer: ReturnType<typeof setTimeout> | undefined;
+    let stopTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const userAgentCategory = (): EngineDiagnostic["userAgentCategory"] => {
+      const userAgent = navigator.userAgent;
+      if (/Android/i.test(userAgent)) return "android";
+      if (/iPhone|iPad|iPod/i.test(userAgent)) return "ios";
+      if (/Mobile/i.test(userAgent)) return "mobile";
+      return userAgent ? "desktop" : "unknown";
+    };
+
+    const diagnostic = (
+      code: EngineDiagnosticCode,
+      stage: EngineDiagnostic["stage"],
+      consumerMessage: string,
+      details: Partial<EngineDiagnostic> = {},
+    ): EngineDiagnostic => ({
+      code,
+      stage,
+      consumerMessage,
+      workerSupported: typeof Worker !== "undefined",
+      webAssemblySupported: typeof WebAssembly !== "undefined",
+      crossOriginIsolated: window.crossOriginIsolated,
+      userAgentCategory: userAgentCategory(),
+      attempt: engineAttempt + 1,
+      timestamp: new Date().toISOString(),
+      ...details,
+    });
+
+    const recordDiagnostic = (item: EngineDiagnostic) => {
+      if (cancelled) return;
+      setEngineDiagnostic(item);
+      console.error("[BoardSignal engine]", item);
+    };
+
+    const failCandidates = (items: DeskCandidate[], item: EngineDiagnostic) => {
+      if (cancelled) return;
+      recordDiagnostic(item);
       setEngineResults((values) => {
         const next = { ...values };
         for (const candidate of items) {
-          next[candidate.id] = { id: candidate.id, depth: 0, status: "failed", failureReason: reason };
+          next[candidate.id] = {
+            id: candidate.id,
+            depth: 0,
+            status: "failed",
+            failureReason: item.consumerMessage,
+            failureCode: item.code,
+            diagnostic: item,
+          };
         }
         return next;
       });
     };
 
-    if (!window.crossOriginIsolated || typeof Worker === "undefined") {
-      failCandidates(candidates, "Browser isolation required by the on-device engine was unavailable.");
+    if (typeof Worker === "undefined" || typeof WebAssembly === "undefined") {
+      failCandidates(candidates, diagnostic(
+        "ENGINE_UNSUPPORTED",
+        "capability",
+        "Position analysis is not supported by this browser.",
+        { detail: "A Web Worker and WebAssembly are both required. Cross-origin isolation is not required by the selected engine." },
+      ));
       return;
     }
 
-    const worker = new Worker("/stockfish/engine-worker.js");
     type EngineTask = { candidate: DeskCandidate; phase: "before" | "after"; fen: string };
     const tasks: EngineTask[] = candidates.flatMap((candidate) => {
       const before = candidate.fenBefore ?? candidate.fen;
@@ -101,33 +166,56 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
     let queueIndex = 0;
     let current: EngineTask | undefined;
     let latest: { depth: number; cp?: number; mate?: number; bestMove?: string } | undefined;
-    let taskTimer: ReturnType<typeof setTimeout> | undefined;
-    let stopTimer: ReturnType<typeof setTimeout> | undefined;
     let waitingForStop = false;
+
+    const clearBootTimer = () => {
+      if (bootTimer) clearTimeout(bootTimer);
+      bootTimer = undefined;
+    };
 
     const clearTaskTimer = () => {
       if (taskTimer) clearTimeout(taskTimer);
       taskTimer = undefined;
     };
 
-    const failCurrent = (reason: string) => {
+    const failCurrent = () => {
       if (!current) return;
       clearTaskTimer();
       const failedCandidate = current.candidate;
-      partial.set(failedCandidate.id, { id: failedCandidate.id, depth: latest?.depth ?? 0, status: "failed", failureReason: reason });
+      const item = diagnostic(
+        "ENGINE_POSITION_TIMEOUT",
+        "position",
+        "One selected position exceeded the on-device analysis time limit.",
+        { assetUrl: ENGINE_JS_URL, detail: `Candidate ${failedCandidate.id} did not return bestmove at depth ${ENGINE_DEPTH}.` },
+      );
+      const failedResult: DeskEngineResult = {
+        id: failedCandidate.id,
+        depth: latest?.depth ?? 0,
+        status: "failed",
+        failureReason: item.consumerMessage,
+        failureCode: item.code,
+        diagnostic: item,
+      };
+      recordDiagnostic(item);
+      partial.set(failedCandidate.id, failedResult);
       setEngineResults((values) => ({
         ...values,
-        [failedCandidate.id]: { id: failedCandidate.id, depth: latest?.depth ?? 0, status: "failed", failureReason: reason },
+        [failedCandidate.id]: failedResult,
       }));
       while (queueIndex < tasks.length && tasks[queueIndex].candidate.id === failedCandidate.id) queueIndex += 1;
       current = undefined;
       latest = undefined;
       waitingForStop = true;
-      worker.postMessage("stop");
+      worker?.postMessage("stop");
       stopTimer = setTimeout(() => {
-        worker.terminate();
+        worker?.terminate();
         const remainingIds = new Set(tasks.slice(queueIndex).map((task) => task.candidate.id));
-        failCandidates(candidates.filter((candidate) => remainingIds.has(candidate.id)), "The on-device chess engine could not recover after a timed-out position.");
+        failCandidates(candidates.filter((candidate) => remainingIds.has(candidate.id)), diagnostic(
+          "ENGINE_RUNTIME_ERROR",
+          "runtime",
+          "Position analysis could not recover after a timed-out position.",
+          { assetUrl: ENGINE_JS_URL },
+        ));
       }, 3_000);
     };
 
@@ -136,92 +224,169 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
       current = tasks[queueIndex];
       latest = current ? { depth: 0 } : undefined;
       if (!current) {
-        worker.terminate();
+        worker?.terminate();
         return;
       }
-      worker.postMessage(`position fen ${current.fen}`);
-      worker.postMessage("go depth 14");
-      taskTimer = setTimeout(() => failCurrent("The selected position exceeded the on-device analysis time limit."), 20_000);
+      worker?.postMessage(`position fen ${current.fen}`);
+      worker?.postMessage(`go depth ${ENGINE_DEPTH}`);
+      taskTimer = setTimeout(failCurrent, 20_000);
     };
-
-    const bootTimer = setTimeout(() => {
-      worker.terminate();
-      failCandidates(candidates, "The on-device chess engine did not start in time.");
-    }, 20_000);
 
     const normalized = (raw: number, fen: string, playerColor: DeskCandidate["playerColor"]) => {
       const activeColor = fen.split(" ")[1] === "w" ? "white" : "black";
       return raw * (playerColor === activeColor ? 1 : -1);
     };
 
-    worker.onmessage = (event: MessageEvent<string>) => {
-      const line = String(event.data);
-      if (line.startsWith("bestmove") && waitingForStop) {
-        waitingForStop = false;
-        if (stopTimer) clearTimeout(stopTimer);
-        stopTimer = undefined;
-        beginNext();
-        return;
+    const probeAsset = async (assetUrl: string) => {
+      let response = await fetch(assetUrl, { method: "HEAD", cache: "no-store" });
+      if (response.status === 405) {
+        response = await fetch(assetUrl, { headers: { Range: "bytes=0-0" }, cache: "no-store" });
       }
-      if (line === "boardsignal-engine-ready") {
-        if (bootTimer) clearTimeout(bootTimer);
-        worker.postMessage("uci");
-        return;
-      }
-      if (line === "uciok") {
-        worker.postMessage("setoption name Threads value 1");
-        worker.postMessage("setoption name Hash value 16");
-        worker.postMessage("isready");
-        return;
-      }
-      if (line === "readyok") {
-        beginNext();
-        return;
-      }
-      if (line.startsWith("info ") && current && latest) {
-        const depth = Number(line.match(/\bdepth (\d+)/)?.[1] ?? latest.depth);
-        const cpRaw = line.match(/\bscore cp (-?\d+)/)?.[1];
-        const mateRaw = line.match(/\bscore mate (-?\d+)/)?.[1];
-        latest = {
-          depth,
-          ...(cpRaw ? { cp: normalized(Number(cpRaw), current.fen, current.candidate.playerColor) } : {}),
-          ...(mateRaw ? { mate: normalized(Number(mateRaw), current.fen, current.candidate.playerColor) } : {}),
-        };
-      }
-      if (line.startsWith("bestmove") && current && latest) {
-        clearTaskTimer();
-        const bestMove = line.match(/^bestmove\s+(\S+)/)?.[1];
-        const previous = partial.get(current.candidate.id) ?? { id: current.candidate.id, depth: 0 };
-        const next: DeskEngineResult = current.phase === "before"
-          ? { ...previous, depth: Math.max(previous.depth, latest.depth), beforeCp: latest.cp, beforeMate: latest.mate, bestMove }
-          : { ...previous, depth: Math.max(previous.depth, latest.depth), afterCp: latest.cp, afterMate: latest.mate };
-        partial.set(current.candidate.id, next);
-        const needsAfter = Boolean(current.candidate.fenAfter);
-        if (current.phase === "after" || !needsAfter) {
-          const final = finalizeEngineResult(current.candidate, next);
-          setEngineResults((values) => ({ ...values, [current!.candidate.id]: final }));
-        }
-        queueIndex += 1;
-        beginNext();
-      }
+      return response;
     };
 
-    worker.onerror = () => {
-      clearTaskTimer();
-      if (bootTimer) clearTimeout(bootTimer);
-      if (stopTimer) clearTimeout(stopTimer);
-      worker.terminate();
-      const remainingIds = new Set(tasks.slice(queueIndex).map((task) => task.candidate.id));
-      failCandidates(candidates.filter((candidate) => remainingIds.has(candidate.id)), "The on-device chess engine stopped unexpectedly.");
+    const startEngine = async () => {
+      setEngineDiagnostic(null);
+      try {
+        const [jsResponse, wasmResponse] = await Promise.all([
+          probeAsset(ENGINE_JS_URL),
+          probeAsset(ENGINE_WASM_URL),
+        ]);
+        const failedAsset = !jsResponse.ok ? { url: ENGINE_JS_URL, status: jsResponse.status } : !wasmResponse.ok ? { url: ENGINE_WASM_URL, status: wasmResponse.status } : undefined;
+        if (failedAsset) {
+          failCandidates(candidates, diagnostic(
+            failedAsset.status === 404 ? "ENGINE_ASSET_404" : "ENGINE_RUNTIME_ERROR",
+            "asset",
+            "Position analysis could not load its on-device engine files.",
+            { assetUrl: failedAsset.url, detail: `Asset request returned HTTP ${failedAsset.status}.` },
+          ));
+          return;
+        }
+      } catch (reason) {
+        failCandidates(candidates, diagnostic(
+          "ENGINE_RUNTIME_ERROR",
+          "asset",
+          "Position analysis could not load its on-device engine files.",
+          { assetUrl: ENGINE_JS_URL, detail: reason instanceof Error ? reason.message : String(reason) },
+        ));
+        return;
+      }
+
+      if (cancelled) return;
+      try {
+        worker = new Worker(ENGINE_JS_URL, { name: "boardsignal-stockfish-18-lite" });
+      } catch (reason) {
+        failCandidates(candidates, diagnostic(
+          "ENGINE_WORKER_START_FAILED",
+          "worker",
+          "Position analysis could not start on this device.",
+          { assetUrl: ENGINE_JS_URL, detail: reason instanceof Error ? reason.message : String(reason) },
+        ));
+        return;
+      }
+
+      worker.onmessage = (event: MessageEvent<string>) => {
+        const line = String(event.data);
+        if (line.startsWith("bestmove") && waitingForStop) {
+          waitingForStop = false;
+          if (stopTimer) clearTimeout(stopTimer);
+          stopTimer = undefined;
+          beginNext();
+          return;
+        }
+        if (line === "uciok") {
+          clearBootTimer();
+          worker?.postMessage("setoption name Hash value 16");
+          worker?.postMessage("isready");
+          bootTimer = setTimeout(() => {
+            worker?.terminate();
+            failCandidates(candidates, diagnostic(
+              "ENGINE_UCI_TIMEOUT",
+              "ready",
+              "Position analysis did not become ready in time.",
+              { assetUrl: ENGINE_JS_URL, detail: "The engine returned uciok but not readyok." },
+            ));
+          }, 20_000);
+          return;
+        }
+        if (line === "readyok") {
+          clearBootTimer();
+          beginNext();
+          return;
+        }
+        if (line.startsWith("info ") && current && latest) {
+          const depth = Number(line.match(/\bdepth (\d+)/)?.[1] ?? latest.depth);
+          const cpRaw = line.match(/\bscore cp (-?\d+)/)?.[1];
+          const mateRaw = line.match(/\bscore mate (-?\d+)/)?.[1];
+          latest = {
+            depth,
+            ...(cpRaw ? { cp: normalized(Number(cpRaw), current.fen, current.candidate.playerColor) } : {}),
+            ...(mateRaw ? { mate: normalized(Number(mateRaw), current.fen, current.candidate.playerColor) } : {}),
+          };
+        }
+        if (line.startsWith("bestmove") && current && latest) {
+          clearTaskTimer();
+          const completedTask = current;
+          const completedLatest = latest;
+          const bestMove = line.match(/^bestmove\s+(\S+)/)?.[1];
+          const previous = partial.get(completedTask.candidate.id) ?? { id: completedTask.candidate.id, depth: 0 };
+          const next: DeskEngineResult = completedTask.phase === "before"
+            ? { ...previous, depth: Math.max(previous.depth, completedLatest.depth), beforeCp: completedLatest.cp, beforeMate: completedLatest.mate, bestMove }
+            : { ...previous, depth: Math.max(previous.depth, completedLatest.depth), afterCp: completedLatest.cp, afterMate: completedLatest.mate };
+          partial.set(completedTask.candidate.id, next);
+          const needsAfter = Boolean(completedTask.candidate.fenAfter);
+          if (completedTask.phase === "after" || !needsAfter) {
+            const final = finalizeEngineResult(completedTask.candidate, next);
+            setEngineResults((values) => ({ ...values, [completedTask.candidate.id]: final }));
+          }
+          queueIndex += 1;
+          beginNext();
+        }
+      };
+
+      worker.onerror = (event: ErrorEvent) => {
+        clearBootTimer();
+        clearTaskTimer();
+        if (stopTimer) clearTimeout(stopTimer);
+        worker?.terminate();
+        const looksLikeWasm = /wasm|webassembly/i.test(`${event.message} ${event.filename}`);
+        const item = diagnostic(
+          looksLikeWasm ? "ENGINE_WASM_LOAD_FAILED" : "ENGINE_RUNTIME_ERROR",
+          looksLikeWasm ? "worker" : "runtime",
+          "Position analysis could not complete.",
+          {
+            assetUrl: looksLikeWasm ? ENGINE_WASM_URL : ENGINE_JS_URL,
+            eventMessage: event.message,
+            filename: event.filename,
+            lineno: event.lineno,
+          },
+        );
+        const remainingIds = new Set(tasks.slice(queueIndex).map((task) => task.candidate.id));
+        failCandidates(candidates.filter((candidate) => remainingIds.has(candidate.id)), item);
+      };
+
+      worker.postMessage("uci");
+      bootTimer = setTimeout(() => {
+        worker?.terminate();
+        failCandidates(candidates, diagnostic(
+          "ENGINE_UCI_TIMEOUT",
+          "uci",
+          "Position analysis did not start in time.",
+          { assetUrl: ENGINE_JS_URL, detail: "The engine did not return uciok." },
+        ));
+      }, 20_000);
     };
+
+    void startEngine();
 
     return () => {
+      cancelled = true;
+      clearBootTimer();
       clearTaskTimer();
-      if (bootTimer) clearTimeout(bootTimer);
       if (stopTimer) clearTimeout(stopTimer);
-      worker.terminate();
+      worker?.terminate();
     };
-  }, [desk]);
+  }, [desk, engineAttempt]);
 
   useEffect(() => {
     if (!desk || desk.source !== "live" || typeof window === "undefined") return;
@@ -246,6 +411,12 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
   if (noActivity && !desk) return <DeskNoActivity username={requestedUsername} message={noActivity} />;
   if (error || !desk) return <DeskError username={requestedUsername} error={error} />;
 
+  const retryAnalysis = () => {
+    setEngineResults({});
+    setEngineDiagnostic(null);
+    setEngineAttempt((attempt) => attempt + 1);
+  };
+
   const interpretation = desk.source === "live" ? applyEngineInterpretation(desk, engineResults) : { desk, complete: true, reviewed: desk.candidates.length, total: desk.candidates.length };
   const shown = interpretation.desk;
   if (desk.source === "live" && desk.candidates.length && !interpretation.complete) {
@@ -253,7 +424,7 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
   }
   const quality = validateDeskForPublication(shown, engineResults);
   if (quality.status === "FAIL") {
-    return <DeskQualityHold username={desk.player.username} codes={quality.codes} />;
+    return <DeskQualityHold username={desk.player.username} codes={quality.codes} diagnostic={engineDiagnostic} onRetry={retryAnalysis} />;
   }
   const hasPositions = shown.candidates.some((candidate) => candidate.fen || candidate.gameUrl);
 
@@ -426,13 +597,32 @@ function DeskAnalysisProgress({ username, reviewed, total }: { username: string;
   );
 }
 
-function DeskQualityHold({ username, codes }: { username: string; codes: string[] }) {
+function DeskQualityHold({
+  username,
+  codes,
+  diagnostic,
+  onRetry,
+}: {
+  username: string;
+  codes: string[];
+  diagnostic: EngineDiagnostic | null;
+  onRetry: () => void;
+}) {
   const engineUnavailable = codes.includes("ENGINE_REVIEW_UNAVAILABLE") || codes.includes("ENGINE_REVIEW_INCOMPLETE");
   return (
     <div id="main" className="desk-processing-page"><section className="container desk-processing-card error-card">
       <ShieldCheck /><p className="kicker">We could not finish this Desk</p><h1>{username}</h1><p>{engineUnavailable ? "The on-device position review did not complete, so BoardSignal withheld the Desk instead of publishing unsupported guidance." : "This episode did not clear BoardSignal's evidence checks, so no diagnosis has been published."}</p>
       <div className="processing-stages"><div className="done"><ShieldCheck /><p>Player, games, period and factual week completed</p></div><div className="active"><AlertTriangle /><p>{engineUnavailable ? "Position analysis needs attention" : "Final evidence validation needs attention"}</p></div></div>
-      <p className="quality-reference">Check: {codes.join(" · ")}</p><div className="quality-actions"><button type="button" className="button button-lime" onClick={() => window.location.reload()}>Retry analysis</button><Link href="/" className="text-link">Return to BoardSignal</Link></div>
+      <p className="quality-reference">Check: {codes.join(" · ")}</p>
+      {diagnostic ? <details className="quality-reference" data-engine-code={diagnostic.code}>
+        <summary>Beta engine diagnostics</summary>
+        <p>{diagnostic.code} · {diagnostic.stage} · attempt {diagnostic.attempt}</p>
+        <p>Worker {diagnostic.workerSupported ? "supported" : "unavailable"} · WebAssembly {diagnostic.webAssemblySupported ? "supported" : "unavailable"} · isolation {diagnostic.crossOriginIsolated ? "on" : "off"} · {diagnostic.userAgentCategory}</p>
+        {diagnostic.assetUrl ? <p>Asset: {diagnostic.assetUrl}</p> : null}
+        {diagnostic.detail || diagnostic.eventMessage ? <p>{diagnostic.detail ?? diagnostic.eventMessage}</p> : null}
+        {diagnostic.filename ? <p>{diagnostic.filename}{diagnostic.lineno ? `:${diagnostic.lineno}` : ""}</p> : null}
+      </details> : null}
+      <div className="quality-actions"><button type="button" className="button button-lime" onClick={onRetry}>Retry analysis</button><Link href="/" className="text-link">Return to BoardSignal</Link></div>
     </section></div>
   );
 }

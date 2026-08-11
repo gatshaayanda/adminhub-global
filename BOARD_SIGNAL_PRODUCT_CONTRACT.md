@@ -152,3 +152,4 @@ Termination counts, streaks, volume, rating movement, openings, and opponent ban
 - A completed active block creates the next Desk idempotently.
 - A completed zero-game block records no activity and does not republish an older Desk as new.
 - The device-local beta cache retains at most four passing Desks per player. Durable cross-device persistence remains part of the account/persistence layer.
+

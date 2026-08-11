@@ -27,3 +27,4 @@ export const snoopyFixture = {
     "A passed-pawn Green requires verified repeated position evidence.",
   ],
 } satisfies DeskRegressionFixture;
+

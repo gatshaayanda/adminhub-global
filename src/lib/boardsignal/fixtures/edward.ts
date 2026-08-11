@@ -13,3 +13,4 @@ export const edwardFixture = {
     "Repeated playable engine evaluations are required for resignation guidance.",
   ],
 } satisfies DeskRegressionFixture;
+

@@ -11,3 +11,4 @@ const links = [
 export default function PlayerNav() {
   return <nav className="player-nav" aria-label="Player Room navigation">{links.map((link) => <Link href={link.href} key={link.href}>{link.label}</Link>)}</nav>;
 }
+

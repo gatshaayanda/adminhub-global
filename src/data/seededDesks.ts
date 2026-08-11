@@ -126,3 +126,4 @@ export function findSeededDesk(requestedUsername: string): BoardSignalDesk | und
 
   return undefined;
 }
+

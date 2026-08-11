@@ -28,11 +28,39 @@ export type DeskCandidate = {
   reconstruction: "legal" | "unavailable";
 };
 
+export type EngineDiagnosticCode =
+  | "ENGINE_UNSUPPORTED"
+  | "ENGINE_ASSET_404"
+  | "ENGINE_WORKER_START_FAILED"
+  | "ENGINE_WASM_LOAD_FAILED"
+  | "ENGINE_UCI_TIMEOUT"
+  | "ENGINE_POSITION_TIMEOUT"
+  | "ENGINE_RUNTIME_ERROR";
+
+export type EngineDiagnostic = {
+  code: EngineDiagnosticCode;
+  stage: "capability" | "asset" | "worker" | "uci" | "ready" | "position" | "runtime";
+  consumerMessage: string;
+  detail?: string;
+  assetUrl?: string;
+  eventMessage?: string;
+  filename?: string;
+  lineno?: number;
+  workerSupported: boolean;
+  webAssemblySupported: boolean;
+  crossOriginIsolated: boolean;
+  userAgentCategory: "android" | "ios" | "mobile" | "desktop" | "unknown";
+  attempt: number;
+  timestamp: string;
+};
+
 export type DeskEngineResult = {
   id: string;
   depth: number;
   status?: "complete" | "failed";
   failureReason?: string;
+  failureCode?: EngineDiagnosticCode;
+  diagnostic?: EngineDiagnostic;
   beforeCp?: number;
   beforeMate?: number;
   afterCp?: number;

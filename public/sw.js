@@ -127,3 +127,4 @@ async function pageFirst(request) {
     return caches.match("/offline");
   }
 }
+

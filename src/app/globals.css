@@ -885,6 +885,7 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
 .pipeline-preview-top { padding: 1.35rem; border-bottom: 1px solid rgba(255,255,255,.1); }
 .pipeline-preview-top span { display: block; color: var(--signal-lime); font-size: .66rem; font-weight: 800; text-transform: uppercase; }
 .pipeline-preview-top strong { display: block; margin-top: .25rem; font-size: 1.15rem; }
+.pipeline-preview > p { padding: 1.1rem 1.35rem 0; color: rgba(255,255,255,.8); }
 .pipeline-preview-list { display: grid; padding: .65rem; }
 .pipeline-preview-list > div { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .85rem; align-items: center; padding: 1rem .75rem; border-bottom: 1px solid rgba(255,255,255,.09); }
 .pipeline-preview-list > div:last-child { border-bottom: 0; }
@@ -1139,12 +1140,12 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
 }
 
 /* BoardSignal identity, Player Room memory and current-episode layer */
-.first-value-preview { margin-top: 1rem; padding: 1rem; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); }
+.first-value-preview { margin-top: 1rem; padding: 1rem; border: 1px solid rgba(12,22,36,.2); background: linear-gradient(145deg, var(--ink), #17365f); box-shadow: var(--shadow-sm); }
 .first-value-preview .kicker { color: var(--signal-lime); }
 .first-value-preview > div { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; margin-top: .75rem; }
 .first-value-preview span { display: flex; gap: .45rem; align-items: center; color: white; font-size: .76rem; font-weight: 700; }
 .first-value-preview span svg { flex: 0 0 auto; color: var(--signal-lime); }
-.first-value-preview > p:last-child { margin-top: .8rem; color: rgba(255,255,255,.68); font-size: .72rem; }
+.first-value-preview > p:last-child { margin-top: .8rem; color: rgba(255,255,255,.8); font-size: .72rem; }
 .home-player-room-entry { margin-top: 1.25rem; }
 
 .chesscom-login-panel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: 1.2rem; border: 1px solid var(--ink); background: var(--surface); box-shadow: 5px 5px 0 var(--ink); }

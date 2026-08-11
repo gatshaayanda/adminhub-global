@@ -106,13 +106,39 @@ test("private Player Room remains owner-only and Beta Access records remain serv
   assert.match(rules, /match \/betaAccess\/\{playerId\}[\s\S]*allow read, write: if false/);
 });
 
-test("Founder Beta Access management API is covered by existing Basic Auth middleware", () => {
+test("Founder Beta Access management API relies on the existing Basic Auth middleware without double-auth", () => {
   const middleware = readFileSync("middleware.ts", "utf8");
   const api = readFileSync("src/app/api/admin/boardsignal/beta-access/route.ts", "utf8");
   assert.match(middleware, /startsWith\('\/api\/admin\/boardsignal\/'\)/);
   assert.match(middleware, /'\/api\/admin\/boardsignal\/:path\*'/);
   assert.match(middleware, /Basic realm="Admin Area"/);
-  assert.match(api, /requireFounderBasicAuth\(request\)/);
+  assert.doesNotMatch(api, /requireFounderBasicAuth/);
+  assert.match(api, /listFounderPlayerIdentities\(\)/);
+  assert.match(api, /createFoundingBetaAccess\(body\.username\)/);
+  assert.match(api, /resetFoundingBetaAccess\(body\.playerId\)/);
+  assert.match(api, /revokeFoundingBetaAccess\(body\.playerId\)/);
+  assert.match(api, /accessCode: result\.accessCode/);
+  assert.match(api, /errorStatus\(error\)/);
+});
+
+test("Founder middleware rejects unauthenticated Beta Access requests and permits valid Founder auth", async () => {
+  process.env.ADMIN_PASSWORD = "focused-founder-test-secret";
+  const { middleware } = await import("../middleware");
+  const request = (authorization?: string) => ({
+    nextUrl: { pathname: "/api/admin/boardsignal/beta-access" },
+    headers: new Headers(authorization ? { authorization } : undefined),
+  }) as Parameters<typeof middleware>[0];
+
+  const unauthenticated = middleware(request());
+  assert.equal(unauthenticated.status, 401);
+  assert.equal(unauthenticated.headers.get("www-authenticate"), 'Basic realm="Admin Area"');
+
+  const rejected = middleware(request(`Basic ${Buffer.from("founder:wrong-secret").toString("base64")}`));
+  assert.equal(rejected.status, 403);
+
+  const authenticated = middleware(request(`Basic ${Buffer.from("founder:focused-founder-test-secret").toString("base64")}`));
+  assert.equal(authenticated.status, 200);
+  assert.equal(authenticated.headers.get("x-middleware-next"), "1");
 });
 
 test("Beta Access adds no Google, email-password, magic-link, URL-code, or credential logging flow", () => {

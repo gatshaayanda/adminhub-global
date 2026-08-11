@@ -11,6 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "test:core": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/*.test.js",
+    "test:identity": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/boardsignal-identity-memory.test.js",
+    "test:beta-access": "tsc -p tsconfig.tests.json && node --test .test-dist/tests/boardsignal-beta-access.test.js",
     "test:stockfish": "node scripts/stockfish-smoke.mjs"
   },
   "dependencies": {

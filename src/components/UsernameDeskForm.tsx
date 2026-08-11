@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ExternalLink, LoaderCircle, Search, ShieldCheck } from "lucide-react";
 import type { ResolvedPlayer } from "@/lib/boardsignal/types";
@@ -45,7 +46,7 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
 
   function confirmPlayer() {
     if (!resolved) return;
-    router.push(`/player/${encodeURIComponent(resolved.username)}`);
+    router.push(`/boardsignal/build/${encodeURIComponent(resolved.username)}`);
   }
 
   function resetPlayer() {
@@ -81,7 +82,7 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
       {resolved ? <section className="resolved-player-card" aria-live="polite">
         <p className="kicker">Is this you?</p>
         <div className="resolved-player-identity">
-          {resolved.avatar ? <img src={resolved.avatar} alt="" /> : <span aria-hidden="true">{resolved.username.slice(0, 2).toUpperCase()}</span>}
+          {resolved.avatar ? <Image src={resolved.avatar} alt="" width={44} height={44} unoptimized /> : <span aria-hidden="true">{resolved.username.slice(0, 2).toUpperCase()}</span>}
           <div><strong>{resolved.username}</strong><small>Canonical Chess.com account</small></div>
           {resolved.profileUrl ? <a href={resolved.profileUrl} target="_blank" rel="noreferrer" aria-label={`Open ${resolved.username} on Chess.com`}><ExternalLink size={17} /></a> : null}
         </div>
@@ -93,4 +94,3 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
     </div>
   );
 }
-

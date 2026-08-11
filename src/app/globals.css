@@ -1137,3 +1137,185 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
   .return-loop-grid { grid-template-columns: 1fr; }
   .return-loop-next { grid-column: auto; }
 }
+
+/* BoardSignal identity, Player Room memory and current-episode layer */
+.first-value-preview { margin-top: 1rem; padding: 1rem; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); }
+.first-value-preview .kicker { color: var(--signal-lime); }
+.first-value-preview > div { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; margin-top: .75rem; }
+.first-value-preview span { display: flex; gap: .45rem; align-items: center; color: white; font-size: .76rem; font-weight: 700; }
+.first-value-preview span svg { flex: 0 0 auto; color: var(--signal-lime); }
+.first-value-preview > p:last-child { margin-top: .8rem; color: rgba(255,255,255,.68); font-size: .72rem; }
+.home-player-room-entry { margin-top: 1.25rem; }
+
+.chesscom-login-panel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: 1.2rem; border: 1px solid var(--ink); background: var(--surface); box-shadow: 5px 5px 0 var(--ink); }
+.chesscom-login-panel.is-compact { box-shadow: none; }
+.chesscom-login-icon { display: grid; width: 48px; height: 48px; place-items: center; background: var(--ink); color: var(--signal-lime); }
+.chesscom-login-copy > span { color: var(--signal-blue); font-size: .64rem; font-weight: 800; letter-spacing: .08em; }
+.chesscom-login-copy h2 { margin-top: .25rem; font-size: clamp(1.25rem, 2.7vw, 2rem); }
+.chesscom-login-copy p { margin-top: .35rem; max-width: 66ch; font-size: .75rem; }
+.chesscom-login-copy small { display: flex; gap: .35rem; align-items: center; margin-top: .45rem; color: var(--text-muted); font-size: .66rem; }
+.chesscom-login-actions { display: grid; gap: .75rem; justify-items: stretch; min-width: min(370px, 100%); }
+.chesscom-login-actions .button { width: 100%; }
+.beta-access-form { display: grid; gap: .55rem; padding: 1rem; border: 1px solid var(--ink); background: #f5f7fa; }
+.beta-access-heading { display: flex; gap: .65rem; align-items: flex-start; margin-bottom: .25rem; }
+.beta-access-heading > svg { flex: 0 0 auto; color: var(--signal-blue); }
+.beta-access-heading span, .beta-access-form label { display: block; color: var(--signal-blue-dark); font-size: .62rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.beta-access-heading strong { display: block; margin-top: .2rem; color: var(--ink); font-size: .8rem; }
+.beta-access-form input { width: 100%; min-height: 44px; padding: .7rem .75rem; border: 1px solid var(--ink); border-radius: 0; background: white; color: var(--ink); }
+.beta-access-form input:focus { outline: 3px solid color-mix(in srgb, var(--signal-blue) 22%, transparent); }
+.beta-access-form .button { margin-top: .25rem; }
+.beta-access-safety { display: flex; gap: .4rem; align-items: flex-start; color: var(--text-muted); font-size: .64rem; line-height: 1.45; }
+.beta-access-safety svg { flex: 0 0 auto; margin-top: .08rem; }
+.player-room-entry { padding-block: clamp(3rem, 7vw, 6rem); }
+.player-room-entry > h1 { max-width: 16ch; margin-top: .5rem; font-size: clamp(2.7rem, 7vw, 6rem); }
+.player-room-entry > .chesscom-login-panel { margin-top: 2rem; }
+.oauth-pending-divider { display: flex; align-items: center; gap: 1rem; margin: 2rem 0; color: var(--text-muted); font-size: .68rem; font-weight: 800; text-transform: uppercase; }
+.oauth-pending-divider::before, .oauth-pending-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+.beta-agreement-page { padding-block: 3rem 6rem; }
+.beta-agreement-card { width: min(100%, 820px); margin: auto; padding: clamp(1.3rem, 4vw, 2.5rem); border: 1px solid var(--ink); background: var(--surface); box-shadow: 8px 8px 0 var(--ink); }
+.agreement-mark { display: grid; width: 56px; height: 56px; place-items: center; margin-bottom: 1rem; background: var(--signal-lime); }
+.beta-agreement-card h1 { max-width: 12ch; margin-top: .5rem; font-size: clamp(2.4rem, 6vw, 5rem); }
+.agreement-deck { margin-top: 1rem; max-width: 62ch; }
+.beta-agreement-card ul { display: grid; gap: .65rem; margin: 1.5rem 0; padding-left: 1.25rem; color: var(--text-secondary); font-size: .86rem; }
+.agreement-links { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .76rem; font-weight: 800; color: var(--signal-blue-dark); }
+.agreement-check { display: flex; gap: .7rem; align-items: flex-start; margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--border); background: #f4f6f9; font-size: .82rem; font-weight: 700; }
+.agreement-check input { width: 18px; height: 18px; accent-color: var(--signal-blue); }
+
+.player-room-authenticated { padding-top: 1rem; }
+.player-room-identity { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: 1rem; border: 1px solid var(--ink); background: var(--surface); }
+.player-room-identity > div:nth-child(2) > span { color: var(--signal-blue); font-size: .64rem; font-weight: 800; letter-spacing: .08em; }
+.player-room-identity h1 { margin-top: .12rem; font-size: clamp(1.8rem, 4vw, 3.3rem); overflow-wrap: anywhere; }
+.player-room-identity p { font-size: .72rem; }
+.player-room-memory { padding-block: 1rem 0; }
+.current-episode-card, .my-progress-section { padding: clamp(1.1rem, 3vw, 2rem); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-sm); }
+.current-episode-card { border-top: 5px solid var(--signal-blue); }
+.current-episode-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.current-episode-heading h2 { margin-top: .25rem; font-size: clamp(2.2rem, 5vw, 4rem); }
+.current-episode-heading > strong { padding: .65rem .8rem; background: var(--ink); color: var(--signal-lime); font-size: .76rem; text-transform: uppercase; }
+.current-episode-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .7rem; margin-top: 1.25rem; }
+.current-episode-stats > div, .forming-pools article { padding: 1rem; border: 1px solid var(--border); background: #f5f7fa; }
+.current-episode-stats span, .forming-pools span { display: block; color: var(--text-muted); font-size: .62rem; font-weight: 800; text-transform: uppercase; }
+.current-episode-stats strong, .forming-pools strong { display: block; margin-top: .35rem; font-size: 1rem; }
+.forming-pools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; margin-top: .7rem; }
+.forming-pools p { margin-top: .35rem; font-size: .72rem; }
+.forming-note { display: flex; gap: .45rem; align-items: center; margin-top: 1rem; color: var(--text-muted); font-size: .68rem; }
+.current-episode-card .return-loop-grid h3 { margin-top: 1rem; font-size: 1.25rem; }
+
+.my-progress-section { margin-top: 1rem; }
+.desk-sequence { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; margin-top: 1.25rem; }
+.desk-sequence article { padding: 1rem; border-top: 4px solid var(--signal-blue); background: #f3f5fa; }
+.desk-sequence span { color: var(--signal-blue); font-size: .62rem; font-weight: 800; }
+.desk-sequence strong { display: block; margin-top: .65rem; font-size: .82rem; }
+.desk-sequence p { margin-top: .25rem; font-size: .68rem; }
+.pool-progress { margin-top: 1rem; padding: 1rem; border: 1px solid var(--border); }
+.pool-progress h3 { font-size: 1.2rem; text-transform: capitalize; }
+.pool-progress > div, .cross-desk-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin-top: .7rem; }
+.pool-progress article, .cross-desk-metrics article { padding: .85rem; background: #f5f7fa; }
+.pool-progress span, .cross-desk-metrics span, .personal-record-strip span { display: block; color: var(--text-muted); font-size: .62rem; font-weight: 800; text-transform: uppercase; }
+.pool-progress strong, .cross-desk-metrics strong { display: block; margin-top: .35rem; font-size: .86rem; overflow-wrap: anywhere; }
+.personal-record-strip { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; padding: 1rem; background: var(--ink); color: white; }
+.personal-record-strip svg { color: var(--signal-lime); }
+.personal-record-strip div:last-child { margin-left: auto; }
+.personal-record-strip strong { color: white; }
+.recurring-patterns { display: grid; gap: .55rem; margin-top: 1.25rem; }
+.recurring-patterns article { display: flex; gap: .65rem; align-items: flex-start; padding: .85rem; border-left: 4px solid var(--signal-blue); background: #eef1ff; }
+.recurring-patterns strong { text-transform: capitalize; }
+.recurring-patterns p { margin-top: .2rem; font-size: .74rem; }
+
+.room-preferences { margin: 1rem 0 2rem; padding: 1rem; border: 1px solid var(--border); background: var(--surface); }
+.room-preferences summary { cursor: pointer; color: var(--ink); font-size: .82rem; font-weight: 800; }
+.room-preferences details[open] summary { margin-bottom: 1rem; }
+.preference-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.preference-grid > div { display: grid; gap: .6rem; align-content: start; padding: 1rem; background: #f5f7fa; }
+.preference-grid h3 { font-size: 1rem; }
+.preference-grid label { display: flex; gap: .55rem; align-items: flex-start; font-size: .76rem; font-weight: 700; }
+.preference-grid input { width: 17px; height: 17px; flex: 0 0 auto; accent-color: var(--signal-blue); }
+.preference-grid p { color: var(--text-muted); font-size: .67rem; }
+.room-preferences .helper-copy { margin-top: .65rem; }
+
+.founder-access-create { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 2rem; margin-top: 1rem; padding: clamp(1.4rem, 4vw, 2.5rem); border: 1px solid var(--ink); background: var(--signal-lime); box-shadow: 7px 7px 0 var(--ink); }
+.founder-access-create h2 { max-width: 16ch; margin-top: .45rem; font-family: var(--font-serif); font-size: clamp(2rem, 4vw, 3.5rem); }
+.founder-access-create > div:first-child > p:last-child { max-width: 62ch; margin-top: .8rem; }
+.founder-access-form { display: grid; gap: .55rem; align-content: center; padding: 1rem; border: 1px solid var(--ink); background: var(--surface); }
+.founder-access-form label { font-size: .67rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.founder-access-form input { width: 100%; min-height: 48px; padding: .75rem; border: 1px solid var(--ink); background: var(--paper); }
+.one-time-access-code { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1rem; margin-top: 1.25rem; padding: 1.25rem; border: 2px solid var(--ink); background: var(--ink); color: white; }
+.one-time-access-code > svg, .one-time-access-code .kicker { color: var(--signal-lime); }
+.one-time-access-code h3 { margin-top: .25rem; color: white; }
+.one-time-access-code p:not(.kicker) { margin-top: .35rem; color: rgba(255,255,255,.72); font-size: .76rem; }
+.one-time-access-code code { display: block; width: fit-content; max-width: 100%; margin: .8rem 0; padding: .75rem; background: white; color: var(--ink); font-size: clamp(.72rem, 2vw, .95rem); overflow-wrap: anywhere; user-select: all; }
+.one-time-access-code .button { width: fit-content; }
+.one-time-code-close { position: absolute; right: .7rem; top: .7rem; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid rgba(255,255,255,.35); background: transparent; color: white; }
+.founder-access-error { margin-top: 1rem; padding: 1rem; border: 1px solid var(--danger); background: #ffe3de; color: var(--danger); font-size: .8rem; font-weight: 700; }
+.founder-directory-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.founder-directory-heading h2 { margin-top: .35rem; }
+.founder-directory-heading p:last-child { margin-top: .5rem; }
+.founder-directory-loading { display: flex; gap: .6rem; align-items: center; margin-top: 1rem; padding: 1rem; border: 1px dashed var(--border-strong); }
+.founder-player-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin-top: 1.25rem; }
+.founder-player-card { min-width: 0; padding: 1rem; border: 1px solid var(--ink); background: #f7f8fb; }
+.founder-player-card > header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .7rem; align-items: center; }
+.founder-player-card h3 { overflow-wrap: anywhere; }
+.founder-player-card header code { display: block; margin-top: .25rem; color: var(--text-muted); font-size: .65rem; }
+.founder-player-card dl { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin: 1rem 0; }
+.founder-player-card dl > div { padding: .7rem; border: 1px solid var(--border); background: white; }
+.founder-player-card dt { color: var(--text-muted); font-size: .59rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.founder-player-card dd { margin: .25rem 0 0; color: var(--ink); font-size: .72rem; font-weight: 700; overflow-wrap: anywhere; }
+.founder-player-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.founder-player-actions .button { min-height: 40px; padding: .6rem .7rem; font-size: .68rem; }
+
+.public-player-page { padding-block: 2rem 6rem; }
+.public-player-identity { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid var(--ink); }
+.public-player-identity img { width: 68px; height: 68px; object-fit: cover; }
+.public-player-identity span { color: var(--signal-blue); font-size: .63rem; font-weight: 800; letter-spacing: .08em; }
+.public-player-identity h1 { margin-top: .15rem; font-size: clamp(2.2rem, 6vw, 5.5rem); overflow-wrap: anywhere; }
+.public-safety { display: flex; gap: .4rem; align-items: center; font-size: .7rem; font-weight: 800; }
+.public-coverage-lead { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 1rem; margin-top: 1rem; padding: clamp(1.2rem, 4vw, 2.5rem); border: 1px solid var(--ink); background: var(--surface); }
+.public-coverage-lead h2 { max-width: 18ch; margin-top: .5rem; font-size: clamp(2.2rem, 5vw, 4.6rem); }
+.public-coverage-lead > div:last-child { display: flex; flex-direction: column; justify-content: flex-end; padding: 1.2rem; background: var(--ink); color: white; }
+.public-coverage-lead > div:last-child strong { color: var(--signal-lime); font-size: 2.6rem; }
+.public-coverage-lead > div:last-child span, .public-coverage-lead > div:last-child small { color: rgba(255,255,255,.7); }
+.public-coverage-empty { margin-top: 1rem; padding: 2rem; border: 1px dashed var(--border-strong); }
+.public-coverage-empty h2 { max-width: 20ch; margin-top: .5rem; font-size: clamp(1.8rem, 4vw, 3.5rem); }
+.public-podium-section { margin-top: 2rem; }
+.public-podium-section > h2 { margin-top: .4rem; font-size: clamp(2rem, 4vw, 3.5rem); }
+.public-podium-section > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; margin-top: 1rem; }
+.public-podium-section article { padding: 1rem; border-top: 4px solid var(--signal-blue); background: var(--surface); }
+.public-podium-section article span { display: block; margin-top: .8rem; color: var(--signal-blue); font-size: .66rem; font-weight: 800; text-transform: uppercase; }
+.public-podium-section article strong { display: block; margin-top: .4rem; font-size: 1.3rem; }
+.public-podium-section article p { margin-top: .4rem; font-size: .72rem; }
+.public-private-boundary { display: flex; gap: .7rem; align-items: flex-start; margin: 2rem 0 1rem; padding: 1rem; border: 1px solid var(--border); }
+
+.boardsignal-policy-page { padding-block: 2rem 6rem; }
+.boardsignal-policy-page header { margin-top: 2rem; padding: clamp(1.2rem, 4vw, 2.5rem); background: var(--ink); color: white; }
+.boardsignal-policy-page header svg, .boardsignal-policy-page header .kicker { color: var(--signal-lime); }
+.boardsignal-policy-page header h1 { max-width: 15ch; margin-top: .6rem; color: white; font-size: clamp(2.5rem, 6vw, 5rem); }
+.boardsignal-policy-page header p:last-child { margin-top: .7rem; color: rgba(255,255,255,.65); }
+.boardsignal-policy-page > section { width: min(100%, 820px); padding: 2rem 0; }
+.boardsignal-policy-page section h2 { margin-top: 1.6rem; font-size: 1.5rem; }
+.boardsignal-policy-page section p { margin-top: .5rem; }
+
+@media (max-width: 900px) {
+  .chesscom-login-panel { grid-template-columns: auto minmax(0, 1fr); }
+  .chesscom-login-actions { grid-column: 1 / -1; min-width: 0; }
+  .current-episode-stats, .desk-sequence { grid-template-columns: 1fr 1fr; }
+  .forming-pools, .public-podium-section > div { grid-template-columns: 1fr; }
+  .public-coverage-lead { grid-template-columns: 1fr; }
+  .founder-access-create, .founder-player-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .first-value-preview > div { grid-template-columns: 1fr; }
+  .player-room-identity, .public-player-identity { grid-template-columns: auto minmax(0, 1fr); }
+  .player-room-identity .button, .public-safety { grid-column: 1 / -1; width: fit-content; }
+  .current-episode-heading { display: grid; }
+  .current-episode-heading > strong { width: fit-content; }
+  .current-episode-stats, .desk-sequence, .pool-progress > div, .cross-desk-metrics { grid-template-columns: 1fr; }
+  .preference-grid { grid-template-columns: 1fr; }
+  .personal-record-strip { align-items: flex-start; flex-wrap: wrap; }
+  .personal-record-strip div:last-child { margin-left: 0; }
+  .founder-directory-heading { flex-direction: column; }
+  .founder-player-card > header { grid-template-columns: auto minmax(0, 1fr); }
+  .founder-player-card > header .state-pill { grid-column: 1 / -1; }
+  .founder-player-card dl { grid-template-columns: 1fr; }
+}

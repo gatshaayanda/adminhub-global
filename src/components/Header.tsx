@@ -9,6 +9,7 @@ import SignalMark from "@/components/SignalMark";
 const primaryNav = [
   { label: "Home", href: "/" },
   { label: "Universe", href: "/feed" },
+  { label: "My Player Room", href: "/boardsignal/player-room" },
 ];
 
 export default function Header() {
@@ -22,7 +23,7 @@ export default function Header() {
   const active = (href: string) =>
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
 
-  const insideDesk = pathname?.startsWith("/player/");
+  const insideDesk = pathname?.startsWith("/boardsignal/build/") || pathname?.startsWith("/boardsignal/player-room");
 
   return (
     <header className="site-header">
@@ -46,8 +47,8 @@ export default function Header() {
         </nav>
 
         <div className="header-actions">
-          <Link href={insideDesk ? pathname : "/#find-my-desk"} className="button button-dark header-join">
-            {insideDesk ? "My Desk" : "Find my Desk"}
+          <Link href={insideDesk ? "/boardsignal/player-room" : "/#find-my-desk"} className="button button-dark header-join">
+            {insideDesk ? "My Player Room" : "Find my Desk"}
           </Link>
           <button
             type="button"
@@ -68,12 +69,11 @@ export default function Header() {
               {item.label}
             </Link>
           ))}
-          <Link href={insideDesk ? pathname : "/#find-my-desk"} className="button button-lime">
-            {insideDesk ? "My Desk" : "Find my Desk"}
+          <Link href={insideDesk ? "/boardsignal/player-room" : "/#find-my-desk"} className="button button-lime">
+            {insideDesk ? "My Player Room" : "Find my Desk"}
           </Link>
         </nav>
       ) : null}
     </header>
   );
 }
-

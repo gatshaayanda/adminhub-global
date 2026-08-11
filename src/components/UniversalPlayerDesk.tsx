@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -32,6 +32,7 @@ const ENGINE_JS_URL = "/stockfish/stockfish-18-lite-single.js";
 const ENGINE_WASM_URL = "/stockfish/stockfish-18-lite-single.wasm";
 const ENGINE_DEPTH = 11;
 const DESK_CACHE_VERSION = "v1";
+const EMPTY_ENGINE_RESULTS: Record<string, DeskEngineResult> = {};
 
 function storedDeskKey(username: string) {
   return `boardsignal:desks:${DESK_CACHE_VERSION}:${username.toLowerCase()}`;
@@ -69,24 +70,51 @@ function readStoredDesks(username: string) {
   return [...collected.values()].sort((a, b) => b.period.end.localeCompare(a.period.end)).slice(0, 4);
 }
 
-export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }: { requestedUsername: string; mode?: "seed" | "live" }) {
+type UniversalPlayerDeskProps = {
+  requestedUsername: string;
+  mode?: "seed" | "live";
+  ownerToken?: string;
+  onDeskPublished?: (desk: BoardSignalDesk, engineResults: Record<string, DeskEngineResult>) => Promise<void>;
+  publishedDesk?: BoardSignalDesk;
+  publishedEngineResults?: Record<string, DeskEngineResult>;
+};
+
+export default function UniversalPlayerDesk({
+  requestedUsername,
+  mode = "live",
+  ownerToken,
+  onDeskPublished,
+  publishedDesk,
+  publishedEngineResults = EMPTY_ENGINE_RESULTS,
+}: UniversalPlayerDeskProps) {
+  const isPublishedView = Boolean(publishedDesk);
   const seeded = useMemo(() => findSeededDesk(requestedUsername), [requestedUsername]);
   const cadenceAnchor = useMemo(() => findSeedCadence(requestedUsername), [requestedUsername]);
-  const [desk, setDesk] = useState<BoardSignalDesk | null>(mode === "seed" ? seeded ?? null : null);
+  const [desk, setDesk] = useState<BoardSignalDesk | null>(publishedDesk ?? (mode === "seed" ? seeded ?? null : null));
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(mode === "live");
+  const [loading, setLoading] = useState(mode === "live" && !isPublishedView);
   const [noActivity, setNoActivity] = useState("");
-  const [engineResults, setEngineResults] = useState<Record<string, DeskEngineResult>>({});
+  const [engineResults, setEngineResults] = useState<Record<string, DeskEngineResult>>(publishedEngineResults);
   const [engineDiagnostic, setEngineDiagnostic] = useState<EngineDiagnostic | null>(null);
   const [engineAttempt, setEngineAttempt] = useState(0);
   const [storedDesks, setStoredDesks] = useState<BoardSignalDesk[]>([]);
+  const [persistenceError, setPersistenceError] = useState("");
+  const persistenceAttempts = useRef(new Set<string>());
 
   useEffect(() => {
-    if (mode === "live") setStoredDesks(readStoredDesks(requestedUsername));
-  }, [mode, requestedUsername]);
+    if (mode === "live" && !isPublishedView) setStoredDesks(readStoredDesks(requestedUsername));
+  }, [mode, requestedUsername, isPublishedView]);
 
   useEffect(() => {
     let active = true;
+    if (publishedDesk) {
+      setDesk(publishedDesk);
+      setEngineResults(publishedEngineResults);
+      setError("");
+      setNoActivity("");
+      setLoading(false);
+      return () => { active = false; };
+    }
     if (mode === "seed") {
       setDesk(seeded ?? null);
       setError(seeded ? "" : "A full approved historical Desk has not been loaded for this player yet.");
@@ -124,10 +152,10 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
     return () => {
       active = false;
     };
-  }, [requestedUsername, mode, seeded, cadenceAnchor]);
+  }, [requestedUsername, mode, seeded, cadenceAnchor, publishedDesk, publishedEngineResults]);
 
   useEffect(() => {
-    if (!desk || desk.source !== "live") return;
+    if (!desk || desk.source !== "live" || isPublishedView) return;
     const candidates = desk.candidates.filter((candidate) => candidate.fenBefore ?? candidate.fen);
     if (!candidates.length) return;
 
@@ -431,10 +459,10 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
       if (stopTimer) clearTimeout(stopTimer);
       worker?.terminate();
     };
-  }, [desk, engineAttempt]);
+  }, [desk, engineAttempt, isPublishedView]);
 
   useEffect(() => {
-    if (!desk || desk.source !== "live" || typeof window === "undefined") return;
+    if (!desk || desk.source !== "live" || isPublishedView || typeof window === "undefined") return;
     const interpreted = applyEngineInterpretation(desk, engineResults);
     if (!interpreted.complete) return;
     const quality = validateDeskForPublication(interpreted.desk, engineResults);
@@ -450,10 +478,19 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
       ]);
       for (const storageKey of storageKeys) window.localStorage.setItem(storageKey, JSON.stringify(next));
       setStoredDesks(next);
+      const deskKey = interpreted.desk.episodeKey ?? `${interpreted.desk.period.start}:${interpreted.desk.period.end}`;
+      if (ownerToken && onDeskPublished && !persistenceAttempts.current.has(deskKey)) {
+        persistenceAttempts.current.add(deskKey);
+        setPersistenceError("");
+        void onDeskPublished(interpreted.desk, engineResults).catch((reason) => {
+          persistenceAttempts.current.delete(deskKey);
+          setPersistenceError(reason instanceof Error ? reason.message : "The completed Desk could not be saved to your Player Room.");
+        });
+      }
     } catch {
       // Device storage is a convenience cache; a completed Desk remains usable without it.
     }
-  }, [desk, engineResults]);
+  }, [desk, engineResults, isPublishedView, onDeskPublished, ownerToken]);
 
   if (loading) return <DeskLoading username={requestedUsername} />;
   if (noActivity && !desk) return <DeskNoActivity username={requestedUsername} message={noActivity} previousDesk={storedDesks[0]} />;
@@ -465,9 +502,9 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
     setEngineAttempt((attempt) => attempt + 1);
   };
 
-  const interpretation = desk.source === "live" ? applyEngineInterpretation(desk, engineResults) : { desk, complete: true, reviewed: desk.candidates.length, total: desk.candidates.length };
+  const interpretation = desk.source === "live" && !isPublishedView ? applyEngineInterpretation(desk, engineResults) : { desk, complete: true, reviewed: desk.candidates.length, total: desk.candidates.length };
   const shown = interpretation.desk;
-  if (desk.source === "live" && desk.candidates.length && !interpretation.complete) {
+  if (desk.source === "live" && !isPublishedView && desk.candidates.length && !interpretation.complete) {
     return <DeskAnalysisProgress username={desk.player.username} reviewed={interpretation.reviewed} total={interpretation.total} />;
   }
   const quality = validateDeskForPublication(shown, engineResults);
@@ -483,13 +520,14 @@ export default function UniversalPlayerDesk({ requestedUsername, mode = "live" }
         <header className="universal-player-bar">
           <div className="universal-avatar">{shown.player.username.slice(0, 2).toUpperCase()}</div>
           <div><span>Chess.com account</span><h1>{shown.player.username}</h1><p>{shown.primaryPool} · {shown.period.label}</p></div>
-          <div className="private-access"><LockKeyhole size={16} /> {shown.source === "live" ? "Live generated Desk" : "Example Desk"}</div>
+          <div className="private-access"><LockKeyhole size={16} /> {isPublishedView ? "Saved Player Room Desk" : shown.source === "live" ? "Live generated Desk" : "Example Desk"}</div>
         </header>
 
         {shown.period.isLastActive ? (
           <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>This is the last active week—not current form.</strong><p>The latest completed period was {shown.period.latestCompletedLabel}; BoardSignal searched backward through fixed seven-day episodes.</p></div></div>
         ) : null}
         {noActivity ? <div className="last-active-banner"><ShieldCheck size={18} /><div><strong>No new Desk was created.</strong><p>{noActivity} Your previous Desk remains available.</p></div></div> : null}
+        {persistenceError ? <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>Your Desk is complete on this device.</strong><p>{persistenceError} Reopen your Player Room to retry saving the same fixed episode.</p></div></div> : null}
 
         <section className="universal-cover">
           <div className="universal-cover-copy">

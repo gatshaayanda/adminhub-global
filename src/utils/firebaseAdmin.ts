@@ -1,16 +1,30 @@
-// src/utils/firebaseAdmin.ts
-import * as admin from 'firebase-admin'
+import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
-// Parse your JSON‐encoded credentials out of the env var
-// (make sure FIREBASE_ADMIN_KEY is set in Vercel as the full JSON blob)
-const serviceAccount = JSON.parse(
-  process.env.FIREBASE_ADMIN_KEY!
-) as admin.ServiceAccount
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  })
+function serviceAccount() {
+  const raw = process.env.FIREBASE_ADMIN_KEY;
+  if (!raw) throw new Error("Firebase Admin is not configured.");
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("FIREBASE_ADMIN_KEY is not valid JSON.");
+  }
 }
 
-export const adminDb = admin.firestore()
+export function isFirebaseAdminConfigured() {
+  return Boolean(process.env.FIREBASE_ADMIN_KEY?.trim());
+}
+
+export function getAdminApp(): App {
+  if (getApps().length) return getApp();
+  return initializeApp({ credential: cert(serviceAccount()) });
+}
+
+export function getAdminDb() {
+  return getFirestore(getAdminApp());
+}
+
+export function getAdminAuth() {
+  return getAuth(getAdminApp());
+}

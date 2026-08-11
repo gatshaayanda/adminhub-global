@@ -10,6 +10,20 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/boardsignal/build/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Cache-Control", value: "no-store, private" },
+        ],
+      },
+      {
+        source: "/boardsignal/player-room/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Cache-Control", value: "no-store, private" },
+        ],
+      },
+      {
         source: "/stockfish/:path*",
         headers: [{ key: "Cross-Origin-Resource-Policy", value: "same-origin" }],
       },
@@ -40,6 +54,11 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "firebasestorage.googleapis.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.chesscomfiles.com",
         pathname: "/**",
       },
     ],

@@ -4,7 +4,10 @@ import type { NextRequest } from 'next/server'
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!
 
 export function middleware(req: NextRequest) {
-  if (req.nextUrl.pathname === '/admin' || req.nextUrl.pathname.startsWith('/admin/')) {
+  const isFounderRoute = req.nextUrl.pathname === '/admin'
+    || req.nextUrl.pathname.startsWith('/admin/')
+    || req.nextUrl.pathname.startsWith('/api/admin/boardsignal/')
+  if (isFounderRoute) {
     const auth = req.headers.get('authorization') || ''
     const [scheme, encoded] = auth.split(' ')
     if (scheme !== 'Basic' || !encoded) {
@@ -22,5 +25,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin', '/admin/:path*'],
+  matcher: ['/admin', '/admin/:path*', '/api/admin/boardsignal/:path*'],
 }

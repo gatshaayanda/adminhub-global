@@ -4,6 +4,9 @@ import SignalMark from "@/components/SignalMark";
 const footerLinks = [
   { label: "Find my Desk", href: "/#find-my-desk" },
   { label: "BoardSignal Universe", href: "/feed" },
+  { label: "My Player Room", href: "/boardsignal/player-room" },
+  { label: "Beta terms", href: "/boardsignal/beta-terms" },
+  { label: "Privacy", href: "/boardsignal/privacy" },
 ];
 
 export default function Footer() {
@@ -37,4 +40,3 @@ export default function Footer() {
     </footer>
   );
 }
-

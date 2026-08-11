@@ -1,5 +1,6 @@
 import { Chess } from "chess.js";
 import type { BoardSignalDesk, DeskCandidate, DeskDay, DeskPool, ResolvedPlayer } from "./types";
+import type { CurrentEpisodeSummary } from "./memory";
 
 type ChessComPlayer = {
   player_id?: number;
@@ -25,6 +26,11 @@ type ChessComGame = {
 };
 
 export type BuildLiveDeskOptions = {
+  anchorStart?: string;
+  referenceDate?: Date;
+};
+
+export type BuildCurrentEpisodeOptions = {
   anchorStart?: string;
   referenceDate?: Date;
 };
@@ -767,3 +773,122 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
   };
 }
 
+export function currentAlignedPeriod(anchorStart: string | undefined, reference = new Date()) {
+  const today = atUtcMidnight(reference);
+  let start: Date;
+  if (anchorStart) {
+    const anchor = parseIsoDay(anchorStart);
+    const blockIndex = Math.max(0, Math.floor((today.getTime() - anchor.getTime()) / (7 * DAY_MS)));
+    start = new Date(anchor.getTime() + blockIndex * 7 * DAY_MS);
+  } else {
+    const day = today.getUTCDay();
+    const distance = day === 0 ? 6 : day - 1;
+    start = new Date(today.getTime() - distance * DAY_MS);
+  }
+  const end = new Date(start.getTime() + 6 * DAY_MS);
+  return { start, end };
+}
+
+/**
+ * Reads only factual public-game progress for the open anchored episode.
+ * It never selects candidate positions, starts Stockfish, or mutates a closed Desk.
+ */
+export async function buildCurrentEpisodeSummary(
+  requestedUsername: string,
+  options: BuildCurrentEpisodeOptions = {},
+): Promise<CurrentEpisodeSummary> {
+  const resolved = await resolveChessComPlayer(requestedUsername);
+  const referenceDate = options.referenceDate ?? new Date();
+  const { start, end } = currentAlignedPeriod(options.anchorStart, referenceDate);
+  const archivesPayload = await chessComJson<{ archives?: string[] }>(
+    `https://api.chess.com/pub/player/${encodeURIComponent(resolved.username)}/games/archives`,
+  );
+  const archiveMap = new Map((archivesPayload.archives ?? []).map((url) => [archiveKey(url), url]));
+  const keys = new Set([monthKey(start), monthKey(end)]);
+  const urls = [...keys].map((key) => archiveMap.get(key)).filter((url): url is string => Boolean(url));
+  const retrieved = (await Promise.all(urls.map(fetchGames))).flat();
+  const seen = new Set<string>();
+  const games = retrieved
+    .filter((game) => {
+      const time = game.end_time * 1000;
+      const key = game.url || `${game.end_time}:${game.white.username}:${game.black.username}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      const belongs = game.white.username.toLowerCase() === resolved.username.toLowerCase()
+        || game.black.username.toLowerCase() === resolved.username.toLowerCase();
+      return belongs
+        && Boolean(game.pgn && game.url)
+        && (!game.rules || game.rules === "chess")
+        && time >= start.getTime()
+        && time <= referenceDate.getTime()
+        && time < end.getTime() + DAY_MS;
+    })
+    .sort((a, b) => a.end_time - b.end_time);
+
+  let wins = 0;
+  let draws = 0;
+  let losses = 0;
+  let currentWinRun = 0;
+  let currentLossRun = 0;
+  const poolMap = new Map<string, {
+    games: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    ratings: number[];
+  }>();
+
+  for (const game of games) {
+    const result = resultFor(game, resolved.username);
+    wins += result.result === "win" ? 1 : 0;
+    draws += result.result === "draw" ? 1 : 0;
+    losses += result.result === "loss" ? 1 : 0;
+    currentWinRun = result.result === "win" ? currentWinRun + 1 : 0;
+    currentLossRun = result.result === "loss" ? currentLossRun + 1 : 0;
+    const poolName = game.time_class ?? "other";
+    const pool = poolMap.get(poolName) ?? { games: 0, wins: 0, draws: 0, losses: 0, ratings: [] };
+    pool.games += 1;
+    pool.wins += result.result === "win" ? 1 : 0;
+    pool.draws += result.result === "draw" ? 1 : 0;
+    pool.losses += result.result === "loss" ? 1 : 0;
+    if (typeof result.player.rating === "number") pool.ratings.push(result.player.rating);
+    poolMap.set(poolName, pool);
+  }
+
+  let sessions = 0;
+  let previousEnd: number | undefined;
+  for (const game of games) {
+    if (previousEnd === undefined || game.end_time - previousEnd >= 30 * 60) sessions += 1;
+    previousEnd = game.end_time;
+  }
+
+  const today = atUtcMidnight(referenceDate);
+  const daysComplete = Math.max(0, Math.min(7, Math.floor((today.getTime() - start.getTime()) / DAY_MS) + 1));
+  return {
+    status: "forming",
+    periodStart: isoDay(start),
+    periodEnd: isoDay(end),
+    periodLabel: formatPeriod(start, end),
+    checkedAt: referenceDate.toISOString(),
+    daysComplete,
+    daysRemaining: Math.max(0, 7 - daysComplete),
+    games: games.length,
+    wins,
+    draws,
+    losses,
+    currentWinRun,
+    currentLossRun,
+    sessions,
+    pools: [...poolMap.entries()].map(([pool, item]) => ({
+      pool,
+      games: item.games,
+      wins: item.wins,
+      draws: item.draws,
+      losses: item.losses,
+      ratingStart: item.ratings[0],
+      ratingEnd: item.ratings.at(-1),
+      ratingDelta: item.ratings.length ? item.ratings.at(-1)! - item.ratings[0] : undefined,
+    })).sort((a, b) => b.games - a.games),
+    nextDeskDueAt: isoDay(new Date(end.getTime() + DAY_MS)),
+  };
+}

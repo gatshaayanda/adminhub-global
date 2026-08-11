@@ -162,3 +162,18 @@ Termination counts, streaks, volume, rating movement, openings, and opponent ban
 - A completed active block creates the next Desk idempotently.
 - A completed zero-game block records no activity and does not republish an older Desk as new.
 - The device-local beta cache retains at most four passing Desks per player. Durable cross-device persistence remains part of the account/persistence layer.
+
+## Identity, ownership and four-Desk memory
+
+- Official Chess.com OAuth is the ownership proof when its real credentials and documentation are available. Until then, the provider remains disabled and the public-username LIVE builder remains available. BoardSignal never fakes an OAuth success or asks for a Chess.com password.
+- While official OAuth approval is pending, an approved player may use a privately issued Founding Beta Access code. BoardSignal resolves the submitted username through Chess.com, verifies a salted server-only credential against the stable player ID, and signs into the same `chesscom_<playerId>` Firebase account OAuth will use later. No raw access code is persisted.
+- A verified account is keyed by stable Chess.com player ID plus canonical username and bridges into Firebase custom authentication through a server-only, short-lived, one-use completion ticket.
+- Founding beta players use the normal entitlement model: `role: player`, `accessTier: founding_beta`, `accessStatus: active`, `billingRequired: false`, `maxActiveDesks: 4`.
+- Private account, Desk and evidence documents are physically separate from public identity and positive coverage. Owner-only rules protect `/users/{uid}`. Trusted server code alone writes public coverage.
+- The Player Room retains four complete passing Desks. Publishing Desk 5 updates tiny personal records, then removes Desk 1 and its heavy evidence subcollection.
+- Cross-Desk progress compares stable structured facts and keeps Rapid, Blitz and Bullet rating histories separate. It never invents full-game blunder counts from selected-position review.
+- Recurrence uses stable signal-family identifiers, never prose matching. A missing pattern may be described only as not repeated; BoardSignal does not claim that a player fixed, completed or learned something without future evidence.
+- `CURRENT EPISODE — DESK FORMING` is separate factual state. It may show public-game progress but never mutates a completed Desk, assigns daily Red/Amber/Blue, or runs the full Stockfish diagnosis on every login.
+- The previous supported Blue may carry forward as ungraded advice; the previous supported Amber may remain awareness. Previous Red does not nag.
+- Notification event hooks and preferences may exist before delivery. This phase sends no email or browser push.
+- Founding Beta credential records are server-only. Repeated failures cause a temporary lockout; founder create/reset reveals a cryptographically random code once, and revoke prevents further Beta Access sign-in without changing the stable player identity.

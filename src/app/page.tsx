@@ -1,7 +1,12 @@
 import Link from "next/link";
 import {
+  BookOpen,
+  ChartNoAxesCombined,
   LockKeyhole,
+  ShieldCheck,
+  Target,
 } from "lucide-react";
+import ChessComLoginPanel from "@/components/ChessComLoginPanel";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { betaProof, coverageStories } from "@/data/boardsignal";
 
@@ -20,6 +25,16 @@ export default function HomePage() {
             <div id="find-my-desk" className="hero-username-card">
               <UsernameDeskForm />
             </div>
+            <div className="first-value-preview">
+              <p className="kicker">YOUR WEEK IN ONE PLACE</p>
+              <div>
+                <span><BookOpen size={16} /> The story of your seven days</span>
+                <span><ChartNoAxesCombined size={16} /> Rating and performance trends</span>
+                <span><ShieldCheck size={16} /> Key games and reviewed positions</span>
+                <span><Target size={16} /> What to preserve, watch or fix</span>
+              </div>
+              <p>One useful thing to carry forward—and where your week stands in BoardSignal. A signal appears only when its evidence exists.</p>
+            </div>
           </div>
 
           <aside className="player-preview pipeline-preview motion-enter motion-delay-1" aria-label="Featured BoardSignal coverage">
@@ -28,6 +43,10 @@ export default function HomePage() {
             <div className="coverage-stat"><strong>{deskPreview.stat}</strong><span>{deskPreview.detail}</span></div>
           </aside>
         </div>
+      </section>
+
+      <section className="container home-player-room-entry">
+        <ChessComLoginPanel compact />
       </section>
 
       <section className="container secondary-coverage">
@@ -56,4 +75,3 @@ export default function HomePage() {
     </div>
   );
 }
-

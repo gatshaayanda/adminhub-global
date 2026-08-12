@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell, BellOff, LoaderCircle } from "lucide-react";
 import { firebaseApp } from "@/utils/firebaseConfig";
+import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 
 async function messagingClient() {
   const messaging = await import("firebase/messaging");
@@ -45,6 +46,7 @@ export async function removeBoardSignalBrowserPush(idToken: string) {
 }
 
 export default function BrowserPushControl({ idToken, onChanged }: { idToken: string; onChanged?: () => void | Promise<void> }) {
+  const connectivity = useBoardSignalConnectivity();
   const configured = Boolean(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim());
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
   const [busy, setBusy] = useState(false);
@@ -57,7 +59,7 @@ export default function BrowserPushControl({ idToken, onChanged }: { idToken: st
       return;
     }
     setPermission(Notification.permission);
-    if (configured && Notification.permission === "granted") {
+    if (configured && connectivity.online && Notification.permission === "granted") {
       try {
         await registerToken(idToken);
         setRegistered(true);
@@ -65,7 +67,7 @@ export default function BrowserPushControl({ idToken, onChanged }: { idToken: st
         setError(reason instanceof Error ? reason.message : "Browser alerts could not be refreshed.");
       }
     }
-  }, [configured, idToken]);
+  }, [configured, connectivity.online, idToken]);
 
   useEffect(() => {
     // Reading an existing permission is safe. This never calls Notification.requestPermission().
@@ -76,7 +78,7 @@ export default function BrowserPushControl({ idToken, onChanged }: { idToken: st
   }, [refreshExistingPermission]);
 
   async function enable() {
-    if (!configured) return;
+    if (!configured || !connectivity.online) { setError("Reconnect before changing browser alerts."); return; }
     setBusy(true);
     setError("");
     try {
@@ -95,6 +97,7 @@ export default function BrowserPushControl({ idToken, onChanged }: { idToken: st
   }
 
   async function disable() {
+    if (!connectivity.online) { setError("Reconnect before changing browser alerts."); return; }
     setBusy(true);
     setError("");
     try {
@@ -118,5 +121,5 @@ export default function BrowserPushControl({ idToken, onChanged }: { idToken: st
     return <div className="browser-push-state"><BellOff size={17} /><div><strong>Browser alerts blocked</strong><p>BoardSignal respects your browser denial and will not ask again here. You can change the permission later in your browser settings.</p></div></div>;
   }
 
-  return <div className="browser-push-state"><Bell size={17} /><div><strong>{registered || permission === "granted" ? "Browser alerts enabled" : "Browser alerts are optional"}</strong><p>BoardSignal will never trigger the permission dialog without your click.</p>{error ? <p className="form-error" role="alert">{error}</p> : null}<button className="button button-outline" type="button" disabled={busy} onClick={registered || permission === "granted" ? disable : enable}>{busy ? <><LoaderCircle className="button-spinner" size={14} /> Updating</> : registered || permission === "granted" ? "Disable browser alerts" : "Enable browser alerts"}</button></div></div>;
+  return <div className="browser-push-state"><Bell size={17} /><div><strong>{registered || permission === "granted" ? "Browser alerts enabled" : "Browser alerts are optional"}</strong><p>BoardSignal will never trigger the permission dialog without your click.</p>{error ? <p className="form-error" role="alert">{error}</p> : null}<button className="button button-outline" type="button" disabled={busy || !connectivity.online} onClick={registered || permission === "granted" ? disable : enable}>{busy ? <><LoaderCircle className="button-spinner" size={14} /> Updating</> : registered || permission === "granted" ? "Disable browser alerts" : "Enable browser alerts"}</button></div></div>;
 }

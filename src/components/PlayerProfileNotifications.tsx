@@ -4,6 +4,8 @@ import { useState } from "react";
 import { LoaderCircle, LogOut, Save, ShieldCheck } from "lucide-react";
 import BrowserPushControl from "@/components/BrowserPushControl";
 import GuidePreferenceControl from "@/components/GuidePreferenceControl";
+import DeviceOfflineControl from "@/components/DeviceOfflineControl";
+import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 import type {
   BoardSignalAccount,
   BoardSignalContactMethod,
@@ -13,15 +15,18 @@ import type {
 
 export default function PlayerProfileNotifications({
   account,
+  uid,
   token,
   onSaved,
   onSignOut,
 }: {
   account: BoardSignalAccount;
+  uid: string;
   token: string;
   onSaved: () => Promise<void>;
   onSignOut: () => Promise<void> | void;
 }) {
+  const connectivity = useBoardSignalConnectivity();
   const [method, setMethod] = useState<BoardSignalContactMethod>(account.preferredContactMethod ?? "email");
   const [contact, setContact] = useState(account.preferredContactValue ?? "");
   const [consent, setConsent] = useState(account.betaContactConsent === true);
@@ -36,6 +41,7 @@ export default function PlayerProfileNotifications({
   }
 
   async function save() {
+    if (!connectivity.online) { setError("Reconnect before changing account or notification settings."); return; }
     setBusy(true);
     setSaved(false);
     setError("");
@@ -80,12 +86,14 @@ export default function PlayerProfileNotifications({
 
       <article className="profile-settings-card"><h3>Ask BoardSignal</h3><GuidePreferenceControl token={token} /></article>
 
+      <article className="profile-settings-card"><h3>BoardSignal on this device</h3><DeviceOfflineControl uid={uid} onRefresh={onSaved} /></article>
+
       <article className="profile-settings-card"><h3>Community</h3><div className="required-participation-row"><ShieldCheck size={17} /><div><strong>Founding Beta Universe participation = Included</strong><p>Each completed Desk can contribute safe sports-style coverage. Weaknesses, Signals, evidence and private progress stay private.</p></div></div>{discordInvite ? <a className="button button-outline" href={discordInvite} target="_blank" rel="noreferrer">Join the Founding Beta Discord</a> : null}</article>
 
       <article className="profile-settings-card"><h3>Optional public controls</h3><label className="profile-toggle"><span><strong>Additional positive highlights</strong><small>Beyond the required minimal safe coverage</small></span><input type="checkbox" checked={privacy.additionalPositiveHighlights === true} onChange={(event) => setPrivacy((value) => ({ ...value, additionalPositiveHighlights: event.target.checked }))} /></label><label className="profile-toggle"><span><strong>Direct public game links</strong><small>Where a safe public item supports them</small></span><input type="checkbox" checked={privacy.publicGameLinks === true} onChange={(event) => setPrivacy((value) => ({ ...value, publicGameLinks: event.target.checked }))} /></label><label className="profile-toggle"><span><strong>Expanded public profile details</strong><small>Optional profile context beyond the minimal sports identity</small></span><input type="checkbox" checked={privacy.expandedPublicProfile === true} onChange={(event) => setPrivacy((value) => ({ ...value, expandedPublicProfile: event.target.checked }))} /></label></article>
     </div>
     {error ? <p className="form-error" role="alert">{error}</p> : null}
     {saved ? <p className="form-success" role="status">Profile saved.</p> : null}
-    <div className="profile-actions"><button className="button button-lime" type="button" onClick={save} disabled={busy || (consent && !contact.trim())}>{busy ? <><LoaderCircle className="button-spinner" size={15} /> Saving</> : <><Save size={15} /> Save profile</>}</button><button className="button button-quiet" type="button" onClick={onSignOut}><LogOut size={15} /> Sign out</button></div>
+    <div className="profile-actions"><button className="button button-lime" type="button" onClick={save} disabled={busy || !connectivity.online || (consent && !contact.trim())}>{busy ? <><LoaderCircle className="button-spinner" size={15} /> Saving</> : <><Save size={15} /> Save profile</>}</button><button className="button button-quiet" type="button" onClick={onSignOut}><LogOut size={15} /> Sign out</button></div>
   </section>;
 }

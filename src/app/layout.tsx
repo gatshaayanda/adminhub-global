@@ -11,6 +11,8 @@ import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import AskBoardSignal from "@/components/AskBoardSignal";
+import ConnectivityProvider from "@/components/ConnectivityProvider";
+import PwaLaunchRedirect from "@/components/PwaLaunchRedirect";
 
 const montserrat = Montserrat({
   variable: "--font-sans",
@@ -46,6 +48,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
   themeColor: "#101923",
 };
 
@@ -55,6 +58,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body suppressHydrationWarning>
         <Loader />
         <AnalyticsProvider>
+          <ConnectivityProvider>
           <div className="site-frame">
             <Header />
             <main className="site-main">{children}</main>
@@ -62,9 +66,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           </div>
           <ServiceWorkerRegister />
           <InstallPrompt />
+          <PwaLaunchRedirect />
           <AskBoardSignal />
           <Analytics />
           <SpeedInsights />
+          </ConnectivityProvider>
         </AnalyticsProvider>
       </body>
     </html>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { BarChart3, CalendarDays, Inbox, LoaderCircle, ShieldCheck, Target, TrendingUp } from "lucide-react";
 import BetaAgreementGate from "@/components/BetaAgreementGate";
@@ -26,6 +26,12 @@ import type {
 } from "@/lib/boardsignal/memory";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 import { auth } from "@/utils/firebaseConfig";
+import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
+import { clearBoardSignalPrivateOfflineData } from "@/lib/boardsignal/offline/db";
+import { loadPlayerRoomOfflineSnapshot, requestPersistentStorageBestEffort, savePlayerRoomOfflineSnapshot } from "@/lib/boardsignal/offline/snapshots";
+import type { OfflinePlayerRoomSnapshot } from "@/lib/boardsignal/offline/types";
+import { markBoardSignalPwaEngaged } from "@/lib/boardsignal/offline/install";
+import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
 
 type DeskBundle = { desk: BoardSignalDesk; engineResults: Record<string, DeskEngineResult>; summary: DeskSummary };
 type Snapshot = {
@@ -45,6 +51,7 @@ type RoomTab = "desk" | "progress" | "universe" | "friends" | "inbox" | "profile
 type SocialSummaryPlayer = { playerId: number; canonicalUsername: string; relationshipStatus?: "incoming" | "outgoing" | "friends" };
 
 export default function BoardSignalPlayerRoom() {
+  const connectivity = useBoardSignalConnectivity();
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [token, setToken] = useState("");
@@ -55,6 +62,10 @@ export default function BoardSignalPlayerRoom() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [socialPlayers, setSocialPlayers] = useState<Record<string, SocialSummaryPlayer>>({});
   const [friendCompareTarget, setFriendCompareTarget] = useState<number | undefined>();
+  const [offlineSnapshot, setOfflineSnapshot] = useState<OfflinePlayerRoomSnapshot | null>(null);
+  const [offlineReadyNotice, setOfflineReadyNotice] = useState(false);
+  const activeUidRef = useRef<string | undefined>(undefined);
+  const reconnectRefreshRef = useRef(false);
 
   const loadRoom = useCallback(async (activeUser: User, quiet = false) => {
     if (!quiet) setLoading(true);
@@ -66,7 +77,26 @@ export default function BoardSignalPlayerRoom() {
       const body = await response.json() as { ok: boolean; snapshot?: Snapshot; error?: string };
       if (!response.ok || !body.ok || !body.snapshot) throw new Error(body.error ?? "Player Room could not be loaded.");
       setSnapshot(body.snapshot);
+      setOfflineSnapshot(null);
+      void savePlayerRoomOfflineSnapshot(activeUser.uid, body.snapshot).then(({ firstReady }) => {
+        window.dispatchEvent(new CustomEvent("boardsignal:offline-saved"));
+        if (body.snapshot?.desks?.length) markBoardSignalPwaEngaged();
+        if (firstReady) { setOfflineReadyNotice(true); window.setTimeout(() => setOfflineReadyNotice(false), 4200); void requestPersistentStorageBestEffort(activeUser.uid); }
+      }).catch(() => undefined);
+      try {
+        if (window.sessionStorage.getItem("boardsignal:pwa-recovery-refresh") === "1") {
+          window.sessionStorage.removeItem("boardsignal:pwa-recovery-refresh");
+          window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete"));
+        }
+      } catch { /* recovery acknowledgement is optional */ }
+      return true;
     } catch (reason) {
+      const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
+      if (saved) {
+        setOfflineSnapshot(saved);
+        setError("");
+        return false;
+      }
       setError(reason instanceof Error ? reason.message : "Player Room could not be loaded.");
       throw reason;
     } finally {
@@ -75,22 +105,60 @@ export default function BoardSignalPlayerRoom() {
   }, []);
 
   useEffect(() => onAuthStateChanged(auth, (activeUser) => {
+    const previousUid = activeUidRef.current;
+    const nextUid = activeUser?.uid;
+    if (previousUid && nextUid && previousUid !== nextUid) {
+      // Invalidate Player A immediately before any Player B read begins. The async purge is defense-in-depth.
+      setSnapshot(null);
+      setOfflineSnapshot(null);
+      setToken("");
+      setSocialPlayers({});
+      setUnreadCount(0);
+      void clearBoardSignalPrivateOfflineData(previousUid);
+    }
+    activeUidRef.current = nextUid;
     setUser(activeUser);
     setAuthReady(true);
     if (activeUser) void loadRoom(activeUser).catch((reason) => { setError(reason instanceof Error ? reason.message : "Player Room could not be loaded."); setLoading(false); });
-    else { setSnapshot(null); setToken(""); setLoading(false); }
+    else { setSnapshot(null); setOfflineSnapshot(null); setToken(""); setLoading(false); }
   }), [loadRoom]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const requestedTab = new URLSearchParams(window.location.search).get("tab");
     if (["desk", "progress", "universe", "friends", "inbox", "profile"].includes(requestedTab ?? "")) setTab(requestedTab as RoomTab);
+    const compare = Number(new URLSearchParams(window.location.search).get("compare"));
+    if (Number.isSafeInteger(compare) && compare > 0) setFriendCompareTarget(compare);
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: { activeTab: tab } }));
   }, [tab]);
+
+  useEffect(() => {
+    const reconnected = () => {
+      if (!user || reconnectRefreshRef.current) return;
+      reconnectRefreshRef.current = true;
+      void loadRoom(user, true)
+        .then((refreshed) => { if (refreshed) window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete")); })
+        .catch(() => undefined)
+        .finally(() => { reconnectRefreshRef.current = false; });
+    };
+    window.addEventListener("boardsignal:reconnected", reconnected);
+    return () => window.removeEventListener("boardsignal:reconnected", reconnected);
+  }, [loadRoom, user]);
+
+  // If a live Player Room loses reachability after it has already rendered,
+  // swap to the same UID-scoped saved shell instead of leaving live-only controls active.
+  useEffect(() => {
+    if (connectivity.state !== "offline" || !user) return;
+    let active = true;
+    void loadPlayerRoomOfflineSnapshot(user.uid)
+      .then((saved) => { if (active && saved) setOfflineSnapshot(saved); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [connectivity.state, user]);
 
   const refreshSocialSummary = useCallback(async () => {
     if (!token) return;
@@ -109,6 +177,7 @@ export default function BoardSignalPlayerRoom() {
   }, []);
 
   const socialActionFromUniverse = useCallback(async (username: string) => {
+    if (!connectivity.online) { setTab("friends"); return; }
     const known = socialPlayers[username.toLowerCase()];
     if (known?.relationshipStatus === "friends") { setFriendCompareTarget(known.playerId); setTab("friends"); return; }
     if (known) { setTab("friends"); return; }
@@ -119,7 +188,7 @@ export default function BoardSignalPlayerRoom() {
     if (!search.ok || !found.ok || !target) { setTab("friends"); return; }
     await fetch("/api/boardsignal/social", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ action: "send", playerId: target.playerId }) });
     await refreshSocialSummary();
-  }, [refreshSocialSummary, socialPlayers, token]);
+  }, [connectivity.online, refreshSocialSummary, socialPlayers, token]);
 
   useEffect(() => {
     if (!user || !token || !snapshot?.account.preferencesConfirmedAt) return;
@@ -130,6 +199,7 @@ export default function BoardSignalPlayerRoom() {
   }, [snapshot?.account.preferencesConfirmedAt, token, user]);
 
   async function acceptAgreement() {
+    if (!connectivity.online) throw new Error("Reconnect before accepting the Founding Beta Agreement.");
     const response = await fetch("/api/boardsignal/player-room", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -149,6 +219,7 @@ export default function BoardSignalPlayerRoom() {
     notificationPreferences: import("@/lib/boardsignal/account").BoardSignalNotificationPreferences,
   ) {
     if (!snapshot) return;
+    if (!connectivity.online) throw new Error("Reconnect before changing BoardSignal account or communication settings.");
     const response = await fetch("/api/boardsignal/player-room", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -165,6 +236,7 @@ export default function BoardSignalPlayerRoom() {
   }
 
   const publishDesk = useCallback(async (desk: BoardSignalDesk, engineResults: Record<string, DeskEngineResult>) => {
+    if (!connectivity.online) throw new Error("Reconnect before generating or publishing a Desk.");
     const response = await fetch("/api/boardsignal/player-room", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -173,17 +245,27 @@ export default function BoardSignalPlayerRoom() {
     const body = await response.json() as { ok: boolean; error?: string };
     if (!response.ok || !body.ok) throw new Error(body.error ?? "The completed Desk could not be saved.");
     if (user) await loadRoom(user);
-  }, [loadRoom, token, user]);
+  }, [connectivity.online, loadRoom, token, user]);
 
   const signOutPlayer = useCallback(async () => {
-    if (token) await removeBoardSignalBrowserPush(token).catch(() => undefined);
+    if (token && connectivity.online) await removeBoardSignalBrowserPush(token).catch(() => undefined);
+    if (user?.uid) await clearBoardSignalPrivateOfflineData(user.uid).catch(() => undefined);
+    setOfflineSnapshot(null);
+    setSnapshot(null);
     await signOut(auth);
-  }, [token]);
+  }, [connectivity.online, token, user?.uid]);
 
   const latest = snapshot?.desks[0];
   const returnLoop = useMemo(() => latest ? buildDeskReturnLoop(latest.desk, snapshot?.pulse?.standings ?? []) : undefined, [latest, snapshot?.pulse?.standings]);
 
   if (!authReady || loading) return <RoomLoading />;
+  if (!user && connectivity.state === "offline") return (
+    <div id="main" className="container player-room-entry bs-surface-paper">
+      <p className="kicker">MY PLAYER ROOM · OFFLINE</p><h1>Reconnect to sign in.</h1>
+      <p>BoardSignal never performs Beta Access verification or authentication offline. If this device already has a saved Player Room, it becomes available only after Firebase recognizes that same signed-in account locally.</p>
+      <Link className="button button-dark" href="/offline/player-room">Open saved Player Room</Link>
+    </div>
+  );
   if (!user) return (
     <div id="main" className="container player-room-entry">
       <p className="kicker">MY PLAYER ROOM</p><h1>Your chess identity. Your private Room.</h1>
@@ -192,6 +274,7 @@ export default function BoardSignalPlayerRoom() {
       <UsernameDeskForm />
     </div>
   );
+  if (offlineSnapshot && user) return <OfflinePlayerRoom uid={user.uid} initialSnapshot={offlineSnapshot} embedded />;
   if (error || !snapshot) return <RoomError error={error || "Player Room could not be loaded."} />;
   if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <BetaAgreementGate onAccept={acceptAgreement} />;
   if (!snapshot.account.preferencesConfirmedAt || !snapshot.account.contactConfirmedAt) return <PlayerPreferencesGate account={snapshot.account} onContinue={confirmPreferences} />;
@@ -200,8 +283,8 @@ export default function BoardSignalPlayerRoom() {
     return (
       <div id="main" className="player-room-authenticated">
         <RoomIdentity account={snapshot.account} />
-        <div className="container member-first-desk-note"><p className="kicker">DESK 1 · PERSISTENT ACCOUNT</p><h2>Your first membership Desk belongs here.</h2><p>BoardSignal is building the latest eligible closed seven-day episode for your verified Chess.com identity. When it clears the existing deterministic checks, it is stored in this Player Room.</p><button className="button button-quiet" type="button" onClick={signOutPlayer}>Sign out</button></div>
-        <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} onDeskPublished={publishDesk} />
+        <div className="container member-first-desk-note"><p className="kicker">DESK 1 · PERSISTENT ACCOUNT</p><h2>Your first membership Desk belongs here.</h2><p>{connectivity.online ? "BoardSignal is building the latest eligible closed seven-day episode for your verified Chess.com identity. When it clears the existing deterministic checks, it is stored in this Player Room." : "You're offline. BoardSignal will not retrieve Chess.com games or generate a Desk until you reconnect."}</p><button className="button button-quiet" type="button" onClick={signOutPlayer}>Sign out</button></div>
+        {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} onDeskPublished={publishDesk} /> : <div className="container offline-network-action"><strong>Desk generation needs a connection.</strong><p>Your verified account is unchanged. Reconnect and BoardSignal will continue through the existing deterministic pipeline.</p></div>}
       </div>
     );
   }
@@ -210,6 +293,7 @@ export default function BoardSignalPlayerRoom() {
     <div id="main" className="player-room-authenticated">
       <RoomIdentity account={snapshot.account} />
       <RoomNav tab={tab} setTab={setTab} unreadCount={unreadCount} />
+      {offlineReadyNotice ? <div className="container offline-ready-note" role="status">Your latest BoardSignal is available offline on this device.</div> : null}
 
       {tab === "desk" ? <>
         <div className="container player-room-memory">
@@ -221,9 +305,9 @@ export default function BoardSignalPlayerRoom() {
 
       {tab === "progress" ? <div className="container player-room-memory"><ProgressSection desks={snapshot.desks.map((item) => item.summary)} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}
       {tab === "universe" ? <div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div> : null}
-      {tab === "friends" ? <div className="container player-room-memory"><PlayerFriends token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div> : null}
+      {tab === "friends" ? <div className="container player-room-memory"><PlayerFriends uid={user.uid} token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div> : null}
       {tab === "inbox" ? <div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div> : null}
-      {tab === "profile" ? <div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} token={token} onSaved={() => user ? loadRoom(user, true) : Promise.resolve()} onSignOut={signOutPlayer} /></div> : null}
+      {tab === "profile" ? <div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} uid={user.uid} token={token} onSaved={async () => { if (user) await loadRoom(user, true); }} onSignOut={signOutPlayer} /></div> : null}
     </div>
   );
 }

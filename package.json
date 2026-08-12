@@ -18,7 +18,8 @@
     "test:universe-pulse": "tsc -p tsconfig.universe-pulse.json && node --test tests/boardsignal-universe-pulse.test.cjs",
     "test:critical": "tsc -p tsconfig.critical-regressions.json && node --test .test-dist-critical/tests/boardsignal-identity-memory.test.js .test-dist-critical/tests/boardsignal-beta-access.test.js .test-dist-critical/tests/boardsignal-universe.test.js",
     "test:contrast": "node scripts/check-boardsignal-contrast.mjs",
-    "test:ask": "tsc -p tsconfig.ask-board-signal.json && node --test tests/boardsignal-ask-board-signal.test.cjs"
+    "test:ask": "tsc -p tsconfig.ask-board-signal.json && node --test tests/boardsignal-ask-board-signal.test.cjs",
+    "test:pwa": "node --test tests/boardsignal-pwa-offline.test.cjs"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",

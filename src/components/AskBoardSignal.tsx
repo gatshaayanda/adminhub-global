@@ -7,10 +7,13 @@ import { HelpCircle, LoaderCircle, MessageCircle, Send, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pageGuideSuggestions, type GuideAction, type GuideResponse } from "@/lib/boardsignal/guide";
 import { auth } from "@/utils/firebaseConfig";
+import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
+import { buildOfflineGuideResponse } from "@/lib/boardsignal/offline/guide";
+import { deleteOfflineDraft, loadOfflineDrafts, loadPlayerRoomOfflineSnapshot, loadSocialOfflineSnapshot, saveOfflineDraft } from "@/lib/boardsignal/offline/snapshots";
 
 type ChatMessage = { id: string; sender: "player" | "guide"; body: string; response?: GuideResponse };
 const STORAGE_PREFIX = "boardsignal-guide-continuity-v2";
-const ELIGIBLE = ["/", "/boardsignal", "/app", "/feed", "/player", "/share", "/join", "/how-it-works", "/pricing"];
+const ELIGIBLE = ["/", "/boardsignal", "/offline", "/app", "/feed", "/player", "/share", "/join", "/how-it-works", "/pricing"];
 
 function eligiblePath(pathname: string) {
   return ELIGIBLE.some((prefix) => prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -29,6 +32,7 @@ function readContinuity(uid?: string): ChatMessage[] {
 }
 
 export default function AskBoardSignal() {
+  const connectivity = useBoardSignalConnectivity();
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -43,12 +47,36 @@ export default function AskBoardSignal() {
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const initializedOpenRef = useRef(false);
+  const restoredDraftRef = useRef<string | undefined>(undefined);
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
   useEffect(() => {
     initializedOpenRef.current = false;
+    restoredDraftRef.current = undefined;
     setMessages(readContinuity(user?.uid));
   }, [user?.uid]);
+
+  useEffect(() => {
+    if (!connectivity.online || !user?.uid) return;
+    let active = true;
+    void loadOfflineDrafts(user.uid).then((drafts) => {
+      if (!active || !drafts.length) return;
+      const draft = drafts[0];
+      if (restoredDraftRef.current === draft.id) return;
+      restoredDraftRef.current = draft.id;
+      const response: GuideResponse = {
+        reply: "Your message draft for Ayanda is ready. Review it, then send it when you're ready.",
+        chips: [],
+        actions: [{ id: `send-offline-draft:${draft.id}`, label: "Send to Ayanda", kind: "handoff", requiresConfirmation: true, payload: { body: draft.body, draftId: draft.id } }],
+        handoffAvailable: true,
+        intent: "message_founder",
+        category: "support_request",
+      };
+      setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "guide" as const, body: response.reply, response }].slice(-12));
+      setUnread(true);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [connectivity.online, user?.uid]);
   useEffect(() => {
     const onContext = (event: Event) => {
       const detail = (event as CustomEvent<{ activeTab?: string; visibleEntityId?: number }>).detail;
@@ -86,11 +114,19 @@ export default function AskBoardSignal() {
     return () => window.removeEventListener("keydown", close);
   }, [open]);
 
-  const suggestions = useMemo(() => pageGuideSuggestions(pathname, activeTab, Boolean(user)), [activeTab, pathname, user]);
+  const suggestions = useMemo(() => !connectivity.online ? ["What can I use offline?", "What changed?", "What stays private?"] : pageGuideSuggestions(pathname, activeTab, Boolean(user)), [activeTab, connectivity.online, pathname, user]);
   const callGuide = useCallback(async (message: string) => {
     setBusy(true);
     setFailure(false);
     try {
+      if (!connectivity.online) {
+        const [saved, social] = user ? await Promise.all([loadPlayerRoomOfflineSnapshot(user.uid), loadSocialOfflineSnapshot(user.uid)]) : [undefined, undefined];
+        const offlineResponse = buildOfflineGuideResponse({ message, pathname, activeTab, snapshot: saved, social, authenticated: Boolean(user) });
+        const item: ChatMessage = { id: crypto.randomUUID(), sender: "guide" as const, body: offlineResponse.reply, response: offlineResponse };
+        setMessages((current) => [...current, item].slice(-12));
+        if (!open) setUnread(true);
+        return offlineResponse;
+      }
       const token = user ? await user.getIdToken() : "";
       const response = await fetch("/api/boardsignal/guide", {
         method: "POST",
@@ -109,7 +145,7 @@ export default function AskBoardSignal() {
       setMessages((current) => [...current, item].slice(-12));
       return undefined;
     } finally { setBusy(false); }
-  }, [activeTab, open, pathname, user, visibleEntityId]);
+  }, [activeTab, connectivity.online, open, pathname, user, visibleEntityId]);
 
   useEffect(() => {
     if (!open || initializedOpenRef.current || messages.length || busy) return;
@@ -141,11 +177,22 @@ export default function AskBoardSignal() {
   async function runAction(action: GuideAction, source?: GuideResponse) {
     if (action.kind === "navigate" && action.href) { router.push(action.href); setOpen(false); return; }
     if (action.kind === "handoff") {
-      if (!window.confirm("Send this support request to Ayanda in your private BoardSignal conversation?")) return;
-      const lastPlayerMessage = [...messages].reverse().find((item) => item.sender === "player")?.body ?? "I need help with BoardSignal.";
+      if (!user) return;
+      const offline = !connectivity.online;
+      if (!window.confirm(offline ? "Save this message as a local draft for Ayanda until you reconnect?" : "Send this support request to Ayanda in your private BoardSignal conversation?")) return;
+      const payloadBody = typeof action.payload?.body === "string" ? action.payload.body : undefined;
+      const draftId = typeof action.payload?.draftId === "string" ? action.payload.draftId : undefined;
+      const lastPlayerMessage = payloadBody ?? [...messages].reverse().find((item) => item.sender === "player")?.body ?? "I need help with BoardSignal.";
       setBusy(true);
       try {
+        if (offline) {
+          const now = new Date().toISOString();
+          await saveOfflineDraft({ id: crypto.randomUUID(), uid: user.uid, kind: "guide-support", body: lastPlayerMessage, createdAt: now, updatedAt: now, pathname, activeTab });
+          setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "guide" as const, body: "Saved locally. When you're back online, your message draft will be ready for you to review and send." }].slice(-12));
+          return;
+        }
         await authenticatedAction("handoff", { message: lastPlayerMessage, category: source?.category ?? "support_request" });
+        if (draftId) await deleteOfflineDraft(user.uid, draftId).catch(() => undefined);
         setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "guide" as const, body: "Sent privately to Ayanda. You can continue the conversation from Inbox." }].slice(-12));
       } catch (reason) {
         setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "guide" as const, body: reason instanceof Error ? reason.message : "The support handoff could not be sent." }].slice(-12));
@@ -153,6 +200,7 @@ export default function AskBoardSignal() {
       return;
     }
     if (action.kind === "preference") {
+      if (!connectivity.online) { setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "guide" as const, body: "Reconnect before changing Ask BoardSignal preferences." }].slice(-12)); return; }
       if (!window.confirm(`Confirm Ask BoardSignal preference: ${action.label}?`)) return;
       setBusy(true);
       try {
@@ -163,6 +211,7 @@ export default function AskBoardSignal() {
       return;
     }
     if (action.kind === "tour") {
+      if (!connectivity.online) { setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "guide" as const, body: "Tour progress is saved to your account when you're online. You can still explore the saved Player Room now." }].slice(-12)); return; }
       if (action.id === "release-later") {
         if (user) await authenticatedAction("state", { releaseHint: "dismiss" });
         setMessages((current) => [...current, { id: crypto.randomUUID(), sender: "guide" as const, body: "Got it. I won't keep surfacing that release hint." }].slice(-12));
@@ -177,7 +226,7 @@ export default function AskBoardSignal() {
   }
 
   async function feedback(helpful: boolean, response?: GuideResponse) {
-    if (!user) return;
+    if (!user || !connectivity.online) return;
     try { await authenticatedAction("feedback", { helpful, category: response?.category ?? "general" }); } catch { /* feedback never blocks chat */ }
   }
 

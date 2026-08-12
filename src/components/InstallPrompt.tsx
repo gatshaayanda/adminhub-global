@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Download, X } from "lucide-react";
+import {
+  PWA_DISMISSED_KEY,
+  PWA_ENGAGED_EVENT,
+  PWA_ENGAGED_KEY,
+  PWA_INSTALL_REQUEST_EVENT,
+  installDismissedRecently,
+  isStandaloneBoardSignal,
+} from "@/lib/boardsignal/offline/install";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -11,84 +19,59 @@ type BeforeInstallPromptEvent = Event & {
 
 export default function InstallPrompt() {
   const pathname = usePathname();
-  const [deferredPrompt, setDeferredPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const [ready, setReady] = useState(false);
 
+  const refreshEligibility = useCallback(() => {
+    if (isStandaloneBoardSignal()) { setInstalled(true); setReady(false); return; }
+    const engaged = Boolean(window.localStorage.getItem(PWA_ENGAGED_KEY));
+    const eligiblePath = pathname.startsWith("/boardsignal/player-room");
+    setReady(engaged && eligiblePath && !installDismissedRecently());
+  }, [pathname]);
+
   useEffect(() => {
+    setInstalled(isStandaloneBoardSignal());
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
+      refreshEligibility();
     };
-
-    const onAppInstalled = () => {
-      setInstalled(true);
-      setDeferredPrompt(null);
-    };
-
+    const onAppInstalled = () => { setInstalled(true); setDeferredPrompt(null); setReady(false); };
+    const onEngaged = () => refreshEligibility();
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onAppInstalled);
-
+    window.addEventListener(PWA_ENGAGED_EVENT, onEngaged);
+    refreshEligibility();
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onAppInstalled);
+      window.removeEventListener(PWA_ENGAGED_EVENT, onEngaged);
     };
-  }, []);
+  }, [refreshEligibility]);
 
-  useEffect(() => {
-    if (!pathname.startsWith("/app")) {
-      setReady(false);
-      return;
-    }
-
-    const timer = window.setTimeout(() => setReady(true), 9000);
-    return () => window.clearTimeout(timer);
-  }, [pathname]);
-
-  if (installed || dismissed || !deferredPrompt || !ready) return null;
-
-  async function handleInstall() {
-    if (!deferredPrompt) return;
-
+  const handleInstall = useCallback(async () => {
+    if (!deferredPrompt) return false;
     await deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === "accepted") { setDeferredPrompt(null); setReady(false); }
+    return choice.outcome === "accepted";
+  }, [deferredPrompt]);
 
-    if (choice.outcome === "accepted") {
-      setDeferredPrompt(null);
-    }
+  useEffect(() => {
+    const manual = () => { void handleInstall(); };
+    window.addEventListener(PWA_INSTALL_REQUEST_EVENT, manual);
+    return () => window.removeEventListener(PWA_INSTALL_REQUEST_EVENT, manual);
+  }, [handleInstall]);
+
+  function dismiss() {
+    window.localStorage.setItem(PWA_DISMISSED_KEY, new Date().toISOString());
+    setReady(false);
   }
 
-  return (
-    <div className="install-card" role="region" aria-label="Install BoardSignal">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-extrabold text-[var(--text-primary)]">
-            Keep your Desk close
-          </p>
-          <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">
-            Install BoardSignal for quicker access to your Player Room and latest Desk.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setDismissed(true)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--surface-2)]"
-          aria-label="Dismiss install prompt"
-        >
-          <X size={16} />
-        </button>
-      </div>
-
-      <div className="mt-4">
-        <button type="button" onClick={handleInstall} className="btn btn-primary w-full">
-          <Download size={18} />
-          Install App
-        </button>
-      </div>
-    </div>
-  );
+  if (installed || !deferredPrompt || !ready) return null;
+  return <div className="install-card bs-surface-paper" role="region" aria-label="Install BoardSignal">
+    <div className="install-card-heading"><div><strong>Keep your Desk close</strong><p>Install BoardSignal after your Player Room is ready for quicker access and offline continuity.</p></div><button type="button" onClick={dismiss} aria-label="Dismiss install prompt"><X size={16}/></button></div>
+    <button type="button" onClick={() => void handleInstall()} className="button button-dark install-card-action"><Download size={18}/> Install BoardSignal</button>
+  </div>;
 }
-

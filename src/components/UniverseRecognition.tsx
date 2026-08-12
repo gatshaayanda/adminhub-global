@@ -18,7 +18,7 @@ export function UniverseCategoryCards({ groups }: { groups: UniverseCategoryGrou
           </div>
           {group.boards.length ? group.boards.map((board) => (
             <div className="universe-board" key={board.key}>
-              {board.scopeLabel ? <p className="universe-scope">{board.scopeLabel}</p> : null}
+              <div className="universe-board-scope-row">{board.scopeLabel ? <p className="universe-scope">{board.scopeLabel}</p> : <span />}{"fieldLabel" in board ? <small className="universe-field-label">{String((board as typeof board & { fieldLabel?: string }).fieldLabel ?? "")}</small> : null}</div>
               <ol>
                 {publicTopThree(board).map((item) => (
                   <li key={item.participantId}>

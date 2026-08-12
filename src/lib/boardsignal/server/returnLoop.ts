@@ -10,11 +10,11 @@ import {
 } from "../communications";
 import type { BoardSignalNotificationEventType, CurrentEpisodeSummary } from "../memory";
 import type { BoardSignalDesk } from "../types";
-import { buildPlayerUniverseView } from "../universe";
+import { deskParticipantId, standingsFromActiveBoards } from "../pulse";
 import { buildCurrentEpisodeSummary } from "../processor";
-import { foundingBetaField } from "../../../data/universeField";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { sendAutomatedPlayerMessage } from "./communications";
+import { loadActiveUniverseState } from "./universePulse";
 
 function clean<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function eventDocumentId(eventKey: string) { return createHash("sha256").update(eventKey).digest("hex"); }
@@ -58,14 +58,17 @@ async function eventCandidates(account: BoardSignalAccount, currentEpisode: Curr
       });
     }
 
-    const universeView = buildPlayerUniverseView(foundingBetaField, latest.desk);
-    const top = universeView?.standings.filter((standing) => standing.rank <= 3).sort((a, b) => a.rank - b.rank)[0];
-    if (top) {
+    const universeState = await loadActiveUniverseState();
+    const participantId = deskParticipantId(latest.desk);
+    const standings = participantId ? standingsFromActiveBoards(universeState.boards, participantId) : [];
+    const top = standings.filter((standing) => standing.rank <= 3).sort((a, b) => a.rank - b.rank)[0];
+    const recentPlayerEvent = universeState.recentEvents.find((event) => event.playerId === String(account.chessCom.playerId) && ["new_leader", "entered_top3", "podium_move", "rank_move"].includes(event.eventType));
+    if (top && recentPlayerEvent) {
       candidates.push({
         eventType: "universe_top3",
-        eventKey: automatedEventKey("universe_top3", { deskKey: latest.deskKey, discriminator: `${top.categoryId}:${top.scopeLabel ?? "all"}:${top.rank}` }),
+        eventKey: automatedEventKey("universe_top3", { deskKey: latest.deskKey, discriminator: recentPlayerEvent.eventId }),
         episodeKey,
-        universeAchievement: `You're in the Top 3 for ${top.categoryTitle}${top.scopeLabel ? ` · ${top.scopeLabel}` : ""}.`,
+        universeAchievement: recentPlayerEvent.headline,
       });
     } else {
       const coverage = await latestCoverage(account.chessCom.playerId);

@@ -22,6 +22,8 @@ export async function POST(request: Request) {
       preferredContactMethod?: unknown;
       preferredContactValue?: unknown;
       betaContactConsent?: unknown;
+      source?: unknown;
+      shareMomentId?: unknown;
     };
     const betaRequest = await submitFoundingBetaRequest({
       request,
@@ -29,6 +31,8 @@ export async function POST(request: Request) {
       preferredContactMethod: body.preferredContactMethod,
       preferredContactValue: body.preferredContactValue,
       betaContactConsent: body.betaContactConsent,
+      source: body.source,
+      shareMomentId: body.shareMomentId,
     });
     return response({
       ok: true,

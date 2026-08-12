@@ -21,6 +21,8 @@ export type FoundingBetaRequest = {
   requestedAt: string;
   status: BetaRequestStatus;
   decidedAt?: string;
+  source?: "boardSignalShare";
+  shareMomentId?: string;
 };
 
 const CONTACT_METHODS = new Set<BoardSignalContactMethod>(["email", "discord", "telegram"]);
@@ -77,6 +79,8 @@ export async function submitFoundingBetaRequest(input: {
   preferredContactMethod: unknown;
   preferredContactValue: unknown;
   betaContactConsent: unknown;
+  source?: unknown;
+  shareMomentId?: unknown;
 }) {
   await enforceRequestRateLimit(input.request);
   const requestedUsername = String(input.username ?? "").trim().replace(/^@/, "");
@@ -87,6 +91,10 @@ export async function submitFoundingBetaRequest(input: {
   const identity = identityFromResolved(await resolveChessComPlayer(requestedUsername));
   const now = new Date().toISOString();
   const id = String(identity.playerId);
+  const source = input.source === "boardSignalShare" ? "boardSignalShare" as const : undefined;
+  const shareMomentId = source && /^[A-Za-z0-9_-]{3,220}$/.test(String(input.shareMomentId ?? ""))
+    ? String(input.shareMomentId)
+    : undefined;
   const record: FoundingBetaRequest = {
     id,
     chessPlayerId: identity.playerId,
@@ -98,6 +106,8 @@ export async function submitFoundingBetaRequest(input: {
     betaContactConsent: true,
     requestedAt: now,
     status: "pending",
+    source,
+    shareMomentId,
   };
   await getAdminDb().collection("betaRequests").doc(id).set(clean(record));
   return record;

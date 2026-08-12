@@ -9,11 +9,20 @@ import {
 import ChessComLoginPanel from "@/components/ChessComLoginPanel";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { betaProof, coverageStories } from "@/data/boardsignal";
+import { loadUniverseHomepageLead } from "@/lib/boardsignal/server/universePulse";
 
 const secondaryStories = coverageStories.slice(0, 3);
 const deskPreview = coverageStories[0];
 
-export default function HomePage() {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const universeLead = await loadUniverseHomepageLead().catch(() => undefined);
+  const leadHeadline = universeLead?.headline ?? deskPreview.headline;
+  const leadSummary = universeLead?.supportingFact ?? deskPreview.summary;
+  const leadStat = universeLead?.rankAfter ? `#${universeLead.rankAfter}` : universeLead ? universeLead.eventType.replaceAll("_", " ").toUpperCase() : deskPreview.stat;
+  const leadDetail = universeLead?.canonicalUsername ?? deskPreview.detail;
   return (
     <div id="main" className="personal-home">
       <section className="personal-hero">
@@ -38,9 +47,9 @@ export default function HomePage() {
           </div>
 
           <aside className="player-preview pipeline-preview motion-enter motion-delay-1" aria-label="Featured BoardSignal coverage">
-            <div className="pipeline-preview-top"><span>This week on BoardSignal</span><strong>{deskPreview.headline}</strong></div>
-            <p>{deskPreview.summary}</p>
-            <div className="coverage-stat"><strong>{deskPreview.stat}</strong><span>{deskPreview.detail}</span></div>
+            <div className="pipeline-preview-top"><span>This week on BoardSignal</span><strong>{leadHeadline}</strong></div>
+            <p>{leadSummary}</p>
+            <div className="coverage-stat"><strong>{leadStat}</strong><span>{leadDetail}</span></div>
           </aside>
         </div>
       </section>

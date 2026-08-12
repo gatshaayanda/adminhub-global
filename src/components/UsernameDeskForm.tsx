@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Check, ExternalLink, LoaderCircle, Search, ShieldCheck } from "lucide-react";
@@ -25,6 +25,26 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
   const [contactValue, setContactValue] = useState("");
   const [consent, setConsent] = useState(false);
   const [requested, setRequested] = useState(false);
+  const [shareMomentId, setShareMomentId] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("source") === "boardSignalShare") setShareMomentId(params.get("shareMomentId") ?? "");
+  }, []);
+
+  async function trackShareAttribution(eventType: "beta_request_started" | "beta_request_submitted") {
+    if (!shareMomentId) return;
+    try {
+      await fetch(`/api/boardsignal/share/${encodeURIComponent(shareMomentId)}/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({ eventType, source: "boardSignalShare" }),
+      });
+    } catch {
+      // Beta onboarding must not depend on attribution storage.
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,6 +63,7 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
       const body = await response.json() as ResolveResponse;
       if (!response.ok || !body.ok) throw new Error(body.ok ? "Chess.com player could not be confirmed." : body.error);
       setResolved(body.player);
+      if (shareMomentId) void trackShareAttribution("beta_request_started");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Chess.com player could not be confirmed.");
     } finally {
@@ -72,11 +93,14 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
           preferredContactMethod: contactMethod,
           preferredContactValue: contactValue.trim(),
           betaContactConsent: true,
+          source: shareMomentId ? "boardSignalShare" : undefined,
+          shareMomentId: shareMomentId || undefined,
         }),
       });
       const body = await response.json() as { ok: boolean; error?: string };
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Founding Beta request could not be submitted.");
       setRequested(true);
+      if (shareMomentId) void trackShareAttribution("beta_request_submitted");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Founding Beta request could not be submitted.");
     } finally {

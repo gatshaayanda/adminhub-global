@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 
+type EventItem = { eventId?: string; canonicalUsername?: string; headline?: string; supportingFact?: string; publishedAt?: string; eventType?: string };
 type Summary = {
   activeFoundingBetaPlayers: number;
   pendingAccessRequests: number;
@@ -12,7 +14,17 @@ type Summary = {
   unreadPlayerReplies: number;
   latestUniverseAchievements: Array<{ id: string; username?: string; headline?: string; periodLabel?: string }>;
   recentExceptions: Array<{ id: string; title?: string; message?: string; createdAt?: string }>;
+  newPlayers: EventItem[];
+  latestCompletedDesks: Array<{ username: string; deskKey?: string; periodLabel?: string; periodEnd?: string; publishedAt?: string }>;
+  newTop3: EventItem[];
+  whatsHot: EventItem[];
+  recentShareMoments: Array<{ id: string; canonicalUsername?: string; headline?: string; statValue?: string; statLabel?: string; periodLabel?: string }>;
+  recentUniverseMovement: EventItem[];
 };
+
+function BriefList({ title, items, empty }: { title: string; items: Array<{ id: string; name: string; headline: string; meta?: string }>; empty: string }) {
+  return <section className="desk-section"><p className="kicker">{title}</p>{items.length ? <div className="newsroom-brief-list">{items.map((item) => <article key={item.id}><strong>{item.name}</strong><p>{item.headline}</p><span>{item.meta ?? "Recent"}</span></article>)}</div> : <div className="universe-empty"><p>{empty}</p></div>}</section>;
+}
 
 export default function FounderNewsroomSummary() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -33,5 +45,18 @@ export default function FounderNewsroomSummary() {
     ["Not seen recently", summary.playersNotSeenRecently],
     ["Unread replies", summary.unreadPlayerReplies],
   ];
-  return <><div className="admin-metrics newsroom-metrics">{metrics.map(([label, value], index) => <div className={`metric-card ${index === 0 ? "lime" : index === 3 ? "blue" : ""}`} key={String(label)}><span>{label}</span><strong>{value}</strong><p>Founding Beta operations</p></div>)}</div><div className="newsroom-brief-grid"><section className="desk-section"><p className="kicker">LATEST UNIVERSE ACHIEVEMENTS</p><h2>Safe public coverage</h2>{summary.latestUniverseAchievements.length ? <div className="newsroom-brief-list">{summary.latestUniverseAchievements.map((item) => <article key={item.id}><strong>{item.username ?? "Player"}</strong><p>{item.headline ?? "Safe Universe coverage"}</p><span>{item.periodLabel ?? "Latest completed Desk"}</span></article>)}</div> : <div className="universe-empty"><p>No recent Universe coverage.</p></div>}</section><section className="desk-section"><p className="kicker">RECENT EXCEPTIONS</p><h2>Needs founder attention</h2>{summary.recentExceptions.length ? <div className="newsroom-brief-list">{summary.recentExceptions.map((item) => <article key={item.id}><strong>{item.title ?? "BoardSignal exception"}</strong><p>{item.message ?? "Review in Exceptions."}</p><span>{item.createdAt ? new Date(item.createdAt).toLocaleString() : "Recent"}</span></article>)}</div> : <div className="universe-empty"><p>No recent exceptions recorded.</p></div>}</section></div></>;
+  return <>
+    <div className="admin-metrics newsroom-metrics">{metrics.map(([label, value], index) => <div className={`metric-card ${index === 0 ? "lime" : index === 3 ? "blue" : ""}`} key={String(label)}><span>{label}</span><strong>{value}</strong><p>Founding Beta operations</p></div>)}</div>
+    <div className="newsroom-live-actions"><Link href="/admin/coverage" className="button button-lime">Open Coverage Editor</Link><Link href="/admin/communications" className="button button-outline">Open Communications</Link></div>
+    <div className="newsroom-brief-grid newsroom-pulse-grid">
+      <BriefList title="NEW PLAYERS" empty="No new Universe entrants yet." items={summary.newPlayers.map((item, i) => ({ id: item.eventId ?? `new-${i}`, name: item.canonicalUsername ?? "Player", headline: item.headline ?? "Entered the BoardSignal Universe", meta: item.publishedAt ? new Date(item.publishedAt).toLocaleString() : undefined }))} />
+      <BriefList title="LATEST COMPLETED DESKS" empty="No completed LIVE Desks yet." items={summary.latestCompletedDesks.map((item, i) => ({ id: item.deskKey ?? `desk-${i}`, name: item.username, headline: item.periodLabel ?? "Completed seven-day Desk", meta: item.publishedAt ? new Date(item.publishedAt).toLocaleString() : item.periodEnd }))} />
+      <BriefList title="NEW TOP 3" empty="No new Top 3 movement yet." items={summary.newTop3.map((item, i) => ({ id: item.eventId ?? `top-${i}`, name: item.canonicalUsername ?? "Player", headline: item.headline ?? "Top 3 movement", meta: item.supportingFact }))} />
+      <BriefList title="WHAT'S HOT" empty="No current hot events yet." items={summary.whatsHot.map((item, i) => ({ id: item.eventId ?? `hot-${i}`, name: item.canonicalUsername ?? "Player", headline: item.headline ?? "Universe movement", meta: item.supportingFact }))} />
+      <BriefList title="RECENT SHARE MOMENTS" empty="No Share Moments generated yet." items={summary.recentShareMoments.map((item) => ({ id: item.id, name: item.canonicalUsername ?? "Player", headline: item.headline ?? "Share Moment", meta: `${item.statValue ?? ""} ${item.statLabel ?? item.periodLabel ?? ""}`.trim() }))} />
+      <BriefList title="RECENT UNIVERSE MOVEMENT" empty="No recent Universe movement yet." items={summary.recentUniverseMovement.map((item, i) => ({ id: item.eventId ?? `move-${i}`, name: item.canonicalUsername ?? "Player", headline: item.headline ?? "Universe movement", meta: item.supportingFact }))} />
+      <BriefList title="LATEST UNIVERSE ACHIEVEMENTS" empty="No recent Universe coverage." items={summary.latestUniverseAchievements.map((item) => ({ id: item.id, name: item.username ?? "Player", headline: item.headline ?? "Safe Universe coverage", meta: item.periodLabel ?? "Latest completed Desk" }))} />
+      <BriefList title="RECENT EXCEPTIONS" empty="No recent exceptions recorded." items={summary.recentExceptions.map((item) => ({ id: item.id, name: item.title ?? "BoardSignal exception", headline: item.message ?? "Review in Exceptions.", meta: item.createdAt ? new Date(item.createdAt).toLocaleString() : "Recent" }))} />
+    </div>
+  </>;
 }

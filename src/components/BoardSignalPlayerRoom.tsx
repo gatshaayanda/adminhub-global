@@ -10,11 +10,12 @@ import PlayerInbox from "@/components/PlayerInbox";
 import PlayerPreferencesGate from "@/components/PlayerPreferencesGate";
 import PlayerProfileNotifications from "@/components/PlayerProfileNotifications";
 import UniversalPlayerDesk from "@/components/UniversalPlayerDesk";
+import ShareMomentActions from "@/components/ShareMomentActions";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { removeBoardSignalBrowserPush } from "@/components/BrowserPushControl";
 import { hasAcceptedCurrentBetaAgreement, type BoardSignalAccount } from "@/lib/boardsignal/account";
-import { foundingBetaField } from "@/data/universeField";
-import { buildDeskReturnLoop, buildPlayerUniverseView } from "@/lib/boardsignal/universe";
+import { buildDeskReturnLoop } from "@/lib/boardsignal/universe";
+import type { PlayerPulse, PublicUniverseEvent, SafeShareMoment } from "@/lib/boardsignal/pulse";
 import type {
   CurrentEpisodeSummary,
   DeskSummary,
@@ -34,7 +35,10 @@ type Snapshot = {
   personalRecords: PersonalRecords;
   currentEpisode?: CurrentEpisodeSummary;
   progressUnavailable?: string;
+  pulseUnavailable?: string;
   generationRequired: boolean;
+  pulse?: PlayerPulse;
+  shareMoments?: Array<SafeShareMoment & { activeDesk?: boolean }>;
 };
 type RoomTab = "desk" | "progress" | "universe" | "inbox" | "profile";
 
@@ -133,8 +137,7 @@ export default function BoardSignalPlayerRoom() {
   }, [token]);
 
   const latest = snapshot?.desks[0];
-  const universeView = useMemo(() => latest ? buildPlayerUniverseView(foundingBetaField, latest.desk) : undefined, [latest]);
-  const returnLoop = useMemo(() => latest ? buildDeskReturnLoop(latest.desk, universeView?.standings ?? []) : undefined, [latest, universeView]);
+  const returnLoop = useMemo(() => latest ? buildDeskReturnLoop(latest.desk, snapshot?.pulse?.standings ?? []) : undefined, [latest, snapshot?.pulse?.standings]);
 
   if (!authReady || loading) return <RoomLoading />;
   if (!user) return (
@@ -167,12 +170,13 @@ export default function BoardSignalPlayerRoom() {
       {tab === "desk" ? <>
         <div className="container player-room-memory">
           {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} returnLoop={returnLoop} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>Current episode check unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed Desk remains unchanged."}</p></div></div>}
+          {latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}
         </div>
         {latest ? <UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /> : null}
       </> : null}
 
       {tab === "progress" ? <div className="container player-room-memory"><ProgressSection desks={snapshot.desks.map((item) => item.summary)} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}
-      {tab === "universe" ? <div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} view={universeView} /></div> : null}
+      {tab === "universe" ? <div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} /></div> : null}
       {tab === "inbox" ? <div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div> : null}
       {tab === "profile" ? <div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} token={token} onSaved={() => user ? loadRoom(user, true) : Promise.resolve()} onSignOut={signOutPlayer} /></div> : null}
     </div>
@@ -207,10 +211,37 @@ function ProgressSection({ desks, progress, patterns, records }: { desks: DeskSu
   return <section className="my-progress-section"><div className="universal-section-heading"><span><TrendingUp size={16} /></span><div><p className="kicker">MY PROGRESS</p><h2>Your latest four completed Desks.</h2><p>Pool ratings stay separate. Small samples stay out of trend claims.</p></div></div><div className="desk-sequence">{chronological.map((desk, index) => <article key={desk.deskKey}><span>DESK {index + 1}</span><strong>{desk.periodLabel}</strong><p>{desk.games} games · {desk.scorePct.toFixed(1)}%</p></article>)}</div>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((desk) => desk.longestWinRun))}{metric("Median game length", chronological.map((desk) => desk.medianGameLength))}{metric("Black score", chronological.map((desk) => desk.blackScorePct), "%")}</div><div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Desks completed</span><strong>{records.desksCompleted}</strong></div></div>{patterns.length ? <div className="recurring-patterns"><p className="kicker">RECURRING PATTERNS</p>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed Desks are needed before BoardSignal can name a recurring pattern.</p></div>}</section>;
 }
 
-function UniverseRoomPanel({ account, view }: { account: BoardSignalAccount; view?: ReturnType<typeof buildPlayerUniverseView> }) {
-  return <section className="player-universe-panel"><div className="room-section-heading"><div><p className="kicker">UNIVERSE</p><h2>Your public sports identity. Your private weakness stays private.</h2><p>Founding Beta includes safe sports-style Universe coverage from completed Desks. Red, private Amber, Blue, evidence, recurrence and private progress never belong here.</p></div><Link href={`/player/${encodeURIComponent(account.chessCom.canonicalUsername)}`} className="button button-outline">Open my public coverage</Link></div>{view?.standings?.length ? <div className="universe-standing-grid">{view.standings.slice(0, 6).map((standing) => <article key={`${standing.categoryId}:${standing.scopeLabel ?? "all"}`}><span>{standing.categoryTitle}{standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}</span><strong>#{standing.rank} of {standing.denominator}</strong><p>{standing.label ?? standing.valueLabel}</p></article>)}</div> : <div className="inbox-empty"><Inbox size={20} /><div><strong>No active recognition yet.</strong><p>Your safe public coverage can enter BoardSignal recognition when the deterministic evidence supports it.</p></div></div>}<Link href="/feed" className="text-link">Explore the BoardSignal Universe</Link></section>;
+function ShareMomentsSection({ moments }: { moments: SafeShareMoment[] }) {
+  if (!moments.length) return null;
+  return <section className="share-moments-section"><div className="universal-section-heading"><span>↗</span><div><p className="kicker">YOUR SHAREABLE MOMENTS</p><h2>Up to three public-safe facts from this completed Desk.</h2><p>Your Red, private Amber, Blue, evidence and recurrence never become Share Moments.</p></div></div><div className="share-moment-grid">{moments.map((moment) => <article key={moment.id} className="share-moment-card"><span>{moment.statLabel}</span><h3>{moment.headline}</h3><strong>{moment.statValue}</strong><p>{moment.supportingFact}</p><ShareMomentActions moment={moment} /></article>)}</div></section>;
 }
 
+function PulseCards({ cards }: { cards: NonNullable<PlayerPulse["boardMoved"]> }) {
+  if (!cards.length) return null;
+  return <div className="pulse-card-grid">{cards.map((card) => <article className={`pulse-card pulse-${card.kind}`} key={card.id}><div className="pulse-card-label"><span>{card.eyebrow}</span><b>{card.finality === "provisional" ? "PROVISIONAL" : "OFFICIAL"}</b></div><h3>{card.title}</h3><p>{card.body}</p>{card.facts?.length ? <ul>{card.facts.map((fact) => <li key={fact}>{fact}</li>)}</ul> : null}</article>)}</div>;
+}
+
+function UniverseEventCards({ events, heading }: { events: PublicUniverseEvent[]; heading: string }) {
+  if (!events.length) return null;
+  return <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">{heading}</p></div><div className="pulse-event-grid">{events.map((event) => <article key={event.eventId}><div className="pulse-event-meta"><span>{event.eventType.replaceAll("_", " ")}</span><b>OFFICIAL</b></div><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small></article>)}</div></section>;
+}
+
+function UniverseRoomPanel({ account, pulse, unavailable }: { account: BoardSignalAccount; pulse?: PlayerPulse; unavailable?: string }) {
+  const standings = pulse?.standings ?? [];
+  const groups = pulse?.groups ?? [];
+  const learning = groups.flatMap((group) => group.boards.flatMap((board) => board.entries.slice(0, 1).map((entry) => ({ group, board, entry })))).filter(({ entry }) => entry.player.toLowerCase() !== account.chessCom.canonicalUsername.toLowerCase()).slice(0, 3);
+  return <section className="player-universe-panel">{unavailable ? <p className="notice notice-subtle">{unavailable}</p> : null}<div className="room-section-heading"><div><p className="kicker">UNIVERSE</p><h2>Your board, the field around you, and what changed.</h2><p>Official standings come only from completed eligible active Desks. Current-episode comparisons are always labelled provisional.</p></div><Link href={`/player/${encodeURIComponent(account.chessCom.canonicalUsername)}`} className="button button-outline">Open my public coverage</Link></div>
+    {pulse?.boardMoved?.length ? <section className="pulse-universe-block"><p className="kicker">YOUR BOARD MOVED</p><PulseCards cards={pulse.boardMoved} /></section> : null}
+    {pulse?.sinceAway ? <section className="pulse-universe-block"><PulseCards cards={[pulse.sinceAway]} /></section> : null}
+    {pulse?.proximity?.length ? <section className="pulse-universe-block"><p className="kicker">IN REACH · ON YOUR RADAR</p><PulseCards cards={pulse.proximity} /></section> : null}
+    {pulse?.provisional?.length ? <section className="pulse-universe-block"><p className="kicker">CURRENT EPISODE · PRIVATE PROJECTION</p><PulseCards cards={pulse.provisional} /></section> : null}
+    {pulse ? <UniverseEventCards events={pulse.fieldMoved} heading="THE FIELD MOVED" /> : null}
+    {pulse ? <UniverseEventCards events={pulse.whatsHot} heading="WHAT'S HOT" /> : null}
+    <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">OFFICIAL STANDINGS</p>{pulse?.fieldLabels?.length ? <span>{pulse.fieldLabels.join(" · ")}</span> : null}</div>{standings.length ? <div className="universe-standing-grid">{standings.slice(0, 8).map((standing) => <article key={`${standing.categoryId}:${standing.scopeLabel ?? "all"}`}><span>{standing.categoryTitle}{standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}</span><strong>#{standing.rank} of {standing.denominator}</strong><p>{standing.label ?? standing.valueLabel}</p></article>)}</div> : <div className="inbox-empty"><Inbox size={20} /><div><strong>No active recognition yet.</strong><p>Your completed Desk has not yet met a current comparison category's minimum evidence.</p></div></div>}</section>
+    {learning.length ? <section className="pulse-universe-block"><p className="kicker">TOP PERFORMANCES TO LEARN FROM</p><div className="universe-learning-grid">{learning.map(({ group, board, entry }) => <Link href={entry.coverageHref ?? `/player/${encodeURIComponent(entry.player)}`} key={`${board.key}:${entry.player}`}><span>#1 {group.title}{board.scopeLabel ? ` · ${board.scopeLabel}` : ""}</span><h3>{entry.player}</h3><strong>{entry.valueLabel}</strong><p>{entry.coverageHeadline ?? entry.evidence}</p><small>Open positive coverage</small></Link>)}</div></section> : null}
+    <Link href="/feed" className="text-link">Explore the global BoardSignal Universe</Link>
+  </section>;
+}
 function RoomLoading() {
   return <div id="main" className="desk-processing-page"><section className="container desk-processing-card"><div className="processing-orb"><LoaderCircle /></div><p className="kicker">MY PLAYER ROOM</p><h1>Loading your private BoardSignal state</h1></section></div>;
 }

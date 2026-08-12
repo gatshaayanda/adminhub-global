@@ -179,9 +179,9 @@ test("22. exact latest-four Desk retention remains unchanged", () => {
 });
 
 test("23. deterministic Universe recognition remains the existing implementation", () => {
-  const room = read("src/components/BoardSignalPlayerRoom.tsx");
+  const pulse = read("src/lib/boardsignal/pulse.ts");
   const universe = read("src/lib/boardsignal/universe.ts");
-  assert.match(room, /buildPlayerUniverseView/);
+  assert.match(pulse, /buildUniverseBoards/);
   assert.match(universe, /buildPlayerUniverseView/);
   assert.doesNotMatch(universe, /Math\.random|Date\.now/);
 });

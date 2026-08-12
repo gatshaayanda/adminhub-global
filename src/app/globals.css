@@ -1473,3 +1473,62 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
 .manual-contact-list strong { color: var(--ink); }
 .manual-contact-list span { color: var(--text-muted); overflow-wrap: anywhere; }
 @media (max-width: 600px) { .manual-contact-preview { grid-template-columns: 1fr; } .manual-contact-preview .button { width: 100%; } .manual-contact-list { grid-column: 1; } .manual-contact-list > div { flex-direction: column; } }
+
+/* BoardSignal Universe Pulse + Share Moments */
+.universe-board-scope-row { display: flex; justify-content: space-between; gap: .7rem; align-items: center; }
+.universe-field-label { color: var(--text-muted); font-size: .58rem; font-weight: 900; letter-spacing: .05em; }
+.universe-now-section { border-bottom: 1px solid var(--border); }
+.universe-now-grid, .pulse-event-grid, .pulse-card-grid, .share-moment-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-top: 1rem; }
+.universe-now-grid article, .pulse-event-grid article, .pulse-card, .share-moment-card { min-width: 0; padding: 1rem; border: 1px solid var(--border); background: var(--surface); color: var(--ink); overflow-wrap: anywhere; }
+.universe-now-grid article { border-top: 4px solid var(--signal-blue); }
+.universe-now-grid h3, .pulse-event-grid h3, .pulse-card h3, .share-moment-card h3 { margin-top: .45rem; color: var(--ink); font-size: 1.05rem; line-height: 1.15; }
+.universe-now-grid p, .pulse-event-grid p, .pulse-card p, .share-moment-card p { margin-top: .45rem; color: var(--ink-soft); font-size: .74rem; line-height: 1.5; }
+.universe-now-grid small, .pulse-event-grid small { display: block; margin-top: .65rem; color: var(--text-muted); font-size: .62rem; }
+.pulse-event-meta, .pulse-card-label, .pulse-block-heading { display: flex; justify-content: space-between; gap: .65rem; align-items: center; }
+.pulse-event-meta span, .pulse-card-label span { color: var(--signal-blue-dark); font-size: .59rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.pulse-event-meta b, .pulse-card-label b { padding: .2rem .38rem; border: 1px solid var(--border-strong); color: var(--ink); background: #f0f3f7; font-size: .53rem; letter-spacing: .04em; }
+.pulse-card.pulse-provisional { border-left: 5px solid var(--signal-blue); background: #f1f4ff; }
+.pulse-card.pulse-board-moved { border-left: 5px solid var(--signal-lime); }
+.pulse-card.pulse-since-away { border-left: 5px solid var(--signal-blue); }
+.pulse-card ul { display: grid; gap: .3rem; margin: .65rem 0 0 1rem; color: var(--ink); font-size: .72rem; }
+.pulse-universe-block { margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--border); }
+.pulse-block-heading > span { color: var(--text-muted); font-size: .62rem; font-weight: 800; }
+.share-moments-section { margin-top: 1.25rem; padding: 1rem; border: 1px solid var(--ink); background: #f7f8fb; }
+.share-moment-card { display: flex; flex-direction: column; border-top: 4px solid var(--signal-lime); }
+.share-moment-card > span { color: var(--signal-blue-dark); font-size: .61rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.share-moment-card > strong { display: block; margin-top: .55rem; color: var(--ink); font-size: 1.55rem; }
+.share-moment-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: auto; padding-top: .85rem; }
+.share-moment-actions .button { min-height: 44px; }
+.share-moment-page { min-height: 80vh; padding: clamp(1.5rem, 5vw, 4rem) 0 6rem; background: #edf1f6; }
+.share-moment-public-card { width: min(100% - 2rem, 880px); padding: clamp(1.2rem, 5vw, 3.5rem); border: 1px solid var(--ink); background: var(--surface); box-shadow: 9px 9px 0 var(--ink); color: var(--ink); }
+.share-moment-brand { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: .8rem; border-bottom: 1px solid var(--ink); font-size: .65rem; font-weight: 900; letter-spacing: .08em; }
+.share-moment-brand strong { color: var(--signal-blue-dark); }
+.share-moment-public-card > .kicker { margin-top: 2rem; }
+.share-moment-public-card h1 { max-width: 14ch; margin-top: .45rem; color: var(--ink); font-size: clamp(2.7rem, 8vw, 6rem); line-height: .95; }
+.share-moment-stat { display: inline-grid; margin-top: 1.5rem; padding: .8rem 1rem; background: var(--ink); color: white; }
+.share-moment-stat strong { color: var(--signal-lime); font-size: clamp(2rem, 5vw, 3.5rem); }
+.share-moment-stat span { color: #d8e0ec; font-size: .65rem; font-weight: 800; text-transform: uppercase; }
+.share-moment-support { max-width: 58ch; margin-top: 1rem; color: var(--ink-soft); font-size: 1rem; line-height: 1.55; }
+.share-moment-period { margin-top: .7rem; color: var(--text-muted); font-size: .7rem; font-weight: 800; text-transform: uppercase; }
+.share-moment-private-note { display: flex; gap: .5rem; align-items: flex-start; margin-top: 1.5rem; padding: .75rem; border: 1px solid var(--border); color: var(--ink-soft); font-size: .7rem; }
+.share-moment-private-note svg { flex: 0 0 auto; color: var(--signal-blue-dark); }
+.share-moment-cta { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-top: 2rem; padding: 1rem; background: var(--ink); color: white; }
+.share-moment-cta span { color: var(--signal-lime); font-size: .63rem; font-weight: 900; letter-spacing: .05em; }
+.share-moment-cta p { margin-top: .2rem; color: #d8e0ec; font-size: .76rem; }
+.coverage-editor-stack { display: grid; gap: 1rem; }
+.coverage-editor-badges { display: flex; flex-wrap: wrap; gap: .35rem; }
+.coverage-editor-badges strong { padding: .25rem .4rem; background: var(--ink); color: white; font-size: .55rem; text-transform: uppercase; }
+.coverage-editor-list article.is-hidden-editorial { opacity: .62; border-style: dashed; }
+.newsroom-live-actions { display: flex; flex-wrap: wrap; gap: .55rem; margin: 1rem 0; }
+.newsroom-pulse-grid { align-items: start; }
+
+@media (max-width: 900px) {
+  .universe-now-grid, .pulse-event-grid, .pulse-card-grid, .share-moment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .universe-now-grid, .pulse-event-grid, .pulse-card-grid, .share-moment-grid { grid-template-columns: 1fr; }
+  .share-moment-actions, .share-moment-cta { flex-direction: column; align-items: stretch; }
+  .share-moment-actions .button, .share-moment-cta .button { width: 100%; justify-content: center; }
+  .universe-board-scope-row { align-items: flex-start; }
+  .universe-field-label { text-align: right; }
+}

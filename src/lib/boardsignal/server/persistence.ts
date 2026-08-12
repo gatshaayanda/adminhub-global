@@ -29,6 +29,15 @@ import {
 } from "../memory";
 import { validateDeskForPublication } from "../quality";
 import type { BoardSignalDesk, DeskEngineResult } from "../types";
+import type { PlayerPulse, SafeShareMoment } from "../pulse";
+import {
+  buildPlayerPulse,
+  ensureShareMomentsForActiveDesks,
+  listPlayerShareMoments,
+  loadActiveUniverseState,
+  recordCompletedDeskUniverseArtifacts,
+  recordNewPlayerUniverseIntro,
+} from "./universePulse";
 
 export type PublishedDeskBundle = {
   desk: BoardSignalDesk;
@@ -44,7 +53,10 @@ export type PlayerRoomSnapshot = {
   personalRecords: PersonalRecords;
   currentEpisode?: CurrentEpisodeSummary;
   progressUnavailable?: string;
+  pulseUnavailable?: string;
   generationRequired: boolean;
+  pulse?: PlayerPulse;
+  shareMoments: Array<SafeShareMoment & { activeDesk?: boolean }>;
 };
 
 type AuthTicket = {
@@ -64,6 +76,21 @@ function safeDocumentId(value: string) {
 
 function hashTicket(ticket: string) {
   return createHash("sha256").update(ticket).digest("hex");
+}
+
+async function recordUniversePulseException(account: BoardSignalAccount, type: string, error: unknown) {
+  const createdAt = new Date().toISOString();
+  const id = safeDocumentId(createHash("sha256")
+    .update(`${account.uid}:${type}:${createdAt.slice(0, 13)}`)
+    .digest("hex"));
+  await getAdminDb().collection("exceptions").doc(id).set(clean({
+    type,
+    uid: account.uid,
+    username: account.chessCom.canonicalUsername,
+    title: "Universe Pulse refresh unavailable",
+    message: error instanceof Error ? error.message : "Universe Pulse work failed.",
+    createdAt,
+  }), { merge: true }).catch(() => undefined);
 }
 
 export async function requirePlayerToken(request: Request): Promise<DecodedIdToken> {
@@ -285,6 +312,17 @@ export async function updatePlayerPreferences(
   await Promise.all(coverage.docs.map((document) => (
     document.ref.set(clean({ visibility: { publicPlayerPage: true, universeCoverage: true } }), { merge: true })
   )));
+  const updatedAccount = {
+    ...account,
+    privacy: normalizedPrivacy,
+    notificationPreferences: normalizedNotifications,
+    preferencesConfirmedAt,
+    universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? preferencesConfirmedAt,
+    ...contactUpdate,
+  };
+  await recordNewPlayerUniverseIntro(updatedAccount).catch(async (error) => {
+    await recordUniversePulseException(updatedAccount, "universe_new_player_event", error);
+  });
   return {
     privacy: normalizedPrivacy,
     notificationPreferences: normalizedNotifications,
@@ -322,6 +360,10 @@ export async function publishPrivateDesk(
   }
 
   const db = getAdminDb();
+  const beforeUniverseState = await loadActiveUniverseState().catch(async (error) => {
+    await recordUniversePulseException(account, "universe_pre_publish_snapshot", error);
+    return undefined;
+  });
   const summary = toDeskSummary(desk);
   const deskDocumentId = safeDocumentId(summary.deskKey);
   const desksRef = db.collection("users").doc(account.uid).collection("desks");
@@ -380,6 +422,21 @@ export async function publishPrivateDesk(
     const publicId = safeDocumentId(`${account.chessCom.playerId}:${summary.deskKey}`);
     await db.collection("publicCoverage").doc(publicId).set(clean(publicCoverage));
   }
+  if (!alreadyPublished && beforeUniverseState) {
+    await recordCompletedDeskUniverseArtifacts({
+      account,
+      desk,
+      deskKey: summary.deskKey,
+      beforeState: beforeUniverseState,
+      deskCountAfter: retention.retained.length,
+    }).catch(async (error) => {
+      await recordUniversePulseException(account, "universe_completed_desk_artifacts", error);
+    });
+  } else if (alreadyPublished) {
+    await ensureShareMomentsForActiveDesks(account, [{ desk, summary }], beforeUniverseState).catch(async (error) => {
+      await recordUniversePulseException(account, "universe_share_backfill", error);
+    });
+  }
   return { deskKey: summary.deskKey, removedDeskKeys: retention.removed.map((item) => item.deskKey) };
 }
 
@@ -426,6 +483,23 @@ export async function buildPlayerRoomSnapshot(
     && latest.cadence.nextAvailableOn <= new Date().toISOString().slice(0, 10),
   );
   const accountSnapshot = (await getAdminDb().collection("users").doc(account.uid).get()).data() as BoardSignalAccount & { personalRecords?: PersonalRecords };
+  let pulse: PlayerPulse | undefined;
+  let pulseUnavailable: string | undefined;
+  try {
+    pulse = await buildPlayerPulse({ account: accountSnapshot, latestDesk: latest, currentEpisode });
+  } catch (error) {
+    pulseUnavailable = "Universe Pulse is temporarily unavailable. Your saved Desks are unchanged.";
+    await recordUniversePulseException(accountSnapshot, "universe_player_room_pulse", error);
+  }
+  if (desks.length) {
+    await ensureShareMomentsForActiveDesks(accountSnapshot, desks).catch(async (error) => {
+      await recordUniversePulseException(accountSnapshot, "universe_share_backfill", error);
+    });
+  }
+  const shareMoments = await listPlayerShareMoments(account.chessCom.playerId, summaries.map((summary) => summary.deskKey)).catch(async (error) => {
+    await recordUniversePulseException(accountSnapshot, "universe_share_load", error);
+    return [] as Array<SafeShareMoment & { activeDesk?: boolean }>;
+  });
   return {
     account: accountSnapshot,
     desks,
@@ -438,6 +512,9 @@ export async function buildPlayerRoomSnapshot(
     },
     currentEpisode,
     progressUnavailable,
+    pulseUnavailable,
     generationRequired,
+    pulse,
+    shareMoments,
   };
 }

@@ -546,6 +546,12 @@ service cloud.firestore {
       match /automationEvents/{eventId} {
         allow read, write: if false;
       }
+
+      // Lightweight recent-consciousness snapshot. Owner-readable, server-written.
+      match /pulse/{pulseId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
     }
 
     match /publicPlayers/{chessPlayerId} {
@@ -556,6 +562,23 @@ service cloud.firestore {
     match /publicCoverage/{coverageId} {
       allow read: if true;
       allow write: if isBoardSignalAdmin();
+    }
+
+    // Dynamic Universe events contain only server-approved public-safe sports facts.
+    match /publicUniverseEvents/{eventId} {
+      allow read: if resource.data.safePublic == true;
+      allow write: if isBoardSignalAdmin();
+    }
+
+    // Lightweight share permalinks survive Desk rotation but never contain a private Desk.
+    match /publicShareMoments/{momentId} {
+      allow read: if resource.data.safePublic == true;
+      allow write: if isBoardSignalAdmin();
+    }
+
+    // First-party share attribution is server-only.
+    match /shareAttribution/{eventId} {
+      allow read, write: if false;
     }
 
     // Founding Beta requests, communications, rate limits and operational exceptions are server/admin only.

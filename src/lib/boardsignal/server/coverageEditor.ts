@@ -46,3 +46,46 @@ export async function updateFounderCoverage(input: {
   await ref.set({ editorialTitle: editorialTitle || null, editorialContext: editorialContext || null, editorialUpdatedAt: new Date().toISOString() }, { merge: true });
   return { editorialTitle, editorialContext };
 }
+
+export async function listFounderCoverageBundle() {
+  const db = getAdminDb();
+  const [coverage, universeEvents, shareMoments] = await Promise.all([
+    listFounderCoverage(),
+    db.collection("publicUniverseEvents").orderBy("publishedAt", "desc").limit(100).get().catch(() => ({ docs: [] })),
+    db.collection("publicShareMoments").orderBy("periodEnd", "desc").limit(100).get().catch(() => ({ docs: [] })),
+  ]);
+  return {
+    coverage,
+    universeEvents: universeEvents.docs.map((document) => ({ id: document.id, ...document.data() })),
+    shareMoments: shareMoments.docs.map((document) => ({ id: document.id, ...document.data() })),
+  };
+}
+
+export async function updateFounderUniverseEvent(input: {
+  action: "hide" | "restore" | "feature" | "setLead";
+  id: string;
+}) {
+  const db = getAdminDb();
+  const ref = db.collection("publicUniverseEvents").doc(input.id);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw Object.assign(new Error("That Universe event was not found."), { status: 404 });
+  if (input.action === "hide") {
+    await ref.set({ hidden: true, featured: false, homepageLead: false, moderatedAt: new Date().toISOString() }, { merge: true });
+    return { hidden: true };
+  }
+  if (input.action === "restore") {
+    await ref.set({ hidden: false, moderatedAt: new Date().toISOString() }, { merge: true });
+    return { hidden: false };
+  }
+  if (input.action === "feature") {
+    const featured = snapshot.data()?.featured !== true;
+    await ref.set({ featured, featuredAt: featured ? new Date().toISOString() : null }, { merge: true });
+    return { featured };
+  }
+  const leads = await db.collection("publicUniverseEvents").where("homepageLead", "==", true).get();
+  const batch = db.batch();
+  leads.docs.forEach((document) => batch.set(document.ref, { homepageLead: false }, { merge: true }));
+  batch.set(ref, { homepageLead: true, featured: true, hidden: false, featuredAt: new Date().toISOString() }, { merge: true });
+  await batch.commit();
+  return { homepageLead: input.id };
+}

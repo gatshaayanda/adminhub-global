@@ -186,6 +186,20 @@ export default function FounderCommunications() {
     setSelected((items) => items.includes(uid) ? items.filter((item) => item !== uid) : [...items, uid]);
   }
 
+  function loadFriendsRivalsReleaseDraft() {
+    setAudienceKind("all_active_beta");
+    setSelected([]);
+    setType("beta_update");
+    setTitle("BoardSignal update — Friends & Rivals are here");
+    setBody("Connect with other BoardSignal players, compare your recent Desks, see who's closing the gap and follow Head-to-Head movement as new weeks land.");
+    setLink("/boardsignal/player-room?tab=friends");
+    setAllowReply(false);
+    setBrowserPush(false);
+    setManualContact(false);
+    setPreview(null);
+    setNotice("Friends & Rivals release draft loaded. Preview it before sending after Production release.");
+  }
+
   async function copyExternalMessage() {
     const text = [title.trim(), body.trim(), link.trim()].filter(Boolean).join("\n\n");
     if (!text) return;
@@ -199,7 +213,7 @@ export default function FounderCommunications() {
 
   return <>
     <section className="desk-section founder-composer">
-      <div className="room-section-heading"><div><p className="kicker">COMMUNICATIONS</p><h2>Send a BoardSignal message</h2><p>In-app delivery works now. Browser push is optional and permission-gated. External contact remains manual/copy; email is provider-ready only.</p></div></div>
+      <div className="room-section-heading"><div><p className="kicker">COMMUNICATIONS</p><h2>Send a BoardSignal message</h2><p>In-app delivery works now. Browser push is optional and permission-gated. External contact remains manual/copy; email is provider-ready only.</p></div><button className="button button-outline" type="button" onClick={loadFriendsRivalsReleaseDraft}>Load Friends & Rivals release draft</button></div>
       <div className="founder-composer-grid">
         <div className="composer-field"><label htmlFor="audience-kind">Audience</label><select id="audience-kind" value={audienceKind} onChange={(event) => { setAudienceKind(event.target.value as CommunicationAudienceKind); setPreview(null); }}><option value="one">One player</option><option value="selected">Selected players</option><option value="all_active_beta">All active Founding Beta</option><option value="segment">Segment</option></select></div>
         {audienceKind === "segment" ? <div className="composer-field"><label htmlFor="segment">Segment</label><select id="segment" value={segment} onChange={(event) => setSegment(event.target.value as CommunicationSegment)}>{segments.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div> : null}

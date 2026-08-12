@@ -146,8 +146,8 @@ p { color: var(--text-secondary); }
 .coverage-stat strong { font-size: 2.8rem; line-height: .8; color: var(--card-accent); letter-spacing: -.08em; }
 .coverage-stat span { max-width: 14ch; font-size: .7rem; font-weight: 800; text-transform: uppercase; }
 .tone-blue { --card-accent: var(--signal-blue); }
-.tone-lime { --card-accent: #75a913; }
-.tone-coral { --card-accent: var(--signal-coral); }
+.tone-lime { --card-accent: #5e7f10; }
+.tone-coral { --card-accent: var(--danger); }
 .tone-ink { --card-accent: var(--ink); }
 
 .paper-band { background: var(--white); border-block: 1px solid var(--ink); }
@@ -1107,7 +1107,7 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
 .universe-learning-grid span { color: var(--signal-lime); font-size: .62rem; font-weight: 800; text-transform: uppercase; }
 .universe-learning-grid h3 { margin-top: 1.5rem; color: white; overflow-wrap: anywhere; }
 .universe-learning-grid strong { margin-top: .3rem; font-size: 1.35rem; }
-.universe-learning-grid p { margin-top: .55rem; color: rgba(255,255,255,.6); font-size: .75rem; }
+.universe-learning-grid p { margin-top: .55rem; color: rgba(255,255,255,.74); font-size: .75rem; }
 .universe-learning-grid small { display: flex; gap: .35rem; align-items: center; margin-top: auto; color: var(--signal-lime); font-weight: 800; }
 .universe-explore-link { display: inline-flex; gap: .4rem; align-items: center; margin-top: 1rem; color: var(--signal-lime); font-size: .76rem; font-weight: 800; }
 
@@ -1531,4 +1531,147 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
   .share-moment-actions .button, .share-moment-cta .button { width: 100%; justify-content: center; }
   .universe-board-scope-row { align-items: flex-start; }
   .universe-field-label { text-align: right; }
+}
+
+/* ==========================================================
+   BoardSignal semantic contrast contract
+   Light surfaces always inherit dark copy; lime remains accent-first.
+   New product surfaces should use these roles instead of raw foreground colors.
+   ========================================================== */
+:root {
+  --bs-text-primary: var(--ink);
+  --bs-text-secondary: var(--ink-soft);
+  --bs-text-muted: var(--text-muted);
+  --bs-text-link: var(--signal-blue-dark);
+  --bs-accent: var(--signal-lime);
+  --bs-text-on-dark: var(--white);
+  --bs-surface-light: var(--surface);
+  --bs-surface-dark: var(--ink);
+  --bs-surface-accent: var(--signal-lime);
+}
+.bs-surface-light { background: var(--bs-surface-light); color: var(--bs-text-primary); }
+.bs-surface-light :is(h1,h2,h3,h4,strong) { color: var(--bs-text-primary); }
+.bs-surface-light p { color: var(--bs-text-secondary); }
+.bs-surface-dark { background: var(--bs-surface-dark); color: var(--bs-text-on-dark); }
+.bs-surface-dark :is(h1,h2,h3,h4,strong,p) { color: var(--bs-text-on-dark); }
+.bs-text-muted { color: var(--bs-text-muted); }
+.bs-text-link { color: var(--bs-text-link); }
+.bs-accent { color: var(--signal-blue-dark); }
+
+/* Contrast hardening for the moving Universe layer. */
+.universe-now-grid article,
+.pulse-event-grid article,
+.pulse-card,
+.share-moment-card,
+.universe-standing-grid article,
+.newsroom-brief-list article,
+.coverage-editor-list > article,
+.player-inbox-list button,
+.founder-conversation-list button {
+  color: var(--bs-text-primary);
+}
+.universe-now-grid article :is(h3,strong),
+.pulse-event-grid article :is(h3,strong),
+.pulse-card :is(h3,strong),
+.share-moment-card :is(h3,strong),
+.universe-standing-grid article :is(h3,strong),
+.newsroom-brief-list article :is(h3,strong),
+.coverage-editor-list > article :is(h3,strong) { color: var(--bs-text-primary); }
+.universe-now-grid article p,
+.pulse-event-grid article p,
+.pulse-card p,
+.share-moment-card p,
+.newsroom-brief-list article p,
+.coverage-editor-list > article p { color: var(--bs-text-secondary); }
+
+/* Friends / Rivals / Head-to-Head */
+.friends-surface { margin: 1rem 0 3rem; padding: clamp(1rem, 3vw, 1.8rem); border: 1px solid var(--ink); background: var(--bs-surface-light); color: var(--bs-text-primary); }
+.friends-surface h2, .friends-surface h3, .friends-surface strong { color: var(--bs-text-primary); }
+.friends-surface p { color: var(--bs-text-secondary); }
+.social-loading { min-height: 140px; display: flex; align-items: center; justify-content: center; gap: .6rem; color: var(--bs-text-secondary); }
+.social-panel { margin-top: 1.25rem; padding-top: 1.15rem; border-top: 1px solid var(--border); }
+.social-panel-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.social-panel-heading > span, .social-suggestion-label { color: var(--bs-text-muted); font-size: .64rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.friend-card-grid, .social-pulse-grid, .rival-watch-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-top: .8rem; }
+.friend-card, .social-pulse-grid article, .rival-watch-grid article { min-width: 0; padding: 1rem; border: 1px solid var(--border); background: #f7f8fb; color: var(--bs-text-primary); overflow-wrap: anywhere; }
+.friend-card { display: flex; flex-direction: column; gap: .8rem; border-top: 4px solid var(--signal-blue); }
+.friend-card-ident { display: flex; gap: .7rem; align-items: center; min-width: 0; }
+.friend-card-ident > div:last-child { min-width: 0; }
+.friend-card-ident span, .social-pulse-grid article > span, .rival-watch-grid article > span { display: block; color: var(--signal-blue-dark); font-size: .59rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.friend-card-ident h3 { margin-top: .2rem; overflow-wrap: anywhere; font-size: 1.15rem; }
+.social-avatar { flex: 0 0 auto; width: 46px; height: 46px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--ink); background: var(--white); color: var(--signal-blue-dark); }
+.social-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.friend-card-facts { display: grid; gap: .5rem; }
+.friend-card-facts p { display: grid; gap: .12rem; font-size: .73rem; }
+.friend-card-facts strong { color: var(--bs-text-muted); font-size: .58rem; letter-spacing: .05em; text-transform: uppercase; }
+.friend-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; margin-top: auto; padding-top: .25rem; }
+.friend-card-actions .button { min-height: 44px; }
+.friend-card-actions .text-link { display: inline-flex; gap: .3rem; align-items: center; min-height: 44px; }
+.discovery-card > p { font-size: .76rem; }
+.social-search { display: grid; gap: .45rem; margin-top: 1rem; }
+.social-search label { color: var(--bs-text-primary); font-size: .67rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.social-search > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.social-search input { min-height: 46px; width: 100%; border: 1px solid var(--ink); background: var(--white); color: var(--bs-text-primary); padding: .7rem .8rem; }
+.social-search input:focus-visible, .social-text-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--signal-blue) 28%, transparent); outline-offset: 2px; }
+.social-search-results { margin-top: 1rem; }
+.social-suggestion-label { display: block; margin-top: 1rem; }
+.social-text-button { appearance: none; min-height: 44px; margin-top: .65rem; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.rival-watch-panel { background: #f4f6ff; margin-inline: -.35rem; padding: 1rem .35rem .35rem; }
+.rival-watch-grid article { border-left: 5px solid var(--signal-lime); }
+.rival-watch-grid h3, .social-pulse-grid h3 { margin-top: .4rem; font-size: 1rem; }
+.rival-watch-grid p, .social-pulse-grid p { margin-top: .4rem; font-size: .74rem; }
+.social-pulse-grid small { display: block; margin-top: .65rem; color: var(--bs-text-muted); font-size: .62rem; }
+
+.head-to-head { margin-top: 1.4rem; padding: clamp(1rem, 3vw, 1.6rem); border: 2px solid var(--ink); background: var(--white); box-shadow: 7px 7px 0 var(--ink); color: var(--bs-text-primary); }
+.head-to-head-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.head-to-head-heading h2 { max-width: 19ch; margin-top: .35rem; font-size: clamp(1.8rem, 4vw, 3rem); }
+.head-to-head-heading h2 span { color: var(--signal-blue-dark); font-size: .55em; }
+.head-to-head-heading p { max-width: 66ch; margin-top: .55rem; }
+.head-to-head-ident { display: grid; grid-template-columns: 1fr auto 1fr; gap: .7rem; align-items: stretch; margin-top: 1.1rem; }
+.head-to-head-ident article { min-width: 0; padding: 1rem; border: 1px solid var(--ink); background: #f5f7fa; }
+.head-to-head-ident article:last-child { text-align: right; }
+.head-to-head-ident article span { display: block; color: var(--bs-text-muted); font-size: .6rem; font-weight: 900; text-transform: uppercase; }
+.head-to-head-ident article strong { display: block; margin-top: .35rem; overflow-wrap: anywhere; font-size: clamp(1.1rem, 3vw, 1.7rem); }
+.head-to-head-ident > div { display: grid; min-width: 46px; place-items: center; background: var(--ink); color: var(--bs-text-on-dark); font-size: .68rem; font-weight: 900; }
+.comparison-pools { margin-top: .75rem; color: var(--bs-text-muted); font-size: .67rem; font-weight: 800; text-transform: uppercase; }
+.comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-top: .85rem; }
+.comparison-grid article { min-width: 0; padding: .9rem; border: 1px solid var(--border); background: #f7f8fb; }
+.comparison-grid article > div:first-child { display: flex; justify-content: space-between; gap: .5rem; }
+.comparison-grid article span, .comparison-grid article b { color: var(--signal-blue-dark); font-size: .58rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.comparison-values { display: grid; grid-template-columns: 1fr auto 1fr; gap: .5rem; align-items: baseline; margin-top: .55rem; }
+.comparison-values strong { font-size: clamp(1.3rem, 4vw, 2rem); }
+.comparison-values strong:last-child { text-align: right; }
+.comparison-values span { color: var(--bs-text-muted); }
+.comparison-grid article p { margin-top: .45rem; font-size: .7rem; }
+.comparison-universe { display: grid; gap: .5rem; margin-top: 1rem; }
+.comparison-universe article { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem .8rem; padding: .75rem; border-left: 4px solid var(--signal-blue); background: #f5f7fa; }
+.comparison-universe article span { color: var(--signal-blue-dark); font-size: .63rem; font-weight: 900; text-transform: uppercase; }
+.comparison-universe article p { grid-column: 1 / -1; font-size: .7rem; }
+.social-private-rule, .social-empty-note { display: flex; gap: .55rem; align-items: flex-start; margin-top: 1rem; padding: .8rem; border: 1px solid var(--border); background: #f8f8f6; color: var(--bs-text-primary); }
+.social-private-rule svg, .social-empty-note svg { flex: 0 0 auto; color: var(--signal-blue-dark); }
+.social-private-rule p, .social-empty-note p { color: var(--bs-text-secondary); font-size: .7rem; }
+
+/* Universe social actions remain quiet and progressive. */
+.pulse-event-grid article .social-text-button { display: inline-flex; }
+.universe-learning-grid > article { min-width: 0; min-height: 220px; display: flex; flex-direction: column; padding: 1rem; border: 1px solid rgba(255,255,255,.13); border-radius: var(--radius-md); background: rgba(255,255,255,.07); color: var(--bs-text-on-dark); }
+.universe-learning-grid > article > a { display: flex; flex: 1; min-width: 0; flex-direction: column; color: var(--bs-text-on-dark); }
+.universe-learning-grid > article h3, .universe-learning-grid > article strong { color: var(--bs-text-on-dark); }
+.universe-learning-grid > article p { color: rgba(255,255,255,.74); }
+.universe-learning-grid > article .social-text-button { color: var(--signal-lime); align-self: flex-start; }
+
+@media (max-width: 980px) {
+  .friend-card-grid, .social-pulse-grid, .rival-watch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .comparison-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  .friend-card-grid, .social-pulse-grid, .rival-watch-grid { grid-template-columns: 1fr; }
+  .social-search > div { grid-template-columns: 1fr; }
+  .social-search .button { width: 100%; }
+  .head-to-head-heading { flex-direction: column; }
+  .head-to-head-heading .button { width: 100%; }
+  .head-to-head-ident { grid-template-columns: 1fr; }
+  .head-to-head-ident article:last-child { text-align: left; }
+  .head-to-head-ident > div { min-height: 44px; }
+  .friend-card-actions { align-items: stretch; }
+  .friend-card-actions .button { flex: 1 1 145px; }
 }

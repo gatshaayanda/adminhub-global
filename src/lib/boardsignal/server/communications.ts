@@ -441,3 +441,27 @@ export async function sendAutomatedPlayerMessage(
     pushFailed: push.failed,
   };
 }
+
+
+export async function sendRelationshipNotification(
+  account: BoardSignalAccount,
+  input: { id: string; type: "friend_request" | "friend_accepted"; title: string; body: string; link: string; actionLabel: string },
+) {
+  const message: BoardSignalInboxMessage = {
+    id: input.id,
+    userId: account.uid,
+    type: input.type,
+    title: input.title,
+    body: input.body,
+    link: input.link,
+    actionLabel: input.actionLabel,
+    createdAt: new Date().toISOString(),
+    senderType: "system",
+    allowReply: false,
+  };
+  await getAdminDb().collection("users").doc(account.uid).collection("inbox").doc(input.id).set(clean(message), { merge: true });
+  const push = account.notificationPreferences?.browserPush
+    ? await sendPushToAccount(account, input.type, input.title, input.body, input.link)
+    : { eligible: false, delivered: 0, failed: 0 };
+  return { message, push };
+}

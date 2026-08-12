@@ -552,6 +552,14 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow write: if false;
       }
+
+      // Social projections are private to their owner and written only by trusted server routes.
+      // A browser can never write another player's relationship state.
+      match /social/{otherPlayerId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
     }
 
     match /publicPlayers/{chessPlayerId} {
@@ -578,6 +586,19 @@ service cloud.firestore {
 
     // First-party share attribution is server-only.
     match /shareAttribution/{eventId} {
+      allow read, write: if false;
+    }
+
+    // Canonical friendship and directional block state are server-only.
+    match /socialRelationships/{relationshipId} {
+      allow read, write: if false;
+    }
+
+    match /socialBlocks/{blockId} {
+      allow read, write: if false;
+    }
+
+    match /socialRequestRateLimits/{limitId} {
       allow read, write: if false;
     }
 

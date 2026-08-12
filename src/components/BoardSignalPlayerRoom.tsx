@@ -7,6 +7,7 @@ import { BarChart3, CalendarDays, Inbox, LoaderCircle, ShieldCheck, Target, Tren
 import BetaAgreementGate from "@/components/BetaAgreementGate";
 import ChessComLoginPanel from "@/components/ChessComLoginPanel";
 import PlayerInbox from "@/components/PlayerInbox";
+import PlayerFriends from "@/components/PlayerFriends";
 import PlayerPreferencesGate from "@/components/PlayerPreferencesGate";
 import PlayerProfileNotifications from "@/components/PlayerProfileNotifications";
 import UniversalPlayerDesk from "@/components/UniversalPlayerDesk";
@@ -40,7 +41,8 @@ type Snapshot = {
   pulse?: PlayerPulse;
   shareMoments?: Array<SafeShareMoment & { activeDesk?: boolean }>;
 };
-type RoomTab = "desk" | "progress" | "universe" | "inbox" | "profile";
+type RoomTab = "desk" | "progress" | "universe" | "friends" | "inbox" | "profile";
+type SocialSummaryPlayer = { playerId: number; canonicalUsername: string; relationshipStatus?: "incoming" | "outgoing" | "friends" };
 
 export default function BoardSignalPlayerRoom() {
   const [user, setUser] = useState<User | null>(null);
@@ -51,6 +53,8 @@ export default function BoardSignalPlayerRoom() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<RoomTab>("desk");
   const [unreadCount, setUnreadCount] = useState(0);
+  const [socialPlayers, setSocialPlayers] = useState<Record<string, SocialSummaryPlayer>>({});
+  const [friendCompareTarget, setFriendCompareTarget] = useState<number | undefined>();
 
   const loadRoom = useCallback(async (activeUser: User, quiet = false) => {
     if (!quiet) setLoading(true);
@@ -76,6 +80,36 @@ export default function BoardSignalPlayerRoom() {
     if (activeUser) void loadRoom(activeUser).catch((reason) => { setError(reason instanceof Error ? reason.message : "Player Room could not be loaded."); setLoading(false); });
     else { setSnapshot(null); setToken(""); setLoading(false); }
   }), [loadRoom]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (["desk", "progress", "universe", "friends", "inbox", "profile"].includes(requestedTab ?? "")) setTab(requestedTab as RoomTab);
+  }, []);
+
+  const refreshSocialSummary = useCallback(async () => {
+    if (!token) return;
+    const response = await fetch("/api/boardsignal/social?view=overview", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    const body = await response.json() as { ok?: boolean; overview?: { friends?: SocialSummaryPlayer[]; incoming?: SocialSummaryPlayer[]; outgoing?: SocialSummaryPlayer[] } };
+    if (!response.ok || !body.ok || !body.overview) return;
+    const players = [...(body.overview.friends ?? []), ...(body.overview.incoming ?? []), ...(body.overview.outgoing ?? [])];
+    setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player])));
+  }, [token]);
+
+  useEffect(() => { if (token && snapshot?.account.preferencesConfirmedAt) void refreshSocialSummary(); }, [refreshSocialSummary, snapshot?.account.preferencesConfirmedAt, token]);
+
+  const socialActionFromUniverse = useCallback(async (username: string) => {
+    const known = socialPlayers[username.toLowerCase()];
+    if (known?.relationshipStatus === "friends") { setFriendCompareTarget(known.playerId); setTab("friends"); return; }
+    if (known) { setTab("friends"); return; }
+    if (!token) return;
+    const search = await fetch(`/api/boardsignal/social?view=search&q=${encodeURIComponent(username)}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    const found = await search.json() as { ok?: boolean; players?: SocialSummaryPlayer[] };
+    const target = found.players?.find((player) => player.canonicalUsername.toLowerCase() === username.toLowerCase());
+    if (!search.ok || !found.ok || !target) { setTab("friends"); return; }
+    await fetch("/api/boardsignal/social", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ action: "send", playerId: target.playerId }) });
+    await refreshSocialSummary();
+  }, [refreshSocialSummary, socialPlayers, token]);
 
   useEffect(() => {
     if (!user || !token || !snapshot?.account.preferencesConfirmedAt) return;
@@ -176,7 +210,8 @@ export default function BoardSignalPlayerRoom() {
       </> : null}
 
       {tab === "progress" ? <div className="container player-room-memory"><ProgressSection desks={snapshot.desks.map((item) => item.summary)} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}
-      {tab === "universe" ? <div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} /></div> : null}
+      {tab === "universe" ? <div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div> : null}
+      {tab === "friends" ? <div className="container player-room-memory"><PlayerFriends token={token} initialComparePlayerId={friendCompareTarget} onChanged={(overview) => { const players = [...overview.friends, ...overview.incoming, ...overview.outgoing]; setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player]))); }} /></div> : null}
       {tab === "inbox" ? <div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div> : null}
       {tab === "profile" ? <div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} token={token} onSaved={() => user ? loadRoom(user, true) : Promise.resolve()} onSignOut={signOutPlayer} /></div> : null}
     </div>
@@ -192,6 +227,7 @@ function RoomNav({ tab, setTab, unreadCount }: { tab: RoomTab; setTab: (tab: Roo
     { id: "desk", label: "Desk" },
     { id: "progress", label: "Progress" },
     { id: "universe", label: "Universe" },
+    { id: "friends", label: "Friends" },
     { id: "inbox", label: "Inbox" },
     { id: "profile", label: "Profile" },
   ];
@@ -221,12 +257,12 @@ function PulseCards({ cards }: { cards: NonNullable<PlayerPulse["boardMoved"]> }
   return <div className="pulse-card-grid">{cards.map((card) => <article className={`pulse-card pulse-${card.kind}`} key={card.id}><div className="pulse-card-label"><span>{card.eyebrow}</span><b>{card.finality === "provisional" ? "PROVISIONAL" : "OFFICIAL"}</b></div><h3>{card.title}</h3><p>{card.body}</p>{card.facts?.length ? <ul>{card.facts.map((fact) => <li key={fact}>{fact}</li>)}</ul> : null}</article>)}</div>;
 }
 
-function UniverseEventCards({ events, heading }: { events: PublicUniverseEvent[]; heading: string }) {
+function UniverseEventCards({ events, heading, account, socialPlayers, onSocialAction }: { events: PublicUniverseEvent[]; heading: string; account: BoardSignalAccount; socialPlayers: Record<string, SocialSummaryPlayer>; onSocialAction: (username: string) => Promise<void> }) {
   if (!events.length) return null;
-  return <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">{heading}</p></div><div className="pulse-event-grid">{events.map((event) => <article key={event.eventId}><div className="pulse-event-meta"><span>{event.eventType.replaceAll("_", " ")}</span><b>OFFICIAL</b></div><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small></article>)}</div></section>;
+  return <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">{heading}</p></div><div className="pulse-event-grid">{events.map((event) => { const social = socialPlayers[event.canonicalUsername.toLowerCase()]; const canConnect = event.playerId !== String(account.chessCom.playerId); return <article key={event.eventId}><div className="pulse-event-meta"><span>{event.eventType.replaceAll("_", " ")}</span><b>OFFICIAL</b></div><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small>{canConnect ? <button type="button" className="text-link social-text-button" onClick={() => void onSocialAction(event.canonicalUsername)}>{social?.relationshipStatus === "friends" ? "Compare" : social ? "Open Friends" : "Add Friend"}</button> : null}</article>; })}</div></section>;
 }
 
-function UniverseRoomPanel({ account, pulse, unavailable }: { account: BoardSignalAccount; pulse?: PlayerPulse; unavailable?: string }) {
+function UniverseRoomPanel({ account, pulse, unavailable, socialPlayers, onSocialAction }: { account: BoardSignalAccount; pulse?: PlayerPulse; unavailable?: string; socialPlayers: Record<string, SocialSummaryPlayer>; onSocialAction: (username: string) => Promise<void> }) {
   const standings = pulse?.standings ?? [];
   const groups = pulse?.groups ?? [];
   const learning = groups.flatMap((group) => group.boards.flatMap((board) => board.entries.slice(0, 1).map((entry) => ({ group, board, entry })))).filter(({ entry }) => entry.player.toLowerCase() !== account.chessCom.canonicalUsername.toLowerCase()).slice(0, 3);
@@ -235,10 +271,10 @@ function UniverseRoomPanel({ account, pulse, unavailable }: { account: BoardSign
     {pulse?.sinceAway ? <section className="pulse-universe-block"><PulseCards cards={[pulse.sinceAway]} /></section> : null}
     {pulse?.proximity?.length ? <section className="pulse-universe-block"><p className="kicker">IN REACH · ON YOUR RADAR</p><PulseCards cards={pulse.proximity} /></section> : null}
     {pulse?.provisional?.length ? <section className="pulse-universe-block"><p className="kicker">CURRENT EPISODE · PRIVATE PROJECTION</p><PulseCards cards={pulse.provisional} /></section> : null}
-    {pulse ? <UniverseEventCards events={pulse.fieldMoved} heading="THE FIELD MOVED" /> : null}
-    {pulse ? <UniverseEventCards events={pulse.whatsHot} heading="WHAT'S HOT" /> : null}
+    {pulse ? <UniverseEventCards events={pulse.fieldMoved} heading="THE FIELD MOVED" account={account} socialPlayers={socialPlayers} onSocialAction={onSocialAction} /> : null}
+    {pulse ? <UniverseEventCards events={pulse.whatsHot} heading="WHAT'S HOT" account={account} socialPlayers={socialPlayers} onSocialAction={onSocialAction} /> : null}
     <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">OFFICIAL STANDINGS</p>{pulse?.fieldLabels?.length ? <span>{pulse.fieldLabels.join(" · ")}</span> : null}</div>{standings.length ? <div className="universe-standing-grid">{standings.slice(0, 8).map((standing) => <article key={`${standing.categoryId}:${standing.scopeLabel ?? "all"}`}><span>{standing.categoryTitle}{standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}</span><strong>#{standing.rank} of {standing.denominator}</strong><p>{standing.label ?? standing.valueLabel}</p></article>)}</div> : <div className="inbox-empty"><Inbox size={20} /><div><strong>No active recognition yet.</strong><p>Your completed Desk has not yet met a current comparison category's minimum evidence.</p></div></div>}</section>
-    {learning.length ? <section className="pulse-universe-block"><p className="kicker">TOP PERFORMANCES TO LEARN FROM</p><div className="universe-learning-grid">{learning.map(({ group, board, entry }) => <Link href={entry.coverageHref ?? `/player/${encodeURIComponent(entry.player)}`} key={`${board.key}:${entry.player}`}><span>#1 {group.title}{board.scopeLabel ? ` · ${board.scopeLabel}` : ""}</span><h3>{entry.player}</h3><strong>{entry.valueLabel}</strong><p>{entry.coverageHeadline ?? entry.evidence}</p><small>Open positive coverage</small></Link>)}</div></section> : null}
+    {learning.length ? <section className="pulse-universe-block"><p className="kicker">TOP PERFORMANCES TO LEARN FROM</p><div className="universe-learning-grid">{learning.map(({ group, board, entry }) => { const social = socialPlayers[entry.player.toLowerCase()]; const canConnect = entry.participantId.startsWith("live:"); return <article key={`${board.key}:${entry.player}`}><Link href={entry.coverageHref ?? `/player/${encodeURIComponent(entry.player)}`}><span>#1 {group.title}{board.scopeLabel ? ` · ${board.scopeLabel}` : ""}</span><h3>{entry.player}</h3><strong>{entry.valueLabel}</strong><p>{entry.coverageHeadline ?? entry.evidence}</p><small>Open positive coverage</small></Link>{canConnect ? <button type="button" className="text-link social-text-button" onClick={() => void onSocialAction(entry.player)}>{social?.relationshipStatus === "friends" ? "Compare" : social ? "Open Friends" : "Add Friend"}</button> : null}</article>; })}</div></section> : null}
     <Link href="/feed" className="text-link">Explore the global BoardSignal Universe</Link>
   </section>;
 }

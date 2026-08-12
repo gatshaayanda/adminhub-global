@@ -8,6 +8,8 @@ export type BoardSignalMessageType =
   | "universe_achievement"
   | "beta_update"
   | "feedback_request"
+  | "friend_request"
+  | "friend_accepted"
   | "custom";
 
 export type BoardSignalSenderType = "system" | "founder" | "player";
@@ -135,6 +137,8 @@ export function preferenceAllowsMessage(
     case "episode_update": return preferences.episodeProgress;
     case "blue_reminder": return preferences.blueReminder;
     case "universe_achievement": return preferences.universeAchievement;
+    case "friend_request":
+    case "friend_accepted": return true;
     case "beta_update":
     case "feedback_request":
     case "custom": return preferences.founderUpdates;

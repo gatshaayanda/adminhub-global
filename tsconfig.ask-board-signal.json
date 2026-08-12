@@ -7,6 +7,8 @@
     "strict": true,
     "skipLibCheck": true,
     "types": [],
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
     "rootDir": ".",
     "outDir": ".test-dist-ask"
   },
@@ -15,6 +17,8 @@
     "src/lib/boardsignal/memory.ts",
     "src/lib/boardsignal/social.ts",
     "src/lib/boardsignal/guide.ts",
-    "src/lib/boardsignal/friendsLoader.ts"
+    "src/lib/boardsignal/friendsLoader.ts",
+    "src/lib/boardsignal/offline/types.ts",
+    "src/lib/boardsignal/offline/guide.ts"
   ]
 }

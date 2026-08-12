@@ -71,11 +71,13 @@ export type GuideContext = {
   rivalWatch?: Array<{ player: SocialPlayerCard; label: string; detail: string }>;
   comparison?: HeadToHeadPayload;
   unreadInboxCount?: number;
-  latestAnnouncement?: { title: string; body: string; link?: string; actionLabel?: string };
+  latestAnnouncement?: { id?: string; title: string; body: string; link?: string; actionLabel?: string; createdAt?: string };
   notificationPreferences?: GuideNotificationPreferences;
   preferences?: GuidePreferences;
   tourState?: "unseen" | "completed" | "dismissed";
   releaseHintDismissed?: boolean;
+  recentConversation?: GuideConversationTurn[];
+  contextUpdatedAt?: string;
 };
 
 export type GuideAction = {
@@ -95,6 +97,41 @@ export type GuideResponse = {
   contextReason?: string;
   intent: GuideIntent;
   category?: GuideQuestionCategory;
+  provenance?: GuideProvenance;
+};
+
+export type GuideProvenanceKind =
+  | "founder_announcement"
+  | "desk"
+  | "pulse"
+  | "universe"
+  | "friends"
+  | "head_to_head"
+  | "inbox"
+  | "profile"
+  | "product_knowledge"
+  | "offline_snapshot";
+
+export type GuideProvenance = {
+  kind: GuideProvenanceKind;
+  title?: string;
+  id?: string;
+  timestamp?: string;
+};
+
+export type GuideConversationAction = {
+  id: string;
+  label: string;
+  href?: string;
+  kind?: GuideAction["kind"];
+};
+
+export type GuideConversationTurn = {
+  role: "player" | "guide";
+  body: string;
+  intent?: GuideIntent;
+  provenance?: GuideProvenance;
+  actions?: GuideConversationAction[];
 };
 
 export type GuideQuestionCategory =
@@ -105,7 +142,65 @@ export type GuideIntent =
   | "welcome" | "what_is_boardsignal" | "how_it_works" | "privacy" | "agreement" | "beta_next" | "beta_cost" | "sign_in" | "username_reason"
   | "universe_what" | "universe_included" | "what_changed" | "explain_desk" | "explain_signal" | "progress" | "explain_rank"
   | "in_reach" | "whats_hot" | "friends" | "friend_requests" | "compare_friend" | "inbox" | "message_founder"
-  | "notifications" | "whats_new" | "share" | "tour" | "tone" | "random_position" | "support" | "unknown";
+  | "notifications" | "whats_new" | "share" | "tour" | "tone" | "random_position" | "support"
+  | "followup_why" | "followup_explain" | "followup_source" | "followup_meaning" | "followup_reference" | "followup_clarify"
+  | "unknown";
+
+export const GUIDE_INTENTS: readonly GuideIntent[] = [
+  "welcome", "what_is_boardsignal", "how_it_works", "privacy", "agreement", "beta_next", "beta_cost", "sign_in", "username_reason",
+  "universe_what", "universe_included", "what_changed", "explain_desk", "explain_signal", "progress", "explain_rank", "in_reach", "whats_hot",
+  "friends", "friend_requests", "compare_friend", "inbox", "message_founder", "notifications", "whats_new", "share", "tour", "tone", "random_position",
+  "support", "followup_why", "followup_explain", "followup_source", "followup_meaning", "followup_reference", "followup_clarify", "unknown",
+];
+
+export const GUIDE_PROVENANCE_KINDS: readonly GuideProvenanceKind[] = [
+  "founder_announcement", "desk", "pulse", "universe", "friends", "head_to_head", "inbox", "profile", "product_knowledge", "offline_snapshot",
+];
+
+const GUIDE_INTENT_SET = new Set<string>(GUIDE_INTENTS);
+const GUIDE_PROVENANCE_SET = new Set<string>(GUIDE_PROVENANCE_KINDS);
+const GUIDE_ACTION_KIND_SET = new Set<string>(["navigate", "handoff", "preference", "tour", "feedback"]);
+const MAX_GUIDE_CONVERSATION_TURNS = 12;
+const MAX_GUIDE_TURN_CHARS = 1200;
+
+function safeConversationText(value: unknown, max = MAX_GUIDE_TURN_CHARS) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function sanitizeGuideProvenance(value: unknown): GuideProvenance | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const source = value as Record<string, unknown>;
+  const kind = typeof source.kind === "string" && GUIDE_PROVENANCE_SET.has(source.kind) ? source.kind as GuideProvenanceKind : undefined;
+  if (!kind) return undefined;
+  const title = safeConversationText(source.title, 180) || undefined;
+  const id = safeConversationText(source.id, 220) || undefined;
+  const timestamp = safeConversationText(source.timestamp, 80) || undefined;
+  return { kind, ...(title ? { title } : {}), ...(id ? { id } : {}), ...(timestamp ? { timestamp } : {}) };
+}
+
+export function sanitizeGuideConversation(value: unknown): GuideConversationTurn[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(-MAX_GUIDE_CONVERSATION_TURNS).flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const source = entry as Record<string, unknown>;
+    const role = source.role === "player" || source.role === "guide" ? source.role : undefined;
+    const body = safeConversationText(source.body);
+    if (!role || !body) return [];
+    const intent = typeof source.intent === "string" && GUIDE_INTENT_SET.has(source.intent) ? source.intent as GuideIntent : undefined;
+    const provenance = sanitizeGuideProvenance(source.provenance);
+    const actions = Array.isArray(source.actions) ? source.actions.slice(0, 3).flatMap((action) => {
+      if (!action || typeof action !== "object") return [];
+      const item = action as Record<string, unknown>;
+      const id = safeConversationText(item.id, 120);
+      const label = safeConversationText(item.label, 120);
+      if (!id || !label) return [];
+      const href = safeConversationText(item.href, 300) || undefined;
+      const kind = typeof item.kind === "string" && GUIDE_ACTION_KIND_SET.has(item.kind) ? item.kind as GuideAction["kind"] : undefined;
+      return [{ id, label, ...(href ? { href } : {}), ...(kind ? { kind } : {}) }];
+    }) : undefined;
+    return [{ role, body, ...(intent ? { intent } : {}), ...(provenance ? { provenance } : {}), ...(actions?.length ? { actions } : {}) }];
+  });
+}
 
 export const DEFAULT_GUIDE_PREFERENCES: GuidePreferences = {
   preferredTone: "Balanced",
@@ -133,10 +228,31 @@ export function guideCategoryForIntent(intent: GuideIntent): GuideQuestionCatego
   return "general";
 }
 
-export function detectGuideIntent(message: string, context: Pick<GuideContext, "pathname" | "activeTab">): GuideIntent {
+export function isGuideWhatsNewMessage(message: { senderType?: string; type?: string }) {
+  return message.senderType === "founder" && message.type === "beta_update";
+}
+
+function latestGuideTurn(recentConversation: GuideConversationTurn[]) {
+  return [...recentConversation].reverse().find((turn) => turn.role === "guide");
+}
+
+function hasRecentGuideTurn(recentConversation: GuideConversationTurn[]) {
+  return Boolean(latestGuideTurn(recentConversation));
+}
+
+export function detectGuideIntent(message: string, context: Pick<GuideContext, "pathname" | "activeTab">, recentConversation: GuideConversationTurn[] = []): GuideIntent {
   const text = lower(message);
   if (!text) return "welcome";
   if ((has(text, "best move", "what move", "random position", "fen ") || /^[rnbqkp1-8\/]+\s[wb]\s/.test(text)) && has(text, "move", "position", "fen")) return "random_position";
+  if (has(text, "what do you mean by in reach", "what does in reach mean")) return "in_reach";
+  const hasGuideContext = hasRecentGuideTurn(recentConversation);
+  if (hasGuideContext && (has(text, "where did that come from", "where did it come from", "how do you know", "what's your source", "whats your source", "source for that"))) return "followup_source";
+  if (hasGuideContext && (has(text, "why did you say") || /^why[?!.]*$/i.test(text))) return "followup_why";
+  if (hasGuideContext && has(text, "that was just a test", "that was a test message", "that message was just a test")) return "followup_clarify";
+  if (hasGuideContext && has(text, "who were you talking about", "who are you talking about", "who is he", "who is she", "who are they", "why did you mention him", "why did you mention her", "why did you mention them", "what was the update you just mentioned", "go back to what you said", "open that again", "take me back there", "where did that message go", "what did i just change", "i sent that")) return "followup_reference";
+  if (hasGuideContext && has(text, "explain that", "explain it", "explain the last part", "can you explain that", "can you explain it")) return "followup_explain";
+  if (hasGuideContext && has(text, "what did you mean", "what do you mean by that", "what does that mean", "what do you mean", "does that mean")) return "followup_meaning";
+  if (hasGuideContext && /^(that|it|him|her|them)[?!.]*$/i.test(text)) return "followup_clarify";
   if (has(text, "message ayanda", "talk to ayanda", "founder", "human", "support person")) return "message_founder";
   if (has(text, "not working", "broken", "incorrect data", "wrong data", "privacy issue", "help me", "support")) return "support";
   if (has(text, "what changed", "since i was away", "since my last", "what's changed", "whats changed")) return "what_changed";
@@ -197,13 +313,168 @@ function baseActions(context: GuideContext): GuideAction[] {
 function trimChips(items: string[]) { return [...new Set(items)].slice(0, 5); }
 function joinFacts(facts: string[]) { return facts.filter(Boolean).slice(0, 4).join(" "); }
 
-export type GuideBrainResult = { intent: GuideIntent; context: GuideContext; message: string };
-export interface GuideRenderer { render(result: GuideBrainResult): GuideResponse; }
-export function runGuideBrain(message: string, context: GuideContext): GuideBrainResult {
-  return { intent: detectGuideIntent(message, context), context, message };
+function recentGuideTurns(recentConversation: GuideConversationTurn[]) {
+  return recentConversation.filter((turn) => turn.role === "guide");
 }
 
-export function renderGuideResponse(intent: GuideIntent, context: GuideContext, message = ""): GuideResponse {
+function quotedOrNamedPhrase(message: string) {
+  const quoted = message.match(/["“”']([^"“”']{2,180})["“”']/)?.[1]?.trim();
+  if (quoted) return quoted;
+  const said = message.match(/why\s+did\s+you\s+say\s+(.+?)[?!.]*$/i)?.[1]?.trim();
+  return said && said.length >= 2 ? said.slice(0, 180) : undefined;
+}
+
+export function resolveGuideConversationTurn(message: string, recentConversation: GuideConversationTurn[]): GuideConversationTurn | undefined {
+  const guides = recentGuideTurns(sanitizeGuideConversation(recentConversation));
+  if (!guides.length) return undefined;
+  const phrase = quotedOrNamedPhrase(message)?.toLowerCase();
+  if (phrase) {
+    const match = [...guides].reverse().find((turn) => turn.body.toLowerCase().includes(phrase));
+    if (match) return match;
+  }
+  return guides[guides.length - 1];
+}
+
+function provenanceSentence(provenance?: GuideProvenance) {
+  if (!provenance) return undefined;
+  const when = provenance.timestamp ? ` at ${provenance.timestamp}` : "";
+  switch (provenance.kind) {
+    case "founder_announcement": return `That came from ${provenance.title ? `the Founder product update “${provenance.title}”` : "the latest Founder product update"}${when}.`;
+    case "desk": return `That came from ${provenance.title ? `your completed BoardSignal Desk for ${provenance.title}` : "your completed BoardSignal Desk"}${when}.`;
+    case "pulse": return `That came from your latest BoardSignal Pulse${when}.`;
+    case "universe": return `That came from your current BoardSignal Universe context${provenance.title ? ` for ${provenance.title}` : ""}${when}.`;
+    case "friends": return `That came from your accepted Friends/Rivals context${provenance.title ? ` involving ${provenance.title}` : ""}${when}.`;
+    case "head_to_head": return `That came from your verified Head-to-Head comparison${provenance.title ? ` with ${provenance.title}` : ""}${when}.`;
+    case "inbox": return `That came from your private BoardSignal Inbox context${provenance.title ? ` (“${provenance.title}”)` : ""}${when}.`;
+    case "profile": return `That came from your saved BoardSignal account/profile settings${when}.`;
+    case "offline_snapshot": return `That came from the BoardSignal snapshot saved on this device${when}. I can't check whether anything newer happened until you're back online.`;
+    case "product_knowledge": return `That came from BoardSignal's fixed product rules and help content, not from new chess analysis.`;
+  }
+}
+
+function mentionedEntities(context: GuideContext, body: string) {
+  const candidates = [
+    context.canonicalUsername,
+    ...(context.friends ?? []).map((friend) => friend.canonicalUsername),
+    ...(context.rivalWatch ?? []).map((item) => item.player.canonicalUsername),
+    context.comparison?.left.canonicalUsername,
+    context.comparison?.right.canonicalUsername,
+  ].filter((value): value is string => Boolean(value));
+  const lowerBody = body.toLowerCase();
+  return [...new Set(candidates.filter((name) => lowerBody.includes(name.toLowerCase())))];
+}
+
+function actionForReference(turn: GuideConversationTurn, message: string): GuideConversationAction | undefined {
+  const actions = turn.actions ?? [];
+  if (!actions.length) return undefined;
+  const text = lower(message);
+  if (has(text, "open that again", "take me back there", "go back")) return [...actions].reverse().find((action) => action.kind === "navigate" && action.href) ?? actions[actions.length - 1];
+  if (has(text, "message", "sent", "send")) return [...actions].reverse().find((action) => action.kind === "handoff") ?? actions[actions.length - 1];
+  return actions.length === 1 ? actions[0] : undefined;
+}
+
+export function renderGuideFollowup(intent: GuideIntent, context: GuideContext, message: string, recentConversation: GuideConversationTurn[]): GuideResponse | undefined {
+  if (!["followup_why", "followup_explain", "followup_source", "followup_meaning", "followup_reference", "followup_clarify"].includes(intent)) return undefined;
+  const safeHistory = sanitizeGuideConversation(recentConversation);
+  const target = resolveGuideConversationTurn(message, safeHistory);
+  if (!target) {
+    return {
+      reply: "I don't have that earlier part in my current bounded conversation context, so I won't invent what I previously meant.",
+      chips: pageGuideSuggestions(context.pathname, context.activeTab, context.authenticated).slice(0, 3),
+      actions: [],
+      handoffAvailable: context.authenticated,
+      contextReason: "No usable recent Guide response was available for that reference.",
+      intent,
+      category: "general",
+      provenance: { kind: "product_knowledge", title: "Conversation boundary" },
+    };
+  }
+
+  const inferredAnnouncementProvenance = !target.provenance && target.intent === "whats_new" && context.latestAnnouncement && target.body.toLowerCase().includes(context.latestAnnouncement.title.toLowerCase())
+    ? { kind: "founder_announcement" as const, id: context.latestAnnouncement.id, title: context.latestAnnouncement.title, timestamp: context.latestAnnouncement.createdAt }
+    : undefined;
+  const effectiveProvenance = target.provenance ?? inferredAnnouncementProvenance;
+  const source = provenanceSentence(effectiveProvenance);
+  const entities = mentionedEntities(context, target.body);
+  const action = actionForReference(target, message);
+  const excerpt = target.body.length > 260 ? `${target.body.slice(0, 257)}…` : target.body;
+  const text = lower(message);
+  let reply = source ?? `I can see the previous reply — “${excerpt}” — but that older turn does not carry enough source metadata for me to name a verified source.`;
+  const actions: GuideAction[] = [];
+
+  if (intent === "followup_source") {
+    reply = source ?? (target.intent === "whats_new"
+      ? `That was in my previous What's New reply, but it does not map to a current explicit product announcement. Generic Founder/support messages no longer count as What's New, so I won't invent a product-update source for it.`
+      : `That was in my previous reply, but the current bounded turn does not include verified source metadata. I won't make one up.`);
+  } else if (intent === "followup_why") {
+    reply = source
+      ? source.replace(/^That came from /, "I said that because it came from ")
+      : target.intent === "whats_new"
+        ? `I said that in my previous What's New reply, but it does not map to a current explicit product announcement. Generic Founder/support messages should not be treated as product updates.`
+        : `I said “${excerpt},” but that previous turn does not carry verified provenance in the current context, so I can't honestly claim a source.`;
+  } else if (intent === "followup_explain" || intent === "followup_meaning") {
+    if (has(text, "does that mean i'm improving", "does that mean im improving", "does that mean i am improving")) {
+      reply = `That previous fact does not, by itself, prove you're improving. BoardSignal uses your recent completed Desks in Progress for that comparison.${source ? ` ${source}` : ""}`;
+      actions.push({ id: "progress", label: "Open Progress", href: "/boardsignal/player-room?tab=progress", kind: "navigate" });
+    } else {
+      reply = `By that, I meant the point in my previous reply: “${excerpt}”${source ? ` ${source}` : ""}`;
+    }
+  } else if (intent === "followup_reference" || intent === "followup_clarify") {
+    if (has(text, "that was just a test", "that was a test message", "that message was just a test")) {
+      reply = `Got it. That was part of the recent conversation context, but a generic Founder/support message should not be treated as a product update. “What's new?” now uses explicit BoardSignal product announcements only.`;
+    } else if (has(text, "i sent that", "where did that message go")) {
+      if (/sent privately to ayanda/i.test(target.body)) reply = `My previous reply said it was sent privately to Ayanda, but I don't treat conversation text alone as server proof. Open Inbox to verify the conversation.`;
+      else reply = `I offered the ${action?.label ?? "Message Ayanda"} action, but this bounded conversation alone does not prove it was sent. Check Inbox for the actual private conversation.`;
+      actions.push({ id: "inbox", label: "Open Inbox", href: "/boardsignal/player-room?tab=inbox", kind: "navigate" });
+    } else if (action?.href && has(text, "open that again", "take me back there", "go back")) {
+      reply = `I was referring to “${action.label}.” I can take you back there.`;
+      actions.push({ id: action.id, label: action.label, href: action.href, kind: "navigate" });
+    } else if (entities.length === 1) {
+      reply = `I was referring to ${entities[0]}.${source ? ` ${source}` : ""}`;
+    } else if (entities.length > 1) {
+      reply = `There is more than one reasonable referent in my last reply. Do you mean ${entities.slice(0, 2).join(" or ")}?`;
+    } else if (action) {
+      reply = `I was referring to the action “${action.label}.”${action.href ? " I can open it again." : ""}`;
+      if (action.href) actions.push({ id: action.id, label: action.label, href: action.href, kind: "navigate" });
+    } else {
+      reply = `I was referring to my previous reply: “${excerpt}”${source ? ` ${source}` : ""}`;
+    }
+  }
+
+  return {
+    reply,
+    chips: ["Where did that come from?", "Explain that", ...pageGuideSuggestions(context.pathname, context.activeTab, context.authenticated)].slice(0, 4),
+    actions: actions.slice(0, 3),
+    handoffAvailable: context.authenticated,
+    contextReason: "Using the most recent bounded Guide turn that matches your reference.",
+    intent,
+    category: target.intent ? guideCategoryForIntent(target.intent) : "general",
+    provenance: effectiveProvenance,
+  };
+}
+
+export type GuideBrainResult = { intent: GuideIntent; context: GuideContext; message: string; recentConversation: GuideConversationTurn[] };
+export interface GuideRenderer { render(result: GuideBrainResult): GuideResponse; }
+export function runGuideBrain(message: string, context: GuideContext): GuideBrainResult {
+  const recentConversation = sanitizeGuideConversation(context.recentConversation ?? []);
+  return { intent: detectGuideIntent(message, context, recentConversation), context, message, recentConversation };
+}
+
+function provenanceForIntent(intent: GuideIntent, context: GuideContext): GuideProvenance | undefined {
+  if (intent === "what_changed") return { kind: "pulse", title: "Latest BoardSignal Pulse", timestamp: context.contextUpdatedAt };
+  if (["explain_desk", "explain_signal", "progress", "share"].includes(intent)) return { kind: "desk", title: context.latestDesk?.periodLabel, timestamp: context.contextUpdatedAt };
+  if (["universe_what", "universe_included", "explain_rank", "in_reach", "whats_hot"].includes(intent)) return { kind: "universe", title: context.standings?.[0]?.categoryTitle, timestamp: context.contextUpdatedAt };
+  if (["friends", "friend_requests"].includes(intent)) return { kind: "friends", timestamp: context.contextUpdatedAt };
+  if (intent === "compare_friend") return { kind: "head_to_head", title: context.comparison?.right.canonicalUsername, timestamp: context.contextUpdatedAt };
+  if (intent === "inbox") return { kind: "inbox", title: "BoardSignal Inbox", timestamp: context.contextUpdatedAt };
+  if (["notifications", "tone"].includes(intent)) return { kind: "profile", title: "BoardSignal Profile", timestamp: context.contextUpdatedAt };
+  if (intent === "whats_new" && context.latestAnnouncement) return { kind: "founder_announcement", id: context.latestAnnouncement.id, title: context.latestAnnouncement.title, timestamp: context.latestAnnouncement.createdAt };
+  return { kind: "product_knowledge", title: "BoardSignal product rules" };
+}
+
+export function renderGuideResponse(intent: GuideIntent, context: GuideContext, message = "", recentConversation: GuideConversationTurn[] = context.recentConversation ?? []): GuideResponse {
+  const followup = renderGuideFollowup(intent, context, message, recentConversation);
+  if (followup) return followup;
   const chips = pageGuideSuggestions(context.pathname, context.activeTab, context.authenticated);
   const actions: GuideAction[] = [];
   let reply = "I can explain what BoardSignal already knows, help you navigate it, or get Ayanda involved when something needs a human.";
@@ -279,7 +550,9 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
     }
     case "in_reach": {
       const proximity = (context.pulseFacts ?? []).find((item) => /reach|radar|challenger|place/i.test(`${item.eyebrow} ${item.title} ${item.body}`));
-      reply = proximity ? `${proximity.title} ${proximity.body}` : "I don't have a current verified In Reach / nearby-field fact for you. BoardSignal only names proximity when the numerical gap is meaningful.";
+      if (has(message, "what do you mean by in reach", "what does in reach mean")) {
+        reply = `“In Reach” means BoardSignal has a clear, numerically meaningful gap between you and the next relevant position in the same comparable field.${proximity ? ` Right now: ${proximity.title} ${proximity.body}` : " I don't have a current verified In Reach fact for you."}`;
+      } else reply = proximity ? `${proximity.title} ${proximity.body}` : "I don't have a current verified In Reach / nearby-field fact for you. BoardSignal only names proximity when the numerical gap is meaningful.";
       actions.push({ id: "universe", label: "Open Universe", href: "/boardsignal/player-room?tab=universe", kind: "navigate" });
       break;
     }
@@ -366,11 +639,11 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
   const maxChips = detail === "Short" ? 3 : 5;
   const maxActions = detail === "Short" ? 3 : 5;
 
-  return { reply, chips: trimChips(chips).slice(0, maxChips), actions: actions.slice(0, maxActions), handoffAvailable: context.authenticated, contextReason, intent, category: guideCategoryForIntent(intent) };
+  return { reply, chips: trimChips(chips).slice(0, maxChips), actions: actions.slice(0, maxActions), handoffAvailable: context.authenticated, contextReason, intent, category: guideCategoryForIntent(intent), provenance: provenanceForIntent(intent, context) };
 }
 
 export const deterministicGuideRenderer: GuideRenderer = {
-  render(result) { return renderGuideResponse(result.intent, result.context, result.message); },
+  render(result) { return renderGuideResponse(result.intent, result.context, result.message, result.recentConversation); },
 };
 
 export function boundedGuideMemory(memory: GuideConversationMemory, topic: string, signal?: string): GuideConversationMemory {

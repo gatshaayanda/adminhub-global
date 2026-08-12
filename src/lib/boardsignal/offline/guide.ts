@@ -1,4 +1,4 @@
-import { detectGuideIntent, guideCategoryForIntent, type GuideResponse } from "@/lib/boardsignal/guide";
+import { detectGuideIntent, guideCategoryForIntent, renderGuideFollowup, sanitizeGuideConversation, type GuideConversationTurn, type GuideProvenance, type GuideResponse } from "@/lib/boardsignal/guide";
 import type { OfflinePlayerRoomSnapshot, OfflineSocialSnapshot } from "./types";
 
 function savedAt(snapshot?: OfflinePlayerRoomSnapshot) {
@@ -7,17 +7,28 @@ function savedAt(snapshot?: OfflinePlayerRoomSnapshot) {
   catch { return snapshot.lastSyncedAt; }
 }
 
-export function buildOfflineGuideResponse({ message, pathname, activeTab, snapshot, social, authenticated }: {
+export function buildOfflineGuideResponse({ message, pathname, activeTab, snapshot, social, authenticated, recentConversation = [] }: {
   message: string;
   pathname: string;
   activeTab?: string;
   snapshot?: OfflinePlayerRoomSnapshot;
   social?: OfflineSocialSnapshot;
   authenticated: boolean;
+  recentConversation?: GuideConversationTurn[];
 }): GuideResponse {
-  const intent = detectGuideIntent(message, { pathname, activeTab });
+  const safeHistory = sanitizeGuideConversation(recentConversation);
+  const context = { authenticated, pathname, activeTab, recentConversation: safeHistory };
+  const intent = detectGuideIntent(message, { pathname, activeTab }, safeHistory);
+  const followup = renderGuideFollowup(intent, context, message, safeHistory);
+  if (followup) {
+    if (followup.provenance?.kind !== "offline_snapshot") followup.reply += " You're offline now, so I can't verify whether that source has changed since then.";
+    return followup;
+  }
   const actions: GuideResponse["actions"] = [];
   const timestamp = savedAt(snapshot);
+  let provenance: GuideProvenance = snapshot
+    ? { kind: "offline_snapshot", title: "Saved BoardSignal", timestamp: snapshot.lastSyncedAt }
+    : { kind: "product_knowledge", title: "BoardSignal offline help" };
   let reply = "You're offline. I can explain BoardSignal and anything already saved on this device, but I can't check Chess.com or the BoardSignal server for newer information.";
 
   if (intent === "what_changed") {
@@ -48,8 +59,10 @@ export function buildOfflineGuideResponse({ message, pathname, activeTab, snapsh
     if (authenticated) actions.push({ id: "handoff", label: "Save message draft", kind: "handoff", requiresConfirmation: true });
   } else if (intent === "random_position") {
     reply = "I can explain analysis already saved inside your BoardSignal Desk. I don't create new chess analysis from a random position, online or offline.";
+    provenance = { kind: "product_knowledge", title: "BoardSignal analysis boundary" };
   } else if (intent === "privacy" || intent === "agreement") {
     reply = "Offline BoardSignal keeps your own bounded Player Room snapshot under your Firebase UID on this device. It does not store Beta Access codes, Firebase ID tokens, Admin data, full Inbox history, or another player's private Signals/evidence.";
+    provenance = { kind: "product_knowledge", title: "BoardSignal privacy rules" };
   } else if (intent === "universe_what" || intent === "whats_hot" || intent === "explain_rank" || intent === "in_reach") {
     reply = snapshot?.pulse ? `Universe is time-sensitive. You're seeing only the safe snapshot saved at ${timestamp}; What's Hot and standings are not being presented as live.` : "Universe needs a connection for current movement. No safe Universe snapshot is saved yet.";
     actions.push({ id: "saved-universe", label: "Open saved Universe", href: "/offline/player-room", kind: "navigate" });
@@ -58,6 +71,7 @@ export function buildOfflineGuideResponse({ message, pathname, activeTab, snapsh
   } else if (intent === "what_is_boardsignal" || intent === "how_it_works" || intent === "welcome" || intent === "unknown") {
     reply = "BoardSignal turns fixed seven-day Chess.com episodes into a private sports Desk, recent-four Progress and a public-safe Universe. Offline mode lets you read the last saved copy without pretending anything new has happened.";
     actions.push({ id: "saved-room", label: "Open saved Player Room", href: "/offline/player-room", kind: "navigate" });
+    provenance = { kind: "product_knowledge", title: "BoardSignal offline help" };
   }
 
   return {
@@ -68,5 +82,6 @@ export function buildOfflineGuideResponse({ message, pathname, activeTab, snapsh
     contextReason: `Offline snapshot · ${timestamp}`,
     intent,
     category: guideCategoryForIntent(intent),
+    provenance,
   };
 }

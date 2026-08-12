@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { HelpCircle, LoaderCircle, MessageCircle, Send, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { pageGuideSuggestions, type GuideAction, type GuideResponse } from "@/lib/boardsignal/guide";
+import { pageGuideSuggestions, type GuideAction, type GuideConversationTurn, type GuideResponse } from "@/lib/boardsignal/guide";
 import { auth } from "@/utils/firebaseConfig";
 import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 import { buildOfflineGuideResponse } from "@/lib/boardsignal/offline/guide";
@@ -20,6 +20,18 @@ function eligiblePath(pathname: string) {
 }
 
 function continuityKey(uid?: string) { return `${STORAGE_PREFIX}:${uid || "guest"}`; }
+
+function recentConversationForServer(messages: ChatMessage[]): GuideConversationTurn[] {
+  return messages.slice(-12).map((item) => ({
+    role: item.sender,
+    body: item.body.slice(0, 1200),
+    ...(item.response?.intent ? { intent: item.response.intent } : {}),
+    ...(item.response?.provenance ? { provenance: item.response.provenance } : {}),
+    ...(item.response?.actions?.length ? {
+      actions: item.response.actions.slice(0, 3).map((action) => ({ id: action.id, label: action.label, href: action.href, kind: action.kind })),
+    } : {}),
+  }));
+}
 
 function readContinuity(uid?: string): ChatMessage[] {
   if (typeof window === "undefined") return [];
@@ -46,10 +58,12 @@ export default function AskBoardSignal() {
   const [failure, setFailure] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesRef = useRef<ChatMessage[]>([]);
   const initializedOpenRef = useRef(false);
   const restoredDraftRef = useRef<string | undefined>(undefined);
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => {
     initializedOpenRef.current = false;
     restoredDraftRef.current = undefined;
@@ -121,7 +135,7 @@ export default function AskBoardSignal() {
     try {
       if (!connectivity.online) {
         const [saved, social] = user ? await Promise.all([loadPlayerRoomOfflineSnapshot(user.uid), loadSocialOfflineSnapshot(user.uid)]) : [undefined, undefined];
-        const offlineResponse = buildOfflineGuideResponse({ message, pathname, activeTab, snapshot: saved, social, authenticated: Boolean(user) });
+        const offlineResponse = buildOfflineGuideResponse({ message, pathname, activeTab, snapshot: saved, social, authenticated: Boolean(user), recentConversation: recentConversationForServer(messagesRef.current) });
         const item: ChatMessage = { id: crypto.randomUUID(), sender: "guide" as const, body: offlineResponse.reply, response: offlineResponse };
         setMessages((current) => [...current, item].slice(-12));
         if (!open) setUnread(true);
@@ -131,7 +145,7 @@ export default function AskBoardSignal() {
       const response = await fetch("/api/boardsignal/guide", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ action: "ask", message, pathname, activeTab, visibleEntityId }),
+        body: JSON.stringify({ action: "ask", message, pathname, activeTab, visibleEntityId, recentConversation: recentConversationForServer(messagesRef.current) }),
       });
       const body = await response.json() as { ok?: boolean; response?: GuideResponse; error?: string };
       if (!response.ok || !body.ok || !body.response) throw new Error(body.error ?? "Ask BoardSignal is unavailable right now.");

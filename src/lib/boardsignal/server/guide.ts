@@ -11,8 +11,11 @@ import {
   boundedGuideMemory,
   deterministicGuideRenderer,
   expressedSentiment,
+  isGuideWhatsNewMessage,
   runGuideBrain,
+  sanitizeGuideConversation,
   type GuideContext,
+  type GuideConversationTurn,
   type GuideConversationMemory,
   type GuidePreferences,
   type GuideQuestionCategory,
@@ -112,11 +115,14 @@ async function loadGuideMemory(uid: string): Promise<GuideConversationMemory> {
 }
 
 function latestAnnouncement(messages: BoardSignalInboxMessage[]) {
-  const message = messages.find((item) => item.senderType === "founder" && (item.type === "beta_update" || item.type === "custom"));
-  return message ? { title: message.title, body: message.body, link: message.link, actionLabel: message.actionLabel } : undefined;
+  // "What's new?" is product-release context, not the player's general Founder
+  // conversation. Generic/custom support or test messages remain in Inbox but
+  // must never masquerade as a BoardSignal product announcement.
+  const message = messages.find((item) => isGuideWhatsNewMessage(item));
+  return message ? { id: message.id, title: message.title, body: message.body, link: message.link, actionLabel: message.actionLabel, createdAt: message.createdAt } : undefined;
 }
 
-async function buildAuthenticatedContext(token: DecodedIdToken, pathname: string, activeTab?: string, message = "", visibleEntityId?: number): Promise<{ account: BoardSignalAccount; context: GuideContext }> {
+async function buildAuthenticatedContext(token: DecodedIdToken, pathname: string, activeTab?: string, message = "", visibleEntityId?: number, recentConversation: GuideConversationTurn[] = []): Promise<{ account: BoardSignalAccount; context: GuideContext }> {
   const account = await accountForToken(token);
   const db = getAdminDb();
   const [sessionDoc, preferences, inbox, social] = await Promise.all([
@@ -174,20 +180,23 @@ async function buildAuthenticatedContext(token: DecodedIdToken, pathname: string
       preferences,
       tourState: (await db.collection("users").doc(account.uid).collection("guide").doc("state").get()).data()?.tourState ?? "unseen",
       releaseHintDismissed: (await db.collection("users").doc(account.uid).collection("guide").doc("state").get()).data()?.releaseHintDismissed === GUIDE_RELEASE_HINT,
+      recentConversation,
+      contextUpdatedAt: typeof session.updatedAt === "string" ? session.updatedAt : account.lastSeenAt,
     },
   };
 }
 
-export async function guideResponse(input: { token?: DecodedIdToken; message?: unknown; pathname?: unknown; activeTab?: unknown; visibleEntityId?: unknown }) : Promise<GuideResponse> {
+export async function guideResponse(input: { token?: DecodedIdToken; message?: unknown; pathname?: unknown; activeTab?: unknown; visibleEntityId?: unknown; recentConversation?: unknown }) : Promise<GuideResponse> {
   const message = safeText(input.message, MAX_MESSAGE);
   const pathname = safePath(input.pathname);
   const activeTab = safeActiveTab(input.activeTab);
   const visibleEntityId = safeVisibleEntityId(input.visibleEntityId);
+  const recentConversation = sanitizeGuideConversation(input.recentConversation);
   if (!input.token) {
-    const context: GuideContext = { authenticated: false, pathname, activeTab };
+    const context: GuideContext = { authenticated: false, pathname, activeTab, recentConversation };
     return deterministicGuideRenderer.render(runGuideBrain(message, context));
   }
-  const { account, context } = await buildAuthenticatedContext(input.token, pathname, activeTab, message, visibleEntityId);
+  const { account, context } = await buildAuthenticatedContext(input.token, pathname, activeTab, message, visibleEntityId, recentConversation);
   const brain = runGuideBrain(message, context);
   const response = deterministicGuideRenderer.render(brain);
   await recordGuideInteraction(account, response.category ?? "general", brain.intent, message);

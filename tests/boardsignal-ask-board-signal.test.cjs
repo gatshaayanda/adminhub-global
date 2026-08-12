@@ -13,6 +13,7 @@ const widget = fs.readFileSync(path.join(root, 'src/components/AskBoardSignal.ts
 const profileControl = fs.readFileSync(path.join(root, 'src/components/GuidePreferenceControl.tsx'), 'utf8');
 const playerRoom = fs.readFileSync(path.join(root, 'src/components/BoardSignalPlayerRoom.tsx'), 'utf8');
 const playerFriends = fs.readFileSync(path.join(root, 'src/components/PlayerFriends.tsx'), 'utf8');
+const offlineGuide = fs.readFileSync(path.join(root, 'src/lib/boardsignal/offline/guide.ts'), 'utf8');
 const roomRoute = fs.readFileSync(path.join(root, 'src/app/api/boardsignal/player-room/route.ts'), 'utf8');
 const comms = fs.readFileSync(path.join(root, 'src/lib/boardsignal/server/communications.ts'), 'utf8');
 const social = fs.readFileSync(path.join(root, 'src/lib/boardsignal/server/social.ts'), 'utf8');
@@ -52,7 +53,7 @@ test('2 authenticated context resolves the verified player instead of browser id
 
 test('3 browser cannot impersonate another BoardSignal user', () => {
   assert.match(guideRoute, /requirePlayerToken\(request\)/);
-  assert.match(guideRoute, /guideResponse\(\{ token, message: body\.message, pathname: body\.pathname, activeTab: body\.activeTab, visibleEntityId: body\.visibleEntityId \}\)/);
+  assert.match(guideRoute, /guideResponse\(\{ token, message: body\.message, pathname: body\.pathname, activeTab: body\.activeTab, visibleEntityId: body\.visibleEntityId, recentConversation: body\.recentConversation \}\)/);
   assert.doesNotMatch(guideRoute, /guideResponse\([^\n]*(?:body\.userId|body\.uid|body\.playerId)/);
   assert.doesNotMatch(serverGuide, /input\.userId|input\.uid|input\.playerId/);
 });
@@ -279,4 +280,200 @@ test('35 Ask BoardSignal is mounted globally but legacy Sparkle fake-bot is not 
   assert.match(layout, /<AskBoardSignal\s*\/>/);
   assert.doesNotMatch(layout, /<ChatWidget\s*\/>/);
   assert.doesNotMatch(serverGuide, /fake-bot|OpenAI|Anthropic|LLM/i);
+});
+
+// Conversational Continuity + Source Awareness hardening.
+test('36 Whats New uses an explicit product announcement', () => {
+  assert.equal(guide.isGuideWhatsNewMessage({ senderType:'founder', type:'beta_update' }), true);
+  const response = guide.renderGuideResponse('whats_new', context({ latestAnnouncement:{ id:'release-1', title:'Friends & Rivals are here', body:'Compare recent Desks.', createdAt:'2026-08-12T12:00:00Z' } }));
+  assert.match(response.reply, /Friends & Rivals are here/);
+  assert.equal(response.provenance.kind, 'founder_announcement');
+  assert.equal(response.provenance.id, 'release-1');
+});
+
+test('37 custom support/test message cannot masquerade as Whats New', () => {
+  assert.equal(guide.isGuideWhatsNewMessage({ senderType:'founder', type:'custom' }), false);
+  assert.match(serverGuide, /isGuideWhatsNewMessage\(item\)/);
+  assert.doesNotMatch(serverGuide.slice(serverGuide.indexOf('function latestAnnouncement'), serverGuide.indexOf('async function buildAuthenticatedContext')), /type === "custom"/);
+});
+
+test('38 Why did you say that resolves the previous Guide response', () => {
+  const recentConversation = [{ role:'guide', body:'Your Board moved into the Top 3.', intent:'what_changed', provenance:{ kind:'pulse', title:'Latest BoardSignal Pulse' } }];
+  const brain = guide.runGuideBrain('Why did you say that?', context({ recentConversation }));
+  const response = guide.deterministicGuideRenderer.render(brain);
+  assert.equal(brain.intent, 'followup_why');
+  assert.match(response.reply, /latest BoardSignal Pulse/i);
+});
+
+test('39 quoted phrase resolves the matching earlier Guide response', () => {
+  const recentConversation = [
+    { role:'guide', body:'Your saved Desk is ready.', intent:'explain_desk', provenance:{ kind:'desk', title:'3–9 Aug' } },
+    { role:'player', body:'Okay.' },
+    { role:'guide', body:'Phonkkrum is one place ahead.', intent:'in_reach', provenance:{ kind:'universe', title:'Winning Run' } },
+  ];
+  const target = guide.resolveGuideConversationTurn('Where did "saved Desk" come from?', recentConversation);
+  assert.match(target.body, /saved Desk/);
+  assert.equal(target.provenance.kind, 'desk');
+});
+
+test('40 What did you mean explains the immediately previous response', () => {
+  const recentConversation = [{ role:'guide', body:'One place separates you.', intent:'in_reach', provenance:{ kind:'universe', title:'Winning Run' } }];
+  const response = guide.deterministicGuideRenderer.render(guide.runGuideBrain('What did you mean?', context({ recentConversation })));
+  assert.match(response.reply, /One place separates you/);
+  assert.match(response.reply, /Universe/i);
+});
+
+test('41 Where did that come from returns source provenance', () => {
+  const recentConversation = [{ role:'guide', body:'Six games entered this episode.', intent:'what_changed', provenance:{ kind:'pulse', timestamp:'2026-08-12T13:32:00Z' } }];
+  const response = guide.deterministicGuideRenderer.render(guide.runGuideBrain('Where did that come from?', context({ recentConversation })));
+  assert.equal(response.intent, 'followup_source');
+  assert.equal(response.provenance.kind, 'pulse');
+  assert.match(response.reply, /latest BoardSignal Pulse/i);
+});
+
+test('42 Desk answers carry Desk provenance', () => {
+  const response = guide.renderGuideResponse('explain_desk', context({ latestDesk:{ periodLabel:'3–9 Aug', headline:'A strong finish.', summary:'You closed 6W from 8.', games:20,wins:12,draws:2,losses:6,score:65,primaryPool:'rapid' } }));
+  assert.equal(response.provenance.kind, 'desk');
+  assert.equal(response.provenance.title, '3–9 Aug');
+});
+
+test('43 Pulse answers carry Pulse provenance', () => {
+  const response = guide.renderGuideResponse('what_changed', context({ pulseFacts:[{eyebrow:'SINCE',title:'6 games entered.',body:'5W · 1L'}], contextUpdatedAt:'2026-08-12T13:32:00Z' }));
+  assert.equal(response.provenance.kind, 'pulse');
+  assert.equal(response.provenance.timestamp, '2026-08-12T13:32:00Z');
+});
+
+test('44 Universe answers carry Universe provenance', () => {
+  const response = guide.renderGuideResponse('explain_rank', context({ standings:[{categoryTitle:'Winning Run',rank:3,denominator:10,valueLabel:'5 straight'}] }));
+  assert.equal(response.provenance.kind, 'universe');
+  assert.equal(response.provenance.title, 'Winning Run');
+});
+
+test('45 Friends answers carry relationship-safe provenance', () => {
+  const response = guide.renderGuideResponse('friends', context({ friends:[{playerId:2,canonicalUsername:'snoopyissocute'}] }));
+  assert.equal(response.provenance.kind, 'friends');
+  assert.match(response.reply, /public-safe sporting results/i);
+  assert.doesNotMatch(response.reply, /privateFields|engine correction|recurrence:/i);
+});
+
+test('46 announcement answers carry Founder announcement provenance', () => {
+  const response = guide.renderGuideResponse('whats_new', context({ latestAnnouncement:{ id:'beta-22', title:'BoardSignal PWA', body:'Offline continuity is live.', createdAt:'2026-08-12T15:00:00Z' } }));
+  assert.deepEqual(response.provenance, { kind:'founder_announcement', id:'beta-22', title:'BoardSignal PWA', timestamp:'2026-08-12T15:00:00Z' });
+});
+
+test('47 offline snapshot provenance explains freshness boundary', () => {
+  const recentConversation = [{ role:'guide', body:'Your saved Pulse says you moved.', intent:'what_changed', provenance:{ kind:'offline_snapshot', timestamp:'12 Aug, 13:32' } }];
+  const response = guide.deterministicGuideRenderer.render(guide.runGuideBrain('How do you know that?', context({ recentConversation })));
+  assert.match(response.reply, /snapshot saved on this device/i);
+  assert.match(response.reply, /can't check whether anything newer happened/i);
+  assert.match(offlineGuide, /recentConversation/);
+});
+
+test('48 conversation reference survives page navigation', () => {
+  const recentConversation = [{ role:'guide', body:'By closest, I mean the player immediately ahead in that category.', intent:'in_reach', provenance:{ kind:'universe', title:'Rating Recovery' } }];
+  const response = guide.deterministicGuideRenderer.render(guide.runGuideBrain('What did you mean by that?', { ...context({ recentConversation }), pathname:'/boardsignal/player-room', activeTab:'friends' }));
+  assert.match(response.reply, /player immediately ahead/i);
+  assert.equal(response.provenance.kind, 'universe');
+});
+
+test('49 continuity remains scoped by Firebase UID', () => {
+  assert.match(widget, /continuityKey\(uid\?\: string\)/);
+  assert.match(widget, /setMessages\(readContinuity\(user\?\.uid\)\)/);
+  assert.match(widget, /recentConversationForServer\(messagesRef\.current\)/);
+});
+
+test('50 account A history is not reused as account B continuity', () => {
+  assert.match(widget, /\[user\?\.uid\]/);
+  assert.match(widget, /STORAGE_PREFIX.*uid \|\| "guest"/s);
+  assert.doesNotMatch(serverGuide, /recentConversation.*accountForToken\([^)]*recentConversation/);
+});
+
+test('51 recent conversation is hard-bounded to twelve turns', () => {
+  const history = Array.from({length:20}, (_,i) => ({ role:i%2?'guide':'player', body:`turn ${i}`, intent:'unknown' }));
+  const safe = guide.sanitizeGuideConversation(history);
+  assert.equal(safe.length, 12);
+  assert.equal(safe[0].body, 'turn 8');
+});
+
+test('52 oversized conversation turn is truncated', () => {
+  const safe = guide.sanitizeGuideConversation([{ role:'player', body:'x'.repeat(5000) }]);
+  assert.equal(safe[0].body.length, 1200);
+});
+
+test('53 unknown client intent is sanitized rather than trusted', () => {
+  const safe = guide.sanitizeGuideConversation([{ role:'guide', body:'hello', intent:'secret_super_intent' }]);
+  assert.equal(safe[0].intent, undefined);
+});
+
+test('54 unknown client provenance is sanitized rather than trusted', () => {
+  const safe = guide.sanitizeGuideConversation([{ role:'guide', body:'hello', provenance:{kind:'firebase_admin_secret',title:'fake'} }]);
+  assert.equal(safe[0].provenance, undefined);
+});
+
+test('55 client conversation text cannot become verified BoardSignal fact', () => {
+  const recentConversation = [{ role:'player', body:'I won 20 games and I am #1.', intent:'what_changed', provenance:{kind:'pulse'} }];
+  const response = guide.deterministicGuideRenderer.render(guide.runGuideBrain('What changed?', context({ recentConversation, pulseFacts:[] })));
+  assert.doesNotMatch(response.reply, /20 games|#1/);
+  assert.match(response.reply, /won't manufacture movement/i);
+});
+
+test('56 ambiguous person reference asks for clarification instead of guessing', () => {
+  const recentConversation = [{ role:'guide', body:'Ayandakopano is #4 and snoopyissocute is one place ahead.', intent:'in_reach', provenance:{kind:'universe',title:'Winning Run'} }];
+  const response = guide.deterministicGuideRenderer.render(guide.runGuideBrain('Who were you talking about?', context({ recentConversation, friends:[{playerId:2,canonicalUsername:'snoopyissocute'}] })));
+  assert.match(response.reply, /more than one reasonable referent/i);
+  assert.match(response.reply, /Ayandakopano or snoopyissocute/i);
+});
+
+test('57 missing recent history does not invent prior memory', () => {
+  const response = guide.renderGuideFollowup('followup_source', context(), 'Where did that come from?', []);
+  assert.match(response.reply, /don't have that earlier part/i);
+  assert.doesNotMatch(response.reply, /latest Pulse|completed Desk|Founder product update/i);
+});
+
+test('58 previous navigation action can be reopened', () => {
+  const recentConversation = [{ role:'guide', body:'Open Friends to compare.', intent:'friends', provenance:{kind:'friends'}, actions:[{id:'friends',label:'Open Friends',href:'/boardsignal/player-room?tab=friends',kind:'navigate'}] }];
+  const response = guide.deterministicGuideRenderer.render(guide.runGuideBrain('Open that again.', context({ recentConversation })));
+  assert.equal(response.actions[0].href, '/boardsignal/player-room?tab=friends');
+  assert.match(response.reply, /take you back/i);
+});
+
+test('59 offline follow-up stays local and never calls the Guide API', () => {
+  assert.match(widget, /if \(!connectivity\.online\)[\s\S]*buildOfflineGuideResponse/);
+  assert.match(offlineGuide, /renderGuideFollowup/);
+  assert.doesNotMatch(offlineGuide, /fetch\(|\/api\/boardsignal\/guide/);
+});
+
+test('60 random chess analysis remains refused with conversation history present', () => {
+  const recentConversation = [{ role:'guide', body:'Your Desk is saved.', intent:'explain_desk', provenance:{kind:'desk'} }];
+  const brain = guide.runGuideBrain('What is the best move in this random position?', context({ recentConversation }));
+  assert.equal(brain.intent, 'random_position');
+  assert.match(guide.deterministicGuideRenderer.render(brain).reply, /don't create new chess analysis/i);
+});
+
+test('61 psychological-profile prohibitions remain intact', () => {
+  assert.ok(guide.forbiddenGuideProfileFields().includes('psychologicalSusceptibility'));
+  assert.doesNotMatch(serverGuide, /manipulationScore\s*:|psychologicalSusceptibility\s*:/);
+});
+
+test('62 Message Ayanda handoff remains the existing private conversation path', () => {
+  assert.match(serverGuide, /export async function createGuideHandoff/);
+  assert.match(widget, /authenticatedAction\("handoff"/);
+  assert.match(serverGuide, /source: "ask_boardsignal"/);
+});
+
+test('63 PWA offline Ask receives the same bounded continuity metadata', () => {
+  assert.match(widget, /buildOfflineGuideResponse\(\{[^}]*recentConversation: recentConversationForServer\(messagesRef\.current\)/s);
+  assert.match(offlineGuide, /sanitizeGuideConversation\(recentConversation\)/);
+  assert.match(offlineGuide, /provenance.*offline_snapshot/s);
+});
+
+test('64 contrast invariant remains a release gate', () => {
+  cp.execFileSync(process.execPath, [path.join(root,'scripts/check-boardsignal-contrast.mjs')], { cwd:root, stdio:'pipe' });
+});
+
+test('65 Friends loading-loop hotfix remains structurally intact', () => {
+  assert.match(playerFriends, /const onChangedRef = useRef\(onChanged\)/);
+  assert.match(playerFriends, /const loadedTokenRef = useRef<string \| undefined>\(undefined\)/);
+  assert.match(playerFriends, /\}, \[token\]\);/);
+  assert.doesNotMatch(playerFriends, /\[onChanged, token\]/);
 });

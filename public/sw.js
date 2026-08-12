@@ -48,8 +48,11 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.startsWith("/app") ||
     url.pathname.startsWith("/admin") ||
+    url.pathname.startsWith("/boardsignal/player-room") ||
     url.pathname.startsWith("/player") ||
-    url.pathname.startsWith("/api/boardsignal")
+    url.pathname.startsWith("/api/boardsignal") ||
+    url.pathname.startsWith("/api/admin") ||
+    url.pathname.startsWith("/api/auth")
   ) {
     event.respondWith(fetch(request).catch(() => caches.match("/offline")));
     return;
@@ -128,3 +131,38 @@ async function pageFirst(request) {
   }
 }
 
+
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { notification: { title: "BoardSignal", body: "You have a new private Player Room update." } };
+  }
+  const notification = payload.notification || {};
+  const data = payload.data || {};
+  const title = notification.title || "BoardSignal";
+  const body = notification.body || "You have a new private Player Room update.";
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    icon: "/logo.png",
+    badge: "/logo.png",
+    data: { link: data.link || "/boardsignal/player-room" },
+    tag: data.type ? `boardsignal-${data.type}` : undefined,
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const link = event.notification.data?.link || "/boardsignal/player-room";
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+    if (existing) {
+      await existing.navigate(link);
+      return existing.focus();
+    }
+    return self.clients.openWindow(link);
+  })());
+});

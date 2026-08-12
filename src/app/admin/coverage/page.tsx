@@ -1,7 +1,6 @@
 import AdminNav from "@/components/AdminNav";
-import { coverageStories, leadStory } from "@/data/boardsignal";
+import FounderCoverageEditor from "@/components/FounderCoverageEditor";
 
 export default function CoverageEditorPage() {
-  return <div id="main" className="container admin-shell"><header className="admin-heading"><div><p className="kicker">Public front page</p><h1>Coverage editor</h1></div><button type="button" className="button button-dark">Publish edition</button></header><AdminNav /><section className="desk-section"><p className="kicker">Lead story</p><h2>{leadStory.headline}</h2><p>{leadStory.summary}</p><div className="interior-actions"><button type="button" className="button button-lime">Keep as lead</button><button type="button" className="button button-outline">Choose another story</button></div></section><section className="desk-section"><p className="kicker">Approved moments</p><div className="archive-list">{coverageStories.map((story) => <div className="archive-row" key={story.id}><strong>{story.headline}</strong><span>{story.eyebrow}</span><span>{story.stat}</span><span className="state-pill ready">Eligible</span></div>)}</div><p className="helper-copy">Controls are visual in this shell. Firebase publishing will be connected after the information model is approved.</p></section></div>;
+  return <div id="main" className="container admin-shell"><header className="admin-heading"><div><p className="kicker">Public front page</p><h1>Coverage editor</h1></div></header><AdminNav /><FounderCoverageEditor /></div>;
 }
-

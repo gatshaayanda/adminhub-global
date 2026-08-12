@@ -42,7 +42,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
       <section className="container section-pad">
-        <Link href="/#find-my-desk" className="button button-lime">Find my Desk <ArrowRight size={17} /></Link>
+        <Link href="/#get-my-boardsignal" className="button button-lime">Get My BoardSignal <ArrowRight size={17} /></Link>
       </section>
     </div>
   );

@@ -6,6 +6,8 @@
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
     "rootDir": ".",
     "outDir": ".test-dist"
   },
@@ -14,4 +16,3 @@
     "src/lib/boardsignal/**/*.ts"
   ]
 }
-

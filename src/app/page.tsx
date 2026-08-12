@@ -21,17 +21,17 @@ export default function HomePage() {
           <div className="personal-hero-copy motion-enter">
             <p className="kicker">Your personal chess sports desk</p>
             <h1>Your chess week, covered.</h1>
-            <p className="hero-deck">The story, the signals and the next move—drawn from your own games.</p>
-            <div id="find-my-desk" className="hero-username-card">
+            <p className="hero-deck">A persistent Founding Beta Player Room for your weekly story, progress, private signals and place in the BoardSignal Universe.</p>
+            <div id="get-my-boardsignal" className="hero-username-card">
               <UsernameDeskForm />
             </div>
             <div className="first-value-preview">
               <p className="kicker">YOUR WEEK IN ONE PLACE</p>
               <div>
                 <span><BookOpen size={16} /> The story of your seven days</span>
-                <span><ChartNoAxesCombined size={16} /> Rating and performance trends</span>
-                <span><ShieldCheck size={16} /> Key games and reviewed positions</span>
-                <span><Target size={16} /> What to preserve, watch or fix</span>
+                <span><ChartNoAxesCombined size={16} /> Your latest four episodes and progress</span>
+                <span><ShieldCheck size={16} /> Private improvement signals</span>
+                <span><Target size={16} /> One thing to carry into the next episode</span>
               </div>
               <p>One useful thing to carry forward—and where your week stands in BoardSignal. A signal appears only when its evidence exists.</p>
             </div>

@@ -61,6 +61,11 @@ export async function POST(request: Request) {
       engineResults?: Record<string, DeskEngineResult>;
       privacy?: import("@/lib/boardsignal/account").BoardSignalPrivacySettings;
       notificationPreferences?: import("@/lib/boardsignal/account").BoardSignalNotificationPreferences;
+      contact?: {
+        preferredContactMethod: import("@/lib/boardsignal/account").BoardSignalContactMethod;
+        preferredContactValue: string;
+        betaContactConsent: boolean;
+      };
     };
     if (body.action === "acceptAgreement") {
       return response({ ok: true, account: await acceptFoundingBetaAgreement(token) });
@@ -69,7 +74,7 @@ export async function POST(request: Request) {
       return response({ ok: true, publication: await publishPrivateDesk(token, body.desk, body.engineResults) });
     }
     if (body.action === "updatePreferences" && body.privacy && body.notificationPreferences) {
-      return response({ ok: true, preferences: await updatePlayerPreferences(token, body.privacy, body.notificationPreferences) });
+      return response({ ok: true, preferences: await updatePlayerPreferences(token, body.privacy, body.notificationPreferences, body.contact) });
     }
     return response({ ok: false, error: "Unknown Player Room action." }, 400);
   } catch (error) {

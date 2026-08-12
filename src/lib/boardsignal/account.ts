@@ -1,9 +1,10 @@
 import { resolveChessComCallbackUri } from "./auth/callbackUri";
 
-export const FOUNDING_BETA_AGREEMENT_VERSION = "founding-beta-2026-08-11";
+export const FOUNDING_BETA_AGREEMENT_VERSION = "founding-beta-2026-08-12";
 
 export type BoardSignalAccessTier = "founding_beta" | "paid";
 export type BoardSignalAccessStatus = "active" | "paused" | "deleted";
+export type BoardSignalContactMethod = "email" | "discord" | "telegram";
 
 export type StableChessComIdentity = {
   playerId: number;
@@ -15,6 +16,9 @@ export type StableChessComIdentity = {
 export type BoardSignalPrivacySettings = {
   publicPlayerPage: boolean;
   universeCoverage: boolean;
+  additionalPositiveHighlights?: boolean;
+  publicGameLinks?: boolean;
+  expandedPublicProfile?: boolean;
 };
 
 export type BoardSignalNotificationPreferences = {
@@ -25,6 +29,7 @@ export type BoardSignalNotificationPreferences = {
   blueReminder: boolean;
   amberWatch: boolean;
   universeAchievement: boolean;
+  founderUpdates: boolean;
 };
 
 export type BoardSignalAccount = {
@@ -38,7 +43,12 @@ export type BoardSignalAccount = {
   chessComOAuthLinkedAt?: string;
   betaAgreementVersion?: string;
   betaAgreementAcceptedAt?: string;
+  universeParticipationDisclosedAt?: string;
   preferencesConfirmedAt?: string;
+  contactConfirmedAt?: string;
+  preferredContactMethod?: BoardSignalContactMethod;
+  preferredContactValue?: string;
+  betaContactConsent?: boolean;
   privacy: BoardSignalPrivacySettings;
   notificationPreferences: BoardSignalNotificationPreferences;
   cadenceAnchor?: string;
@@ -63,12 +73,17 @@ export type FounderPlayerIdentityRow = {
   uid: string;
   username: string;
   playerId: number;
+  avatar?: string;
+  profileUrl?: string;
   betaAccessStatus: "active" | "revoked" | "not_created";
   accountStatus: BoardSignalAccessStatus;
   desksStored: number;
   latestDesk?: { deskKey: string; periodLabel: string; periodEnd: string };
   lastSeen?: string;
   oauthLinked: boolean;
+  preferredContactMethod?: BoardSignalContactMethod;
+  preferredContactValue?: string;
+  betaContactConsent?: boolean;
 };
 
 const REQUIRED_CHESSCOM_ENV = [
@@ -101,7 +116,7 @@ export function getChessComOAuthStatus(
       ? "Chess.com account ownership sign-in is configured."
       : explicitlyEnabled
         ? "Chess.com sign-in is unavailable because required provider configuration is incomplete."
-        : "Chess.com sign-in is awaiting official provider approval. The public-username Desk flow remains available.",
+        : "Chess.com sign-in is awaiting official provider approval. Founding Beta Access remains available.",
   };
 }
 
@@ -114,6 +129,19 @@ export function firebaseUidForChessPlayer(playerId: number) {
     throw new Error("A stable Chess.com player ID is required.");
   }
   return `chesscom_${playerId}`;
+}
+
+export function defaultNotificationPreferences(): BoardSignalNotificationPreferences {
+  return {
+    email: false,
+    browserPush: false,
+    deskReady: true,
+    episodeProgress: true,
+    blueReminder: true,
+    amberWatch: false,
+    universeAchievement: true,
+    founderUpdates: true,
+  };
 }
 
 export function createFoundingBetaAccount(
@@ -130,18 +158,13 @@ export function createFoundingBetaAccount(
     maxActiveDesks: 4,
     chessCom: identity,
     privacy: {
-      publicPlayerPage: false,
-      universeCoverage: false,
+      publicPlayerPage: true,
+      universeCoverage: true,
+      additionalPositiveHighlights: false,
+      publicGameLinks: false,
+      expandedPublicProfile: false,
     },
-    notificationPreferences: {
-      email: false,
-      browserPush: false,
-      deskReady: true,
-      episodeProgress: true,
-      blueReminder: true,
-      amberWatch: true,
-      universeAchievement: true,
-    },
+    notificationPreferences: defaultNotificationPreferences(),
     lastSeenAt: now.toISOString(),
     eligibleCoverageKeys: [String(identity.playerId), normalizedUsername],
   };

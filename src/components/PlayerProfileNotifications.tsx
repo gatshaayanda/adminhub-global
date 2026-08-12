@@ -1,0 +1,88 @@
+"use client";
+
+import { useState } from "react";
+import { LoaderCircle, LogOut, Save, ShieldCheck } from "lucide-react";
+import BrowserPushControl from "@/components/BrowserPushControl";
+import type {
+  BoardSignalAccount,
+  BoardSignalContactMethod,
+  BoardSignalNotificationPreferences,
+  BoardSignalPrivacySettings,
+} from "@/lib/boardsignal/account";
+
+export default function PlayerProfileNotifications({
+  account,
+  token,
+  onSaved,
+  onSignOut,
+}: {
+  account: BoardSignalAccount;
+  token: string;
+  onSaved: () => Promise<void>;
+  onSignOut: () => Promise<void> | void;
+}) {
+  const [method, setMethod] = useState<BoardSignalContactMethod>(account.preferredContactMethod ?? "email");
+  const [contact, setContact] = useState(account.preferredContactValue ?? "");
+  const [consent, setConsent] = useState(account.betaContactConsent === true);
+  const [notifications, setNotifications] = useState<BoardSignalNotificationPreferences>(account.notificationPreferences);
+  const [privacy, setPrivacy] = useState<BoardSignalPrivacySettings>(account.privacy);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  function notificationToggle(key: keyof Pick<BoardSignalNotificationPreferences, "deskReady" | "episodeProgress" | "blueReminder" | "universeAchievement" | "founderUpdates">, label: string) {
+    return <label className="profile-toggle"><span><strong>{label}</strong><small>In-app messages{notifications.browserPush ? " and eligible browser alerts" : ""}</small></span><input type="checkbox" checked={notifications[key]} onChange={(event) => setNotifications((value) => ({ ...value, [key]: event.target.checked }))} /></label>;
+  }
+
+  async function save() {
+    setBusy(true);
+    setSaved(false);
+    setError("");
+    try {
+      const response = await fetch("/api/boardsignal/player-room", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "updatePreferences",
+          privacy: { ...privacy, publicPlayerPage: true, universeCoverage: true },
+          notificationPreferences: notifications,
+          contact: {
+            preferredContactMethod: method,
+            preferredContactValue: contact.trim(),
+            betaContactConsent: consent,
+          },
+        }),
+      });
+      const body = await response.json() as { ok: boolean; error?: string };
+      if (!response.ok || !body.ok) throw new Error(body.error ?? "Profile could not be saved.");
+      setSaved(true);
+      await onSaved();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Profile could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const discordInvite = process.env.NEXT_PUBLIC_BOARDSIGNAL_DISCORD_INVITE_URL?.trim();
+
+  return <section className="player-profile-section">
+    <div className="room-section-heading"><div><p className="kicker">PROFILE / NOTIFICATIONS</p><h2>Your BoardSignal account</h2><p>Identity stays tied to your stable Chess.com player ID. Contact details are for beta communication, not authentication.</p></div></div>
+    <div className="profile-settings-grid">
+      <article className="profile-settings-card"><h3>Account</h3><dl><div><dt>Chess.com username</dt><dd>{account.chessCom.canonicalUsername}</dd></div><div><dt>Founding Beta</dt><dd>{account.accessTier === "founding_beta" && account.accessStatus === "active" ? "Active" : account.accessStatus}</dd></div><div><dt>OAuth status</dt><dd>{account.chessComOAuthLinkedAt ? "Linked" : "Awaiting Chess.com provider approval"}</dd></div></dl></article>
+
+      <article className="profile-settings-card"><h3>Contact</h3><label>Preferred contact<select value={method} onChange={(event) => setMethod(event.target.value as BoardSignalContactMethod)}><option value="email">Email</option><option value="discord">Discord</option><option value="telegram">Telegram</option></select></label><label>Contact value<input value={contact} onChange={(event) => setContact(event.target.value)} type={method === "email" ? "email" : "text"} maxLength={160} /></label><label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I agree BoardSignal may contact me about my Founding Beta account, Desk availability, important product updates and beta feedback.</span></label><p className="profile-helper">This is beta communication consent, not unrelated marketing consent. You can turn it off here later.</p></article>
+
+      <article className="profile-settings-card"><h3>Notifications</h3>{notificationToggle("deskReady", "Desk Ready")}{notificationToggle("episodeProgress", "Episode Progress")}{notificationToggle("blueReminder", "Blue Reminder")}{notificationToggle("universeAchievement", "Universe Achievement")}{notificationToggle("founderUpdates", "Founder Updates")}</article>
+
+      <article className="profile-settings-card"><h3>Browser</h3><BrowserPushControl idToken={token} onChanged={onSaved} /></article>
+
+      <article className="profile-settings-card"><h3>Community</h3><div className="required-participation-row"><ShieldCheck size={17} /><div><strong>Founding Beta Universe participation = Included</strong><p>Each completed Desk can contribute safe sports-style coverage. Weaknesses, Signals, evidence and private progress stay private.</p></div></div>{discordInvite ? <a className="button button-outline" href={discordInvite} target="_blank" rel="noreferrer">Join the Founding Beta Discord</a> : null}</article>
+
+      <article className="profile-settings-card"><h3>Optional public controls</h3><label className="profile-toggle"><span><strong>Additional positive highlights</strong><small>Beyond the required minimal safe coverage</small></span><input type="checkbox" checked={privacy.additionalPositiveHighlights === true} onChange={(event) => setPrivacy((value) => ({ ...value, additionalPositiveHighlights: event.target.checked }))} /></label><label className="profile-toggle"><span><strong>Direct public game links</strong><small>Where a safe public item supports them</small></span><input type="checkbox" checked={privacy.publicGameLinks === true} onChange={(event) => setPrivacy((value) => ({ ...value, publicGameLinks: event.target.checked }))} /></label><label className="profile-toggle"><span><strong>Expanded public profile details</strong><small>Optional profile context beyond the minimal sports identity</small></span><input type="checkbox" checked={privacy.expandedPublicProfile === true} onChange={(event) => setPrivacy((value) => ({ ...value, expandedPublicProfile: event.target.checked }))} /></label></article>
+    </div>
+    {error ? <p className="form-error" role="alert">{error}</p> : null}
+    {saved ? <p className="form-success" role="status">Profile saved.</p> : null}
+    <div className="profile-actions"><button className="button button-lime" type="button" onClick={save} disabled={busy || (consent && !contact.trim())}>{busy ? <><LoaderCircle className="button-spinner" size={15} /> Saving</> : <><Save size={15} /> Save profile</>}</button><button className="button button-quiet" type="button" onClick={onSignOut}><LogOut size={15} /> Sign out</button></div>
+  </section>;
+}

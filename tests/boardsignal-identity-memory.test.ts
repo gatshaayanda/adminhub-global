@@ -139,7 +139,7 @@ test("Firestore rules make private users, Desks and evidence owner-only", () => 
   assert.match(rules, /match \/publicCoverage\/\{coverageId\}[\s\S]*allow read: if true;[\s\S]*allow write: if isBoardSignalAdmin\(\)/);
 });
 
-test("public coverage is consent-gated and contains no private Signal Board content", () => {
+test("public coverage helper withholds safely when disabled and contains no private Signal Board content when included", () => {
   const privateDesk = desk();
   assert.equal(buildSafePublicCoverage(privateDesk, false), undefined);
   const publicCoverage = buildSafePublicCoverage(privateDesk, true)!;
@@ -152,7 +152,7 @@ test("public coverage is consent-gated and contains no private Signal Board cont
   assert.equal(publicCoverage.visibility.publicPlayerPage, true);
 });
 
-test("notification preparation emits deterministic hooks without any delivery layer", () => {
+test("notification preparation preserves deterministic hooks while account delivery preferences default safely", () => {
   const current: CurrentEpisodeSummary = {
     status: "forming",
     periodStart: "2026-08-10",

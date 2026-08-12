@@ -7,7 +7,9 @@ import {
   FOUNDING_BETA_AGREEMENT_VERSION,
   canonicalPlayerKey,
   createFoundingBetaAccount,
+  defaultNotificationPreferences,
   type BoardSignalAccount,
+  type BoardSignalContactMethod,
   type BoardSignalNotificationPreferences,
   type BoardSignalPrivacySettings,
   type StableChessComIdentity,
@@ -88,10 +90,22 @@ export async function ensureStablePlayerAccount(identity: StableChessComIdentity
     const userRef = db.collection("users").doc(uid);
     const existingUser = await transaction.get(userRef);
     const existing = existingUser.exists ? existingUser.data() as BoardSignalAccount : undefined;
+    const base = existing ?? defaultAccount;
     const next: BoardSignalAccount = {
-      ...(existing ?? defaultAccount),
+      ...base,
       uid,
       chessCom: identity,
+      privacy: {
+        ...defaultAccount.privacy,
+        ...(base.privacy ?? {}),
+        publicPlayerPage: true,
+        universeCoverage: true,
+      },
+      notificationPreferences: {
+        ...defaultNotificationPreferences(),
+        ...(base.notificationPreferences ?? {}),
+        founderUpdates: base.notificationPreferences?.founderUpdates ?? true,
+      },
       eligibleCoverageKeys: [...new Set([
         ...(existing?.eligibleCoverageKeys ?? []),
         identityKey,
@@ -107,7 +121,7 @@ export async function ensureStablePlayerAccount(identity: StableChessComIdentity
       usernameKey: identity.canonicalUsername.toLowerCase(),
       avatar: identity.avatar,
       profileUrl: identity.profileUrl,
-      pageEnabled: next.privacy.publicPlayerPage,
+      pageEnabled: true,
     }), { merge: true });
     return next;
   });
@@ -159,7 +173,30 @@ function identityFromToken(token: DecodedIdToken): StableChessComIdentity {
 export async function accountForToken(token: DecodedIdToken) {
   const db = getAdminDb();
   const snapshot = await db.collection("users").doc(token.uid).get();
-  if (snapshot.exists) return snapshot.data() as BoardSignalAccount;
+  if (snapshot.exists) {
+    const account = snapshot.data() as BoardSignalAccount;
+    const normalized: BoardSignalAccount = {
+      ...account,
+      privacy: {
+        additionalPositiveHighlights: false,
+        publicGameLinks: false,
+        expandedPublicProfile: false,
+        ...(account.privacy ?? {}),
+        publicPlayerPage: true,
+        universeCoverage: true,
+      },
+      notificationPreferences: {
+        ...defaultNotificationPreferences(),
+        ...(account.notificationPreferences ?? {}),
+        founderUpdates: account.notificationPreferences?.founderUpdates ?? true,
+      },
+    };
+    if (JSON.stringify(normalized.privacy) !== JSON.stringify(account.privacy)
+      || JSON.stringify(normalized.notificationPreferences) !== JSON.stringify(account.notificationPreferences)) {
+      await snapshot.ref.set(clean({ privacy: normalized.privacy, notificationPreferences: normalized.notificationPreferences }), { merge: true });
+    }
+    return normalized;
+  }
   const account = await ensureStablePlayerAccount(identityFromToken(token));
   if (account.uid !== token.uid) throw Object.assign(new Error("Verified identity mapping did not match this Player Room session."), { status: 403 });
   return account;
@@ -181,32 +218,79 @@ export async function updatePlayerPreferences(
   token: DecodedIdToken,
   privacy: BoardSignalPrivacySettings,
   notificationPreferences: BoardSignalNotificationPreferences,
+  contact?: {
+    preferredContactMethod: BoardSignalContactMethod;
+    preferredContactValue: string;
+    betaContactConsent: boolean;
+  },
 ) {
   const account = await accountForToken(token);
-  const values = [...Object.values(privacy), ...Object.values(notificationPreferences)];
-  if (!values.every((value) => typeof value === "boolean")) {
+  const normalizedPrivacy: BoardSignalPrivacySettings = {
+    ...account.privacy,
+    ...privacy,
+    publicPlayerPage: true,
+    universeCoverage: true,
+  };
+  const normalizedNotifications: BoardSignalNotificationPreferences = {
+    ...defaultNotificationPreferences(),
+    ...notificationPreferences,
+  };
+  const values = [...Object.values(normalizedPrivacy), ...Object.values(normalizedNotifications)]
+    .filter((value): value is boolean => typeof value === "boolean");
+  if (values.length < 2) {
     throw Object.assign(new Error("Player Room preferences were invalid."), { status: 400 });
   }
+
+  let contactUpdate: Record<string, unknown> = {};
+  if (contact) {
+    const method = contact.preferredContactMethod;
+    const value = contact.preferredContactValue?.trim();
+    if (!(["email", "discord", "telegram"] as string[]).includes(method) || value.length > 160) {
+      throw Object.assign(new Error("The Founding Beta contact settings were invalid."), { status: 400 });
+    }
+    if (contact.betaContactConsent === true && !value) {
+      throw Object.assign(new Error("A reachable Founding Beta contact is required while contact consent is enabled."), { status: 400 });
+    }
+    if (contact.betaContactConsent === true && method === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      throw Object.assign(new Error("Enter a valid email address."), { status: 400 });
+    }
+    contactUpdate = {
+      preferredContactMethod: method,
+      preferredContactValue: value,
+      betaContactConsent: contact.betaContactConsent === true,
+      contactConfirmedAt: contact.betaContactConsent === true ? new Date().toISOString() : account.contactConfirmedAt,
+    };
+  }
+
   const db = getAdminDb();
   const preferencesConfirmedAt = new Date().toISOString();
-  await db.collection("users").doc(account.uid).set(clean({ privacy, notificationPreferences, preferencesConfirmedAt }), { merge: true });
+  await db.collection("users").doc(account.uid).set(clean({
+    privacy: normalizedPrivacy,
+    notificationPreferences: normalizedNotifications,
+    preferencesConfirmedAt,
+    universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? preferencesConfirmedAt,
+    ...contactUpdate,
+  }), { merge: true });
   await db.collection("publicPlayers").doc(canonicalPlayerKey(account.chessCom)).set(clean({
     chessPlayerId: canonicalPlayerKey(account.chessCom),
     username: account.chessCom.canonicalUsername,
     usernameKey: account.chessCom.canonicalUsername.toLowerCase(),
     avatar: account.chessCom.avatar,
     profileUrl: account.chessCom.profileUrl,
-    pageEnabled: privacy.publicPlayerPage,
+    pageEnabled: true,
   }), { merge: true });
   const coverage = await db.collection("publicCoverage")
     .where("chessPlayerId", "==", canonicalPlayerKey(account.chessCom))
     .get();
   await Promise.all(coverage.docs.map((document) => (
-    privacy.publicPlayerPage || privacy.universeCoverage
-      ? document.ref.set(clean({ visibility: { publicPlayerPage: privacy.publicPlayerPage, universeCoverage: privacy.universeCoverage } }), { merge: true })
-      : document.ref.delete()
+    document.ref.set(clean({ visibility: { publicPlayerPage: true, universeCoverage: true } }), { merge: true })
   )));
-  return { privacy, notificationPreferences, preferencesConfirmedAt };
+  return {
+    privacy: normalizedPrivacy,
+    notificationPreferences: normalizedNotifications,
+    preferencesConfirmedAt,
+    ...contactUpdate,
+  };
 }
 
 async function deleteDeskTree(uid: string, deskDocumentId: string) {
@@ -289,8 +373,8 @@ export async function publishPrivateDesk(
 
   const publicCoverage = buildSafePublicCoverage(
     desk,
-    account.privacy.publicPlayerPage || account.privacy.universeCoverage,
-    { publicPlayerPage: account.privacy.publicPlayerPage, universeCoverage: account.privacy.universeCoverage },
+    true,
+    { publicPlayerPage: true, universeCoverage: true },
   );
   if (publicCoverage) {
     const publicId = safeDocumentId(`${account.chessCom.playerId}:${summary.deskKey}`);

@@ -157,6 +157,8 @@ export async function listFounderPlayerIdentities(): Promise<FounderPlayerIdenti
       uid: account.uid,
       username: account.chessCom.canonicalUsername,
       playerId: account.chessCom.playerId,
+      avatar: account.chessCom.avatar,
+      profileUrl: account.chessCom.profileUrl,
       betaAccessStatus,
       accountStatus: account.accessStatus,
       desksStored: desks.size,
@@ -165,6 +167,9 @@ export async function listFounderPlayerIdentities(): Promise<FounderPlayerIdenti
         : undefined,
       lastSeen: account.lastSeenAt,
       oauthLinked: Boolean(account.chessComOAuthLinkedAt),
+      preferredContactMethod: account.betaContactConsent === true ? account.preferredContactMethod : undefined,
+      preferredContactValue: account.betaContactConsent === true ? account.preferredContactValue : undefined,
+      betaContactConsent: account.betaContactConsent,
     };
   })).then((rows) => rows.sort((a, b) => a.username.localeCompare(b.username)));
 }

@@ -94,7 +94,8 @@ test("public username to LIVE Desk remains available without authentication", ()
   const usernameForm = readFileSync("src/components/UsernameDeskForm.tsx", "utf8");
   const liveRoute = readFileSync("src/app/api/boardsignal/[username]/route.ts", "utf8");
   assert.match(buildPage, /UniversalPlayerDesk/);
-  assert.match(usernameForm, /Build My Desk/);
+  assert.match(usernameForm, /Get My BoardSignal/);
+  assert.doesNotMatch(usernameForm, /Build My Desk/);
   assert.match(liveRoute, /buildLiveDesk/);
   assert.doesNotMatch(liveRoute, /requirePlayerToken/);
 });

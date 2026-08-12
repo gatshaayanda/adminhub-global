@@ -5,6 +5,11 @@ import {
   resetFoundingBetaAccess,
   revokeFoundingBetaAccess,
 } from "@/lib/boardsignal/server/betaAccess";
+import {
+  approveFoundingBetaRequest,
+  listFoundingBetaRequests,
+  rejectFoundingBetaRequest,
+} from "@/lib/boardsignal/server/betaRequests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +28,11 @@ function errorStatus(error: unknown) {
 
 export async function GET() {
   try {
-    return response({ ok: true, players: await listFounderPlayerIdentities() });
+    const [players, requests] = await Promise.all([
+      listFounderPlayerIdentities(),
+      listFoundingBetaRequests("pending"),
+    ]);
+    return response({ ok: true, players, requests });
   } catch (error) {
     return response({
       ok: false,
@@ -35,7 +44,19 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { action?: unknown; username?: unknown; playerId?: unknown };
+    const body = await request.json() as { action?: unknown; username?: unknown; playerId?: unknown; requestId?: unknown };
+    if (body.action === "approveRequest" && typeof body.requestId === "string") {
+      const result = await approveFoundingBetaRequest(body.requestId);
+      return response({
+        ok: true,
+        player: { username: result.request.canonicalUsername, playerId: result.request.chessPlayerId },
+        accessCode: result.accessCode,
+        approvalMessage: result.approvalMessage,
+      });
+    }
+    if (body.action === "rejectRequest" && typeof body.requestId === "string") {
+      return response({ ok: true, request: await rejectFoundingBetaRequest(body.requestId) });
+    }
     if (body.action === "create" && typeof body.username === "string") {
       const result = await createFoundingBetaAccess(body.username);
       return response({
@@ -55,7 +76,7 @@ export async function POST(request: Request) {
     if (body.action === "revoke") {
       return response({ ok: true, result: await revokeFoundingBetaAccess(body.playerId) });
     }
-    return response({ ok: false, error: "Choose Create Beta Access, Reset Access, or Revoke Access." }, 400);
+    return response({ ok: false, error: "Choose Approve/Reject Request, Create Beta Access, Reset Access, or Revoke Access." }, 400);
   } catch (error) {
     return response({
       ok: false,

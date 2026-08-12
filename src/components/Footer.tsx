@@ -2,7 +2,7 @@ import Link from "next/link";
 import SignalMark from "@/components/SignalMark";
 
 const footerLinks = [
-  { label: "Find my Desk", href: "/#find-my-desk" },
+  { label: "Get My BoardSignal", href: "/#get-my-boardsignal" },
   { label: "BoardSignal Universe", href: "/feed" },
   { label: "My Player Room", href: "/boardsignal/player-room" },
   { label: "Beta terms", href: "/boardsignal/beta-terms" },

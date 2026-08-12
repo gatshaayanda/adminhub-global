@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, Ban, Check, CircleUserRound, LoaderCircle, Search, Shield, Swords, UserMinus, UserPlus, X } from "lucide-react";
 import type { HeadToHeadPayload, SocialPlayerCard } from "@/lib/boardsignal/social";
+import { shouldRunInitialFriendsLoad } from "@/lib/boardsignal/friendsLoader";
 
 type Overview = {
   friends: SocialPlayerCard[];
@@ -19,19 +20,35 @@ type Props = {
   onChanged?: (overview: Overview) => void;
 };
 
-async function api<T>(token: string, path: string, init?: RequestInit) {
-  const response = await fetch(path, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...(init?.headers ?? {}),
-    },
-    cache: "no-store",
-  });
-  const body = await response.json() as { ok: boolean; error?: string } & T;
-  if (!response.ok || !body.ok) throw new Error(body.error ?? "BoardSignal social request failed.");
-  return body;
+async function api<T>(token: string, path: string, init?: RequestInit, parentSignal?: AbortSignal) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort("timeout"), 12000);
+  const abortFromParent = () => controller.abort(parentSignal?.reason ?? "unmounted");
+  if (parentSignal) {
+    if (parentSignal.aborted) controller.abort(parentSignal.reason);
+    else parentSignal.addEventListener("abort", abortFromParent, { once: true });
+  }
+  try {
+    const response = await fetch(path, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+        ...(init?.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+    const body = await response.json() as { ok: boolean; error?: string } & T;
+    if (!response.ok || !body.ok) throw new Error(body.error ?? "BoardSignal social request failed.");
+    return body;
+  } catch (reason) {
+    if (controller.signal.aborted) throw new Error(controller.signal.reason === "timeout" ? "BoardSignal connections took too long to respond. Try again." : "BoardSignal connections request was cancelled.");
+    throw reason;
+  } finally {
+    window.clearTimeout(timeout);
+    parentSignal?.removeEventListener("abort", abortFromParent);
+  }
 }
 
 export default function PlayerFriends({ token, initialComparePlayerId, onChanged }: Props) {
@@ -43,21 +60,39 @@ export default function PlayerFriends({ token, initialComparePlayerId, onChanged
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [suggestionsUnavailable, setSuggestionsUnavailable] = useState(false);
+  const onChangedRef = useRef(onChanged);
+  const loadedTokenRef = useRef<string | undefined>(undefined);
 
-  const load = useCallback(async () => {
-    const [overviewBody, suggestedBody] = await Promise.all([
-      api<{ overview: Overview }>(token, "/api/boardsignal/social?view=overview"),
-      api<{ players: SocialPlayerCard[] }>(token, "/api/boardsignal/social?view=suggested"),
-    ]);
+  useEffect(() => { onChangedRef.current = onChanged; }, [onChanged]);
+
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const overviewBody = await api<{ overview: Overview }>(token, "/api/boardsignal/social?view=overview", undefined, signal);
+    const suggestedBody = await api<{ players: SocialPlayerCard[] }>(token, "/api/boardsignal/social?view=suggested", undefined, signal)
+      .catch((reason) => {
+        if (signal?.aborted) throw reason;
+        setSuggestionsUnavailable(true);
+        return { ok: true as const, players: [] as SocialPlayerCard[] };
+      });
     setOverview(overviewBody.overview);
     setSuggested(suggestedBody.players);
-    onChanged?.(overviewBody.overview);
-  }, [onChanged, token]);
+    onChangedRef.current?.(overviewBody.overview);
+  }, [token]);
 
   useEffect(() => {
+    if (!shouldRunInitialFriendsLoad(loadedTokenRef.current, token)) return;
+    const controller = new AbortController();
     setLoading(true);
-    load().catch((reason) => setError(reason instanceof Error ? reason.message : "Friends could not be loaded.")).finally(() => setLoading(false));
-  }, [load]);
+    setError("");
+    setSuggestionsUnavailable(false);
+    load(controller.signal)
+      .then(() => { loadedTokenRef.current = token; })
+      .catch((reason) => {
+        if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Friends could not be loaded.");
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort("unmounted");
+  }, [load, token]);
 
   const compare = useCallback(async (playerId: number) => {
     setBusy(`compare:${playerId}`);
@@ -74,6 +109,13 @@ export default function PlayerFriends({ token, initialComparePlayerId, onChanged
     if (!initialComparePlayerId || loading) return;
     if (overview.friends.some((friend) => friend.playerId === initialComparePlayerId)) void compare(initialComparePlayerId);
   }, [compare, initialComparePlayerId, loading, overview.friends]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: comparison
+      ? { activeTab: "head-to-head", visibleEntityId: comparison.right.playerId }
+      : { activeTab: "friends" } }));
+  }, [comparison]);
 
   async function socialAction(action: string, playerId: number, pinned?: boolean) {
     setBusy(`${action}:${playerId}`);
@@ -112,7 +154,7 @@ export default function PlayerFriends({ token, initialComparePlayerId, onChanged
 
   return <section className="friends-surface">
     <div className="room-section-heading"><div><p className="kicker">FRIENDS</p><h2>Recent chess gets more interesting when the gap has a name.</h2><p>Connect using stable BoardSignal identities. Friendship compares public-safe sporting results only—never private Signals, evidence, contact details or founder messages.</p></div></div>
-    {error ? <p className="notice notice-error" role="alert">{error}</p> : null}
+    {error ? <div className="notice notice-error social-load-error" role="alert"><p>{error}</p><button type="button" className="button button-quiet" onClick={() => { loadedTokenRef.current = undefined; setLoading(true); setError(""); void load().then(() => { loadedTokenRef.current = token; }).catch((reason) => setError(reason instanceof Error ? reason.message : "Friends could not be loaded.")).finally(() => setLoading(false)); }}>Try again</button></div> : null}
 
     {overview.socialPulse.length ? <section className="social-panel"><p className="kicker">SOCIAL PULSE</p><div className="social-pulse-grid">{overview.socialPulse.map((event) => <article key={event.id}><span>{event.eyebrow}</span><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small></article>)}</div></section> : null}
 
@@ -135,6 +177,7 @@ export default function PlayerFriends({ token, initialComparePlayerId, onChanged
     <section className="social-panel find-friends-panel"><div className="social-panel-heading"><div><p className="kicker">FIND PLAYERS</p><h3>{hasConnections ? "Add someone else to your board." : "Your board gets better with people you know."}</h3></div></div><p>Search active BoardSignal members by canonical Chess.com username. Blocked players are never suggested.</p><div className="social-search"><label htmlFor="friend-search">Chess.com username</label><div><input id="friend-search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void search(); }} placeholder="Search BoardSignal players"/><button className="button button-dark" type="button" disabled={busy === "search" || query.trim().length < 2} onClick={() => search()}>{busy === "search" ? <LoaderCircle className="button-spinner" size={15}/> : <Search size={15}/>} Search</button></div></div>
       {results.length ? <div className="friend-card-grid social-search-results">{results.map((player) => <DiscoveryCard key={player.playerId} player={player} status={lookup.get(player.playerId)} busy={Boolean(busy)} onAction={socialAction} onCompare={compare}/>)}</div> : null}
       {!query.trim() && suggested.length ? <><p className="social-suggestion-label">ACTIVE PLAYERS TO DISCOVER</p><div className="friend-card-grid">{suggested.map((player) => <DiscoveryCard key={player.playerId} player={player} status={lookup.get(player.playerId)} busy={Boolean(busy)} onAction={socialAction} onCompare={compare}/>)}</div></> : null}
+      {!query.trim() && suggestionsUnavailable ? <p className="social-empty-note">Active player suggestions are temporarily unavailable. Search still works.</p> : null}
     </section>
   </section>;
 }

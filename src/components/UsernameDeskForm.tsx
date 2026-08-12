@@ -134,8 +134,12 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
     );
   }
 
+  const publishGuideContext = (active: boolean) => {
+    window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: active ? { activeTab: "beta-request" } : {} }));
+  };
+
   return (
-    <div className={`username-desk-shell ${compact ? "is-compact" : ""}`}>
+    <div className={`username-desk-shell ${compact ? "is-compact" : ""}`} onFocusCapture={() => publishGuideContext(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) publishGuideContext(false); }}>
       <form className={`username-desk-form ${compact ? "is-compact" : ""}`} onSubmit={submit}>
         <label htmlFor={compact ? "username-compact" : "username"}>Chess.com username</label>
         <div className="username-entry-row">

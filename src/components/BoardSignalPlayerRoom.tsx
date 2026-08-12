@@ -87,6 +87,11 @@ export default function BoardSignalPlayerRoom() {
     if (["desk", "progress", "universe", "friends", "inbox", "profile"].includes(requestedTab ?? "")) setTab(requestedTab as RoomTab);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: { activeTab: tab } }));
+  }, [tab]);
+
   const refreshSocialSummary = useCallback(async () => {
     if (!token) return;
     const response = await fetch("/api/boardsignal/social?view=overview", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
@@ -97,6 +102,11 @@ export default function BoardSignalPlayerRoom() {
   }, [token]);
 
   useEffect(() => { if (token && snapshot?.account.preferencesConfirmedAt) void refreshSocialSummary(); }, [refreshSocialSummary, snapshot?.account.preferencesConfirmedAt, token]);
+
+  const handleFriendsChanged = useCallback((overview: { friends: SocialSummaryPlayer[]; incoming: SocialSummaryPlayer[]; outgoing: SocialSummaryPlayer[] }) => {
+    const players = [...overview.friends, ...overview.incoming, ...overview.outgoing];
+    setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player])));
+  }, []);
 
   const socialActionFromUniverse = useCallback(async (username: string) => {
     const known = socialPlayers[username.toLowerCase()];
@@ -211,7 +221,7 @@ export default function BoardSignalPlayerRoom() {
 
       {tab === "progress" ? <div className="container player-room-memory"><ProgressSection desks={snapshot.desks.map((item) => item.summary)} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}
       {tab === "universe" ? <div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div> : null}
-      {tab === "friends" ? <div className="container player-room-memory"><PlayerFriends token={token} initialComparePlayerId={friendCompareTarget} onChanged={(overview) => { const players = [...overview.friends, ...overview.incoming, ...overview.outgoing]; setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player]))); }} /></div> : null}
+      {tab === "friends" ? <div className="container player-room-memory"><PlayerFriends token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div> : null}
       {tab === "inbox" ? <div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div> : null}
       {tab === "profile" ? <div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} token={token} onSaved={() => user ? loadRoom(user, true) : Promise.resolve()} onSignOut={signOutPlayer} /></div> : null}
     </div>

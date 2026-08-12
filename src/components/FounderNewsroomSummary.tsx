@@ -20,6 +20,13 @@ type Summary = {
   whatsHot: EventItem[];
   recentShareMoments: Array<{ id: string; canonicalUsername?: string; headline?: string; statValue?: string; statLabel?: string; periodLabel?: string }>;
   recentUniverseMovement: EventItem[];
+  askBoardSignal: {
+    usage: number;
+    topQuestionCategories: Array<{ category: string; count: number }>;
+    unresolvedSupportHandoffs: number;
+    recentFeedbackCount: number;
+    relationshipPulse: Array<{ username?: string; expressedSentiment?: string; engagement?: string; oftenAsksAbout?: string[]; preferredCommunication?: string; openSupportIssue?: string; lastAskBoardSignalInteraction?: string; recommendedFounderContext?: string }>;
+  };
 };
 
 function BriefList({ title, items, empty }: { title: string; items: Array<{ id: string; name: string; headline: string; meta?: string }>; empty: string }) {
@@ -48,6 +55,7 @@ export default function FounderNewsroomSummary() {
   return <>
     <div className="admin-metrics newsroom-metrics">{metrics.map(([label, value], index) => <div className={`metric-card ${index === 0 ? "lime" : index === 3 ? "blue" : ""}`} key={String(label)}><span>{label}</span><strong>{value}</strong><p>Founding Beta operations</p></div>)}</div>
     <div className="newsroom-live-actions"><Link href="/admin/coverage" className="button button-lime">Open Coverage Editor</Link><Link href="/admin/communications" className="button button-outline">Open Communications</Link></div>
+    <section className="desk-section founder-guide-section"><p className="kicker">ASK BOARDSIGNAL</p><h2>What players are trying to understand.</h2><div className="founder-guide-grid"><article className="founder-guide-card"><h3>Usage & confusion</h3><p>{summary.askBoardSignal.usage} recent guide interactions · {summary.askBoardSignal.unresolvedSupportHandoffs} unresolved support handoffs · {summary.askBoardSignal.recentFeedbackCount} feedback responses.</p><div className="guide-category-list">{summary.askBoardSignal.topQuestionCategories.length ? summary.askBoardSignal.topQuestionCategories.map((item) => <article key={item.category}><span>{item.category.replaceAll("_", " ")}</span><strong>{item.count}</strong></article>) : <p>No guide question categories recorded yet.</p>}</div></article><article className="founder-guide-card"><h3>Player Relationship Pulse</h3><p>Descriptive support context only. No psychological profiling or vulnerability scoring.</p><div className="relationship-pulse-list">{summary.askBoardSignal.relationshipPulse.length ? summary.askBoardSignal.relationshipPulse.slice(0,5).map((item) => <article key={item.username}><strong>{item.username}</strong><span>{item.engagement} · expressed {item.expressedSentiment}</span><p>Often asks about: {(item.oftenAsksAbout ?? []).map((value) => value.replaceAll("_", " ")).join(", ") || "No pattern yet"}</p><p>Preferred: {item.preferredCommunication}</p><p>Support: {item.openSupportIssue}</p><p>{item.recommendedFounderContext}</p></article>) : <p>No relationship Pulse summaries yet.</p>}</div></article></div></section>
     <div className="newsroom-brief-grid newsroom-pulse-grid">
       <BriefList title="NEW PLAYERS" empty="No new Universe entrants yet." items={summary.newPlayers.map((item, i) => ({ id: item.eventId ?? `new-${i}`, name: item.canonicalUsername ?? "Player", headline: item.headline ?? "Entered the BoardSignal Universe", meta: item.publishedAt ? new Date(item.publishedAt).toLocaleString() : undefined }))} />
       <BriefList title="LATEST COMPLETED DESKS" empty="No completed LIVE Desks yet." items={summary.latestCompletedDesks.map((item, i) => ({ id: item.deskKey ?? `desk-${i}`, name: item.username, headline: item.periodLabel ?? "Completed seven-day Desk", meta: item.publishedAt ? new Date(item.publishedAt).toLocaleString() : item.periodEnd }))} />

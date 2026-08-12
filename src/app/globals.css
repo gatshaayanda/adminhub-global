@@ -1535,28 +1535,39 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
 
 /* ==========================================================
    BoardSignal semantic contrast contract
-   Light surfaces always inherit dark copy; lime remains accent-first.
-   New product surfaces should use these roles instead of raw foreground colors.
+   LIGHT / PAPER / PALE => readable dark copy.
+   DARK NAVY / BLUE => light copy allowed.
+   BRIGHT LIME => accent surface/decorative role; readable lime text on light uses --bs-accent-readable.
+   New BoardSignal features should inherit one of these semantic surface roles.
    ========================================================== */
 :root {
+  --bs-surface-paper: var(--surface);
+  --bs-surface-soft: #f7f8fb;
+  --bs-surface-dark: var(--ink);
+  --bs-surface-accent: var(--signal-lime);
   --bs-text-primary: var(--ink);
   --bs-text-secondary: var(--ink-soft);
   --bs-text-muted: var(--text-muted);
   --bs-text-link: var(--signal-blue-dark);
-  --bs-accent: var(--signal-lime);
   --bs-text-on-dark: var(--white);
-  --bs-surface-light: var(--surface);
-  --bs-surface-dark: var(--ink);
-  --bs-surface-accent: var(--signal-lime);
+  --bs-accent: var(--signal-lime);
+  --bs-accent-readable: #5e7f10;
+  /* Backward-compatible alias for existing BoardSignal surfaces. */
+  --bs-surface-light: var(--bs-surface-paper);
 }
+.bs-surface-paper { background: var(--bs-surface-paper); color: var(--bs-text-primary); }
 .bs-surface-light { background: var(--bs-surface-light); color: var(--bs-text-primary); }
-.bs-surface-light :is(h1,h2,h3,h4,strong) { color: var(--bs-text-primary); }
-.bs-surface-light p { color: var(--bs-text-secondary); }
+.bs-surface-soft { background: var(--bs-surface-soft); color: var(--bs-text-primary); }
+.bs-surface-paper :is(h1,h2,h3,h4,strong), .bs-surface-light :is(h1,h2,h3,h4,strong), .bs-surface-soft :is(h1,h2,h3,h4,strong) { color: var(--bs-text-primary); }
+.bs-surface-paper p, .bs-surface-light p, .bs-surface-soft p { color: var(--bs-text-secondary); }
 .bs-surface-dark { background: var(--bs-surface-dark); color: var(--bs-text-on-dark); }
-.bs-surface-dark :is(h1,h2,h3,h4,strong,p) { color: var(--bs-text-on-dark); }
+.bs-surface-dark :is(h1,h2,h3,h4,strong,p,span) { color: var(--bs-text-on-dark); }
+.bs-surface-accent { background: var(--bs-surface-accent); color: var(--bs-text-primary); }
+.bs-surface-accent :is(h1,h2,h3,h4,strong,p,span) { color: var(--bs-text-primary); }
 .bs-text-muted { color: var(--bs-text-muted); }
 .bs-text-link { color: var(--bs-text-link); }
-.bs-accent { color: var(--signal-blue-dark); }
+.bs-accent { color: var(--bs-accent-readable); }
+.bs-accent-on-dark { color: var(--bs-accent); }
 
 /* Contrast hardening for the moving Universe layer. */
 .universe-now-grid article,
@@ -1675,3 +1686,100 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
   .friend-card-actions { align-items: stretch; }
   .friend-card-actions .button { flex: 1 1 145px; }
 }
+
+/* ==========================================================
+   Ask BoardSignal — contextual companion
+   Uses semantic surfaces so light/dark contrast cannot drift per-message.
+   ========================================================== */
+.sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
+.ask-bs { position: fixed; right: max(18px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 180; pointer-events: none; }
+.ask-bs-launcher { pointer-events: auto; min-height: 48px; display: inline-flex; align-items: center; gap: .55rem; padding: .72rem .9rem; border: 1px solid var(--ink); border-radius: 999px; box-shadow: 0 8px 24px rgba(16,25,35,.2); font-size: .74rem; font-weight: 900; letter-spacing: -.01em; cursor: pointer; }
+.ask-bs-launcher span { color: var(--bs-text-on-dark); }
+.ask-bs-launcher b { min-width: 19px; height: 19px; display: grid; place-items: center; border-radius: 50%; background: var(--bs-surface-accent); color: var(--bs-text-primary); font-size: .62rem; }
+.ask-bs-launcher:focus-visible, .ask-bs-close:focus-visible, .ask-bs button:focus-visible, .ask-bs input:focus-visible { outline: 3px solid var(--signal-blue); outline-offset: 3px; }
+.ask-bs-panel { pointer-events: auto; position: absolute; right: 0; bottom: 62px; width: min(390px, calc(100vw - 24px)); height: min(660px, calc(100vh - 120px)); display: grid; grid-template-rows: auto minmax(0,1fr) auto auto; overflow: hidden; border: 1px solid var(--ink); border-radius: 18px 18px 8px 8px; box-shadow: 0 22px 70px rgba(16,25,35,.28); }
+.ask-bs-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1rem .95rem; border-bottom: 4px solid var(--bs-accent); }
+.ask-bs-header span { display: block; color: var(--bs-accent) !important; font-family: var(--font-mono); font-size: .6rem; font-weight: 900; letter-spacing: .09em; }
+.ask-bs-header h2 { margin-top: .2rem; color: var(--bs-text-on-dark); font-size: 1.35rem; letter-spacing: -.04em; }
+.ask-bs-header p { margin-top: .18rem; color: #d8e0ec !important; font-size: .68rem; }
+.ask-bs-close { width: 44px; height: 44px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; background: transparent; color: var(--bs-text-on-dark); cursor: pointer; }
+.ask-bs-messages { min-height: 0; overflow-y: auto; padding: .9rem; display: flex; flex-direction: column; gap: .65rem; background: var(--bs-surface-paper); }
+.ask-bs-welcome { padding: .85rem; border: 1px solid var(--border); background: var(--bs-surface-soft); color: var(--bs-text-primary); }
+.ask-bs-welcome svg { color: var(--bs-text-link); }
+.ask-bs-welcome strong { display: block; margin-top: .45rem; color: var(--bs-text-primary); }
+.ask-bs-welcome p { margin-top: .3rem; color: var(--bs-text-secondary); font-size: .78rem; }
+.ask-bs-message { max-width: 92%; padding: .72rem .78rem; border: 1px solid var(--border); color: var(--bs-text-primary); overflow-wrap: anywhere; }
+.ask-bs-message p { color: inherit; font-size: .78rem; white-space: pre-wrap; }
+.ask-bs-message.from-guide { align-self: flex-start; background: var(--bs-surface-soft); }
+.ask-bs-message.from-player { align-self: flex-end; background: #e3e9ff; border-color: #a8b7f7; }
+.ask-bs-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .62rem; }
+.ask-bs-actions button, .ask-bs-feedback button, .ask-bs-suggestions button, .ask-bs-failure button, .ask-bs-failure a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: .55rem .68rem; border: 1px solid var(--ink); background: var(--bs-surface-paper); color: var(--bs-text-primary); font-size: .68rem; font-weight: 850; cursor: pointer; }
+.ask-bs-actions button:hover, .ask-bs-suggestions button:hover { background: var(--brand-tint); }
+.ask-bs-feedback { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; margin-top: .55rem; padding-top: .5rem; border-top: 1px solid var(--border); }
+.ask-bs-feedback span { color: var(--bs-text-muted); font-size: .65rem; font-weight: 800; }
+.ask-bs-feedback button { min-height: 44px; padding: .4rem .55rem; }
+.ask-bs-thinking { display: flex; align-items: center; gap: .45rem; color: var(--bs-text-muted); font-size: .69rem; }
+.ask-bs-failure { padding: .75rem; border: 1px solid var(--danger); background: #fff0ec; color: var(--bs-text-primary); }
+.ask-bs-failure strong { color: var(--danger); }
+.ask-bs-failure > div { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .5rem; }
+.ask-bs-suggestions { display: flex; gap: .4rem; overflow-x: auto; padding: .65rem .75rem; border-top: 1px solid var(--border); background: var(--bs-surface-soft); scrollbar-width: thin; }
+.ask-bs-suggestions button { flex: 0 0 auto; min-height: 44px; border-color: var(--border-strong); background: var(--bs-surface-paper); }
+.ask-bs-composer { display: grid; grid-template-columns: minmax(0,1fr) 48px; gap: .45rem; padding: .72rem; border-top: 1px solid var(--ink); background: var(--bs-surface-paper); }
+.ask-bs-composer input { min-width: 0; min-height: 48px; padding: .7rem .75rem; border: 1px solid var(--ink); background: white; color: var(--bs-text-primary); }
+.ask-bs-composer input::placeholder { color: var(--bs-text-muted); }
+.ask-bs-composer button { min-width: 48px; min-height: 48px; display: grid; place-items: center; border: 1px solid var(--ink); background: var(--ink); color: var(--bs-text-on-dark); cursor: pointer; }
+.ask-bs-composer button:disabled { opacity: .5; cursor: not-allowed; }
+.social-load-error { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+.social-load-error p { color: inherit; }
+
+/* Founder Ask BoardSignal summaries */
+.founder-guide-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 1rem; margin-top: 1rem; }
+.founder-guide-card { padding: 1rem; border: 1px solid var(--ink); background: var(--bs-surface-paper); color: var(--bs-text-primary); }
+.founder-guide-card h3, .founder-guide-card strong { color: var(--bs-text-primary); }
+.founder-guide-card p { color: var(--bs-text-secondary); }
+.guide-category-list, .relationship-pulse-list { display: grid; gap: .5rem; margin-top: .75rem; }
+.guide-category-list article, .relationship-pulse-list article { padding: .72rem; border: 1px solid var(--border); background: var(--bs-surface-soft); color: var(--bs-text-primary); }
+.guide-category-list article { display: flex; justify-content: space-between; gap: 1rem; }
+.relationship-pulse-list article span { display: block; color: var(--bs-text-muted); font-size: .62rem; font-weight: 850; text-transform: uppercase; }
+.relationship-pulse-list article p { margin-top: .25rem; font-size: .72rem; }
+
+/* Ask BoardSignal preferences inside Profile */
+.guide-preference-row { display: grid; gap: .45rem; }
+.guide-preference-row label { display: grid; gap: .3rem; color: var(--bs-text-primary); font-size: .72rem; font-weight: 800; }
+.guide-preference-row select, .guide-preference-row input { min-height: 44px; border: 1px solid var(--ink); background: var(--bs-surface-paper); color: var(--bs-text-primary); padding: .55rem .65rem; }
+.guide-preference-help { color: var(--bs-text-secondary); font-size: .68rem; }
+
+@media (max-width: 720px) {
+  .ask-bs { right: max(12px, env(safe-area-inset-right)); bottom: max(84px, calc(env(safe-area-inset-bottom) + 72px)); }
+  .ask-bs-launcher { min-height: 46px; }
+  .ask-bs-panel { position: fixed; inset: max(8px, env(safe-area-inset-top)) 8px max(74px, calc(env(safe-area-inset-bottom) + 66px)) 8px; width: auto; height: auto; border-radius: 16px 16px 8px 8px; }
+  .ask-bs-suggestions { padding-bottom: .75rem; }
+  .founder-guide-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ask-bs *, .ask-bs *::before, .ask-bs *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
+
+/* Global Universe learning cards default to LIGHT-safe text.
+   The public dark learning section opts back into the dark-surface palette explicitly. */
+.universe-learning-grid > article,
+.player-universe-panel .universe-learning-grid > article {
+  background: var(--bs-surface-soft);
+  border-color: var(--border);
+  color: var(--bs-text-primary);
+}
+.universe-learning-grid > article > a,
+.player-universe-panel .universe-learning-grid > article > a { color: var(--bs-text-primary); }
+.universe-learning-grid > article :is(h3,strong),
+.player-universe-panel .universe-learning-grid > article :is(h3,strong) { color: var(--bs-text-primary); }
+.universe-learning-grid > article :is(p),
+.player-universe-panel .universe-learning-grid > article :is(p) { color: var(--bs-text-secondary); }
+.universe-learning-grid > article :is(span,small),
+.player-universe-panel .universe-learning-grid > article :is(span,small),
+.universe-learning-grid > article .social-text-button { color: var(--bs-text-link); }
+.universe-learning-section .universe-learning-grid > article { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.13); color: var(--bs-text-on-dark); }
+.universe-learning-section .universe-learning-grid > article > a,
+.universe-learning-section .universe-learning-grid > article :is(h3,strong) { color: var(--bs-text-on-dark); }
+.universe-learning-section .universe-learning-grid > article p { color: #d8e0ec; }
+.universe-learning-section .universe-learning-grid > article :is(span,small),
+.universe-learning-section .universe-learning-grid > article .social-text-button { color: var(--bs-accent); }

@@ -1,13 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
 export default function BetaAgreementGate({ onAccept }: { onAccept: () => Promise<void> }) {
   const [understood, setUnderstood] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: { activeTab: "agreement" } }));
+    return () => { window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: { activeTab: "desk" } })); };
+  }, []);
 
   async function accept() {
     setBusy(true);

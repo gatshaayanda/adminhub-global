@@ -10,6 +10,7 @@ import {
   updatePlayerPreferences,
 } from "@/lib/boardsignal/server/persistence";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
+import { recordGuidePlayerRoomSnapshot } from "@/lib/boardsignal/server/guide";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,7 +47,15 @@ export async function GET(request: Request) {
     } catch (error) {
       progressUnavailable = error instanceof Error ? error.message : "Current episode progress is temporarily unavailable.";
     }
-    return response({ ok: true, snapshot: await buildPlayerRoomSnapshot(token, currentEpisode, progressUnavailable) });
+    const snapshot = await buildPlayerRoomSnapshot(token, currentEpisode, progressUnavailable);
+    await recordGuidePlayerRoomSnapshot(account, {
+      currentEpisode,
+      latestDesk: snapshot.desks[0]?.desk,
+      recentDeskLabels: snapshot.desks.map((item) => item.summary.periodLabel),
+      pulse: snapshot.pulse,
+      shareMoments: snapshot.shareMoments,
+    }).catch(() => undefined);
+    return response({ ok: true, snapshot });
   } catch (error) {
     return response({ ok: false, error: error instanceof Error ? error.message : "Player Room could not be loaded." }, Number((error as { status?: number }).status ?? 500));
   }

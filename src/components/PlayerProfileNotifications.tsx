@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LoaderCircle, LogOut, Save, ShieldCheck } from "lucide-react";
 import BrowserPushControl from "@/components/BrowserPushControl";
+import GuidePreferenceControl from "@/components/GuidePreferenceControl";
 import type {
   BoardSignalAccount,
   BoardSignalContactMethod,
@@ -76,6 +77,8 @@ export default function PlayerProfileNotifications({
       <article className="profile-settings-card"><h3>Notifications</h3>{notificationToggle("deskReady", "Desk Ready")}{notificationToggle("episodeProgress", "Episode Progress")}{notificationToggle("blueReminder", "Blue Reminder")}{notificationToggle("universeAchievement", "Universe Achievement")}{notificationToggle("founderUpdates", "Founder Updates")}</article>
 
       <article className="profile-settings-card"><h3>Browser</h3><BrowserPushControl idToken={token} onChanged={onSaved} /></article>
+
+      <article className="profile-settings-card"><h3>Ask BoardSignal</h3><GuidePreferenceControl token={token} /></article>
 
       <article className="profile-settings-card"><h3>Community</h3><div className="required-participation-row"><ShieldCheck size={17} /><div><strong>Founding Beta Universe participation = Included</strong><p>Each completed Desk can contribute safe sports-style coverage. Weaknesses, Signals, evidence and private progress stay private.</p></div></div>{discordInvite ? <a className="button button-outline" href={discordInvite} target="_blank" rel="noreferrer">Join the Founding Beta Discord</a> : null}</article>
 

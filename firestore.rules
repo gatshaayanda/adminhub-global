@@ -560,6 +560,18 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Ask BoardSignal keeps only bounded private profile/session/memory/state documents.
+      // Reads are owner-only; all writes flow through authenticated server routes.
+      match /guide/{guideId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /guideFeedback/{feedbackId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
     }
 
     match /publicPlayers/{chessPlayerId} {
@@ -599,6 +611,11 @@ service cloud.firestore {
     }
 
     match /socialRequestRateLimits/{limitId} {
+      allow read, write: if false;
+    }
+
+    // Ask BoardSignal product-question aggregates are founder/server operational data only.
+    match /guideAnalytics/{period} {
       allow read, write: if false;
     }
 

@@ -5,7 +5,7 @@
   "scripts": {
     "prepare:stockfish": "node scripts/prepare-stockfish.mjs",
     "postinstall": "npm run prepare:stockfish",
-    "prebuild": "npm run prepare:stockfish",
+    "prebuild": "npm run prepare:stockfish && npm run test:contrast",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -16,7 +16,9 @@
     "test:stockfish": "node scripts/stockfish-smoke.mjs",
     "test:communications": "tsc -p tsconfig.communications.json && node --test .test-dist-communications/tests/boardsignal-communications-onboarding.test.js",
     "test:universe-pulse": "tsc -p tsconfig.universe-pulse.json && node --test tests/boardsignal-universe-pulse.test.cjs",
-    "test:critical": "tsc -p tsconfig.critical-regressions.json && node --test .test-dist-critical/tests/boardsignal-identity-memory.test.js .test-dist-critical/tests/boardsignal-beta-access.test.js .test-dist-critical/tests/boardsignal-universe.test.js"
+    "test:critical": "tsc -p tsconfig.critical-regressions.json && node --test .test-dist-critical/tests/boardsignal-identity-memory.test.js .test-dist-critical/tests/boardsignal-beta-access.test.js .test-dist-critical/tests/boardsignal-universe.test.js",
+    "test:contrast": "node scripts/check-boardsignal-contrast.mjs",
+    "test:ask": "tsc -p tsconfig.ask-board-signal.json && node --test tests/boardsignal-ask-board-signal.test.cjs"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",

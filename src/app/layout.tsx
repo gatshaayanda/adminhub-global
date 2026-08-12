@@ -10,6 +10,7 @@ import Loader from "@/components/AdminHubLoader";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import AskBoardSignal from "@/components/AskBoardSignal";
 
 const montserrat = Montserrat({
   variable: "--font-sans",
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           </div>
           <ServiceWorkerRegister />
           <InstallPrompt />
+          <AskBoardSignal />
           <Analytics />
           <SpeedInsights />
         </AnalyticsProvider>

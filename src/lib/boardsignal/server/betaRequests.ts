@@ -15,7 +15,7 @@ import {
   createBetaPreviewStatusCredential,
   notifyFounderOfBetaRequest,
 } from "./activation";
-import { createFoundingBetaAccess, resetFoundingBetaAccess } from "./betaAccess";
+import { createFoundingBetaAccess, loadExistingFoundingBetaAccess } from "./betaAccess";
 import { ensureStablePlayerAccount } from "./persistence";
 import { getBoardSignalDeliveryStatus } from "./delivery";
 import { sendBoardSignalEmail } from "./email";
@@ -273,14 +273,17 @@ export async function approveFoundingBetaRequest(requestId: string) {
     throw Object.assign(new Error("The Founding Beta request no longer matches its stable BoardSignal identity."), { status: 409, code: "BETA_IDENTITY_MISMATCH" });
   }
 
-  let result: { account?: BoardSignalAccount; accessCode: string };
+  let result: { account?: BoardSignalAccount; accessCode?: string };
   let newlyCreatedAccess = true;
   try {
     result = await createFoundingBetaAccess(request.canonicalUsername);
   } catch (error) {
     if (String((error as { code?: string }).code) !== "BETA_ACCESS_EXISTS") throw error;
     newlyCreatedAccess = false;
-    result = await resetFoundingBetaAccess(request.chessPlayerId);
+    // Legacy compatibility: an existing fallback credential is already valid.
+    // Reuse it without rotating its hash/salt and without revoking Firebase sessions.
+    const existing = await loadExistingFoundingBetaAccess(request.chessPlayerId);
+    result = { account: existing.account };
   }
   if (!result.account) throw Object.assign(new Error("The existing Founding Beta identity could not be loaded."), { status: 409 });
   const account = result.account;

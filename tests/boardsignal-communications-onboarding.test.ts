@@ -27,7 +27,8 @@ test("3. approval reuses stable identity instead of creating a duplicate player"
   const source = read("src/lib/boardsignal/server/betaRequests.ts");
   assert.match(source, /createFoundingBetaAccess\(request\.canonicalUsername\)/);
   assert.match(source, /BETA_ACCESS_EXISTS/);
-  assert.match(source, /resetFoundingBetaAccess\(request\.chessPlayerId\)/);
+  assert.match(source, /loadExistingFoundingBetaAccess\(request\.chessPlayerId\)/);
+  assert.doesNotMatch(source, /resetFoundingBetaAccess\(request\.chessPlayerId\)/);
   assert.match(source, /publicPlayers"\)\.doc\(String\(request\.chessPlayerId\)\)/);
 });
 

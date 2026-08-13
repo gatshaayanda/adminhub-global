@@ -195,7 +195,7 @@ test('42 approval becomes visible as YOU ARE IN without external messaging', () 
 // Compound approval + identity hydration
 test('43 Founder primary action is Approve + Prepare Access', () => assert.match(adminUi, /Approve \+ Prepare Access/));
 test('44 one approval function composes account, access, Universe, magic and email', () => {
-  for (const pattern of [/ensureStablePlayerAccount/, /createBetaAccessCredential|resetFoundingBetaAccess/, /writePublicUniverseEvent/, /betaMagicAccessCredential/, /sendBoardSignalEmail/]) assert.match(approval, pattern);
+  for (const pattern of [/ensureStablePlayerAccount/, /createBetaAccessCredential|loadExistingFoundingBetaAccess/, /writePublicUniverseEvent/, /betaMagicAccessCredential/, /sendBoardSignalEmail/]) assert.match(approval, pattern);
 });
 test('45 approval preserves request stable identity across existing Beta Access recovery', () => {
   assert.match(approval, /playerId: request\.chessPlayerId/);

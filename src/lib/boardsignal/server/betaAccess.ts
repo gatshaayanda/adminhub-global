@@ -111,6 +111,32 @@ export async function createFoundingBetaAccess(usernameInput: string) {
   return { account, accessCode: credential.accessCode };
 }
 
+export async function loadExistingFoundingBetaAccess(playerIdInput: unknown) {
+  const playerId = validatePlayerId(playerIdInput);
+  const db = getAdminDb();
+  const accessRef = db.collection("betaAccess").doc(String(playerId));
+  const accessSnapshot = await accessRef.get();
+  if (!accessSnapshot.exists) {
+    throw Object.assign(new Error("No Founding Beta Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
+  }
+  const record = accessSnapshot.data() as BetaAccessRecord;
+  if (record.playerId !== playerId) {
+    throw Object.assign(new Error("The Founding Beta Access record does not match this stable player ID."), { status: 409, code: "BETA_ACCESS_IDENTITY_MISMATCH" });
+  }
+
+  const mapSnapshot = await db.collection("chessPlayerAccounts").doc(String(playerId)).get();
+  const mappedUid = typeof mapSnapshot.data()?.uid === "string" ? String(mapSnapshot.data()!.uid) : `chesscom_${playerId}`;
+  const accountSnapshot = await db.collection("users").doc(mappedUid).get();
+  const account = accountSnapshot.data() as BoardSignalAccount | undefined;
+  if (!account || account.uid !== mappedUid || account.chessCom?.playerId !== playerId) {
+    throw Object.assign(new Error("The existing Founding Beta account could not be loaded for this stable player ID."), { status: 409, code: "BETA_ACCOUNT_NOT_FOUND" });
+  }
+
+  // Compatibility path only: reading an existing Beta Access record must never
+  // rotate its hash/salt or revoke the player's already-valid Firebase session.
+  return { account, record };
+}
+
 export async function resetFoundingBetaAccess(playerIdInput: unknown) {
   const playerId = validatePlayerId(playerIdInput);
   const db = getAdminDb();

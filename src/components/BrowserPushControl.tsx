@@ -17,6 +17,8 @@ async function registerToken(idToken: string) {
   const client = await messagingClient();
   if (!client) throw new Error("Browser alerts are not supported by this browser.");
   const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+  // Firebase Web 11 keeps the stable registration-token path used by this release.
+  // Do not mix this with the newer FID registration APIs; migrate both Web/Admin together in a dedicated maintenance patch.
   const fcmToken = await client.getToken(client.instance, { vapidKey, serviceWorkerRegistration });
   if (!fcmToken) throw new Error("This browser did not return a push registration token.");
   const response = await fetch("/api/boardsignal/inbox", {
@@ -112,7 +114,7 @@ export default function BrowserPushControl({ idToken, onChanged }: { idToken: st
   }
 
   if (!configured) {
-    return <div className="browser-push-state"><BellOff size={17} /><div><strong>Browser alerts unavailable</strong><p>In-app Inbox still works. BoardSignal push configuration has not been added yet.</p></div></div>;
+    return <div className="browser-push-state"><BellOff size={17} /><div><strong>Browser alerts not configured yet</strong><p>In-app Inbox still works. Browser alerts become available once BoardSignal's Web Push configuration is enabled.</p></div></div>;
   }
   if (permission === "unsupported") {
     return <div className="browser-push-state"><BellOff size={17} /><div><strong>Browser alerts unsupported</strong><p>This browser does not expose the required notification/service-worker features.</p></div></div>;

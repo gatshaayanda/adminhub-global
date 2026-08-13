@@ -1,11 +1,21 @@
 import type { MetadataRoute } from "next";
 
-export default function manifest(): MetadataRoute.Manifest {
+type BoardSignalManifest = MetadataRoute.Manifest & {
+  screenshots: Array<{
+    src: string;
+    sizes: string;
+    type: "image/png";
+    form_factor: "narrow" | "wide";
+    label: string;
+  }>;
+};
+
+export default function manifest(): BoardSignalManifest {
   return {
     id: "/boardsignal",
     name: "BoardSignal — Personal Chess Sports Desk",
     short_name: "BoardSignal",
-    description: "A personal sports desk for everyday Chess.com players.",
+    description: "Your personal chess sports desk. Follow your latest seven-day Desk, Progress, Universe movement and Friends — with offline access after you've opened your Player Room.",
     start_url: "/boardsignal?source=pwa",
     scope: "/",
     display: "standalone",
@@ -25,6 +35,12 @@ export default function manifest(): MetadataRoute.Manifest {
       { name: "Universe", short_name: "Universe", url: "/boardsignal", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
       { name: "Inbox", short_name: "Inbox", url: "/boardsignal/player-room?tab=inbox", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
       { name: "Friends", short_name: "Friends", url: "/boardsignal/player-room?tab=friends", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
+    ],
+    screenshots: [
+      { src: "/pwa/boardsignal-player-room-mobile.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "Your weekly personal chess sports desk" },
+      { src: "/pwa/boardsignal-universe-mobile.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "Current BoardSignal Universe movement" },
+      { src: "/pwa/boardsignal-player-room-wide.png", sizes: "1440x900", type: "image/png", form_factor: "wide", label: "Desk, Progress and your BoardSignal week" },
+      { src: "/pwa/boardsignal-universe-wide.png", sizes: "1440x900", type: "image/png", form_factor: "wide", label: "BoardSignal Universe and recent field movement" },
     ],
   };
 }

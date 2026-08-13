@@ -2028,3 +2028,29 @@ h1, h2, h3, h4 { overflow-wrap: anywhere; }
 .offline-network-action { margin-top: 1rem; padding: 1rem; border: 1px solid var(--border); background: var(--bs-surface-soft); color: var(--bs-text-primary); }
 .offline-network-action strong { color: var(--bs-text-primary); }
 .offline-network-action p { margin-top: .25rem; color: var(--bs-text-secondary); }
+
+/* ==========================================================
+   BoardSignal delivery + installed-app polish
+   ========================================================== */
+.founder-delivery-status { margin-top: 1rem; }
+.delivery-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .8rem;
+  margin-top: .8rem;
+}
+.delivery-status-grid article {
+  min-width: 0;
+  border: 1px solid var(--ink);
+  background: var(--bs-surface-paper);
+  color: var(--bs-text-primary);
+  padding: .9rem;
+}
+.delivery-status-grid article span { display: block; color: var(--bs-text-muted); font-size: .66rem; font-weight: 800; letter-spacing: .08em; }
+.delivery-status-grid article strong { display: block; margin-top: .3rem; color: var(--bs-text-primary); }
+.delivery-status-grid article p { margin: .35rem 0 0; color: var(--bs-text-secondary); font-size: .78rem; line-height: 1.4; }
+.profile-email-alerts { margin-top: .9rem; padding-top: .8rem; border-top: 1px solid rgba(16,25,35,.18); }
+.profile-email-alerts .kicker { margin-bottom: .4rem; }
+@media (max-width: 760px) {
+  .delivery-status-grid { grid-template-columns: 1fr; }
+}

@@ -1,5 +1,6 @@
 import type { BoardSignalNotificationPreferences } from "./account";
 import type { BoardSignalNotificationEventType, CurrentEpisodeSummary } from "./memory";
+import { boardSignalMessageLink } from "./delivery";
 
 export type BoardSignalMessageType =
   | "desk_ready"
@@ -65,7 +66,7 @@ export type CommunicationCampaignDraft = {
     inApp: true;
     browserPush: boolean;
     externalContactManual: boolean;
-    emailProviderReady: boolean;
+    email: boolean;
   };
 };
 
@@ -156,7 +157,7 @@ export function messageForAutomatedEvent(input: {
       type: "desk_ready",
       title: "Your new BoardSignal Desk is ready",
       body: "Your chess week has a story. Your completed Desk is waiting in My Player Room.",
-      link: "/boardsignal/player-room",
+      link: boardSignalMessageLink("desk_ready"),
       actionLabel: "Open my Desk",
       allowReply: false,
     };
@@ -168,7 +169,7 @@ export function messageForAutomatedEvent(input: {
       body: input.currentEpisode.games > 0
         ? `${input.currentEpisode.games} game${input.currentEpisode.games === 1 ? " is" : "s are"} already in. This is based on the latest available Chess.com data.`
         : "Your next seven-day episode is open. No games are recorded yet in the latest available Chess.com data.",
-      link: "/boardsignal/player-room",
+      link: boardSignalMessageLink("episode_update"),
       actionLabel: "See episode progress",
       allowReply: false,
     };
@@ -178,7 +179,7 @@ export function messageForAutomatedEvent(input: {
       type: "episode_update",
       title: "Your current BoardSignal episode is still open",
       body: "No games are recorded yet in the latest available Chess.com data. Your Player Room will keep the episode factual while it forms.",
-      link: "/boardsignal/player-room",
+      link: boardSignalMessageLink("episode_update"),
       actionLabel: "Open My Player Room",
       allowReply: false,
     };
@@ -188,7 +189,7 @@ export function messageForAutomatedEvent(input: {
       type: "blue_reminder",
       title: "Carry this with you today",
       body: `${input.previousBlue.title} — ${input.previousBlue.copy}`,
-      link: "/boardsignal/player-room",
+      link: boardSignalMessageLink("blue_reminder"),
       actionLabel: "Open My Player Room",
       allowReply: false,
     };
@@ -198,7 +199,7 @@ export function messageForAutomatedEvent(input: {
       type: "universe_achievement",
       title: "BoardSignal Universe update",
       body: input.universeAchievement,
-      link: "/feed",
+      link: boardSignalMessageLink("universe_achievement"),
       actionLabel: "Open the Universe",
       allowReply: false,
     };

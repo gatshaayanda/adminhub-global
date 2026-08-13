@@ -1,5 +1,7 @@
 import type { HeadToHeadPayload, SocialPlayerCard } from "./social";
 
+export type GuideDeliveryStatus = { inApp: true; browserPushConfigured: boolean; emailConfigured: boolean; emailProvider: "resend" | "none" };
+
 export type GuideTone = "Balanced" | "Direct" | "Analytical" | "Sports Desk" | "Encouraging";
 export type GuideDetailLevel = "Short" | "Standard" | "Detailed";
 
@@ -73,6 +75,8 @@ export type GuideContext = {
   unreadInboxCount?: number;
   latestAnnouncement?: { id?: string; title: string; body: string; link?: string; actionLabel?: string; createdAt?: string };
   notificationPreferences?: GuideNotificationPreferences;
+  deliveryStatus?: GuideDeliveryStatus;
+  emailAccountReady?: boolean;
   preferences?: GuidePreferences;
   tourState?: "unseen" | "completed" | "dismissed";
   releaseHintDismissed?: boolean;
@@ -258,7 +262,7 @@ export function detectGuideIntent(message: string, context: Pick<GuideContext, "
   if (has(text, "what changed", "since i was away", "since my last", "what's changed", "whats changed")) return "what_changed";
   if (context.activeTab === "agreement" && has(text, "explain this simply", "explain the agreement", "what am i agreeing")) return "agreement";
   if (has(text, "what is boardsignal", "what's boardsignal", "whats boardsignal")) return "what_is_boardsignal";
-  if (has(text, "how does it work", "how it works")) return "how_it_works";
+  if (has(text, "how does it work", "how it works", "install boardsignal", "how do i install", "use boardsignal offline", "can i use boardsignal offline", "offline mode")) return "how_it_works";
   if (has(text, "how much", "beta cost", "cost of beta", "beta price", "pay for beta")) return "beta_cost";
   if (has(text, "where do i sign in", "how do i sign in", "sign in", "log in")) return "sign_in";
   if (has(text, "what is universe", "what's universe", "whats universe", "what is the universe", "why am i here")) return "universe_what";
@@ -276,7 +280,7 @@ export function detectGuideIntent(message: string, context: Pick<GuideContext, "
   if (has(text, "compare with", "compare me", "who has the edge", "where are we closest", "head to head", "head-to-head")) return "compare_friend";
   if (has(text, "who is closest to me", "which friend", "friends", "rival")) return "friends";
   if (has(text, "unread", "inbox")) return "inbox";
-  if (has(text, "notification", "alerts", "reminder")) return "notifications";
+  if (has(text, "notification", "alerts", "reminder", "email me", "email alerts", "browser push", "number on my boardsignal icon", "number on the icon", "app badge", "badge")) return "notifications";
   if (has(text, "what's new", "whats new", "new feature", "update")) return "whats_new";
   if (has(text, "share moment", "share my", "strongest moment", "best moment")) return "share";
   if (has(text, "tour", "show me around")) return "tour";
@@ -485,10 +489,20 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
       reply = "BoardSignal turns a fixed seven days of your Chess.com games into a personal sports Desk: what happened, what mattered, your private Signals, progress across recent Desks, and your public-safe place in the Universe.";
       actions.push({ id: "how", label: "See how it works", href: "/how-it-works", kind: "navigate" });
       break;
-    case "how_it_works":
-      reply = "BoardSignal uses your Chess.com identity, closes one seven-day episode at a time, builds the Desk deterministically, and keeps your latest four completed Desks active. Your next episode can form between publications without becoming a new diagnostic Desk.";
-      actions.push(...baseActions(context));
+    case "how_it_works": {
+      const question = message.toLowerCase();
+      if (question.includes("install")) {
+        reply = "Install BoardSignal from the Player Room or Profile after meaningful use. On supported Chromium browsers, BoardSignal can use the browser install prompt; on iPhone or iPad, use Share → Add to Home Screen → Confirm BoardSignal. Installed mode keeps the same account and routes.";
+        actions.push({ id: "profile-install", label: "Open Profile", href: "/boardsignal/player-room?tab=profile", kind: "navigate" });
+      } else if (question.includes("offline")) {
+        reply = "Yes—after you've opened your authenticated Player Room online, BoardSignal can save your latest four Desks, recent Progress, last Pulse, a clearly timestamped Universe snapshot and bounded social comparison state on that device. New Chess.com games, messages and mutations still require a connection.";
+        actions.push({ id: "profile-offline", label: "Open device settings", href: "/boardsignal/player-room?tab=profile", kind: "navigate" });
+      } else {
+        reply = "BoardSignal uses your Chess.com identity, closes one seven-day episode at a time, builds the Desk deterministically, and keeps your latest four completed Desks active. Your next episode can form between publications without becoming a new diagnostic Desk.";
+        actions.push(...baseActions(context));
+      }
       break;
+    }
     case "privacy":
       reply = "Public coverage is limited to safe sports facts such as your username, avatar, supported highlights and Universe placement. Red, private Amber, Blue, evidence, recurrence, contact details, access credentials and private messages stay private.";
       actions.push({ id: "privacy", label: "Open privacy", href: "/boardsignal/privacy", kind: "navigate" });
@@ -589,10 +603,25 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
       if (context.authenticated) actions.push({ id: "handoff", label: "Message Ayanda", kind: "handoff", requiresConfirmation: true });
       else actions.push({ id: "signin", label: "Open My Player Room", href: "/boardsignal/player-room", kind: "navigate" });
       break;
-    case "notifications":
-      reply = context.authenticated ? "Your notification settings live in Profile. I can take you there, but changing a setting always requires an explicit confirmation—it never happens from an ambiguous chat message." : "Notification preferences are available after you sign in.";
+    case "notifications": {
+      const question = message.toLowerCase();
+      if (question.includes("browser") || question.includes("push") || question.includes("alerts unavailable")) {
+        reply = context.deliveryStatus?.browserPushConfigured
+          ? "Browser alerts are configured for BoardSignal. They remain optional: open Profile and choose Enable browser alerts, then your browser asks for permission only because you clicked. If you've denied permission, BoardSignal respects that."
+          : "Browser alerts haven't been configured by BoardSignal yet. Your in-app Inbox still works. Once Web Push configuration is enabled, Profile will offer the deliberate browser-alert opt-in.";
+      } else if (question.includes("email")) {
+        if (!context.deliveryStatus?.emailConfigured) reply = "Email delivery isn't active yet. Your in-app Inbox still works, and browser alerts can work separately when configured and enabled.";
+        else if (!context.authenticated) reply = "BoardSignal email delivery is available only for signed-in beta players who provide an email address, consent to beta contact and enable important email updates.";
+        else if (!context.emailAccountReady) reply = "BoardSignal email delivery is configured, but your account is not currently eligible. In Profile, choose Email as your preferred contact, provide a valid address, keep beta contact consent enabled and turn on important email updates.";
+        else reply = "Your account is set up for important BoardSignal email updates. BoardSignal keeps email selective—Desk Ready, major beta updates, feedback requests and other important eligible messages rather than every Pulse movement.";
+      } else if (question.includes("badge") || question.includes("number on") || question.includes("icon")) {
+        reply = context.authenticated ? `The number on an installed BoardSignal icon represents unread Inbox messages. Your current verified unread count is ${context.unreadInboxCount ?? 0}. It clears when your Inbox reaches zero or when you sign out; browsers that don't support app badging simply ignore it.` : "Where supported, the installed BoardSignal icon can show unread Inbox count. It is a progressive browser feature and does not expose message content.";
+      } else {
+        reply = context.authenticated ? "Your notification settings live in Profile. In-app Inbox is the base channel; browser push and important email are optional delivery layers. Changing a setting always requires your explicit action." : "In-app Inbox is BoardSignal's base delivery channel. Signed-in players can manage optional browser and email delivery from Profile when those channels are configured.";
+      }
       actions.push({ id: "profile", label: "Open notification preferences", href: "/boardsignal/player-room?tab=profile", kind: "navigate" });
       break;
+    }
     case "whats_new":
       reply = context.latestAnnouncement ? `${context.latestAnnouncement.title}. ${context.latestAnnouncement.body}` : "There isn't a current major Founder announcement in your Inbox context.";
       if (context.latestAnnouncement?.link) actions.push({ id: "announcement", label: context.latestAnnouncement.actionLabel ?? "Open update", href: context.latestAnnouncement.link, kind: "navigate" });

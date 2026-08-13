@@ -16,7 +16,10 @@ import {
   type CommunicationSegment,
 } from "../communications";
 import { getAdminDb, getAdminMessaging } from "../../../utils/firebaseAdmin";
+import { absoluteBoardSignalLink, accountCanReceiveBoardSignalEmail, boardSignalMessageLink } from "../delivery";
 import { accountForToken } from "./persistence";
+import { getBoardSignalDeliveryStatus, getFounderDeliveryStatus } from "./delivery";
+import { sendBoardSignalEmail } from "./email";
 
 function clean<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -32,11 +35,33 @@ function validateText(value: unknown, label: string, max = 4000) {
   return text;
 }
 
-function pushPayload(type: BoardSignalMessageType, title: string, body: string) {
-  if (["desk_ready", "episode_update", "blue_reminder", "universe_achievement"].includes(type)) {
+function pushPayload(type: BoardSignalMessageType, title: string, body: string, forceVisible = false) {
+  if (forceVisible || ["desk_ready", "episode_update", "blue_reminder", "universe_achievement", "friend_request", "friend_accepted", "beta_update"].includes(type)) {
     return { title, body };
   }
   return { title: "BoardSignal", body: "You have a new private message in My Player Room." };
+}
+
+function messageLink(type: BoardSignalMessageType, explicit?: string) {
+  return explicit?.trim() || boardSignalMessageLink(type);
+}
+
+async function sendEmailToAccount(account: BoardSignalAccount, type: BoardSignalMessageType, title: string, body: string, link?: string) {
+  const status = getBoardSignalDeliveryStatus();
+  if (!status.emailConfigured || !accountCanReceiveBoardSignalEmail(account, type)) {
+    return { eligible: false, delivered: 0, failed: 0, configured: status.emailConfigured };
+  }
+  const destination = account.preferredContactValue!.trim();
+  const absoluteLink = absoluteBoardSignalLink(link);
+  const text = [body.trim(), absoluteLink ? `Open BoardSignal: ${absoluteLink}` : ""].filter(Boolean).join("\n\n");
+  const result = await sendBoardSignalEmail({ to: destination, subject: title, text });
+  return {
+    eligible: true,
+    delivered: result.delivered ? 1 : 0,
+    failed: result.delivered ? 0 : 1,
+    configured: result.configured,
+    error: result.error,
+  };
 }
 
 export async function listPlayerInbox(token: DecodedIdToken) {
@@ -106,6 +131,8 @@ export async function replyToFounder(token: DecodedIdToken, threadIdInput: unkno
 }
 
 export async function registerPlayerPushToken(token: DecodedIdToken, fcmTokenInput: unknown, userAgentInput?: unknown) {
+  // FCM registration-token delivery is intentionally retained for Firebase Web 11/Admin 13 stability.
+  // Move to FID registration in one deliberate Firebase/Node maintenance patch; do not run token + FID paths together.
   const account = await accountForToken(token);
   const fcmToken = validateText(fcmTokenInput, "Browser push token", 4096);
   if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()) {
@@ -207,8 +234,9 @@ export async function resolveFounderAudience(draft: Pick<CommunicationCampaignDr
 
 export async function previewFounderCampaign(draft: CommunicationCampaignDraft) {
   const audience = await resolveFounderAudience(draft);
+  const deliveryStatus = getBoardSignalDeliveryStatus();
   let pushEligibleCount = 0;
-  if (draft.channels.browserPush && process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()) {
+  if (draft.channels.browserPush && deliveryStatus.browserPushConfigured) {
     const tokenChecks = await Promise.all(audience.map(async (account) => {
       if (!account.notificationPreferences?.browserPush || !preferenceAllowsMessage(account.notificationPreferences, draft.type)) return false;
       const tokens = await getAdminDb().collection("users").doc(account.uid).collection("pushTokens").limit(1).get();
@@ -216,9 +244,14 @@ export async function previewFounderCampaign(draft: CommunicationCampaignDraft) 
     }));
     pushEligibleCount = tokenChecks.filter(Boolean).length;
   }
+  const emailEligibleCount = draft.channels.email && deliveryStatus.emailConfigured
+    ? audience.filter((account) => accountCanReceiveBoardSignalEmail(account, draft.type)).length
+    : 0;
   return {
     audienceCount: audience.length,
     pushEligibleCount,
+    emailEligibleCount,
+    deliveryStatus,
     users: audience.map((account) => ({
       uid: account.uid,
       username: account.chessCom.canonicalUsername,
@@ -228,14 +261,14 @@ export async function previewFounderCampaign(draft: CommunicationCampaignDraft) 
   };
 }
 
-async function sendPushToAccount(account: BoardSignalAccount, type: BoardSignalMessageType, title: string, body: string, link?: string) {
+async function sendPushToAccount(account: BoardSignalAccount, type: BoardSignalMessageType, title: string, body: string, link?: string, options: { forceVisible?: boolean; bypassTypePreference?: boolean } = {}) {
   if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim() || !account.notificationPreferences?.browserPush) {
     return { eligible: false, delivered: 0, failed: 0 };
   }
-  if (!preferenceAllowsMessage(account.notificationPreferences, type)) return { eligible: false, delivered: 0, failed: 0 };
+  if (!options.bypassTypePreference && !preferenceAllowsMessage(account.notificationPreferences, type)) return { eligible: false, delivered: 0, failed: 0 };
   const tokens = await getAdminDb().collection("users").doc(account.uid).collection("pushTokens").get();
   if (tokens.empty) return { eligible: false, delivered: 0, failed: 0 };
-  const payload = pushPayload(type, title, body);
+  const payload = pushPayload(type, title, body, options.forceVisible === true);
   let delivered = 0;
   let failed = 0;
   for (const tokenDoc of tokens.docs) {
@@ -245,8 +278,8 @@ async function sendPushToAccount(account: BoardSignalAccount, type: BoardSignalM
       await getAdminMessaging().send({
         token: fcmToken,
         notification: payload,
-        webpush: { fcmOptions: { link: link || "/boardsignal/player-room" } },
-        data: { type, link: link || "/boardsignal/player-room" },
+        webpush: { fcmOptions: { link: messageLink(type, link) } },
+        data: { type, link: messageLink(type, link) },
       });
       delivered += 1;
     } catch (error) {
@@ -272,6 +305,9 @@ export async function sendFounderCampaign(draft: CommunicationCampaignDraft) {
   let pushEligibleCount = 0;
   let pushDelivered = 0;
   let pushFailed = 0;
+  let emailEligibleCount = 0;
+  let emailDelivered = 0;
+  let emailFailed = 0;
 
   for (const account of audience) {
     if (!preferenceAllowsMessage(account.notificationPreferences, draft.type) && draft.type !== "custom") continue;
@@ -283,7 +319,7 @@ export async function sendFounderCampaign(draft: CommunicationCampaignDraft) {
       type: draft.type,
       title,
       body,
-      link: draft.link,
+      link: messageLink(draft.type, draft.link),
       actionLabel: draft.actionLabel,
       createdAt,
       senderType: "founder",
@@ -310,10 +346,16 @@ export async function sendFounderCampaign(draft: CommunicationCampaignDraft) {
     }
     sentCount += 1;
     if (draft.channels.browserPush) {
-      const push = await sendPushToAccount(account, draft.type, title, body, draft.link);
+      const push = await sendPushToAccount(account, draft.type, title, body, message.link);
       if (push.eligible) pushEligibleCount += 1;
       pushDelivered += push.delivered;
       pushFailed += push.failed;
+    }
+    if (draft.channels.email) {
+      const email = await sendEmailToAccount(account, draft.type, title, body, message.link);
+      if (email.eligible) emailEligibleCount += 1;
+      emailDelivered += email.delivered;
+      emailFailed += email.failed;
     }
   }
 
@@ -329,6 +371,9 @@ export async function sendFounderCampaign(draft: CommunicationCampaignDraft) {
     pushEligibleCount,
     pushDelivered,
     pushFailed,
+    emailEligibleCount,
+    emailDelivered,
+    emailFailed,
   });
   await db.collection("communications").doc(campaignId).set(campaign);
   return campaign;
@@ -355,6 +400,7 @@ export async function listFounderCommunications() {
     campaigns: campaigns.docs.map((document) => document.data()),
     conversations: conversations.slice(0, 100),
     players: accounts.map((account) => ({ uid: account.uid, username: account.chessCom.canonicalUsername })),
+    deliveryStatus: await getFounderDeliveryStatus(),
   };
 }
 
@@ -406,8 +452,10 @@ export async function founderReply(uidInput: unknown, threadIdInput: unknown, bo
     allowReply: true,
   };
   await db.collection("users").doc(uid).collection("inbox").doc(id).set(clean(inbox));
-  const push = await sendPushToAccount(account, "custom", inbox.title, body, "/boardsignal/player-room");
-  return { message, push };
+  const link = boardSignalMessageLink("custom");
+  const push = await sendPushToAccount(account, "custom", inbox.title, body, link);
+  const email = await sendEmailToAccount(account, "custom", inbox.title, body, link);
+  return { message, push, email };
 }
 
 
@@ -426,22 +474,52 @@ export async function sendAutomatedPlayerMessage(
     id,
     userId: account.uid,
     ...message,
+    link: messageLink(message.type, message.link),
     createdAt,
     senderType: "system",
     allowReply: false,
   };
   await getAdminDb().collection("users").doc(account.uid).collection("inbox").doc(id).set(clean(inbox), { merge: false });
   const push = pushAllowed
-    ? await sendPushToAccount(account, message.type, message.title, message.body, message.link)
+    ? await sendPushToAccount(account, message.type, message.title, message.body, inbox.link)
     : { eligible: false, delivered: 0, failed: 0 };
+  const email = await sendEmailToAccount(account, message.type, message.title, message.body, inbox.link);
   return {
     sent: true,
     pushEligible: push.eligible,
     pushDelivered: push.delivered,
     pushFailed: push.failed,
+    emailEligible: email.eligible,
+    emailDelivered: email.delivered,
+    emailFailed: email.failed,
   };
 }
 
+
+export async function sendFounderTestBrowserAlert(uidInput: unknown) {
+  const uid = safeId(validateText(uidInput, "Player", 700));
+  const snapshot = await getAdminDb().collection("users").doc(uid).get();
+  if (!snapshot.exists) throw Object.assign(new Error("That BoardSignal player was not found."), { status: 404 });
+  const account = snapshot.data() as BoardSignalAccount;
+  if (account.role !== "player" || account.accessStatus !== "active") throw Object.assign(new Error("That player is not eligible for a delivery test."), { status: 400 });
+  if (!getBoardSignalDeliveryStatus().browserPushConfigured) return { status: "not_eligible" as const, delivered: 0, failed: 0, reason: "Browser Push configuration is required." };
+  if (account.notificationPreferences?.browserPush !== true) return { status: "not_eligible" as const, delivered: 0, failed: 0, reason: "This player has not enabled browser alerts." };
+  const push = await sendPushToAccount(
+    account,
+    "custom",
+    "TEST · BoardSignal browser alert",
+    "If you can see this, browser delivery is working for this device.",
+    boardSignalMessageLink("custom"),
+    { forceVisible: true, bypassTypePreference: true },
+  );
+  if (!push.eligible) return { status: "not_eligible" as const, delivered: 0, failed: 0, reason: "No registered browser device is available for this player." };
+  return {
+    status: push.delivered > 0 ? "delivered" as const : "failed" as const,
+    delivered: push.delivered,
+    failed: push.failed,
+    ...(push.delivered > 0 ? {} : { reason: "Firebase did not confirm delivery to a registered device." }),
+  };
+}
 
 export async function sendRelationshipNotification(
   account: BoardSignalAccount,

@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import SignalMark from "@/components/SignalMark";
+import { isStandaloneBoardSignal } from "@/lib/boardsignal/offline/install";
+import { BOARDSIGNAL_FOUNDER_DEVICE_EVENT, BOARDSIGNAL_FOUNDER_DEVICE_KEY } from "@/lib/boardsignal/offline/founderDevice";
 
 const primaryNav = [
   { label: "Home", href: "/" },
@@ -15,8 +17,19 @@ const primaryNav = [
 export default function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [founderEntry, setFounderEntry] = useState(false);
 
   useEffect(() => { setOpen(false); }, [pathname]);
+  useEffect(() => {
+    const refresh = () => {
+      try { setFounderEntry(isStandaloneBoardSignal() && window.localStorage.getItem(BOARDSIGNAL_FOUNDER_DEVICE_KEY) === "true"); }
+      catch { setFounderEntry(false); }
+    };
+    refresh();
+    window.addEventListener(BOARDSIGNAL_FOUNDER_DEVICE_EVENT, refresh);
+    return () => window.removeEventListener(BOARDSIGNAL_FOUNDER_DEVICE_EVENT, refresh);
+  }, []);
+
 
   const active = (href: string) => href === "/" ? pathname === "/" : pathname?.startsWith(href);
   const insideOwnerFlow = pathname?.startsWith("/boardsignal/player-room") || pathname?.startsWith("/boardsignal/build/");
@@ -39,6 +52,7 @@ export default function Header() {
       </div>
       {open ? <nav className="mobile-nav container" aria-label="Mobile navigation">
         {primaryNav.map((item) => <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""}>{item.label}</Link>)}
+        {founderEntry ? <Link href="/admin">Founder Newsroom</Link> : null}
         {!insideOwnerFlow ? <Link href="/#get-my-boardsignal" className="button button-lime">Get My BoardSignal</Link> : null}
       </nav> : null}
     </header>

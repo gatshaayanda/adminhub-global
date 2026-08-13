@@ -27,6 +27,8 @@ import type { PlayerPulse, SafeShareMoment } from "../pulse";
 import type { BoardSignalDesk } from "../types";
 import { accountForToken, loadPublishedDesks } from "./persistence";
 import { listPlayerInbox } from "./communications";
+import { getBoardSignalDeliveryStatus } from "./delivery";
+import { isValidBoardSignalEmail } from "../delivery";
 import { headToHead, socialOverview } from "./social";
 import { listPlayerShareMoments } from "./universePulse";
 
@@ -177,6 +179,8 @@ async function buildAuthenticatedContext(token: DecodedIdToken, pathname: string
       unreadInboxCount: inbox.unreadCount,
       latestAnnouncement: latestAnnouncement(inbox.messages),
       notificationPreferences: account.notificationPreferences,
+      deliveryStatus: getBoardSignalDeliveryStatus(),
+      emailAccountReady: account.betaContactConsent === true && account.preferredContactMethod === "email" && isValidBoardSignalEmail(account.preferredContactValue) && account.notificationPreferences.email === true,
       preferences,
       tourState: (await db.collection("users").doc(account.uid).collection("guide").doc("state").get()).data()?.tourState ?? "unseen",
       releaseHintDismissed: (await db.collection("users").doc(account.uid).collection("guide").doc("state").get()).data()?.releaseHintDismissed === GUIDE_RELEASE_HINT,
@@ -193,7 +197,7 @@ export async function guideResponse(input: { token?: DecodedIdToken; message?: u
   const visibleEntityId = safeVisibleEntityId(input.visibleEntityId);
   const recentConversation = sanitizeGuideConversation(input.recentConversation);
   if (!input.token) {
-    const context: GuideContext = { authenticated: false, pathname, activeTab, recentConversation };
+    const context: GuideContext = { authenticated: false, pathname, activeTab, recentConversation, deliveryStatus: getBoardSignalDeliveryStatus() };
     return deterministicGuideRenderer.render(runGuideBrain(message, context));
   }
   const { account, context } = await buildAuthenticatedContext(input.token, pathname, activeTab, message, visibleEntityId, recentConversation);

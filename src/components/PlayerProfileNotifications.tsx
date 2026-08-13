@@ -6,6 +6,7 @@ import BrowserPushControl from "@/components/BrowserPushControl";
 import GuidePreferenceControl from "@/components/GuidePreferenceControl";
 import DeviceOfflineControl from "@/components/DeviceOfflineControl";
 import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
+import { isValidBoardSignalEmail } from "@/lib/boardsignal/delivery";
 import type {
   BoardSignalAccount,
   BoardSignalContactMethod,
@@ -40,6 +41,8 @@ export default function PlayerProfileNotifications({
     return <label className="profile-toggle"><span><strong>{label}</strong><small>In-app messages{notifications.browserPush ? " and eligible browser alerts" : ""}</small></span><input type="checkbox" checked={notifications[key]} onChange={(event) => setNotifications((value) => ({ ...value, [key]: event.target.checked }))} /></label>;
   }
 
+  const emailContactReady = method === "email" && consent && isValidBoardSignalEmail(contact);
+
   async function save() {
     if (!connectivity.online) { setError("Reconnect before changing account or notification settings."); return; }
     setBusy(true);
@@ -52,7 +55,7 @@ export default function PlayerProfileNotifications({
         body: JSON.stringify({
           action: "updatePreferences",
           privacy: { ...privacy, publicPlayerPage: true, universeCoverage: true },
-          notificationPreferences: notifications,
+          notificationPreferences: { ...notifications, email: emailContactReady ? notifications.email : false },
           contact: {
             preferredContactMethod: method,
             preferredContactValue: contact.trim(),
@@ -80,7 +83,7 @@ export default function PlayerProfileNotifications({
 
       <article className="profile-settings-card"><h3>Contact</h3><label>Preferred contact<select value={method} onChange={(event) => setMethod(event.target.value as BoardSignalContactMethod)}><option value="email">Email</option><option value="discord">Discord</option><option value="telegram">Telegram</option></select></label><label>Contact value<input value={contact} onChange={(event) => setContact(event.target.value)} type={method === "email" ? "email" : "text"} maxLength={160} /></label><label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I agree BoardSignal may contact me about my Founding Beta account, Desk availability, important product updates and beta feedback.</span></label><p className="profile-helper">This is beta communication consent, not unrelated marketing consent. You can turn it off here later.</p></article>
 
-      <article className="profile-settings-card"><h3>Notifications</h3>{notificationToggle("deskReady", "Desk Ready")}{notificationToggle("episodeProgress", "Episode Progress")}{notificationToggle("blueReminder", "Blue Reminder")}{notificationToggle("universeAchievement", "Universe Achievement")}{notificationToggle("founderUpdates", "Founder Updates")}</article>
+      <article className="profile-settings-card"><h3>Notifications</h3>{notificationToggle("deskReady", "Desk Ready")}{notificationToggle("episodeProgress", "Episode Progress")}{notificationToggle("blueReminder", "Blue Reminder")}{notificationToggle("universeAchievement", "Universe Achievement")}{notificationToggle("founderUpdates", "Founder Updates")}<div className="profile-email-alerts"><p className="kicker">EMAIL ALERTS</p><label className="profile-toggle"><span><strong>Email me important BoardSignal updates</strong><small>{emailContactReady ? "Desk Ready, major beta updates, feedback requests and other important eligible messages only." : "Choose Email as your preferred contact, enter a valid address and keep beta contact consent enabled first."}</small></span><input type="checkbox" checked={emailContactReady && notifications.email} disabled={!emailContactReady} onChange={(event) => setNotifications((value) => ({ ...value, email: event.target.checked }))} /></label></div></article>
 
       <article className="profile-settings-card"><h3>Browser</h3><BrowserPushControl idToken={token} onChanged={onSaved} /></article>
 

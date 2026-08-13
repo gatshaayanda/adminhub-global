@@ -6,6 +6,7 @@ import {
   listFounderCommunications,
   previewFounderCampaign,
   sendFounderCampaign,
+  sendFounderTestBrowserAlert,
 } from "@/lib/boardsignal/server/communications";
 
 export const runtime = "nodejs";
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json() as {
-      action?: "preview" | "send" | "reply";
+      action?: "preview" | "send" | "reply" | "testPush";
       draft?: CommunicationCampaignDraft;
       uid?: unknown;
       threadId?: unknown;
@@ -39,7 +40,8 @@ export async function POST(request: Request) {
     if (body.action === "preview" && body.draft) return response({ ok: true, preview: await previewFounderCampaign(body.draft) });
     if (body.action === "send" && body.draft) return response({ ok: true, campaign: await sendFounderCampaign(body.draft) });
     if (body.action === "reply") return response({ ok: true, result: await founderReply(body.uid, body.threadId, body.body) });
-    return response({ ok: false, error: "Choose Preview, Send, or Reply." }, 400);
+    if (body.action === "testPush") return response({ ok: true, result: await sendFounderTestBrowserAlert(body.uid) });
+    return response({ ok: false, error: "Choose Preview, Send, Reply, or Test Push." }, 400);
   } catch (error) {
     return response({ ok: false, error: error instanceof Error ? error.message : "Founder Communications update failed." }, Number((error as { status?: number }).status ?? 500));
   }

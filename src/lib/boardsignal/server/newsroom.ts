@@ -4,6 +4,7 @@ import type { BoardSignalAccount } from "../account";
 import { rankWhatsHot, type PublicUniverseEvent, type SafeShareMoment } from "../pulse";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { founderGuideSummary } from "./guide";
+import { getFounderDeliveryStatus } from "./delivery";
 
 export async function founderNewsroomSummary() {
   const db = getAdminDb();
@@ -33,8 +34,12 @@ export async function founderNewsroomSummary() {
   const events = universeEvents.docs.map((document) => document.data() as PublicUniverseEvent).filter((event) => event.safePublic === true);
   const newPlayers = events.filter((event) => event.eventType === "new_player").slice(0, 8);
   const newTop3 = events.filter((event) => ["new_leader", "entered_top3", "podium_move"].includes(event.eventType)).slice(0, 8);
-  const askBoardSignal = await founderGuideSummary().catch(() => ({ usage: 0, topQuestionCategories: [], unresolvedSupportHandoffs: 0, recentFeedbackCount: 0, relationshipPulse: [] }));
+  const [askBoardSignal, deliveryStatus] = await Promise.all([
+    founderGuideSummary().catch(() => ({ usage: 0, topQuestionCategories: [], unresolvedSupportHandoffs: 0, recentFeedbackCount: 0, relationshipPulse: [] })),
+    getFounderDeliveryStatus(),
+  ]);
   return {
+    deliveryStatus,
     askBoardSignal,
     activeFoundingBetaPlayers: accounts.length,
     pendingAccessRequests: betaRequests.docs.filter((document) => document.data().status === "pending").length,

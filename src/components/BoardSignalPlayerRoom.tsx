@@ -31,6 +31,7 @@ import { clearBoardSignalPrivateOfflineData } from "@/lib/boardsignal/offline/db
 import { loadPlayerRoomOfflineSnapshot, requestPersistentStorageBestEffort, savePlayerRoomOfflineSnapshot } from "@/lib/boardsignal/offline/snapshots";
 import type { OfflinePlayerRoomSnapshot } from "@/lib/boardsignal/offline/types";
 import { markBoardSignalPwaEngaged } from "@/lib/boardsignal/offline/install";
+import { clearBoardSignalAppBadge, syncBoardSignalAppBadge } from "@/lib/boardsignal/offline/badge";
 import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
 
 type DeskBundle = { desk: BoardSignalDesk; engineResults: Record<string, DeskEngineResult>; summary: DeskSummary };
@@ -114,6 +115,7 @@ export default function BoardSignalPlayerRoom() {
       setToken("");
       setSocialPlayers({});
       setUnreadCount(0);
+      void clearBoardSignalAppBadge();
       void clearBoardSignalPrivateOfflineData(previousUid);
     }
     activeUidRef.current = nextUid;
@@ -198,6 +200,11 @@ export default function BoardSignalPlayerRoom() {
       .catch(() => undefined);
   }, [snapshot?.account.preferencesConfirmedAt, token, user]);
 
+  useEffect(() => {
+    if (!user?.uid) { void clearBoardSignalAppBadge(); return; }
+    void syncBoardSignalAppBadge(unreadCount).catch(() => undefined);
+  }, [unreadCount, user?.uid]);
+
   async function acceptAgreement() {
     if (!connectivity.online) throw new Error("Reconnect before accepting the Founding Beta Agreement.");
     const response = await fetch("/api/boardsignal/player-room", {
@@ -252,6 +259,8 @@ export default function BoardSignalPlayerRoom() {
     if (user?.uid) await clearBoardSignalPrivateOfflineData(user.uid).catch(() => undefined);
     setOfflineSnapshot(null);
     setSnapshot(null);
+    setUnreadCount(0);
+    await clearBoardSignalAppBadge().catch(() => false);
     await signOut(auth);
   }, [connectivity.online, token, user?.uid]);
 

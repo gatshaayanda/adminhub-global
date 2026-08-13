@@ -49,6 +49,18 @@ Required for browser alerts:
 NEXT_PUBLIC_FIREBASE_VAPID_KEY=your_firebase_web_push_public_key
 ```
 
+
+Optional server-side email delivery (in-app Inbox still works without this):
+
+```bash
+RESEND_API_KEY=your_server_only_resend_key
+BOARDSIGNAL_EMAIL_FROM=BoardSignal <updates@updates.adminhub-global.com>
+# Optional:
+BOARDSIGNAL_EMAIL_REPLY_TO=your_reply_address
+```
+
+Email delivery is configuration-gated and consent-gated. It is used only for important eligible BoardSignal product/account messages, not every Pulse or reminder. `RESEND_API_KEY` must never be exposed through `NEXT_PUBLIC_*`.
+
 Required to enable the secured daily return-loop route:
 
 ```bash
@@ -62,6 +74,8 @@ NEXT_PUBLIC_BOARDSIGNAL_DISCORD_INVITE_URL=https://discord.gg/your-invite
 ```
 
 `NEXT_PUBLIC_FIREBASE_VAPID_KEY` is the **public** Web Push key from the same Firebase project already configured by the existing `NEXT_PUBLIC_FIREBASE_*` variables. Do not put the VAPID private key in this application or in any `NEXT_PUBLIC_*` variable.
+
+The future coordinated Firebase FID migration is documented in `docs/BOARDSIGNAL_FCM_FID_MIGRATION.md`; this release intentionally keeps the existing registration-token path.
 
 The app remains functional without the VAPID key: private in-app Inbox delivery works and the Profile browser-alert control reports that browser alerts are not configured. Notification permission is requested only after the player clicks **Enable browser alerts**.
 

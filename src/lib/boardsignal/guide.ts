@@ -56,8 +56,14 @@ export type GuideDesk = {
   red?: { title: string; copy: string };
 };
 
+export type GuidePreviewContext = {
+  canonicalUsername: string; playableWeek: boolean; periodLabel?: string; disclosure?: string; games: number; wins: number; draws: number; losses: number; score: number; primaryPool?: string; primaryPoolDelta?: number; strongestWinRun?: number; safeHeadline: string; safeHighlight: string; universePreview?: Array<{ categoryTitle: string; scopeLabel?: string; rank: number; denominator: number; valueLabel: string; nearestAbove?: { player: string; valueLabel: string } }>; generatedAt: string;
+};
+
 export type GuideContext = {
   authenticated: boolean;
+  mode?: "beta_preview";
+  previewContext?: GuidePreviewContext;
   pathname: string;
   activeTab?: string;
   canonicalUsername?: string;
@@ -244,8 +250,14 @@ function hasRecentGuideTurn(recentConversation: GuideConversationTurn[]) {
   return Boolean(latestGuideTurn(recentConversation));
 }
 
-export function detectGuideIntent(message: string, context: Pick<GuideContext, "pathname" | "activeTab">, recentConversation: GuideConversationTurn[] = []): GuideIntent {
+export function detectGuideIntent(message: string, context: Pick<GuideContext, "pathname" | "activeTab" | "mode">, recentConversation: GuideConversationTurn[] = []): GuideIntent {
   const text = lower(message);
+  if (context.mode === "beta_preview") {
+    if (has(text, "what did you find", "show me my week", "my week")) return "explain_desk";
+    if (has(text, "where would i be", "universe preview", "explain my universe")) return "explain_rank";
+    if (has(text, "what unlocks next", "when i'm approved", "when approved", "what happens when")) return "beta_next";
+    if (has(text, "can i add friends", "add friends", "head-to-head", "rival watch")) return "friends";
+  }
   if (!text) return "welcome";
   if ((has(text, "best move", "what move", "random position", "fen ") || /^[rnbqkp1-8\/]+\s[wb]\s/.test(text)) && has(text, "move", "position", "fen")) return "random_position";
   if (has(text, "what do you mean by in reach", "what does in reach mean")) return "in_reach";
@@ -476,7 +488,21 @@ function provenanceForIntent(intent: GuideIntent, context: GuideContext): GuideP
   return { kind: "product_knowledge", title: "BoardSignal product rules" };
 }
 
+function renderBetaPreviewGuide(intent: GuideIntent, context: GuideContext): GuideResponse | undefined {
+  if (context.mode !== "beta_preview" || !context.previewContext) return undefined;
+  const p = context.previewContext; let reply: string | undefined;
+  if (intent === "explain_desk" || intent === "what_changed") reply = p.playableWeek ? `I found ${p.games} games in ${p.periodLabel ?? "this preview week"}: ${p.wins}W · ${p.draws}D · ${p.losses}L. ${p.safeHighlight}` : `I found ${p.canonicalUsername}'s Chess.com profile, but there isn't a playable completed week to show yet. I won't invent one.`;
+  else if (["explain_rank","universe_what","in_reach"].includes(intent)) { const best=[...(p.universePreview??[])].sort((a,b)=>a.rank-b.rank)[0]; reply=best ? `Preview only: if the field held, ${p.canonicalUsername} would be #${best.rank} of ${best.denominator} in ${best.categoryTitle}${best.scopeLabel ? ` · ${best.scopeLabel}` : ""}. This is provisional and does not publish the player into the Universe before approval.` : `This preview does not have a compatible provisional Universe placement yet. BoardSignal will not manufacture a rank.`; }
+  else if (intent === "beta_next") reply = "Founder approval unlocks one-time private access. Then you accept the compact Founding Beta agreement and land directly on My Player Room → Desk. Your valid request contact and notification defaults carry forward, so you do not re-enter them.";
+  else if (intent === "friends") reply = "Preview can show public-safe players in the field, but Add Friend, Head-to-Head and Rival Watch unlock only after private Player Room access.";
+  else if (intent === "privacy") reply = "Preview contains public-safe chess facts only. It does not contain Red, Amber, Blue, private evidence, recurrence, Inbox, private Friends state or account settings, and it does not prove ownership of the Chess.com account.";
+  if (!reply) return undefined;
+  return { reply, chips: ["Show me my week","Explain my Universe preview","What unlocks next?"], actions: [], handoffAvailable: false, contextReason: "Using the server-verified public-safe beta preview only.", intent, category: guideCategoryForIntent(intent), provenance: { kind: "product_knowledge", title: "BoardSignal Preview", timestamp: p.generatedAt } };
+}
+
 export function renderGuideResponse(intent: GuideIntent, context: GuideContext, message = "", recentConversation: GuideConversationTurn[] = context.recentConversation ?? []): GuideResponse {
+  const previewResponse = renderBetaPreviewGuide(intent, context);
+  if (previewResponse) return previewResponse;
   const followup = renderGuideFollowup(intent, context, message, recentConversation);
   if (followup) return followup;
   const chips = pageGuideSuggestions(context.pathname, context.activeTab, context.authenticated);
@@ -515,7 +541,7 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
       reply = "Your Chess.com username lets BoardSignal resolve the stable Chess.com player ID that anchors your account. The stable ID—not the spelling of your username—is what keeps your Desks, Friends and future OAuth identity attached to the same player.";
       break;
     case "beta_next":
-      reply = context.authenticated ? "You're already inside your persistent Founding Beta account. Your completed Desks belong to this Player Room and your current episode can form here between weeks." : "After you request Founding Beta access, Ayanda reviews it. If approved, you receive a private access code, accept the Founding Beta agreement, set communication preferences, and enter your persistent Player Room.";
+      reply = context.authenticated ? "You're already inside your persistent Founding Beta account. Your completed Desks belong to this Player Room and your current episode can form here between weeks." : "After you request Founding Beta access, BoardSignal opens a public-safe Preview immediately while Ayanda reviews it. If approved, one-time private access opens the compact Founding Beta agreement and then lands on your Desk. Valid contact and notification setup from the request carries into Profile automatically; username + Beta code stays available only as recovery.";
       actions.push(...baseActions(context));
       break;
     case "beta_cost":

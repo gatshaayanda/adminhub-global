@@ -31,6 +31,8 @@ import { getBoardSignalDeliveryStatus } from "./delivery";
 import { isValidBoardSignalEmail } from "../delivery";
 import { headToHead, socialOverview } from "./social";
 import { listPlayerShareMoments } from "./universePulse";
+import { verifyBetaPreviewStatusCredential } from "./activation";
+import type { BoardSignalBetaPreview } from "../activation";
 
 const MAX_MESSAGE = 1200;
 const MAX_SUPPORT_MESSAGE = 1800;
@@ -190,13 +192,31 @@ async function buildAuthenticatedContext(token: DecodedIdToken, pathname: string
   };
 }
 
-export async function guideResponse(input: { token?: DecodedIdToken; message?: unknown; pathname?: unknown; activeTab?: unknown; visibleEntityId?: unknown; recentConversation?: unknown }) : Promise<GuideResponse> {
+function guidePreviewContext(preview: BoardSignalBetaPreview): GuideContext["previewContext"] {
+  const primary = preview.pools.find((pool) => pool.pool === preview.primaryPool) ?? preview.pools[0];
+  return {
+    canonicalUsername: preview.canonicalUsername, playableWeek: preview.playableWeek, periodLabel: preview.period?.label, disclosure: preview.period?.disclosure,
+    games: preview.games, wins: preview.wins, draws: preview.draws, losses: preview.losses, score: preview.score, primaryPool: preview.primaryPool, primaryPoolDelta: primary?.ratingDelta,
+    strongestWinRun: preview.strongestWinRun, safeHeadline: preview.safeHeadline, safeHighlight: preview.safeHighlight, generatedAt: preview.generatedAt,
+    universePreview: preview.universePreview.map((item) => ({ categoryTitle: item.categoryTitle, scopeLabel: item.scopeLabel, rank: item.rank, denominator: item.denominator, valueLabel: item.valueLabel, nearestAbove: item.nearestAbove })),
+  };
+}
+
+export async function guideResponse(input: { token?: DecodedIdToken; message?: unknown; pathname?: unknown; activeTab?: unknown; visibleEntityId?: unknown; recentConversation?: unknown; mode?: unknown; previewRequestId?: unknown; previewStatusToken?: unknown }) : Promise<GuideResponse> {
   const message = safeText(input.message, MAX_MESSAGE);
   const pathname = safePath(input.pathname);
   const activeTab = safeActiveTab(input.activeTab);
   const visibleEntityId = safeVisibleEntityId(input.visibleEntityId);
   const recentConversation = sanitizeGuideConversation(input.recentConversation);
   if (!input.token) {
+    if (input.mode === "beta_preview") {
+      const requestId = safeText(input.previewRequestId, 180);
+      const verified = await verifyBetaPreviewStatusCredential(requestId, input.previewStatusToken);
+      const preview = verified.request.previewSnapshot as BoardSignalBetaPreview | undefined;
+      if (!preview) throw Object.assign(new Error("This BoardSignal preview is not ready yet."), { status: 409 });
+      const context: GuideContext = { authenticated: false, mode: "beta_preview", previewContext: guidePreviewContext(preview), pathname, activeTab: "beta-request", recentConversation, deliveryStatus: getBoardSignalDeliveryStatus(), contextUpdatedAt: preview.generatedAt };
+      return deterministicGuideRenderer.render(runGuideBrain(message, context));
+    }
     const context: GuideContext = { authenticated: false, pathname, activeTab, recentConversation, deliveryStatus: getBoardSignalDeliveryStatus() };
     return deterministicGuideRenderer.render(runGuideBrain(message, context));
   }

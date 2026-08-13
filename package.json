@@ -20,7 +20,8 @@
     "test:contrast": "node scripts/check-boardsignal-contrast.mjs",
     "test:ask": "tsc -p tsconfig.ask-board-signal.json && node --test tests/boardsignal-ask-board-signal.test.cjs",
     "test:pwa": "node --test tests/boardsignal-pwa-offline.test.cjs",
-    "test:delivery": "node --test tests/boardsignal-delivery-polish.test.cjs"
+    "test:delivery": "node --test tests/boardsignal-delivery-polish.test.cjs",
+    "test:activation": "tsc -p tsconfig.activation-bridge.json && node --test tests/boardsignal-activation-bridge.test.cjs"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",

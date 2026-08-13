@@ -10,6 +10,7 @@ function response(body: unknown, status = 200) {
     headers: {
       "Cache-Control": "no-store, private",
       "X-Robots-Tag": "noindex, nofollow",
+      "Referrer-Policy": "no-referrer",
       ...(status === 429 ? { "Retry-After": "3600" } : {}),
     },
   });
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
       source?: unknown;
       shareMomentId?: unknown;
     };
-    const betaRequest = await submitFoundingBetaRequest({
+    const result = await submitFoundingBetaRequest({
       request,
       username: body.username,
       preferredContactMethod: body.preferredContactMethod,
@@ -36,16 +37,22 @@ export async function POST(request: Request) {
     });
     return response({
       ok: true,
+      existingState: result.existingState,
+      statusToken: result.statusToken,
+      preview: result.preview,
+      previewError: result.previewError,
       request: {
-        id: betaRequest.id,
-        chessPlayerId: betaRequest.chessPlayerId,
-        canonicalUsername: betaRequest.canonicalUsername,
-        requestedAt: betaRequest.requestedAt,
-        status: betaRequest.status,
+        id: result.request.id,
+        chessPlayerId: result.request.chessPlayerId,
+        canonicalUsername: result.request.canonicalUsername,
+        avatar: result.request.avatar,
+        profileUrl: result.request.profileUrl,
+        requestedAt: result.request.requestedAt,
+        status: result.request.status,
       },
-    }, 201);
+    }, result.existingState ? 200 : 201);
   } catch (error) {
     const status = Number((error as { status?: number }).status ?? 500);
-    return response({ ok: false, error: error instanceof Error ? error.message : "Founding Beta request could not be submitted." }, status);
+    return response({ ok: false, code: String((error as { code?: string }).code ?? "BETA_REQUEST_FAILED"), error: error instanceof Error ? error.message : "Founding Beta request could not be submitted." }, status);
   }
 }

@@ -11,7 +11,7 @@ async function messagingClient() {
   return { ...messaging, instance: messaging.getMessaging(firebaseApp) };
 }
 
-async function registerToken(idToken: string) {
+export async function registerBoardSignalBrowserPush(idToken: string) {
   const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim();
   if (!vapidKey) throw new Error("Browser alerts are unavailable until BoardSignal push configuration is completed.");
   const client = await messagingClient();
@@ -63,7 +63,7 @@ export default function BrowserPushControl({ idToken, onChanged }: { idToken: st
     setPermission(Notification.permission);
     if (configured && connectivity.online && Notification.permission === "granted") {
       try {
-        await registerToken(idToken);
+        await registerBoardSignalBrowserPush(idToken);
         setRegistered(true);
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : "Browser alerts could not be refreshed.");
@@ -88,7 +88,7 @@ export default function BrowserPushControl({ idToken, onChanged }: { idToken: st
       const nextPermission = await Notification.requestPermission();
       setPermission(nextPermission);
       if (nextPermission !== "granted") return;
-      await registerToken(idToken);
+      await registerBoardSignalBrowserPush(idToken);
       setRegistered(true);
       await onChanged?.();
     } catch (reason) {

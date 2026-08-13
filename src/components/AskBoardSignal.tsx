@@ -51,6 +51,7 @@ export default function AskBoardSignal() {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>();
   const [visibleEntityId, setVisibleEntityId] = useState<number>();
+  const [previewAccess, setPreviewAccess] = useState<{ requestId: string; statusToken: string }>();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
@@ -102,7 +103,25 @@ export default function AskBoardSignal() {
     return () => window.removeEventListener("boardsignal:context", onContext);
   }, []);
   useEffect(() => {
+    const onPreview = (event: Event) => {
+      const detail = (event as CustomEvent<{ requestId?: string; statusToken?: string }>).detail;
+      const requestId = String(detail?.requestId ?? "");
+      const statusToken = String(detail?.statusToken ?? "");
+      if (requestId && statusToken) setPreviewAccess({ requestId, statusToken });
+    };
+    const onAskOpen = (event: Event) => {
+      const message = String((event as CustomEvent<{ message?: string }>).detail?.message ?? "").slice(0, 1200);
+      setOpen(true);
+      if (message) setInput(message);
+    };
+    window.addEventListener("boardsignal:preview-context", onPreview);
+    window.addEventListener("boardsignal:ask-open", onAskOpen);
+    return () => { window.removeEventListener("boardsignal:preview-context", onPreview); window.removeEventListener("boardsignal:ask-open", onAskOpen); };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!pathname.includes("/boardsignal/preview/")) setPreviewAccess(undefined);
     if (!pathname.includes("boardsignal/player-room")) {
       setActiveTab(undefined);
       setVisibleEntityId(undefined);
@@ -128,7 +147,7 @@ export default function AskBoardSignal() {
     return () => window.removeEventListener("keydown", close);
   }, [open]);
 
-  const suggestions = useMemo(() => !connectivity.online ? ["What can I use offline?", "What changed?", "What stays private?"] : pageGuideSuggestions(pathname, activeTab, Boolean(user)), [activeTab, connectivity.online, pathname, user]);
+  const suggestions = useMemo(() => !connectivity.online ? ["What can I use offline?", "What changed?", "What stays private?"] : previewAccess && !user ? ["Show me my week", "Explain my Universe preview", "What unlocks next?", "What stays private?"] : pageGuideSuggestions(pathname, activeTab, Boolean(user)), [activeTab, connectivity.online, pathname, previewAccess, user]);
   const callGuide = useCallback(async (message: string) => {
     setBusy(true);
     setFailure(false);
@@ -145,7 +164,7 @@ export default function AskBoardSignal() {
       const response = await fetch("/api/boardsignal/guide", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ action: "ask", message, pathname, activeTab, visibleEntityId, recentConversation: recentConversationForServer(messagesRef.current) }),
+        body: JSON.stringify({ action: "ask", message, pathname, activeTab, visibleEntityId, recentConversation: recentConversationForServer(messagesRef.current), ...(previewAccess && !user ? { mode: "beta_preview", previewRequestId: previewAccess.requestId, previewStatusToken: previewAccess.statusToken } : {}) }),
       });
       const body = await response.json() as { ok?: boolean; response?: GuideResponse; error?: string };
       if (!response.ok || !body.ok || !body.response) throw new Error(body.error ?? "Ask BoardSignal is unavailable right now.");
@@ -159,7 +178,7 @@ export default function AskBoardSignal() {
       setMessages((current) => [...current, item].slice(-12));
       return undefined;
     } finally { setBusy(false); }
-  }, [activeTab, connectivity.online, open, pathname, user, visibleEntityId]);
+  }, [activeTab, connectivity.online, open, pathname, previewAccess, user, visibleEntityId]);
 
   useEffect(() => {
     if (!open || initializedOpenRef.current || messages.length || busy) return;

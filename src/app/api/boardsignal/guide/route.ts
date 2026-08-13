@@ -28,7 +28,12 @@ export async function POST(request: Request) {
     const body = await request.json() as Record<string, unknown>;
     const action = String(body.action ?? "ask");
     const token = action === "ask" ? await optionalToken(request) : await requirePlayerToken(request);
-    if (action === "ask") return response({ ok: true, response: await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation }) });
+    if (action === "ask") {
+      if (body.mode === "beta_preview") {
+        return response({ ok: true, response: await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation, mode: "beta_preview", previewRequestId: body.previewRequestId, previewStatusToken: body.previewStatusToken }) });
+      }
+      return response({ ok: true, response: await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation }) });
+    }
     if (action === "preference") return response({ ok: true, preferences: await saveGuidePreference(token!, body) });
     if (action === "state") return response({ ok: true, state: await updateGuideState(token!, body) });
     if (action === "feedback") return response({ ok: true, feedback: await recordGuideFeedback(token!, body) });

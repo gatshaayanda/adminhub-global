@@ -8,8 +8,10 @@ import {
 import {
   approveFoundingBetaRequest,
   listFoundingBetaRequests,
+  regenerateFoundingBetaMagicAccess,
   rejectFoundingBetaRequest,
 } from "@/lib/boardsignal/server/betaRequests";
+import { registerFounderNotificationDevice, unregisterFounderNotificationDevice } from "@/lib/boardsignal/server/activation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +32,7 @@ export async function GET() {
   try {
     const [players, requests] = await Promise.all([
       listFounderPlayerIdentities(),
-      listFoundingBetaRequests("pending"),
+      listFoundingBetaRequests(),
     ]);
     return response({ ok: true, players, requests });
   } catch (error) {
@@ -44,7 +46,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { action?: unknown; username?: unknown; playerId?: unknown; requestId?: unknown };
+    const body = await request.json() as { action?: unknown; username?: unknown; playerId?: unknown; requestId?: unknown; fcmToken?: unknown; userAgent?: unknown };
     if (body.action === "approveRequest" && typeof body.requestId === "string") {
       const result = await approveFoundingBetaRequest(body.requestId);
       return response({
@@ -52,10 +54,23 @@ export async function POST(request: Request) {
         player: { username: result.request.canonicalUsername, playerId: result.request.chessPlayerId },
         accessCode: result.accessCode,
         approvalMessage: result.approvalMessage,
+        magicLink: result.magicLink,
+        magicAccessExpiresAt: result.magicAccessExpiresAt,
+        accessEmailDelivery: result.accessEmailDelivery,
       });
     }
     if (body.action === "rejectRequest" && typeof body.requestId === "string") {
       return response({ ok: true, request: await rejectFoundingBetaRequest(body.requestId) });
+    }
+    if (body.action === "regenerateMagic" && typeof body.requestId === "string") {
+      const result = await regenerateFoundingBetaMagicAccess(body.requestId);
+      return response({ ok: true, magicLink: result.magicLink, magicAccessExpiresAt: result.magicAccessExpiresAt, approvalMessage: result.approvalMessage });
+    }
+    if (body.action === "registerFounderPush") {
+      return response({ ok: true, result: await registerFounderNotificationDevice(body.fcmToken, body.userAgent) });
+    }
+    if (body.action === "unregisterFounderPush") {
+      return response({ ok: true, result: await unregisterFounderNotificationDevice(body.fcmToken) });
     }
     if (body.action === "create" && typeof body.username === "string") {
       const result = await createFoundingBetaAccess(body.username);
@@ -76,7 +91,7 @@ export async function POST(request: Request) {
     if (body.action === "revoke") {
       return response({ ok: true, result: await revokeFoundingBetaAccess(body.playerId) });
     }
-    return response({ ok: false, error: "Choose Approve/Reject Request, Create Beta Access, Reset Access, or Revoke Access." }, 400);
+    return response({ ok: false, error: "Choose Approve/Reject Request, Regenerate Access, Founder Alerts, Create Beta Access, Reset Access, or Revoke Access." }, 400);
   } catch (error) {
     return response({
       ok: false,

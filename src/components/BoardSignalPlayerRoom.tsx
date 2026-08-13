@@ -33,6 +33,7 @@ import type { OfflinePlayerRoomSnapshot } from "@/lib/boardsignal/offline/types"
 import { markBoardSignalPwaEngaged } from "@/lib/boardsignal/offline/install";
 import { clearBoardSignalAppBadge, syncBoardSignalAppBadge } from "@/lib/boardsignal/offline/badge";
 import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
+import DeskReturnChannelPrompt from "@/components/DeskReturnChannelPrompt";
 
 type DeskBundle = { desk: BoardSignalDesk; engineResults: Record<string, DeskEngineResult>; summary: DeskSummary };
 type Snapshot = {
@@ -309,7 +310,7 @@ export default function BoardSignalPlayerRoom() {
           {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} returnLoop={returnLoop} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>Current episode check unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed Desk remains unchanged."}</p></div></div>}
           {latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}
         </div>
-        {latest ? <UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /> : null}
+        {latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : null}
       </> : null}
 
       {tab === "progress" ? <div className="container player-room-memory"><ProgressSection desks={snapshot.desks.map((item) => item.summary)} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}

@@ -57,6 +57,7 @@ export async function POST(request: Request) {
         magicLink: result.magicLink,
         magicAccessExpiresAt: result.magicAccessExpiresAt,
         accessEmailDelivery: result.accessEmailDelivery,
+        deviceDelivery: result.deviceDelivery,
       });
     }
     if (body.action === "rejectRequest" && typeof body.requestId === "string") {

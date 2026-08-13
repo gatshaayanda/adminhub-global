@@ -22,7 +22,8 @@
     "test:pwa": "node --test tests/boardsignal-pwa-offline.test.cjs",
     "test:delivery": "node --test tests/boardsignal-delivery-polish.test.cjs",
     "test:activation": "tsc -p tsconfig.activation-bridge.json && node --test tests/boardsignal-activation-bridge.test.cjs",
-    "test:legacy-beta-access": "node --test tests/boardsignal-legacy-beta-access-compat.test.cjs"
+    "test:legacy-beta-access": "node --test tests/boardsignal-legacy-beta-access-compat.test.cjs",
+    "test:preview-return": "tsc -p tsconfig.preview-return.json && node --test tests/boardsignal-preview-return-device-access.test.cjs"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",

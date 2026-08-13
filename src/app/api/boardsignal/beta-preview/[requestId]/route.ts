@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { claimApprovedBetaPreview, publicBetaPreviewStatus, verifyBetaPreviewStatusCredential } from "@/lib/boardsignal/server/activation";
-import { retryFoundingBetaPreview } from "@/lib/boardsignal/server/betaRequests";
+import { claimApprovedBetaPreview, publicBetaPreviewStatus, registerBetaPreviewNotificationDevice, verifyBetaPreviewStatusCredential } from "@/lib/boardsignal/server/activation";
+import { retryFoundingBetaPreview, updateFoundingBetaReturnPreference } from "@/lib/boardsignal/server/betaRequests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,11 +18,23 @@ export async function POST(request: Request, context: { params: Promise<{ reques
   try {
     const { requestId: rawRequestId } = await context.params;
     const id = requestId(rawRequestId);
-    const body = await request.json() as { action?: unknown; statusToken?: unknown };
+    const body = await request.json() as { action?: unknown; statusToken?: unknown; method?: unknown; contactValue?: unknown; betaContactConsent?: unknown; fcmToken?: unknown; userAgent?: unknown };
     const action = String(body.action ?? "status");
     if (action === "claim") {
       const claim = await claimApprovedBetaPreview(id, body.statusToken);
       return response({ ok: true, customToken: claim.customToken, claimedAt: claim.claimedAt });
+    }
+    if (action === "registerDevice") {
+      await registerBetaPreviewNotificationDevice({ requestId: id, statusToken: body.statusToken, fcmToken: body.fcmToken, userAgent: body.userAgent });
+      const verified = await verifyBetaPreviewStatusCredential(id, body.statusToken);
+      const refreshed = await verified.ref.get();
+      return response({ ok: true, status: publicBetaPreviewStatus(id, refreshed.data() as Record<string, unknown>) });
+    }
+    if (action === "updateReturn") {
+      await updateFoundingBetaReturnPreference({ requestId: id, statusToken: body.statusToken, method: body.method, contactValue: body.contactValue, betaContactConsent: body.betaContactConsent });
+      const verified = await verifyBetaPreviewStatusCredential(id, body.statusToken);
+      const refreshed = await verified.ref.get();
+      return response({ ok: true, status: publicBetaPreviewStatus(id, refreshed.data() as Record<string, unknown>) });
     }
     const verified = await verifyBetaPreviewStatusCredential(id, body.statusToken);
     if (action === "retryPreview") {

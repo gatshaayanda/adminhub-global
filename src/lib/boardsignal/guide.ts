@@ -58,6 +58,8 @@ export type GuideDesk = {
 
 export type GuidePreviewContext = {
   canonicalUsername: string; playableWeek: boolean; periodLabel?: string; disclosure?: string; games: number; wins: number; draws: number; losses: number; score: number; primaryPool?: string; primaryPoolDelta?: number; strongestWinRun?: number; safeHeadline: string; safeHighlight: string; universePreview?: Array<{ categoryTitle: string; scopeLabel?: string; rank: number; denominator: number; valueLabel: string; nearestAbove?: { player: string; valueLabel: string } }>; generatedAt: string;
+  activationReturnMethod?: "device" | "email" | "discord" | "telegram" | "return_here";
+  deviceAlertsEnabled?: boolean;
 };
 
 export type GuideContext = {
@@ -255,7 +257,8 @@ export function detectGuideIntent(message: string, context: Pick<GuideContext, "
   if (context.mode === "beta_preview") {
     if (has(text, "what did you find", "show me my week", "my week")) return "explain_desk";
     if (has(text, "where would i be", "universe preview", "explain my universe")) return "explain_rank";
-    if (has(text, "what unlocks next", "when i'm approved", "when approved", "what happens when")) return "beta_next";
+    if (has(text, "what unlocks next", "when i'm approved", "when approved", "what happens when", "how do i come back", "where is my access link")) return "beta_next";
+    if (has(text, "do i need email", "email wrong", "wrong email", "how will i know", "notify this phone", "notify this device", "device alert")) return "notifications";
     if (has(text, "can i add friends", "add friends", "head-to-head", "rival watch")) return "friends";
   }
   if (!text) return "welcome";
@@ -493,7 +496,17 @@ function renderBetaPreviewGuide(intent: GuideIntent, context: GuideContext): Gui
   const p = context.previewContext; let reply: string | undefined;
   if (intent === "explain_desk" || intent === "what_changed") reply = p.playableWeek ? `I found ${p.games} games in ${p.periodLabel ?? "this preview week"}: ${p.wins}W · ${p.draws}D · ${p.losses}L. ${p.safeHighlight}` : `I found ${p.canonicalUsername}'s Chess.com profile, but there isn't a playable completed week to show yet. I won't invent one.`;
   else if (["explain_rank","universe_what","in_reach"].includes(intent)) { const best=[...(p.universePreview??[])].sort((a,b)=>a.rank-b.rank)[0]; reply=best ? `Preview only: if the field held, ${p.canonicalUsername} would be #${best.rank} of ${best.denominator} in ${best.categoryTitle}${best.scopeLabel ? ` · ${best.scopeLabel}` : ""}. This is provisional and does not publish the player into the Universe before approval.` : `This preview does not have a compatible provisional Universe placement yet. BoardSignal will not manufacture a rank.`; }
-  else if (intent === "beta_next") reply = "Founder approval unlocks one-time private access. Then you accept the compact Founding Beta agreement and land directly on My Player Room → Desk. Your valid request contact and notification defaults carry forward, so you do not re-enter them.";
+  else if (intent === "beta_next") {
+    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "This Preview is your main return path. I can alert this device when your private Player Room is ready; tapping the alert opens this same Preview, where Open My Player Room appears. Magic access remains a cross-device/recovery option.";
+    else if (p.activationReturnMethod === "return_here") reply = "Your Preview is saved on this device for the bounded activation window. Come back to BoardSignal and choose Continue your Preview; when approval is ready, Open My Player Room appears here. Email is not required.";
+    else if (["email", "discord", "telegram"].includes(String(p.activationReturnMethod ?? ""))) reply = `Your ${p.activationReturnMethod} choice is a backup return channel. This saved Preview itself still unlocks here when Founder approval arrives, so you do not need to wait for or understand a magic link.`;
+    else reply = "After seeing your Preview, choose how BoardSignal should bring you back: Notify this device, an optional email/Discord/Telegram backup, or I'll come back here. Founder approval then unlocks this same Preview; the compact agreement follows, then Desk.";
+  }
+  else if (intent === "notifications") {
+    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "Device alerts are enabled for this Preview. BoardSignal can alert this browser when your private Player Room is ready. That does not prove Chess.com ownership; Founder approval still controls private access.";
+    else if (!context.deliveryStatus?.browserPushConfigured) reply = "Device alerts are not configured by BoardSignal yet. Your Preview is still saved on this device, so you can come back here without email, or add email/Discord/Telegram as an optional backup.";
+    else reply = "Email is optional. After you have seen the Preview, choose Notify this device if you want this browser to alert you, or choose I'll come back here. Email/Discord/Telegram are backup return channels and can be corrected while the request is pending.";
+  }
   else if (intent === "friends") reply = "Preview can show public-safe players in the field, but Add Friend, Head-to-Head and Rival Watch unlock only after private Player Room access.";
   else if (intent === "privacy") reply = "Preview contains public-safe chess facts only. It does not contain Red, Amber, Blue, private evidence, recurrence, Inbox, private Friends state or account settings, and it does not prove ownership of the Chess.com account.";
   if (!reply) return undefined;

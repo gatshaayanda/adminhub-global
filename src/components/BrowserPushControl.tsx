@@ -11,7 +11,7 @@ async function messagingClient() {
   return { ...messaging, instance: messaging.getMessaging(firebaseApp) };
 }
 
-export async function registerBoardSignalBrowserPush(idToken: string) {
+export async function getBoardSignalBrowserPushToken() {
   const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim();
   if (!vapidKey) throw new Error("Browser alerts are unavailable until BoardSignal push configuration is completed.");
   const client = await messagingClient();
@@ -21,6 +21,11 @@ export async function registerBoardSignalBrowserPush(idToken: string) {
   // Do not mix this with the newer FID registration APIs; migrate both Web/Admin together in a dedicated maintenance patch.
   const fcmToken = await client.getToken(client.instance, { vapidKey, serviceWorkerRegistration });
   if (!fcmToken) throw new Error("This browser did not return a push registration token.");
+  return fcmToken;
+}
+
+export async function registerBoardSignalBrowserPush(idToken: string) {
+  const fcmToken = await getBoardSignalBrowserPushToken();
   const response = await fetch("/api/boardsignal/inbox", {
     method: "POST",
     headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },

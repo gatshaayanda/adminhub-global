@@ -44,6 +44,7 @@ export type BetaPreviewActivity = {
  */
 export type BoardSignalBetaPreview = {
   canonicalUsername: string;
+  requestedAt?: string;
   avatar?: string;
   playerId: number;
   profileUrl?: string;
@@ -72,12 +73,15 @@ export type BoardSignalBetaPreview = {
   generatedAt: string;
 };
 
+export type BetaActivationReturnMethod = "device" | "email" | "discord" | "telegram" | "return_here";
+
 export type BetaPreviewRequestState = "preview_ready" | "approved" | "claimed" | "rejected" | "expired";
 
 export type BetaPreviewStatus = {
   requestId: string;
   state: BetaPreviewRequestState;
   canonicalUsername: string;
+  requestedAt?: string;
   avatar?: string;
   preview?: BoardSignalBetaPreview;
   previewError?: string;
@@ -86,6 +90,12 @@ export type BetaPreviewStatus = {
   claimedAt?: string;
   magicAccessExpiresAt?: string;
   emailDelivery?: "delivered" | "failed" | "not_eligible" | "not_configured";
+  activationReturnMethod?: BetaActivationReturnMethod;
+  preferredContactMethod?: "email" | "discord" | "telegram";
+  preferredContactValue?: string;
+  betaContactConsent?: true;
+  deviceAlertsEnabled?: boolean;
+  deviceDelivery?: "delivered" | "failed" | "not_eligible";
 };
 
 export const BETA_PREVIEW_STATUS_TOKEN_BYTES = 32;

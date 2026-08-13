@@ -66,9 +66,9 @@ test('06 request resolves canonical stable Chess.com identity', () => {
   assert.match(submission, /resolveChessComPlayer\(requestedUsername\)/);
   assert.match(betaRequests, /playerId: resolved\.playerId, canonicalUsername: resolved\.username/);
 });
-test('07 request is one username+contact+consent submit', () => {
-  assert.match(requestForm, /Get My BoardSignal/);
-  assert.match(requestForm, /preferredContactMethod: contactMethod/);
+test('07 request is one username-only submit before return-channel choice', () => {
+  assert.match(requestForm, /See My BoardSignal/);
+  assert.doesNotMatch(requestForm, /preferredContactMethod:|preferredContactValue:|betaContactConsent:/);
   assert.doesNotMatch(requestForm, /Is this you\?/i);
 });
 test('08 request redirects immediately to Preview Room with fragment credential', () => assert.match(requestForm, /\/boardsignal\/preview\/\$\{encodeURIComponent\(requestId\)\}#status=/));
@@ -208,8 +208,9 @@ test('46 stable Firebase UID remains chesscom_<playerId>', () => assert.match(ap
 test('47 approved request contact method hydrates final account', () => assert.match(approval, /preferredContactMethod: request\.preferredContactMethod/));
 test('48 approved request contact value hydrates final account', () => assert.match(approval, /preferredContactValue: request\.preferredContactValue/));
 test('49 beta contact consent hydrates final account', () => assert.match(approval, /betaContactConsent: true/));
-test('50 contact and preferences are confirmed before first magic login', () => {
-  assert.match(approval, /contactConfirmedAt: decidedAt/);
+test('50 completed return decision confirms contact/preferences before first magic login', () => {
+  assert.match(approval, /completedReturnDecision/);
+  assert.match(approval, /contactConfirmedAt: account\.contactConfirmedAt \?\? decidedAt/);
   assert.match(approval, /preferencesConfirmedAt: account\.preferencesConfirmedAt \?\? decidedAt/);
 });
 test('51 Profile initializes from hydrated account contact values', () => {
@@ -243,7 +244,13 @@ test('58 browser push default remains permission-gated and false', () => {
   assert.match(approval, /browserPush: currentPreferences\.browserPush \?\? false/);
   assert.match(push, /Notification\.requestPermission/);
 });
-test('59 Preview load never requests browser notification permission', () => assert.doesNotMatch(previewRoom, /requestPermission/));
+test('59 Preview requests browser permission only inside explicit device enable action', () => {
+  const enableDeviceStart = previewRoom.indexOf('async function enableDevice');
+  const chooseStart = previewRoom.indexOf('async function choose', enableDeviceStart);
+  const enableDeviceBlock = previewRoom.slice(enableDeviceStart, chooseStart);
+  assert.match(enableDeviceBlock, /Notification\.requestPermission\(\)/);
+  assert.doesNotMatch(previewRoom.slice(0, enableDeviceStart), /Notification\.requestPermission\(\)/);
+});
 test('60 post-value browser alert prompt appears after a real saved Desk', () => {
   assert.match(room, /<UniversalPlayerDesk[\s\S]*<DeskReturnChannelPrompt/);
   assert.match(returnPrompt, /NEVER MISS YOUR NEXT DESK/);
@@ -357,7 +364,7 @@ test('92 Preview is responsive and uses 44px actions', () => {
   assert.match(css, /min-height: 44px/);
   assert.match(css, /env\(safe-area-inset-bottom\)/);
 });
-test('93 single-submit request form has responsive contact fields', () => {
+test('93 username-only request form stays responsive before Preview return choices', () => {
   assert.match(css, /\.activation-request-fields/);
   assert.match(css, /grid-template-columns: 1fr/);
 });

@@ -2,13 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { browserLocalPersistence, setPersistence, signInWithCustomToken } from "firebase/auth";
-import { ArrowRight, Check, ChevronRight, LoaderCircle, LockKeyhole, RefreshCcw, ShieldCheck, Sparkles, Swords, TrendingUp } from "lucide-react";
-import type { BetaPreviewStatus, BoardSignalBetaPreview } from "@/lib/boardsignal/activation";
+import { ArrowRight, Bell, Check, ChevronRight, LoaderCircle, LockKeyhole, Mail, MessageCircle, RefreshCcw, ShieldCheck, Sparkles, Swords, TrendingUp } from "lucide-react";
+import type { BetaActivationReturnMethod, BetaPreviewStatus, BoardSignalBetaPreview } from "@/lib/boardsignal/activation";
 import { BETA_PREVIEW_POLL_MS } from "@/lib/boardsignal/activation";
 import { auth } from "@/utils/firebaseConfig";
+import { getBoardSignalBrowserPushToken, registerBoardSignalBrowserPush } from "@/components/BrowserPushControl";
+import { clearSavedBetaPreviewReturn, loadSavedBetaPreviewReturn, saveBetaPreviewReturn } from "@/lib/boardsignal/previewReturn";
 
 function statusStorageKey(requestId: string) { return `boardsignal-beta-preview-status-v1:${requestId}`; }
 function introStorageKey(requestId: string) { return `boardsignal-beta-preview-intro-v1:${requestId}`; }
@@ -34,13 +36,18 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
     const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const fromHash = fragment.get("status") ?? "";
     const fromSession = window.sessionStorage.getItem(statusStorageKey(requestId)) ?? "";
-    const token = fromHash || fromSession;
+    const saved = loadSavedBetaPreviewReturn();
+    const fromDevice = saved?.requestId === requestId ? saved.statusCredential : "";
+    const token = fromHash || fromDevice || fromSession;
     if (fromHash) {
       window.sessionStorage.setItem(statusStorageKey(requestId), fromHash);
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     }
     setStatusToken(token);
-    if (!token) { setLoading(false); setError("This preview link is missing its private request credential. Return through Get My BoardSignal or use the original preview tab."); }
+    if (!token) {
+      setLoading(false);
+      setError("Your saved Preview isn't available on this device. Use an access link if you have one, return through your original Preview device, or start again with your Chess.com username.");
+    }
   }, [requestId]);
 
   const loadStatus = useCallback(async (quiet = false) => {
@@ -58,6 +65,12 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
       const body = await response.json() as { ok?: boolean; status?: BetaPreviewStatus; error?: string };
       if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "BoardSignal preview could not be loaded.");
       setStatus(body.status);
+      if (["rejected", "expired", "claimed"].includes(body.status.state)) {
+        clearSavedBetaPreviewReturn(requestId);
+        window.sessionStorage.removeItem(statusStorageKey(requestId));
+      } else {
+        saveBetaPreviewReturn({ requestId, canonicalUsername: body.status.canonicalUsername, statusCredential: statusToken, createdAt: body.status.requestedAt });
+      }
       const preview = body.status.preview;
       if (preview && window.localStorage.getItem(introStorageKey(requestId)) !== "seen") {
         window.localStorage.setItem(introStorageKey(requestId), "seen");
@@ -91,8 +104,7 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
 
   async function retryPreview() {
     if (!statusToken) return;
-    setRetrying(true);
-    setError("");
+    setRetrying(true); setError("");
     try {
       const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
@@ -107,8 +119,7 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
 
   async function openPlayerRoom() {
     if (!statusToken || claiming) return;
-    setClaiming(true);
-    setError("");
+    setClaiming(true); setError("");
     try {
       const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
@@ -117,7 +128,14 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
       const body = await response.json() as { ok?: boolean; customToken?: string; error?: string };
       if (!response.ok || !body.ok || !body.customToken) throw new Error(body.error ?? "Private Player Room access could not be opened.");
       await setPersistence(auth, browserLocalPersistence);
-      await signInWithCustomToken(auth, body.customToken);
+      const credential = await signInWithCustomToken(auth, body.customToken);
+      // If this browser already granted Preview device alerts, attach the same
+      // registration to the now-authenticated stable account without asking permission again.
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        const idToken = await credential.user.getIdToken();
+        await registerBoardSignalBrowserPush(idToken).catch(() => undefined);
+      }
+      clearSavedBetaPreviewReturn(requestId);
       window.sessionStorage.removeItem(statusStorageKey(requestId));
       router.replace("/boardsignal/player-room?source=beta_preview&tab=desk");
       router.refresh();
@@ -136,13 +154,13 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
 
   if (loading) return <main id="main" className="container beta-preview-room"><section className="beta-preview-loading bs-surface-paper"><LoaderCircle className="button-spinner"/><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>Finding your chess week</h1><p>BoardSignal is opening the safe first look attached to this request.</p></section></main>;
 
-  if (!status && error) return <main id="main" className="container beta-preview-room"><section className="beta-preview-loading bs-surface-paper"><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>This preview couldn't open</h1><p>{error}</p><Link href="/#get-my-boardsignal" className="button button-dark">Get My BoardSignal</Link></section></main>;
+  if (!status && error) return <main id="main" className="container beta-preview-room"><section className="beta-preview-loading bs-surface-paper"><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>This Preview isn't saved on this device</h1><p>{error}</p><div className="resolved-player-actions"><Link href="/#get-my-boardsignal" className="button button-dark">Start with Chess.com username</Link><Link href="/boardsignal/player-room" className="button button-quiet">Use private access / recovery</Link></div></section></main>;
 
   return <main id="main" className={`beta-preview-room ${approved ? "is-approved" : ""}`}>
     <section className="container beta-preview-hero bs-surface-dark">
       <div className="beta-preview-identity">
         {status?.avatar ? <Image src={status.avatar} alt="" width={70} height={70} unoptimized /> : <span className="beta-preview-avatar">{(status?.canonicalUsername ?? "BS").slice(0,2).toUpperCase()}</span>}
-        <div><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>{approved ? "You're in." : `We found you, ${status?.canonicalUsername}.`}</h1><p>{approved ? "Your private BoardSignal Player Room is ready." : "Your games are here. While your private Player Room is being approved, BoardSignal can already show you a safe first look."}</p></div>
+        <div><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>{approved ? "You're in." : `We found you, ${status?.canonicalUsername}.`}</h1><p>{approved ? "Your private BoardSignal Player Room is ready." : "Your games are here. BoardSignal is already showing you the safe first look while private access waits for Founder approval."}</p></div>
       </div>
       <div className="beta-preview-status"><span>{approved ? "ACCESS READY" : expired ? "ACCESS EXPIRED" : rejected ? "REQUEST CLOSED" : "PREVIEW READY"}</span><strong>{approved ? "PRIVATE PLAYER ROOM UNLOCKED" : expired ? "FRESH LINK REQUIRED" : rejected ? "FOUNDER REVIEW CLOSED" : "PRIVATE ACCESS PENDING"}</strong>{status?.approvedAt ? <small>Approved {formatSync(status.approvedAt)}</small> : preview ? <small>Preview saved {formatSync(preview.generatedAt)}</small> : null}</div>
       {approved ? <button type="button" className="button button-lime beta-preview-primary-cta" onClick={openPlayerRoom} disabled={claiming}>{claiming ? <><LoaderCircle className="button-spinner" size={16}/> Opening</> : <>Open My Player Room <ArrowRight size={17}/></>}</button> : null}
@@ -150,7 +168,7 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
 
     {error ? <div className="container notice notice-error" role="alert">{error}</div> : null}
 
-    {!preview ? <section className="container beta-preview-failure bs-surface-paper"><Sparkles/><div><p className="kicker">REQUEST SAVED</p><h2>Chess.com didn't return the preview yet.</h2><p>Your Founding Beta request is safe. Preview generation never blocks eventual approval.</p></div><button type="button" className="button button-dark" onClick={retryPreview} disabled={retrying}>{retrying ? <><LoaderCircle className="button-spinner" size={15}/> Trying</> : <><RefreshCcw size={15}/> Try preview again</>}</button></section> : <PreviewContent preview={preview} ask={ask} showAskIntro={showAskIntro} />}
+    {!preview ? <section className="container beta-preview-failure bs-surface-paper"><Sparkles/><div><p className="kicker">REQUEST SAVED</p><h2>Chess.com didn't return the preview yet.</h2><p>Your Founding Beta request is safe. Preview generation never blocks eventual approval.</p></div><button type="button" className="button button-dark" onClick={retryPreview} disabled={retrying}>{retrying ? <><LoaderCircle className="button-spinner" size={15}/> Trying</> : <><RefreshCcw size={15}/> Try preview again</>}</button></section> : <PreviewContent preview={preview} ask={ask} showAskIntro={showAskIntro} returnChoice={status?.state === "preview_ready" ? <PreviewReturnChoice requestId={requestId} statusToken={statusToken} status={status} onStatus={setStatus} onError={setError} /> : null} />}
 
     {rejected ? <section className="container beta-preview-next bs-surface-paper"><p className="kicker">REQUEST STATUS</p><h2>This Founding Beta request is closed.</h2><p>The public-safe preview can remain useful, but private Player Room access was not activated.</p></section> : null}
 
@@ -160,7 +178,84 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
   </main>;
 }
 
-function PreviewContent({ preview, ask, showAskIntro }: { preview: BoardSignalBetaPreview; ask: (prompt: string) => void; showAskIntro: boolean }) {
+function PreviewReturnChoice({ requestId, statusToken, status, onStatus, onError }: { requestId: string; statusToken: string; status: BetaPreviewStatus; onStatus: (value: BetaPreviewStatus) => void; onError: (value: string) => void }) {
+  const [selected, setSelected] = useState<BetaActivationReturnMethod | "">(status.activationReturnMethod ?? "");
+  const [contactValue, setContactValue] = useState(status.preferredContactValue ?? "");
+  const [consent, setConsent] = useState(status.betaContactConsent === true);
+  const [busy, setBusy] = useState(false);
+  const configured = Boolean(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim());
+
+  useEffect(() => {
+    setSelected(status.activationReturnMethod ?? "");
+    setContactValue(status.preferredContactValue ?? "");
+    setConsent(status.betaContactConsent === true);
+  }, [status.activationReturnMethod, status.betaContactConsent, status.preferredContactValue]);
+
+  async function update(actionBody: Record<string, unknown>) {
+    setBusy(true); onError("");
+    try {
+      const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+        body: JSON.stringify({ statusToken, ...actionBody }),
+      });
+      const body = await response.json() as { ok?: boolean; status?: BetaPreviewStatus; error?: string };
+      if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "BoardSignal could not save this return method.");
+      onStatus(body.status);
+      setSelected(body.status.activationReturnMethod ?? "");
+    } catch (reason) { onError(reason instanceof Error ? reason.message : "BoardSignal could not save this return method."); }
+    finally { setBusy(false); }
+  }
+
+  async function enableDevice() {
+    if (!configured) { onError("Device alerts aren't configured yet. Your Preview is still saved on this device, so you can choose I'll come back here or add a backup contact."); return; }
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) { onError("This browser doesn't support BoardSignal device alerts. Your saved Preview still works."); return; }
+    setBusy(true); onError("");
+    try {
+      // Permission is requested only because the player deliberately clicked Notify this device.
+      const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      if (permission !== "granted") { setSelected(""); return; }
+      const fcmToken = await getBoardSignalBrowserPushToken();
+      const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+        body: JSON.stringify({ action: "registerDevice", statusToken, fcmToken, userAgent: navigator.userAgent }),
+      });
+      const body = await response.json() as { ok?: boolean; status?: BetaPreviewStatus; error?: string };
+      if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "This device could not be attached to the Preview.");
+      onStatus(body.status); setSelected("device");
+    } catch (reason) { onError(reason instanceof Error ? reason.message : "This device could not be attached to the Preview."); }
+    finally { setBusy(false); }
+  }
+
+  async function choose(method: BetaActivationReturnMethod) {
+    setSelected(method); onError("");
+    if (method === "device") { await enableDevice(); return; }
+    if (method === "return_here") await update({ action: "updateReturn", method: "return_here" });
+  }
+
+  async function saveContact(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!(selected === "email" || selected === "discord" || selected === "telegram")) return;
+    await update({ action: "updateReturn", method: selected, contactValue: contactValue.trim(), betaContactConsent: consent });
+  }
+
+  const savedLabel = status.activationReturnMethod === "device" && status.deviceAlertsEnabled ? "DEVICE ALERTS ENABLED" : status.activationReturnMethod === "return_here" ? "SAVED ON THIS DEVICE" : status.activationReturnMethod && status.preferredContactValue ? `${status.activationReturnMethod.toUpperCase()} · ${status.preferredContactValue}` : undefined;
+
+  return <section className="container beta-preview-return bs-surface-paper">
+    <div className="beta-preview-section-heading"><div><p className="kicker">KEEP MY BOARDSIGNAL READY</p><h2>How should BoardSignal tell you when your private Player Room is ready?</h2><p>Your Preview itself is the main bridge. Email, Discord and Telegram are optional backup return channels.</p></div>{savedLabel ? <span className="state-pill ready">{savedLabel}</span> : null}</div>
+    <div className="beta-return-options">
+      <button type="button" className={`beta-return-option recommended ${selected === "device" ? "is-selected" : ""}`} onClick={() => void choose("device")} disabled={busy}><Bell size={19}/><span><strong>Notify this device</strong><small>Recommended · alert this browser when access unlocks.</small></span></button>
+      <button type="button" className={selected === "email" ? "is-selected" : ""} onClick={() => setSelected("email")} disabled={busy}><Mail size={18}/> Email</button>
+      <button type="button" className={selected === "discord" ? "is-selected" : ""} onClick={() => setSelected("discord")} disabled={busy}><MessageCircle size={18}/> Discord</button>
+      <button type="button" className={selected === "telegram" ? "is-selected" : ""} onClick={() => setSelected("telegram")} disabled={busy}><MessageCircle size={18}/> Telegram</button>
+      <button type="button" className={selected === "return_here" ? "is-selected" : ""} onClick={() => void choose("return_here")} disabled={busy}>I'll come back here</button>
+    </div>
+    {selected === "device" ? <p className="helper-copy">{configured ? status.deviceAlertsEnabled ? "This browser is ready. When Founder approval lands, BoardSignal can alert this device and open the same saved Preview—no email required." : "Your browser will ask for notification permission only because you clicked Notify this device." : "Device alerts aren't configured yet. Your saved Preview still works, and you can use another return option."}</p> : null}
+    {selected === "return_here" ? <p className="helper-copy">Your Preview is saved on this device for the bounded activation window. Come back to BoardSignal and choose Continue your Preview.</p> : null}
+    {(selected === "email" || selected === "discord" || selected === "telegram") ? <form className="beta-return-contact" onSubmit={saveContact}><label>{selected === "email" ? "Email address" : selected === "discord" ? "Discord username" : "Telegram username / contact"}<input value={contactValue} onChange={(event) => setContactValue(event.target.value)} type={selected === "email" ? "email" : "text"} autoComplete={selected === "email" ? "email" : "off"} maxLength={160} placeholder={selected === "email" ? "you@example.com" : "@username"}/></label><label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)}/><span>BoardSignal may use this contact for Founding Beta access, Desk availability, important product updates and beta feedback.</span></label><button className="button button-dark" type="submit" disabled={busy || !contactValue.trim() || !consent}>{busy ? <><LoaderCircle className="button-spinner" size={14}/> Saving</> : `Save ${selected}`}</button><p className="helper-copy">You can correct this while the Preview is pending. Your Preview will still unlock here even if this backup channel is unavailable.</p></form> : null}
+  </section>;
+}
+
+function PreviewContent({ preview, ask, showAskIntro, returnChoice }: { preview: BoardSignalBetaPreview; ask: (prompt: string) => void; showAskIntro: boolean; returnChoice?: ReactNode }) {
   const leadPool = useMemo(() => [...preview.pools].sort((a,b) => b.games - a.games)[0], [preview.pools]);
   return <>
     <section className="container beta-preview-week bs-surface-paper">
@@ -176,12 +271,14 @@ function PreviewContent({ preview, ask, showAskIntro }: { preview: BoardSignalBe
       {preview.recentUniverseActivity.length ? <div className="beta-preview-activity"><p className="kicker">THE FIELD IS MOVING</p>{preview.recentUniverseActivity.slice(0,3).map((item) => <article key={item.eventId}><span>{item.canonicalUsername}</span><strong>{item.headline}</strong><p>{item.supportingFact}</p></article>)}</div> : null}
     </section>
 
+    {returnChoice}
+
     {showAskIntro ? <section className="container beta-preview-ask bs-surface-dark"><Sparkles size={22}/><div><p className="kicker">ASK BOARDSIGNAL</p><h2>I found your games. Want me to show you what stands out?</h2><p>I can explain this public-safe preview and what unlocks next. I won't invent private Signals before access.</p><div className="beta-preview-ask-actions"><button type="button" onClick={() => ask("Show me my week")}>Show me my week</button><button type="button" onClick={() => ask("Explain my Universe preview")}>Explain the Universe</button><button type="button" onClick={() => ask("What unlocks next?")}>What unlocks next?</button></div></div></section> : null}
 
     <section className="container beta-preview-progress bs-surface-paper"><div><p className="kicker">PROGRESS</p><h2>Progress starts with Desk Two.</h2><p>Your first private Desk becomes the baseline. When the next seven-day episode closes, BoardSignal can show what moved, repeated and changed.</p></div><div className="beta-preview-progress-track"><article><span>DESK 1</span><strong>Building your baseline</strong><Check size={17}/></article><ChevronRight/><article><span>DESK 2</span><strong>Next comparison</strong><span className="progress-future-dot"/></article></div></section>
 
     <section className="container beta-preview-players bs-surface-paper"><div className="beta-preview-section-heading"><div><p className="kicker">PLAYERS IN THE FIELD</p><h2>BoardSignal already has a world around your week.</h2><p>Public-safe coverage only. Connect after your private Player Room unlocks.</p></div><LockKeyhole size={19}/></div>{preview.publicPlayers.length ? <div className="beta-preview-player-grid">{preview.publicPlayers.slice(0,6).map((player) => <article key={player.canonicalUsername}><div><span>BOARDSIGNAL PLAYER</span><h3>{player.canonicalUsername}</h3></div><strong>{player.placement ?? "Active in the field"}</strong><p>{player.safeHighlight ?? "Public BoardSignal coverage"}</p>{player.href ? <Link href={player.href} className="text-link">View public coverage</Link> : null}</article>)}</div> : <p className="beta-preview-empty">The public field is still forming. Friends, Head-to-Head and Rival Watch unlock inside your Player Room.</p>}<div className="beta-preview-social-lock"><Swords size={17}/><p><strong>Friends unlock with private access.</strong> Add Friend, Head-to-Head and Rival Watch stay unavailable during Preview.</p></div></section>
 
-    <section className="container beta-preview-next bs-surface-paper"><p className="kicker">WHAT UNLOCKS NEXT</p><h2>Your full Desk stays private.</h2><p>Founder approval creates your Founding Beta account. One-time access then opens the compact agreement and lands directly on <strong>My Player Room → Desk</strong>. Your request contact and valid notification defaults carry forward automatically—you will not be asked to type the same setup again.</p></section>
+    <section className="container beta-preview-next bs-surface-paper"><p className="kicker">WHAT UNLOCKS NEXT</p><h2>Your full Desk stays private.</h2><p>Founder approval unlocks the saved Preview first. One click opens the compact agreement and lands directly on <strong>My Player Room → Desk</strong>. Magic access and username + Beta code remain recovery paths, not homework you need to understand before seeing value.</p></section>
   </>;
 }

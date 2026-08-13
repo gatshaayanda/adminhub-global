@@ -192,13 +192,15 @@ async function buildAuthenticatedContext(token: DecodedIdToken, pathname: string
   };
 }
 
-function guidePreviewContext(preview: BoardSignalBetaPreview): GuideContext["previewContext"] {
+function guidePreviewContext(preview: BoardSignalBetaPreview, request?: Record<string, unknown>): GuideContext["previewContext"] {
   const primary = preview.pools.find((pool) => pool.pool === preview.primaryPool) ?? preview.pools[0];
   return {
     canonicalUsername: preview.canonicalUsername, playableWeek: preview.playableWeek, periodLabel: preview.period?.label, disclosure: preview.period?.disclosure,
     games: preview.games, wins: preview.wins, draws: preview.draws, losses: preview.losses, score: preview.score, primaryPool: preview.primaryPool, primaryPoolDelta: primary?.ratingDelta,
     strongestWinRun: preview.strongestWinRun, safeHeadline: preview.safeHeadline, safeHighlight: preview.safeHighlight, generatedAt: preview.generatedAt,
     universePreview: preview.universePreview.map((item) => ({ categoryTitle: item.categoryTitle, scopeLabel: item.scopeLabel, rank: item.rank, denominator: item.denominator, valueLabel: item.valueLabel, nearestAbove: item.nearestAbove })),
+    activationReturnMethod: ["device", "email", "discord", "telegram", "return_here"].includes(String(request?.activationReturnMethod ?? "")) ? request?.activationReturnMethod as "device" | "email" | "discord" | "telegram" | "return_here" : undefined,
+    deviceAlertsEnabled: Boolean((request?.activationDevice as Record<string, unknown> | undefined)?.registeredAt),
   };
 }
 
@@ -214,7 +216,7 @@ export async function guideResponse(input: { token?: DecodedIdToken; message?: u
       const verified = await verifyBetaPreviewStatusCredential(requestId, input.previewStatusToken);
       const preview = verified.request.previewSnapshot as BoardSignalBetaPreview | undefined;
       if (!preview) throw Object.assign(new Error("This BoardSignal preview is not ready yet."), { status: 409 });
-      const context: GuideContext = { authenticated: false, mode: "beta_preview", previewContext: guidePreviewContext(preview), pathname, activeTab: "beta-request", recentConversation, deliveryStatus: getBoardSignalDeliveryStatus(), contextUpdatedAt: preview.generatedAt };
+      const context: GuideContext = { authenticated: false, mode: "beta_preview", previewContext: guidePreviewContext(preview, verified.request), pathname, activeTab: "beta-request", recentConversation, deliveryStatus: getBoardSignalDeliveryStatus(), contextUpdatedAt: preview.generatedAt };
       return deterministicGuideRenderer.render(runGuideBrain(message, context));
     }
     const context: GuideContext = { authenticated: false, pathname, activeTab, recentConversation, deliveryStatus: getBoardSignalDeliveryStatus() };

@@ -3,7 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { BoardSignalAccount, BoardSignalContactMethod, StableChessComIdentity } from "../account";
 import { defaultNotificationPreferences } from "../account";
-import type { BoardSignalBetaPreview } from "../activation";
+import type { BetaActivationReturnMethod, BoardSignalBetaPreview } from "../activation";
 import { isValidBoardSignalEmail } from "../delivery";
 import { resolveChessComPlayer } from "../processor";
 import type { PublicUniverseEvent } from "../pulse";
@@ -13,7 +13,9 @@ import {
   betaMagicAccessCredential,
   buildSafeBetaPreview,
   createBetaPreviewStatusCredential,
+  notifyApprovedBetaPreviewDevice,
   notifyFounderOfBetaRequest,
+  verifyBetaPreviewStatusCredential,
 } from "./activation";
 import { createFoundingBetaAccess, loadExistingFoundingBetaAccess } from "./betaAccess";
 import { ensureStablePlayerAccount } from "./persistence";
@@ -29,9 +31,13 @@ export type FoundingBetaRequest = {
   canonicalUsername: string;
   avatar?: string;
   profileUrl?: string;
-  preferredContactMethod: BoardSignalContactMethod;
-  preferredContactValue: string;
-  betaContactConsent: true;
+  preferredContactMethod?: BoardSignalContactMethod;
+  preferredContactValue?: string;
+  betaContactConsent?: true;
+  activationReturnMethod?: BetaActivationReturnMethod;
+  activationReturnUpdatedAt?: string;
+  activationDevice?: { token: string; registeredAt: string; updatedAt: string; userAgentSummary?: string } | null;
+  activationDeviceDelivery?: "delivered" | "failed" | "not_eligible";
   requestedAt: string;
   status: BetaRequestStatus;
   decidedAt?: string;
@@ -104,10 +110,6 @@ async function enforceRequestRateLimit(request: Request, now = new Date()) {
   });
 }
 
-function contactsMatch(existing: FoundingBetaRequest, method: BoardSignalContactMethod, value: string) {
-  return existing.preferredContactMethod === method && existing.preferredContactValue.trim().toLowerCase() === value.trim().toLowerCase();
-}
-
 async function existingStableAccount(identity: StableChessComIdentity) {
   const db = getAdminDb();
   const map = await db.collection("chessPlayerAccounts").doc(String(identity.playerId)).get();
@@ -131,16 +133,17 @@ async function generateAndStorePreview(ref: DocumentReference, identity: StableC
 export async function submitFoundingBetaRequest(input: {
   request: Request;
   username: unknown;
-  preferredContactMethod: unknown;
-  preferredContactValue: unknown;
-  betaContactConsent: unknown;
+  preferredContactMethod?: unknown;
+  preferredContactValue?: unknown;
+  betaContactConsent?: unknown;
   source?: unknown;
   shareMomentId?: unknown;
 }): Promise<BetaRequestSubmission> {
   await enforceRequestRateLimit(input.request);
   const requestedUsername = String(input.username ?? "").trim().replace(/^@/, "");
   if (!/^[A-Za-z0-9_-]{2,50}$/.test(requestedUsername)) throw Object.assign(new Error("Enter a valid Chess.com username."), { status: 400 });
-  const contact = validateContact(input.preferredContactMethod, input.preferredContactValue, input.betaContactConsent);
+  const hasLegacyContactInput = input.preferredContactMethod !== undefined || input.preferredContactValue !== undefined || input.betaContactConsent !== undefined;
+  const contact = hasLegacyContactInput ? validateContact(input.preferredContactMethod, input.preferredContactValue, input.betaContactConsent) : undefined;
   const identity = identityFromResolved(await resolveChessComPlayer(requestedUsername));
   const db = getAdminDb();
   const id = String(identity.playerId);
@@ -154,9 +157,7 @@ export async function submitFoundingBetaRequest(input: {
         canonicalUsername: identity.canonicalUsername,
         avatar: identity.avatar,
         profileUrl: identity.profileUrl,
-        preferredContactMethod: contact.method,
-        preferredContactValue: contact.value,
-        betaContactConsent: true,
+        ...(contact ? { preferredContactMethod: contact.method, preferredContactValue: contact.value, betaContactConsent: true as const } : {}),
         requestedAt: existingAccount.lastSeenAt ?? new Date().toISOString(),
         status: "approved",
         statusTokenHash: "",
@@ -169,9 +170,6 @@ export async function submitFoundingBetaRequest(input: {
   const previousSnapshot = await ref.get();
   const previous = previousSnapshot.exists ? previousSnapshot.data() as FoundingBetaRequest : undefined;
   if (previous && ["pending", "approved"].includes(previous.status)) {
-    if (!contactsMatch(previous, contact.method, contact.value)) {
-      throw Object.assign(new Error("BoardSignal already has an access request for this player. Use the original preview link or contact Ayanda if you need recovery."), { status: 409, code: "BETA_REQUEST_EXISTS" });
-    }
     let preview = previous.previewSnapshot;
     let previewError = previous.previewError;
     if (!preview) {
@@ -200,9 +198,7 @@ export async function submitFoundingBetaRequest(input: {
     canonicalUsername: identity.canonicalUsername,
     avatar: identity.avatar,
     profileUrl: identity.profileUrl,
-    preferredContactMethod: contact.method,
-    preferredContactValue: contact.value,
-    betaContactConsent: true,
+    ...(contact ? { preferredContactMethod: contact.method, preferredContactValue: contact.value, betaContactConsent: true as const, activationReturnMethod: contact.method as BetaActivationReturnMethod } : {}),
     requestedAt: now,
     status: "pending",
     source,
@@ -224,6 +220,26 @@ export async function retryFoundingBetaPreview(requestId: string) {
   const request = snapshot.data() as FoundingBetaRequest;
   const identity: StableChessComIdentity = { playerId: request.chessPlayerId, canonicalUsername: request.canonicalUsername, avatar: request.avatar, profileUrl: request.profileUrl };
   return generateAndStorePreview(ref, identity);
+}
+
+export async function updateFoundingBetaReturnPreference(input: { requestId: string; statusToken: unknown; method: unknown; contactValue?: unknown; betaContactConsent?: unknown }) {
+  const verified = await verifyBetaPreviewStatusCredential(input.requestId, input.statusToken);
+  const snapshot = await verified.ref.get();
+  const request = snapshot.data() as FoundingBetaRequest;
+  if (request.status !== "pending") throw Object.assign(new Error("Return settings can only change while this Preview is pending."), { status: 409, code: "PREVIEW_RETURN_LOCKED" });
+  const method = String(input.method ?? "") as BetaActivationReturnMethod;
+  if (!["device", "email", "discord", "telegram", "return_here"].includes(method)) throw Object.assign(new Error("Choose how BoardSignal should bring you back."), { status: 400 });
+  const now = new Date().toISOString();
+  if (method === "email" || method === "discord" || method === "telegram") {
+    const contact = validateContact(method, input.contactValue, input.betaContactConsent);
+    await verified.ref.set(clean({ activationReturnMethod: method, activationReturnUpdatedAt: now, preferredContactMethod: contact.method, preferredContactValue: contact.value, betaContactConsent: true, activationDevice: null }), { merge: true });
+  } else if (method === "return_here") {
+    await verified.ref.set(clean({ activationReturnMethod: method, activationReturnUpdatedAt: now, activationDevice: null }), { merge: true });
+  } else {
+    throw Object.assign(new Error("Use Notify this device to enable device alerts."), { status: 400, code: "PREVIEW_DEVICE_ACTION_REQUIRED" });
+  }
+  const refreshed = await verified.ref.get();
+  return refreshed.data() as FoundingBetaRequest;
 }
 
 export async function listFoundingBetaRequests(status?: BetaRequestStatus) {
@@ -292,6 +308,8 @@ export async function approveFoundingBetaRequest(requestId: string) {
   }
   const decidedAt = new Date().toISOString();
   const currentPreferences = account.notificationPreferences ?? defaultNotificationPreferences();
+  const validExternalContact = Boolean(request.preferredContactMethod && request.preferredContactValue && request.betaContactConsent === true);
+  const completedReturnDecision = Boolean(request.activationReturnMethod || validExternalContact);
   const consentedEmail = request.preferredContactMethod === "email" && request.betaContactConsent === true && isValidBoardSignalEmail(request.preferredContactValue);
   const notificationPreferences = {
     ...defaultNotificationPreferences(),
@@ -305,11 +323,8 @@ export async function approveFoundingBetaRequest(requestId: string) {
     founderUpdates: currentPreferences.founderUpdates ?? true,
   };
   await db.collection("users").doc(account.uid).set(clean({
-    preferredContactMethod: request.preferredContactMethod,
-    preferredContactValue: request.preferredContactValue,
-    betaContactConsent: true,
-    contactConfirmedAt: decidedAt,
-    preferencesConfirmedAt: account.preferencesConfirmedAt ?? decidedAt,
+    ...(validExternalContact ? { preferredContactMethod: request.preferredContactMethod, preferredContactValue: request.preferredContactValue, betaContactConsent: true } : {}),
+    ...(completedReturnDecision ? { contactConfirmedAt: account.contactConfirmedAt ?? decidedAt, preferencesConfirmedAt: account.preferencesConfirmedAt ?? decidedAt } : {}),
     universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? decidedAt,
     privacy: { ...account.privacy, publicPlayerPage: true, universeCoverage: true },
     notificationPreferences,
@@ -328,7 +343,7 @@ export async function approveFoundingBetaRequest(requestId: string) {
     if (!delivery.emailConfigured) accessEmailDelivery = "not_configured";
     else {
       const email = await sendBoardSignalEmail({
-        to: request.preferredContactValue,
+        to: String(request.preferredContactValue),
         subject: "Your BoardSignal is ready",
         text: `Your private Player Room is ready.\n\nOpen My Player Room: ${magic.link}`,
       });
@@ -337,14 +352,19 @@ export async function approveFoundingBetaRequest(requestId: string) {
     await ref.set({ accessEmailDelivery }, { merge: true });
   }
 
+  const previewDevice = request.activationReturnMethod === "device" ? request.activationDevice : undefined;
+  const deviceDelivery = await notifyApprovedBetaPreviewDevice({ requestId: request.id, fcmToken: previewDevice?.token }).catch(() => ({ eligible: true, delivered: 0, failed: 1, status: "failed" as const }));
+  await ref.set({ activationDeviceDelivery: deviceDelivery.status }, { merge: true }).catch(() => undefined);
+
   return {
-    request: { ...request, status: "approved" as const, decidedAt, firebaseUid: account.uid, magicAccess: magic.record, accessEmailDelivery },
+    request: { ...request, status: "approved" as const, decidedAt, firebaseUid: account.uid, magicAccess: magic.record, accessEmailDelivery, activationDeviceDelivery: deviceDelivery.status },
     account,
     accessCode: result.accessCode,
     magicLink: magic.link,
     magicAccessExpiresAt: magic.expiresAt,
     approvalMessage: accessMessage(request.canonicalUsername, magic.link),
     accessEmailDelivery,
+    deviceDelivery: deviceDelivery.status,
   };
 }
 
@@ -367,6 +387,6 @@ export async function rejectFoundingBetaRequest(requestId: string) {
   const request = snapshot.data() as FoundingBetaRequest;
   if (request.status !== "pending") throw Object.assign(new Error(`This request is already ${request.status}.`), { status: 409 });
   const decidedAt = new Date().toISOString();
-  await ref.set({ status: "rejected", decidedAt }, { merge: true });
+  await ref.set({ status: "rejected", decidedAt, activationDevice: null }, { merge: true });
   return { ...request, status: "rejected" as const, decidedAt };
 }

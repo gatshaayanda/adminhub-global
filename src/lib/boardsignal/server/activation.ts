@@ -7,6 +7,7 @@ import {
   BETA_MAGIC_ACCESS_TOKEN_BYTES,
   BETA_PREVIEW_STATUS_TOKEN_BYTES,
   betaPreviewContainsPrivateFields,
+  type BetaActivationReturnMethod,
   type BetaPreviewPublicPlayer,
   type BetaPreviewStatus,
   type BoardSignalBetaPreview,
@@ -245,6 +246,7 @@ export function publicBetaPreviewStatus(requestId: string, request: Record<strin
     requestId,
     state,
     canonicalUsername: String(request.canonicalUsername ?? "Player"),
+    requestedAt: typeof request.requestedAt === "string" ? request.requestedAt : undefined,
     avatar: typeof request.avatar === "string" ? request.avatar : undefined,
     preview: request.previewSnapshot as BoardSignalBetaPreview | undefined,
     previewError: typeof request.previewError === "string" ? request.previewError : undefined,
@@ -253,6 +255,12 @@ export function publicBetaPreviewStatus(requestId: string, request: Record<strin
     claimedAt: typeof request.claimedAt === "string" ? request.claimedAt : undefined,
     magicAccessExpiresAt: typeof magic?.expiresAt === "string" ? magic.expiresAt : undefined,
     emailDelivery: typeof request.accessEmailDelivery === "string" && ["delivered", "failed", "not_eligible", "not_configured"].includes(request.accessEmailDelivery) ? request.accessEmailDelivery as BetaPreviewStatus["emailDelivery"] : undefined,
+    activationReturnMethod: ["device", "email", "discord", "telegram", "return_here"].includes(String(request.activationReturnMethod ?? "")) ? request.activationReturnMethod as BetaActivationReturnMethod : undefined,
+    preferredContactMethod: ["email", "discord", "telegram"].includes(String(request.preferredContactMethod ?? "")) ? request.preferredContactMethod as "email" | "discord" | "telegram" : undefined,
+    preferredContactValue: typeof request.preferredContactValue === "string" ? request.preferredContactValue : undefined,
+    betaContactConsent: request.betaContactConsent === true ? true : undefined,
+    deviceAlertsEnabled: Boolean((request.activationDevice as Record<string, unknown> | undefined)?.registeredAt),
+    deviceDelivery: ["delivered", "failed", "not_eligible"].includes(String(request.activationDeviceDelivery ?? "")) ? request.activationDeviceDelivery as "delivered" | "failed" | "not_eligible" : undefined,
   });
 }
 
@@ -273,7 +281,7 @@ export async function claimApprovedBetaPreview(requestId: string, statusTokenInp
     if (!Number.isSafeInteger(playerId) || playerId <= 0 || !canonicalUsername) throw Object.assign(new Error("Approved identity is incomplete."), { status: 500 });
     const claimedAt = new Date().toISOString();
     const magic = request.magicAccess as Record<string, unknown> | undefined;
-    transaction.set(verified.ref, { claimedAt, previewClaimConsumedAt: claimedAt, ...(magic ? { magicAccess: { ...magic, consumedAt: claimedAt } } : {}) }, { merge: true });
+    transaction.set(verified.ref, { claimedAt, previewClaimConsumedAt: claimedAt, activationDevice: null, ...(magic ? { magicAccess: { ...magic, consumedAt: claimedAt } } : {}) }, { merge: true });
     return { playerId, uid, canonicalUsername, claimedAt };
   });
   const customToken = await getAdminAuth().createCustomToken(claim.uid, {
@@ -284,6 +292,40 @@ export async function claimApprovedBetaPreview(requestId: string, statusTokenInp
     boardsignalAuthProvider: "founding_beta_preview_claim",
   });
   return { ...claim, customToken };
+}
+
+export async function registerBetaPreviewNotificationDevice(input: { requestId: string; statusToken: unknown; fcmToken: unknown; userAgent?: unknown }) {
+  if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()) throw Object.assign(new Error("Device alerts are not configured yet."), { status: 503, code: "PREVIEW_PUSH_NOT_CONFIGURED" });
+  const verified = await verifyBetaPreviewStatusCredential(input.requestId, input.statusToken);
+  const token = String(input.fcmToken ?? "").trim();
+  if (token.length < 20 || token.length > 4096) throw Object.assign(new Error("This device did not return a valid notification registration."), { status: 400, code: "PREVIEW_PUSH_TOKEN_INVALID" });
+  const fresh = await verified.ref.get();
+  const request = fresh.data() as Record<string, unknown>;
+  if (request.status !== "pending") throw Object.assign(new Error("Device return settings can only change while this Preview is pending."), { status: 409, code: "PREVIEW_RETURN_LOCKED" });
+  const now = new Date().toISOString();
+  await verified.ref.set(clean({
+    activationReturnMethod: "device",
+    activationDevice: { token, registeredAt: now, updatedAt: now, userAgentSummary: String(input.userAgent ?? "").slice(0, 300) },
+    activationReturnUpdatedAt: now,
+  }), { merge: true });
+  return { registered: true, activationReturnMethod: "device" as const };
+}
+
+export async function notifyApprovedBetaPreviewDevice(input: { requestId: string; fcmToken?: unknown }) {
+  const token = String(input.fcmToken ?? "").trim();
+  if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim() || token.length < 20) return { eligible: false, delivered: 0, failed: 0, status: "not_eligible" as const };
+  const link = `/boardsignal/preview/${encodeURIComponent(input.requestId)}`;
+  try {
+    await getAdminMessaging().send({
+      token,
+      notification: { title: "BoardSignal", body: "Your private Player Room is ready.\nOpen BoardSignal to continue." },
+      webpush: { fcmOptions: { link } },
+      data: { type: "beta_preview_approved", link, requestId: input.requestId },
+    });
+    return { eligible: true, delivered: 1, failed: 0, status: "delivered" as const };
+  } catch {
+    return { eligible: true, delivered: 0, failed: 1, status: "failed" as const };
+  }
 }
 
 export async function registerFounderNotificationDevice(fcmTokenInput: unknown, userAgentInput?: unknown) {

@@ -1,55 +1,40 @@
 import Link from "next/link";
-import {
-  BookOpen,
-  ChartNoAxesCombined,
-  LockKeyhole,
-  ShieldCheck,
-  Target,
-} from "lucide-react";
+import { LockKeyhole, ShieldCheck, Target } from "lucide-react";
 import ChessComLoginPanel from "@/components/ChessComLoginPanel";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { betaProof, coverageStories } from "@/data/boardsignal";
-import { loadUniverseHomepageLead } from "@/lib/boardsignal/server/universePulse";
 
 const secondaryStories = coverageStories.slice(0, 3);
-const deskPreview = coverageStories[0];
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-export default async function HomePage() {
-  const universeLead = await loadUniverseHomepageLead().catch(() => undefined);
-  const leadHeadline = universeLead?.headline ?? deskPreview.headline;
-  const leadSummary = universeLead?.supportingFact ?? deskPreview.summary;
-  const leadStat = universeLead?.rankAfter ? `#${universeLead.rankAfter}` : universeLead ? universeLead.eventType.replaceAll("_", " ").toUpperCase() : deskPreview.stat;
-  const leadDetail = universeLead?.canonicalUsername ?? deskPreview.detail;
+export default function HomePage() {
   return (
     <div id="main" className="personal-home">
       <section className="personal-hero">
         <div className="container personal-hero-grid">
           <div className="personal-hero-copy motion-enter">
-            <p className="kicker">Your personal chess sports desk</p>
-            <h1>Your chess week, covered.</h1>
-            <p className="hero-deck">A persistent Founding Beta Player Room for your weekly story, progress, private signals and place in the BoardSignal Universe.</p>
+            <p className="kicker">Personal chess performance review</p>
+            <h1>See what your games are actually telling you.</h1>
+            <p className="hero-deck">BoardSignal reviews your recent Chess.com games together to show what changed, what&apos;s costing you games, and what to focus on next.</p>
             <div id="get-my-boardsignal" className="hero-username-card">
               <UsernameDeskForm />
             </div>
             <div className="first-value-preview">
-              <p className="kicker">YOUR WEEK IN ONE PLACE</p>
+              <p className="kicker">WHAT BOARDSIGNAL GIVES YOU</p>
               <div>
-                <span><BookOpen size={16} /> The story of your seven days</span>
-                <span><ChartNoAxesCombined size={16} /> Your latest four episodes and progress</span>
-                <span><ShieldCheck size={16} /> Private improvement signals</span>
-                <span><Target size={16} /> One thing to carry into the next episode</span>
+                <span><ShieldCheck size={16} /> Know what happened.</span>
+                <span><Target size={16} /> See what keeps repeating.</span>
+                <span><Target size={16} /> Know what to work on next.</span>
               </div>
-              <p>One useful thing to carry forward—and where your week stands in BoardSignal. A signal appears only when its evidence exists.</p>
+              <p>The simple answer comes first. The games, positions and evidence are there when you want to see why.</p>
             </div>
           </div>
 
-          <aside className="player-preview pipeline-preview motion-enter motion-delay-1" aria-label="Featured BoardSignal coverage">
-            <div className="pipeline-preview-top"><span>This week on BoardSignal</span><strong>{leadHeadline}</strong></div>
-            <p>{leadSummary}</p>
-            <div className="coverage-stat"><strong>{leadStat}</strong><span>{leadDetail}</span></div>
+          <aside className="player-preview pipeline-preview motion-enter motion-delay-1" aria-label="Example BoardSignal review">
+            <div className="pipeline-preview-top"><span>Example review</span><strong>34 games · 23W · 10L · 1D</strong></div>
+            <div className="coverage-stat"><strong>+92</strong><span>rating</span></div>
+            <p><strong>WHAT STOOD OUT</strong><br />Seven straight wins changed the week.</p>
+            <p><strong>BIGGEST OPPORTUNITY</strong><br />Several losses came after good positions had already been reached.</p>
+            <p><strong>FOCUS NEXT</strong><br />When you&apos;re ahead, check your opponent&apos;s forcing reply before committing.</p>
           </aside>
         </div>
       </section>
@@ -61,10 +46,10 @@ export default async function HomePage() {
       <section className="container secondary-coverage">
         <div className="secondary-heading">
           <div>
-            <p className="kicker">BoardSignal Universe</p>
-            <h2>The wider game, through its players.</h2>
+            <p className="kicker">Around BoardSignal</p>
+            <h2>Interesting weeks, through the players having them.</h2>
           </div>
-          <p>{betaProof.desks} player weeks. {betaProof.games} games covered.</p>
+          <p>{betaProof.desks} player weeks. {betaProof.games} games reviewed.</p>
         </div>
         <div className="secondary-story-grid">
           {secondaryStories.map((story) => (
@@ -76,11 +61,10 @@ export default async function HomePage() {
           ))}
         </div>
         <div className="secondary-footer">
-          <p><LockKeyhole size={15} /> Public highlight. Private weakness.</p>
-          <Link href="/feed" className="text-link">Enter the Universe</Link>
+          <p><LockKeyhole size={15} /> Public highlights. Private improvement guidance.</p>
+          <Link href="/feed" className="text-link">See what&apos;s happening around BoardSignal</Link>
         </div>
       </section>
-
     </div>
   );
 }

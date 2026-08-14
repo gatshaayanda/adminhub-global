@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, ChartNoAxesCombined, CircleCheckBig, ScanSearch } from "lucide-react";
+import { ArrowRight, ChartNoAxesCombined, CircleCheckBig, ScanSearch, Target } from "lucide-react";
 
 export const metadata = { title: "How It Works" };
 
 const stages = [
-  { icon: ScanSearch, title: "Confirm the player", copy: "You give BoardSignal your Chess.com username and timezone. We verify the public profile before retrieving games." },
-  { icon: CalendarDays, title: "Close the period", copy: "The Desk uses one exact, completed seven-calendar-day block. It does not slide forward daily or cherry-pick a game count." },
-  { icon: ChartNoAxesCombined, title: "Build the evidence", copy: "Games are reconstructed, counted and grouped into days, sessions, streaks, openings, clock patterns and candidate turning points." },
-  { icon: CircleCheckBig, title: "Publish the episode", copy: "The facts become a Replay, a Blue Signal and a short plan—specific enough to use, restrained enough to trust." },
+  { icon: ScanSearch, title: "Find your games", copy: "Enter your Chess.com username. BoardSignal brings your recent public games together—no password and no uploads." },
+  { icon: ChartNoAxesCombined, title: "Know what happened", copy: "See the record, rating movement, runs and shape of the week without piecing it together game by game." },
+  { icon: CircleCheckBig, title: "See what keeps repeating", copy: "BoardSignal looks across the games for supported patterns and says less when the evidence is not strong enough." },
+  { icon: Target, title: "Know what to work on next", copy: "Your completed review ends with one clear focus to carry into the next games, with the evidence available when you want it." },
 ];
 
 export default function HowItWorksPage() {
@@ -15,9 +15,9 @@ export default function HowItWorksPage() {
     <div id="main" className="interior-page">
       <header className="interior-hero">
         <div className="container">
-          <p className="kicker">Username → games → Desk</p>
-          <h1>Your username opens one clear week.</h1>
-          <p className="standfirst">BoardSignal does complex work behind the scenes, but the player experience stays simple: confirm who you are, understand the week, reach the signal and open the evidence.</p>
+          <p className="kicker">ONE USERNAME · ONE CLEAR REVIEW</p>
+          <h1>BoardSignal turns a pile of games into something you can use.</h1>
+          <p className="standfirst">The answer comes first: what happened, what mattered, and what to focus on next. The deeper game and position evidence is there when you want to see why.</p>
         </div>
       </header>
       <section className="container section-pad">
@@ -27,7 +27,7 @@ export default function HowItWorksPage() {
             return (
               <article className="info-card" key={stage.title}>
                 <div className="info-card-icon"><Icon size={20} /></div>
-                <p className="kicker">Stage {String(index + 1).padStart(2, "0")}</p>
+                <p className="kicker">{String(index + 1).padStart(2, "0")}</p>
                 <h3>{stage.title}</h3>
                 <p>{stage.copy}</p>
               </article>
@@ -37,14 +37,13 @@ export default function HowItWorksPage() {
       </section>
       <section className="paper-band">
         <div className="container section-pad privacy-callout">
-          <div><p className="kicker">What the player sees</p><h2>Complex work behind one clear screen.</h2></div>
-          <div><p>Your Desk is ready.</p><p><strong>3–9 August · 36 games · 20W 14L 2D · +47</strong></p><p>A week that turned around after Thursday&apos;s slide.</p></div>
+          <div><p className="kicker">WHAT THE PLAYER SEES</p><h2>Your review is ready.</h2></div>
+          <div><p><strong>3–9 August · 36 games · 20W 14L 2D · +47</strong></p><p>What happened. What mattered. Focus next.</p><p><small>Behind the scenes, BoardSignal keeps fixed review periods and evidence checks so the guidance stays grounded.</small></p></div>
         </div>
       </section>
       <section className="container section-pad">
-        <Link href="/#get-my-boardsignal" className="button button-lime">Get My BoardSignal <ArrowRight size={17} /></Link>
+        <Link href="/#get-my-boardsignal" className="button button-lime">Show me my review <ArrowRight size={17} /></Link>
       </section>
     </div>
   );
 }
-

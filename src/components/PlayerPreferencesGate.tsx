@@ -74,23 +74,23 @@ export default function PlayerPreferencesGate({
               maxLength={160}
             />
           </label>
-          <label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I agree BoardSignal may contact me about my Founding Beta account, Desk availability, important product updates and beta feedback.</span></label>
+          <label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I agree BoardSignal may contact me about my Founding Beta account, review availability, important product updates and beta feedback.</span></label>
         </div>
 
         <div className="preference-defaults-summary">
           <strong>BoardSignal updates are on by default</strong>
-          <p>Desk Ready · Episode Progress · Blue Reminder · Universe Achievement · Founder Updates</p>
+          <p>Review Ready · This Week Progress · Focus Next Reminder · Around BoardSignal Highlight · Founder Updates</p>
           <small>Browser permission is separate and will never be requested automatically. You can enable browser alerts later with a clear button.</small>
         </div>
 
         <div className="agreement-universe-required compact">
-          <span>BOARDSIGNAL UNIVERSE</span>
+          <span>AROUND BOARDSIGNAL</span>
           <strong>Included with Founding Beta ✓</strong>
-          <p>Your weaknesses, Signals, evidence and private progress stay private.</p>
+          <p>Your private improvement guidance, reviewed positions and progress stay private.</p>
         </div>
 
         <p className="beta-access-safety"><ShieldCheck size={14} /> Your contact is for BoardSignal beta communication only. It is not your authentication identity.</p>
-        <button className="button button-lime" type="button" disabled={busy} onClick={save}>{busy ? <><LoaderCircle className="button-spinner" size={16} /> Saving</> : <>Enter My Player Room <ArrowRight size={16} /></>}</button>
+        <button className="button button-lime" type="button" disabled={busy} onClick={save}>{busy ? <><LoaderCircle className="button-spinner" size={16} /> Saving</> : <>Enter My BoardSignal <ArrowRight size={16} /></>}</button>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
       </section>
     </div>

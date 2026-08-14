@@ -153,7 +153,7 @@ export default function UniversalPlayerDesk({
     }
     if (mode === "seed") {
       setDesk(seeded ?? null);
-      setError(seeded ? "" : "A full approved historical Desk has not been loaded for this player yet.");
+      setError(seeded ? "" : "A full approved historical review has not been loaded for this player yet.");
       setLoading(false);
       return () => { active = false; };
     }
@@ -176,7 +176,7 @@ export default function UniversalPlayerDesk({
       .then(async (response) => ({ response, body: await response.json() as DeskApiResponse }))
       .then(async ({ response, body }) => {
         if (!active) return;
-        if (!response.ok || !body.ok) throw new Error(body.ok ? "BoardSignal could not build this Desk." : body.error);
+        if (!response.ok || !body.ok) throw new Error(body.ok ? "BoardSignal could not build this review." : body.error);
         if (ownerToken && onFactualReviewReady) {
           try {
             await onFactualReviewReady(body.desk);
@@ -192,7 +192,7 @@ export default function UniversalPlayerDesk({
       })
       .catch((reason) => {
         if (!active) return;
-        const message = reason instanceof Error ? reason.message : "BoardSignal could not build this Desk.";
+        const message = reason instanceof Error ? reason.message : "BoardSignal could not build this review.";
         if (message.startsWith("No games were played")) setNoActivity(message);
         else setError(message);
       })
@@ -571,7 +571,7 @@ export default function UniversalPlayerDesk({
         setPersistenceError("");
         void onDeskPublished(interpreted.desk, engineResults).catch((reason) => {
           persistenceAttempts.current.delete(deskKey);
-          setPersistenceError(reason instanceof Error ? reason.message : "The completed Desk could not be saved to your Player Room.");
+          setPersistenceError(reason instanceof Error ? reason.message : "The completed review could not be saved to My BoardSignal.");
         });
       }
     } catch {
@@ -626,6 +626,9 @@ export default function UniversalPlayerDesk({
   }
   const hasPositions = shown.candidates.some((candidate) => candidate.fen || candidate.gameUrl);
   const universeView = shown.source === "live" ? buildPlayerUniverseView(foundingBetaField, shown) : undefined;
+  const isSupported = (signal: BoardSignalDesk["signals"]["green"]) => signal.status !== "withheld";
+  const matteredSignal = isSupported(shown.signals.red) ? shown.signals.red : isSupported(shown.signals.amber) ? shown.signals.amber : shown.signals.green;
+  const focusSignal = shown.signals.blue;
 
   return (
     <div id="main" className="universal-desk-page">
@@ -633,43 +636,53 @@ export default function UniversalPlayerDesk({
         <header className="universal-player-bar">
           <div className="universal-avatar">{shown.player.username.slice(0, 2).toUpperCase()}</div>
           <div><span>Chess.com account</span><h1>{shown.player.username}</h1><p>{shown.primaryPool} · {shown.period.label}</p></div>
-          <div className="private-access"><LockKeyhole size={16} /> {isPublishedView ? "Saved Player Room Desk" : shown.source === "live" ? "Live generated Desk" : "Example Desk"}</div>
+          <div className="private-access"><LockKeyhole size={16} /> {isPublishedView ? "Saved review" : shown.source === "live" ? "This week's review" : "Example review"}</div>
         </header>
 
         {shown.period.isLastActive ? (
-          <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>This is the last active week—not current form.</strong><p>The latest completed period was {shown.period.latestCompletedLabel}; BoardSignal searched backward through fixed seven-day episodes.</p></div></div>
+          <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>This is your latest active week—not current form.</strong><p>The latest completed week was {shown.period.latestCompletedLabel}; BoardSignal looked back to the most recent week with games.</p></div></div>
         ) : null}
-        {noActivity ? <div className="last-active-banner"><ShieldCheck size={18} /><div><strong>No new Desk was created.</strong><p>{noActivity} Your previous Desk remains available.</p></div></div> : null}
-        {persistenceError ? <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>Your Desk is complete on this device.</strong><p>{persistenceError} Reopen your Player Room to retry saving the same fixed episode.</p></div></div> : null}
+        {noActivity ? <div className="last-active-banner"><ShieldCheck size={18} /><div><strong>No new review was created.</strong><p>{noActivity} Your previous review remains available.</p></div></div> : null}
+        {persistenceError ? <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>Your review is complete on this device.</strong><p>{persistenceError} Reopen My BoardSignal to retry saving the same completed week.</p></div></div> : null}
 
         <section className="universal-cover">
           <div className="universal-cover-copy">
-            <span className="live-pill">{shown.source === "live" ? "Your live Desk" : "Historical founding-beta coverage"}</span>
-            <p className="kicker">{shown.period.label} · {shown.games} games</p>
+            <span className="live-pill">{shown.source === "live" ? "This week's review" : "Historical founding-beta review"}</span>
+            <p className="kicker">WHAT HAPPENED · {shown.period.label} · {shown.games} games</p>
             <h2>{shown.headline}</h2>
             <p>{shown.summary}</p>
             <div className="lead-actions">
-              <a href="#replay" className="button button-lime">Understand my week <ArrowRight size={17} /></a>
-              <a href="#signals" className="button button-glass">Go to my signals</a>
+              <a href="#replay" className="button button-lime">How it unfolded <ArrowRight size={17} /></a>
+              <a href="#evidence" className="button button-glass">Why BoardSignal thinks this</a>
             </div>
           </div>
           <div className="universal-score-card">
-            <span>Week at a glance</span>
+            <span>Review at a glance</span>
             <strong>{shown.wins}W · {shown.draws}D · {shown.losses}L</strong>
             <p>{shown.score.toFixed(1)}% score</p>
             <div><span>Longest runs</span><b>{shown.longestWinStreak}W · {shown.longestLossStreak}L</b></div>
           </div>
         </section>
 
-        <nav className="desk-chapter-nav" aria-label="Player Desk chapters">
-          <a href="#replay">My week</a>
+        <section className="universal-section" id="what-mattered">
+          <div className="universal-section-heading"><span>02</span><div><p className="kicker">WHAT MATTERED</p><h2>{matteredSignal.title}</h2><p>{matteredSignal.copy}</p></div></div>
+          <p className="helper-copy">{matteredSignal.evidenceIds?.length ? `${matteredSignal.evidenceIds.length} reviewed position${matteredSignal.evidenceIds.length === 1 ? "" : "s"} support this.` : "Supported by the completed factual review."}</p>
+        </section>
+
+        <section className="universal-section" id="focus-next">
+          <div className="universal-section-heading"><span>03</span><div><p className="kicker">FOCUS NEXT</p><h2>{isSupported(focusSignal) ? focusSignal.title : "Not enough evidence yet."}</h2><p>{isSupported(focusSignal) ? focusSignal.copy : "BoardSignal will not manufacture a next-step recommendation without enough support."}</p></div></div>
+          {hasPositions ? <a href="#evidence" className="text-link">Why BoardSignal thinks this →</a> : null}
+        </section>
+
+        <nav className="desk-chapter-nav" aria-label="Review details">
+          <a href="#replay">How it unfolded</a>
           <a href="#pools">Ratings & pools</a>
-          <a href="#signals">My signals</a>
-          {hasPositions ? <a href="#evidence">My evidence</a> : null}
-          {universeView ? <a href="#standing">My standing</a> : null}
+          <a href="#signals">What to work on</a>
+          {hasPositions ? <a href="#evidence">Why BoardSignal thinks this</a> : null}
+          {universeView ? <a href="#standing">Around BoardSignal</a> : null}
         </nav>
 
-        <section className="universal-metrics" aria-label="Desk facts">
+        <section className="universal-metrics" aria-label="Review facts">
           <div><span>Games</span><strong>{shown.games}</strong></div>
           <div><span>Sessions</span><strong>{shown.sessions ?? "—"}</strong></div>
           <div><span>Checkmate wins</span><strong>{shown.checkmateWins ?? "—"}</strong></div>
@@ -677,7 +690,7 @@ export default function UniversalPlayerDesk({
         </section>
 
         <section className="universal-section" id="replay">
-          <div className="universal-section-heading"><span>01</span><div><p className="kicker">The Replay</p><h2>How the week moved.</h2></div></div>
+          <div className="universal-section-heading"><span>↳</span><div><p className="kicker">HOW IT UNFOLDED</p><h2>The shape of your week.</h2></div></div>
           {shown.replay ? <div className="replay-narrative"><span>{shown.replay.shape.replaceAll("_", " ")}</span><h3>{shown.replay.title}</h3><p>{shown.replay.narrative}</p></div> : null}
           {shown.days.length ? (
             <div className="universal-timeline">
@@ -689,17 +702,17 @@ export default function UniversalPlayerDesk({
             </div>
           ) : <div className="section-empty"><strong>Your week in one view</strong><p>{shown.summary}</p></div>}
           <div className="replay-callouts">
-            <div><Sparkles /><span>Positive run</span><strong>{shown.longestWinStreak || "See Green Signal"}</strong><p>{shown.longestWinStreak ? "consecutive wins" : shown.signals.green.title}</p></div>
-            <div><BarChart3 /><span>Watch run</span><strong>{shown.longestLossStreak || "See Amber Signal"}</strong><p>{shown.longestLossStreak ? "consecutive losses" : shown.signals.amber.title}</p></div>
+            <div><Sparkles /><span>Positive run</span><strong>{shown.longestWinStreak || "See what went well"}</strong><p>{shown.longestWinStreak ? "consecutive wins" : shown.signals.green.title}</p></div>
+            <div><BarChart3 /><span>Watch run</span><strong>{shown.longestLossStreak || "See what to watch"}</strong><p>{shown.longestLossStreak ? "consecutive losses" : shown.signals.amber.title}</p></div>
           </div>
         </section>
 
         {shown.turningPoint ? <section className="universal-section" id="turning-point">
-          <div className="universal-section-heading"><span>02</span><div><p className="kicker">Turning point</p><h2>{shown.turningPoint.title}</h2><p>{shown.turningPoint.copy}</p></div></div>
+          <div className="universal-section-heading"><span>↳</span><div><p className="kicker">TURNING POINT</p><h2>{shown.turningPoint.title}</h2><p>{shown.turningPoint.copy}</p></div></div>
         </section> : null}
 
         <section className="universal-section" id="pools">
-          <div className="universal-section-heading"><span>{shown.turningPoint ? "03" : "02"}</span><div><p className="kicker">Ratings and pools</p><h2>Each time class gets its own rating story.</h2></div></div>
+          <div className="universal-section-heading"><span>↳</span><div><p className="kicker">RATINGS AND POOLS</p><h2>Each time class gets its own rating story.</h2></div></div>
           <div className="pool-table">
             {shown.pools.map((pool) => (
               <article key={pool.pool}>
@@ -723,8 +736,8 @@ export default function UniversalPlayerDesk({
         </section>
 
         <section className="universal-section" id="signals">
-          <div className="universal-section-heading"><span>{shown.turningPoint ? "04" : "03"}</span><div><p className="kicker">My Signal Board</p><h2>What to preserve, monitor and fix first.</h2></div></div>
-          {shown.source === "live" && !interpretation.complete ? <p className="helper-copy">Comparing {interpretation.reviewed} of {interpretation.total} selected positions. Red and Blue appear only after the evidence is complete.</p> : null}
+          <div className="universal-section-heading"><span>↳</span><div><p className="kicker">WHAT TO WORK ON</p><h2>The deeper guidance behind this review.</h2></div></div>
+          {shown.source === "live" && !interpretation.complete ? <p className="helper-copy">Comparing {interpretation.reviewed} of {interpretation.total} selected positions. Final improvement guidance appears only when the evidence is complete.</p> : null}
           <div className="universal-signal-grid">
             <SignalCard tone="green" signal={shown.signals.green} />
             <SignalCard tone="amber" signal={shown.signals.amber} />
@@ -734,19 +747,19 @@ export default function UniversalPlayerDesk({
         </section>
 
         {hasPositions ? <section className="universal-section" id="evidence">
-          <div className="universal-section-heading"><span>{shown.turningPoint ? "05" : "04"}</span><div><p className="kicker">The evidence</p><h2>Open the games behind the guidance.</h2></div></div>
+          <div className="universal-section-heading"><span>↳</span><div><p className="kicker">WHY BOARDSIGNAL THINKS THIS</p><h2>Open the games and positions behind the guidance.</h2></div></div>
           <div className="universal-evidence-list">
             {shown.candidates.map((candidate) => <EvidenceCard key={candidate.id} candidate={candidate} engine={engineResults[candidate.id]} />)}
           </div>
         </section> : null}
 
-        {shown.pocketCard ? <section className="universal-section pocket-card"><p className="kicker">Pocket card</p><h2>{shown.pocketCard}</h2></section> : null}
+        {shown.pocketCard ? <section className="universal-section pocket-card"><p className="kicker">TAKE THIS INTO YOUR NEXT GAMES</p><h2>{shown.pocketCard}</h2></section> : null}
 
         {universeView ? <PrivateUniverseSections view={universeView} /> : null}
 
         <section className="desk-caveats">
           <ShieldCheck size={20} />
-          <div><strong>Evidence notes</strong><ul>{shown.caveats.map((caveat) => <li key={caveat}>{caveat}</li>)}</ul></div>
+          <div><strong>Review notes</strong><ul>{shown.caveats.map((caveat) => <li key={caveat}>{caveat}</li>)}</ul></div>
         </section>
 
       </section>
@@ -757,13 +770,13 @@ export default function UniversalPlayerDesk({
 function DeskLoading({ username }: { username: string }) {
   return (
     <div id="main" className="desk-processing-page"><section className="container desk-processing-card">
-      <div className="processing-orb"><LoaderCircle /></div><p className="kicker">Building your live Desk</p><h1>{username}</h1><p>Keep this tab open while BoardSignal retrieves the public games and establishes the fixed seven-day period.</p>
+      <div className="processing-orb"><LoaderCircle /></div><p className="kicker">BUILDING YOUR REVIEW</p><h1>{username}</h1><p>Keep this tab open while BoardSignal retrieves the public games and establishes the fixed seven-day period.</p>
       <div className="processing-stages" aria-live="polite">
         <div className="active"><LoaderCircle className="spin" /><p>Getting games and confirming the seven-day period</p></div>
         <div><span aria-hidden="true" /><p>Reading the factual week</p></div>
         <div><span aria-hidden="true" /><p>Finding important moments</p></div>
         <div><span aria-hidden="true" /><p>Checking key positions</p></div>
-        <div><span aria-hidden="true" /><p>Validating the finished Desk</p></div>
+        <div><span aria-hidden="true" /><p>Checking the finished review</p></div>
       </div>
     </section></div>
   );
@@ -772,7 +785,7 @@ function DeskLoading({ username }: { username: string }) {
 function DeskError({ username, error }: { username: string; error: string }) {
   return (
     <div id="main" className="desk-processing-page"><section className="container desk-processing-card error-card">
-      <AlertTriangle /><p className="kicker">Desk could not be built</p><h1>{username}</h1><p>{error}</p><div className="gateway-search"><UsernameDeskForm compact /></div><Link href="/" className="text-link">Return to BoardSignal</Link>
+      <AlertTriangle /><p className="kicker">Review could not be built</p><h1>{username}</h1><p>{error}</p><div className="gateway-search"><UsernameDeskForm compact /></div><Link href="/" className="text-link">Return to BoardSignal</Link>
     </section></div>
   );
 }
@@ -785,13 +798,13 @@ function DeskNoActivity({ username, message, previousDesk }: { username: string;
     : undefined;
   return (
     <div id="main" className="desk-processing-page"><section className="container desk-processing-card">
-      <ShieldCheck /><p className="kicker">Between Desks</p><h1>{username}</h1><p>{message}</p><p>No populated Desk was invented and no historical seed was substituted for live processing.</p>
+      <ShieldCheck /><p className="kicker">BETWEEN REVIEWS</p><h1>{username}</h1><p>{message}</p><p>BoardSignal did not invent a review where there were no games to support one.</p>
       {returnLoop ? <div className="return-loop-grid">
-        {returnLoop.previousBlue ? <article className="return-loop-blue"><span>Carry with you</span><h2>{returnLoop.previousBlue.title}</h2><p>{returnLoop.previousBlue.copy}</p><small>From your last Desk · Not graded</small></article> : null}
+        {returnLoop.previousBlue ? <article className="return-loop-blue"><span>Carry with you</span><h2>{returnLoop.previousBlue.title}</h2><p>{returnLoop.previousBlue.copy}</p><small>From your last completed review · Not graded</small></article> : null}
         {returnLoop.amberWatch ? <article className="return-loop-amber"><span>Watch</span><h2>{returnLoop.amberWatch.title}</h2><p>{returnLoop.amberWatch.copy}</p><small>Awareness only · From {returnLoop.amberWatch.sourcePeriod}</small></article> : null}
-        <article className="return-loop-next"><span>Your next Desk</span><h2>{dueLabel ?? "After the next fixed period closes"}</h2><p>Your next completed Desk will judge its own evidence independently.</p></article>
-      </div> : <div className="universe-empty"><p>No previous passing LIVE Desk is stored on this device, so BoardSignal has nothing truthful to carry forward.</p></div>}
-      <div className="quality-actions"><Link href="/feed" className="button button-outline">Explore the Universe</Link><Link href="/" className="text-link">Return to BoardSignal</Link></div>
+        <article className="return-loop-next"><span>Your next review</span><h2>{dueLabel ?? "After the next fixed period closes"}</h2><p>Your next completed review will judge its own evidence independently.</p></article>
+      </div> : <div className="universe-empty"><p>No previous completed review is available here, so BoardSignal has nothing truthful to carry forward.</p></div>}
+      <div className="quality-actions"><Link href="/feed" className="button button-outline">Explore Around BoardSignal</Link><Link href="/" className="text-link">Return to BoardSignal</Link></div>
     </section></div>
   );
 }
@@ -804,8 +817,8 @@ function DeskAnalysisProgress({ username, reviewed, total }: { username: string;
         <div className="done"><ShieldCheck /><p>Player, games and period confirmed</p></div>
         <div className="done"><ShieldCheck /><p>Facts, pools, timeline and candidates calculated</p></div>
         <div className="active"><LoaderCircle className="spin" /><p>Checking key positions ({reviewed}/{total})</p></div>
-        <div><span aria-hidden="true" /><p>Building Replay and Signal Board</p></div>
-        <div><span aria-hidden="true" /><p>Validating the finished Desk</p></div>
+        <div><span aria-hidden="true" /><p>Preparing your review and guidance</p></div>
+        <div><span aria-hidden="true" /><p>Checking the finished review</p></div>
       </div>
     </section></div>
   );
@@ -884,7 +897,7 @@ function DeskQualityHold({
   }
   return (
     <div id="main" className="desk-processing-page"><section className="container desk-processing-card error-card">
-      <ShieldCheck /><p className="kicker">We could not finish this Desk</p><h1>{desk.player.username}</h1><p>This episode did not clear BoardSignal's evidence checks, so no diagnosis has been published.</p>
+      <ShieldCheck /><p className="kicker">We could not finish this review</p><h1>{desk.player.username}</h1><p>This review did not clear BoardSignal's evidence checks, so no unsupported guidance has been published.</p>
       <div className="processing-stages"><div className="done"><ShieldCheck /><p>Player, games, period and factual week completed</p></div><div className="active"><AlertTriangle /><p>Final evidence validation needs attention</p></div></div>
       <p className="quality-reference">Check: {codes.join(" · ")}</p>
       {diagnostic ? <details className="quality-reference" data-engine-code={diagnostic.code}>
@@ -901,7 +914,8 @@ function DeskQualityHold({
 }
 
 function SignalCard({ tone, signal }: { tone: "green" | "amber" | "red" | "blue"; signal: BoardSignalDesk["signals"]["green"] }) {
-  return <article className={`universal-signal signal-${tone} ${signal.status === "withheld" ? "signal-withheld" : ""}`}><span>{signal.label}</span><h3>{signal.title}</h3><p>{signal.copy}</p><small>{signal.status === "withheld" ? "Evidence threshold not met" : signal.evidenceIds?.length ? `${signal.evidenceIds.length} linked evidence position${signal.evidenceIds.length === 1 ? "" : "s"}` : "Supported by the factual week"}</small></article>;
+  const label = tone === "green" ? "WHAT WENT WELL" : tone === "amber" ? "KEEP AN EYE ON" : tone === "red" ? "BIGGEST OPPORTUNITY" : "FOCUS NEXT";
+  return <article className={`universal-signal signal-${tone} ${signal.status === "withheld" ? "signal-withheld" : ""}`}><span>{label}</span><h3>{signal.title}</h3><p>{signal.copy}</p><small>{signal.status === "withheld" ? "Not enough evidence yet" : signal.evidenceIds?.length ? `${signal.evidenceIds.length} linked evidence position${signal.evidenceIds.length === 1 ? "" : "s"}` : "Supported by the completed review"}</small></article>;
 }
 
 function EvidenceCard({ candidate, engine }: { candidate: DeskCandidate; engine?: DeskEngineResult }) {

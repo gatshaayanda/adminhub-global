@@ -4,15 +4,15 @@ import { ArrowRight } from "lucide-react";
 export const metadata = { title: "Membership" };
 
 const plans = [
-  { name: "First Desk", price: "Free", note: "one time", features: ["One fixed seven-day episode", "Replay + Blue Signal + actions", "Private Player Room preview"], style: "" },
-  { name: "Founding Member", price: "$7.99", note: "per month", features: ["Up to four Desks per billing month", "Player Room and moving archive", "Choose what positive moments to share", "Founding price while beta terms apply"], style: "lime" },
-  { name: "Human-reviewed Plus", price: "$19.99", note: "planned", features: ["Everything in membership", "Human review on selected Desks", "Deeper clarification when evidence is unusual"], style: "blue" },
+  { name: "First Review", price: "Free", note: "one time", features: ["One completed weekly review", "What happened + What mattered + Focus next", "Private My BoardSignal access"], style: "" },
+  { name: "Founding Member", price: "$7.99", note: "per month", features: ["Up to four reviews per billing month", "My BoardSignal and moving review history", "Choose which positive moments to share", "Founding price while beta terms apply"], style: "lime" },
+  { name: "Human-reviewed Plus", price: "$19.99", note: "planned", features: ["Everything in membership", "Human review on selected weekly reviews", "Deeper clarification when the evidence is unusual"], style: "blue" },
 ];
 
 export default function PricingPage() {
   return (
     <div id="main" className="interior-page">
-      <header className="interior-hero"><div className="container"><p className="kicker">Membership</p><h1>Pay for coverage—not endless custom work.</h1><p className="standfirst">Every member receives the same disciplined product format. That is how BoardSignal can serve many players without turning into hundreds of separate jobs.</p></div></header>
+      <header className="interior-hero"><div className="container"><p className="kicker">Membership</p><h1>Keep understanding your games, week after week.</h1><p className="standfirst">Each review tells you what happened, what mattered, and what to focus on next—then your history starts showing what is changing over time.</p></div></header>
       <section className="container section-pad">
         <div className="content-grid">
           {plans.map((plan) => (
@@ -21,7 +21,7 @@ export default function PricingPage() {
               <strong>{plan.price}</strong>
               <p>{plan.note}</p>
               <ul className="feature-list">{plan.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
-              <div className="interior-actions"><Link href="/join" className={`button ${plan.style === "blue" ? "button-lime" : "button-dark"}`}>Choose this Desk <ArrowRight size={16} /></Link></div>
+              <div className="interior-actions"><Link href="/join" className={`button ${plan.style === "blue" ? "button-lime" : "button-dark"}`}>Choose this review <ArrowRight size={16} /></Link></div>
             </article>
           ))}
         </div>
@@ -30,4 +30,3 @@ export default function PricingPage() {
     </div>
   );
 }
-

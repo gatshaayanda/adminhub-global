@@ -48,8 +48,8 @@ export default function ChessComLoginPanel({ compact = false }: { compact?: bool
       <div className="chesscom-login-icon"><LockKeyhole size={20} /></div>
       <div className="chesscom-login-copy">
         <span>{status?.enabled ? "CHESS.COM ACCOUNT ACCESS" : "FOUNDING BETA ACCESS"}</span>
-        <h2>Keep your latest four Desks together.</h2>
-        <p>{status?.enabled ? status.message : "Official Chess.com sign-in is awaiting approval. Founding Beta players can enter securely now."}</p>
+        <h2>Keep your latest four reviews together.</h2>
+        <p>{status?.enabled ? status.message : "Official Chess.com sign-in is awaiting approval. Founding Beta players can open My BoardSignal securely now."}</p>
         <small><ShieldCheck size={14} /> BoardSignal never asks for or stores your Chess.com password.</small>
       </div>
       <div className="chesscom-login-actions">

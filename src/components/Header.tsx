@@ -10,8 +10,8 @@ import { BOARDSIGNAL_FOUNDER_DEVICE_EVENT, BOARDSIGNAL_FOUNDER_DEVICE_KEY } from
 
 const primaryNav = [
   { label: "Home", href: "/" },
-  { label: "Universe", href: "/feed" },
-  { label: "My Player Room", href: "/boardsignal/player-room" },
+  { label: "Around BoardSignal", href: "/feed" },
+  { label: "My BoardSignal", href: "/boardsignal/player-room" },
 ];
 
 export default function Header() {
@@ -40,7 +40,7 @@ export default function Header() {
       <div className="container masthead">
         <Link href="/" className="brand-lockup" aria-label="BoardSignal home">
           <SignalMark className="brand-mark" />
-          <span><span className="brand-name">BoardSignal</span><span className="brand-line">The personal sports desk for everyday chess players</span></span>
+          <span><span className="brand-name">BoardSignal</span><span className="brand-line">Your games, understood</span></span>
         </Link>
         <nav className="desktop-nav" aria-label="Primary navigation">
           {primaryNav.map((item) => <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""}>{item.label}</Link>)}

@@ -25,11 +25,11 @@ export function UniverseCategoryCards({ groups }: { groups: UniverseCategoryGrou
                     <span>{item.rank}</span>
                     <div><strong>{item.player}</strong><small>{item.evidence}</small></div>
                     <b>{item.valueLabel}</b>
-                    {item.coverageHref ? <Link href={item.coverageHref} aria-label={`Open positive coverage for ${item.player}`}><ArrowRight size={16} /></Link> : null}
+                    {item.coverageHref ? <Link href={item.coverageHref} aria-label={`Open positive highlight for ${item.player}`}><ArrowRight size={16} /></Link> : null}
                   </li>
                 ))}
               </ol>
-              {board.entries.length < 3 ? <p className="universe-field-note">Field forming · {board.entries.length} comparable approved Desk{board.entries.length === 1 ? "" : "s"}.</p> : null}
+              {board.entries.length < 3 ? <p className="universe-field-note">More players are joining · {board.entries.length} comparable completed review{board.entries.length === 1 ? "" : "s"}.</p> : null}
             </div>
           )) : <div className="universe-empty"><Radio size={18} /><p>{group.emptyMessage}</p></div>}
         </article>
@@ -42,7 +42,7 @@ export function PrivateUniverseSections({ view }: { view: PlayerUniverseView }) 
   return (
     <>
       <section className="universal-section private-universe-section" id="standing">
-        <div className="universal-section-heading"><span>U</span><div><p className="kicker">Your standing</p><h2>Your week in the BoardSignal Universe.</h2></div></div>
+        <div className="universal-section-heading"><span>U</span><div><p className="kicker">AROUND BOARDSIGNAL</p><h2>Where your completed week stands.</h2></div></div>
         <div className="founding-field-note"><TrendingUp size={18} /><div><strong>{view.fieldLabel}</strong><p>{view.fieldDescription}</p></div></div>
         {view.standings.length ? (
           <div className="private-standing-list">
@@ -54,15 +54,15 @@ export function PrivateUniverseSections({ view }: { view: PlayerUniverseView }) 
                   <p>{standing.valueLabel}{standing.percentile !== undefined ? ` · ${standing.percentile}th percentile` : ""}</p>
                 </div>
                 {standing.label ? <b>{standing.label}</b> : <b>{standing.denominator} comparable</b>}
-                {standing.nearestAbove ? <small>In reach: {standing.nearestAbove.player} · {standing.nearestAbove.valueLabel}</small> : <small>{standing.rank === 1 && standing.denominator >= 3 ? "Leading this approved field." : "More approved Desks will make this comparison stronger."}</small>}
+                {standing.nearestAbove ? <small>In reach: {standing.nearestAbove.player} · {standing.nearestAbove.valueLabel}</small> : <small>{standing.rank === 1 && standing.denominator >= 3 ? "Leading this approved field." : "More completed reviews will make this comparison stronger."}</small>}
               </article>
             ))}
           </div>
-        ) : <div className="universe-empty"><p>This Desk is valid, but its available facts do not yet meet a comparison category&apos;s minimum sample. No standing has been invented.</p></div>}
+        ) : <div className="universe-empty"><p>This review is valid, but its available facts do not yet meet a comparison category&apos;s minimum sample. No standing has been invented.</p></div>}
       </section>
 
       <section className="universal-section universe-learning-section">
-        <div className="universal-section-heading"><span><Target size={16} /></span><div><p className="kicker">This week&apos;s BoardSignal</p><h2>Top performances to learn from.</h2></div></div>
+        <div className="universal-section-heading"><span><Target size={16} /></span><div><p className="kicker">THIS WEEK&apos;S STANDOUTS</p><h2>Top performances to learn from.</h2></div></div>
         {view.learningLeaders.length ? <div className="universe-learning-grid">
           {view.learningLeaders.map((leader) => (
             <Link href={leader.coverageHref} key={`${leader.categoryId}:${leader.player}`}>
@@ -70,11 +70,11 @@ export function PrivateUniverseSections({ view }: { view: PlayerUniverseView }) 
               <h3>{leader.player}</h3>
               <strong>{leader.valueLabel}</strong>
               <p>{leader.coverageHeadline}</p>
-              <small>Open positive coverage <ArrowRight size={14} /></small>
+              <small>Open highlight <ArrowRight size={14} /></small>
             </Link>
           ))}
         </div> : <div className="universe-empty"><p>The relevant approved comparison field is still forming.</p></div>}
-        <Link href="/feed" className="universe-explore-link">Explore the Universe <ArrowRight size={16} /></Link>
+        <Link href="/feed" className="universe-explore-link">Explore Around BoardSignal <ArrowRight size={16} /></Link>
       </section>
     </>
   );

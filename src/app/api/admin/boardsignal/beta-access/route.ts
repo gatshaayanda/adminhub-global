@@ -5,6 +5,7 @@ import {
   resetFoundingBetaAccess,
   revokeFoundingBetaAccess,
 } from "@/lib/boardsignal/server/betaAccess";
+import { deleteBoardSignalAccount } from "@/lib/boardsignal/server/accountDeletion";
 import {
   approveFoundingBetaRequest,
   confirmFoundingBetaIdentity,
@@ -48,7 +49,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { action?: unknown; username?: unknown; playerId?: unknown; requestId?: unknown; fcmToken?: unknown; userAgent?: unknown };
+    const body = await request.json() as { action?: unknown; username?: unknown; playerId?: unknown; requestId?: unknown; confirmationUsername?: unknown; fcmToken?: unknown; userAgent?: unknown };
+    if (body.action === "deleteAccount") {
+      const deletion = await deleteBoardSignalAccount({ playerId: body.playerId, confirmationUsername: body.confirmationUsername });
+      return response({ ok: true, deletion });
+    }
     if (body.action === "confirmIdentity" && typeof body.requestId === "string") {
       const result = await confirmFoundingBetaIdentity(body.requestId);
       const resultRequest = result.request;
@@ -110,11 +115,12 @@ export async function POST(request: Request) {
     if (body.action === "revoke") {
       return response({ ok: true, result: await revokeFoundingBetaAccess(body.playerId) });
     }
-    return response({ ok: false, error: "Choose Confirm/Revoke Identity, recovery access, Founder Alerts, Create Beta Access, Reset Access, or Revoke Access." }, 400);
+    return response({ ok: false, error: "Choose Confirm/Revoke Identity, recovery access, Founder Alerts, Create Beta Access, Reset Access, Revoke Access, or Delete BoardSignal Account." }, 400);
   } catch (error) {
     return response({
       ok: false,
       code: String((error as { code?: string }).code ?? "BETA_ACCESS_ADMIN_FAILED"),
+      stage: typeof (error as { stage?: unknown }).stage === "string" ? String((error as { stage?: string }).stage) : undefined,
       error: error instanceof Error ? error.message : "Founding Beta Access could not be updated.",
     }, errorStatus(error));
   }

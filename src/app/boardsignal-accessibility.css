@@ -471,3 +471,119 @@ html[data-bs-theme="dark"] .state-pill.exception {
   background: var(--bs-danger-surface);
   color: var(--bs-danger-text);
 }
+
+/* ==========================================================
+   Patch A.2 — Founder-only destructive account lifecycle UI
+   Uses existing C.1 danger/readability roles; no consumer redesign.
+   ========================================================== */
+.founder-account-deletion-zone {
+  margin-top: 2rem;
+  border: 1px solid var(--bs-ui-border);
+  border-left: 5px solid var(--bs-danger-text);
+  background: var(--bs-surface);
+}
+.founder-account-deletion-zone h2,
+.founder-account-deletion-zone h3,
+.founder-account-deletion-zone strong { color: var(--bs-text); }
+.founder-account-deletion-zone > .founder-directory-heading > div > p:last-child { color: var(--bs-text-secondary); }
+.founder-account-deletion-picker {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: .65rem;
+  align-items: end;
+  margin-top: 1rem;
+}
+.founder-account-deletion-picker label { grid-column: 1 / -1; color: var(--bs-text); font-weight: 800; }
+.founder-account-deletion-picker select,
+.founder-account-delete-dialog input {
+  min-height: 46px;
+  border: 1px solid var(--bs-ui-border);
+  background: var(--bs-surface-raised);
+  color: var(--bs-text);
+  padding: .65rem .75rem;
+}
+.founder-delete-account-button,
+.founder-delete-account-permanently {
+  border: 2px solid var(--bs-danger-text);
+  background: var(--bs-danger-surface);
+  color: var(--bs-danger-text);
+  box-shadow: none;
+}
+.founder-delete-account-button :is(svg, span, strong),
+.founder-delete-account-permanently :is(svg, span, strong) { color: currentColor; }
+.founder-delete-account-button:hover,
+.founder-delete-account-permanently:hover {
+  background: color-mix(in srgb, var(--bs-danger-text) 12%, var(--bs-danger-surface));
+  color: var(--bs-danger-text);
+  box-shadow: 0 0 0 2px var(--bs-danger-text);
+  transform: none;
+}
+.founder-account-deletion-success,
+.founder-account-deletion-error {
+  display: flex;
+  gap: .65rem;
+  align-items: flex-start;
+  margin-top: 1rem;
+  padding: .85rem 1rem;
+  border: 1px solid currentColor;
+}
+.founder-account-deletion-success { background: var(--bs-positive-surface); color: var(--bs-positive-text); }
+.founder-account-deletion-success :is(strong, p) { color: var(--bs-positive-text); }
+.founder-account-deletion-error { background: var(--bs-danger-surface); color: var(--bs-danger-text); }
+.founder-account-deletion-error strong { color: var(--bs-danger-text); }
+.founder-account-deletion-error p { color: var(--bs-text-secondary); }
+.founder-account-delete-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(8, 17, 30, .72);
+}
+.founder-account-delete-dialog-card {
+  position: relative;
+  width: min(100%, 560px);
+  display: grid;
+  gap: .85rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 2px solid var(--bs-danger-text);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-raised);
+  color: var(--bs-text);
+  box-shadow: var(--bs-shadow-2);
+}
+.founder-account-delete-dialog-card > svg { color: var(--bs-danger-text); }
+.founder-account-delete-dialog-card > p { color: var(--bs-text-secondary); }
+.founder-account-delete-dialog-card label { color: var(--bs-text); font-weight: 800; }
+.founder-account-delete-close {
+  position: absolute;
+  top: .75rem;
+  right: .75rem;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--bs-ui-border);
+  border-radius: 50%;
+  background: var(--bs-surface);
+  color: var(--bs-text);
+  cursor: pointer;
+}
+.founder-account-delete-identity {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .75rem;
+  border: 1px solid var(--bs-ui-border);
+  background: var(--bs-bg-subtle);
+}
+.founder-account-delete-identity span { color: var(--bs-text-secondary); }
+.founder-account-delete-actions { display: flex; justify-content: flex-end; gap: .65rem; flex-wrap: wrap; }
+@media (max-width: 680px) {
+  .founder-account-deletion-picker { grid-template-columns: 1fr; }
+  .founder-account-deletion-picker label { grid-column: auto; }
+  .founder-account-deletion-picker .button { width: 100%; }
+  .founder-account-delete-actions { display: grid; grid-template-columns: 1fr; }
+  .founder-account-delete-actions .button { width: 100%; }
+}

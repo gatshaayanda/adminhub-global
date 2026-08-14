@@ -6,6 +6,7 @@ import {
   accountForToken,
   buildPlayerRoomSnapshot,
   publishPrivateDesk,
+  savePendingFactualReview,
   requirePlayerToken,
   updatePlayerPreferences,
 } from "@/lib/boardsignal/server/persistence";
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   try {
     const token = await requirePlayerToken(request);
     const body = await request.json() as {
-      action?: "acceptAgreement" | "publishDesk" | "updatePreferences";
+      action?: "acceptAgreement" | "saveFactualReview" | "publishDesk" | "updatePreferences";
       desk?: BoardSignalDesk;
       engineResults?: Record<string, DeskEngineResult>;
       privacy?: import("@/lib/boardsignal/account").BoardSignalPrivacySettings;
@@ -78,6 +79,9 @@ export async function POST(request: Request) {
     };
     if (body.action === "acceptAgreement") {
       return response({ ok: true, account: await acceptFoundingBetaAgreement(token) });
+    }
+    if (body.action === "saveFactualReview" && body.desk) {
+      return response({ ok: true, factualReview: await savePendingFactualReview(token, body.desk) });
     }
     if (body.action === "publishDesk" && body.desk && body.engineResults) {
       return response({ ok: true, publication: await publishPrivateDesk(token, body.desk, body.engineResults) });

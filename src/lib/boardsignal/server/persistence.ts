@@ -29,6 +29,7 @@ import {
 } from "../memory";
 import { validateDeskForPublication } from "../quality";
 import type { BoardSignalDesk, DeskEngineResult } from "../types";
+import { createFactualReviewDraft, type FactualReviewDraft } from "../factualReview";
 import type { PlayerPulse, SafeShareMoment } from "../pulse";
 import {
   buildPlayerPulse,
@@ -52,6 +53,7 @@ export type PlayerRoomSnapshot = {
   recurringPatterns: RecurringPattern[];
   personalRecords: PersonalRecords;
   currentEpisode?: CurrentEpisodeSummary;
+  pendingFactualReview?: FactualReviewDraft;
   progressUnavailable?: string;
   pulseUnavailable?: string;
   generationRequired: boolean;
@@ -348,6 +350,30 @@ export async function updatePlayerPreferences(
   };
 }
 
+export async function savePendingFactualReview(
+  token: DecodedIdToken,
+  desk: BoardSignalDesk,
+): Promise<FactualReviewDraft> {
+  const account = await accountForToken(token);
+  const next = createFactualReviewDraft(account, desk);
+  const ref = getAdminDb().collection("users").doc(account.uid).collection("factualReviews").doc(safeDocumentId(next.deskKey));
+  return getAdminDb().runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+    const createdAt = typeof existing.data()?.createdAt === "string" ? String(existing.data()!.createdAt) : next.createdAt;
+    const stored = { ...next, createdAt, updatedAt: new Date().toISOString() };
+    transaction.set(ref, clean(stored), { merge: false });
+    return stored;
+  });
+}
+
+export async function loadPendingFactualReviews(uid: string): Promise<FactualReviewDraft[]> {
+  const snapshot = await getAdminDb().collection("users").doc(uid).collection("factualReviews").get();
+  return snapshot.docs
+    .map((document) => document.data() as FactualReviewDraft)
+    .filter((draft) => draft.schemaVersion === "boardsignal-factual-review-v1" && draft.status === "engine_pending")
+    .sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
+}
+
 async function deleteDeskTree(uid: string, deskDocumentId: string) {
   const db = getAdminDb();
   const deskRef = db.collection("users").doc(uid).collection("desks").doc(deskDocumentId);
@@ -386,6 +412,7 @@ export async function publishPrivateDesk(
   const deskDocumentId = safeDocumentId(summary.deskKey);
   const desksRef = db.collection("users").doc(account.uid).collection("desks");
   const deskRef = desksRef.doc(deskDocumentId);
+  const factualReviewRef = db.collection("users").doc(account.uid).collection("factualReviews").doc(deskDocumentId);
   const previous = await desksRef.get();
   const alreadyPublished = previous.docs.some((document) => document.id === deskDocumentId);
 
@@ -407,6 +434,8 @@ export async function publishPrivateDesk(
       engineResult: engineResults[candidate.id],
     }));
   });
+  // A factual review is retired only in the same successful private-Desk write.
+  batch.delete(factualReviewRef);
   await batch.commit();
 
   const entries = [
@@ -495,8 +524,22 @@ export async function buildPlayerRoomSnapshot(
   }), { merge: true });
   const desks = await loadPublishedDesks(account.uid);
   const summaries = desks.map((item) => item.summary);
+  const publishedKeys = new Set(summaries.map((summary) => summary.deskKey));
+  const factualReviews = await loadPendingFactualReviews(account.uid);
+  const obsoleteFactualReviews = factualReviews.filter((draft) => publishedKeys.has(draft.deskKey));
+  if (obsoleteFactualReviews.length) {
+    const cleanup = getAdminDb().batch();
+    obsoleteFactualReviews.forEach((draft) => cleanup.delete(
+      getAdminDb().collection("users").doc(account.uid).collection("factualReviews").doc(safeDocumentId(draft.deskKey)),
+    ));
+    await cleanup.commit();
+  }
   const latest = desks[0]?.desk;
-  const generationRequired = !latest || Boolean(
+  const pendingFactualReview = factualReviews.find((draft) => (
+    !publishedKeys.has(draft.deskKey)
+    && (!latest || draft.periodEnd > latest.period.end)
+  ));
+  const generationRequired = pendingFactualReview ? false : !latest || Boolean(
     latest.cadence?.nextAvailableOn
     && latest.cadence.nextAvailableOn <= new Date().toISOString().slice(0, 10),
   );
@@ -529,6 +572,7 @@ export async function buildPlayerRoomSnapshot(
       largestPoolSpecificRatingClimb: {},
     },
     currentEpisode,
+    pendingFactualReview,
     progressUnavailable,
     pulseUnavailable,
     generationRequired,

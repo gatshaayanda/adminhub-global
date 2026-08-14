@@ -17,6 +17,7 @@ import { PrivateUniverseSections } from "@/components/UniverseRecognition";
 import { findSeedCadence, findSeededDesk } from "@/data/seededDesks";
 import { foundingBetaField } from "@/data/universeField";
 import { applyEngineInterpretation, finalizeEngineResult } from "@/lib/boardsignal/interpretation";
+import { factualReviewToRetryDesk, type FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import { validateDeskForPublication } from "@/lib/boardsignal/quality";
 import { buildDeskReturnLoop, buildPlayerUniverseView } from "@/lib/boardsignal/universe";
 import type {
@@ -32,7 +33,11 @@ const ENGINE_JS_URL = "/stockfish/stockfish-18-lite-single.js";
 const ENGINE_WASM_URL = "/stockfish/stockfish-18-lite-single.wasm";
 const ENGINE_DEPTH = 11;
 const DESK_CACHE_VERSION = "v1";
+const MAX_AUTO_ENGINE_RECOVERY_PASSES = 1;
+const NON_RETRYABLE_ENGINE_CODES = new Set<EngineDiagnosticCode>(["ENGINE_UNSUPPORTED", "ENGINE_ASSET_404"]);
 const EMPTY_ENGINE_RESULTS: Record<string, DeskEngineResult> = {};
+
+type EngineRecoveryState = "idle" | "checking" | "auto-retrying" | "manual" | "blocked";
 
 function storedDeskKey(username: string) {
   return `boardsignal:desks:${DESK_CACHE_VERSION}:${username.toLowerCase()}`;
@@ -75,6 +80,8 @@ type UniversalPlayerDeskProps = {
   mode?: "seed" | "live";
   ownerToken?: string;
   onDeskPublished?: (desk: BoardSignalDesk, engineResults: Record<string, DeskEngineResult>) => Promise<void>;
+  onFactualReviewReady?: (desk: BoardSignalDesk) => Promise<void>;
+  pendingFactualReview?: FactualReviewDraft;
   publishedDesk?: BoardSignalDesk;
   publishedEngineResults?: Record<string, DeskEngineResult>;
 };
@@ -84,13 +91,17 @@ export default function UniversalPlayerDesk({
   mode = "live",
   ownerToken,
   onDeskPublished,
+  onFactualReviewReady,
+  pendingFactualReview,
   publishedDesk,
   publishedEngineResults = EMPTY_ENGINE_RESULTS,
 }: UniversalPlayerDeskProps) {
   const isPublishedView = Boolean(publishedDesk);
+  const isPendingFactualView = Boolean(pendingFactualReview) && !isPublishedView;
   const seeded = useMemo(() => findSeededDesk(requestedUsername), [requestedUsername]);
   const cadenceAnchor = useMemo(() => findSeedCadence(requestedUsername), [requestedUsername]);
-  const [desk, setDesk] = useState<BoardSignalDesk | null>(publishedDesk ?? (mode === "seed" ? seeded ?? null : null));
+  const pendingDesk = useMemo(() => pendingFactualReview ? factualReviewToRetryDesk(pendingFactualReview) : undefined, [pendingFactualReview]);
+  const [desk, setDesk] = useState<BoardSignalDesk | null>(publishedDesk ?? pendingDesk ?? (mode === "seed" ? seeded ?? null : null));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(mode === "live" && !isPublishedView);
   const [noActivity, setNoActivity] = useState("");
@@ -99,6 +110,11 @@ export default function UniversalPlayerDesk({
   const [engineAttempt, setEngineAttempt] = useState(0);
   const [storedDesks, setStoredDesks] = useState<BoardSignalDesk[]>([]);
   const [persistenceError, setPersistenceError] = useState("");
+  const [analysisEnabled, setAnalysisEnabled] = useState(!isPendingFactualView);
+  const [factualReviewDurable, setFactualReviewDurable] = useState(isPendingFactualView);
+  const [retryCandidateIds, setRetryCandidateIds] = useState<string[] | null>(null);
+  const [recoveryState, setRecoveryState] = useState<EngineRecoveryState>(isPendingFactualView ? "manual" : "checking");
+  const autoRecoveryPasses = useRef(0);
   const persistenceAttempts = useRef(new Set<string>());
 
   useEffect(() => {
@@ -110,6 +126,26 @@ export default function UniversalPlayerDesk({
     if (publishedDesk) {
       setDesk(publishedDesk);
       setEngineResults(publishedEngineResults);
+      setAnalysisEnabled(false);
+      setFactualReviewDurable(false);
+      setRetryCandidateIds(null);
+      setRecoveryState("idle");
+      autoRecoveryPasses.current = 0;
+      setError("");
+      setNoActivity("");
+      setLoading(false);
+      return () => { active = false; };
+    }
+    if (pendingFactualReview && pendingDesk) {
+      setDesk(pendingDesk);
+      setEngineResults({});
+      setEngineDiagnostic(null);
+      setAnalysisEnabled(false);
+      setFactualReviewDurable(true);
+      setRetryCandidateIds(null);
+      setRecoveryState("manual");
+      autoRecoveryPasses.current = 0;
+      setPersistenceError("");
       setError("");
       setNoActivity("");
       setLoading(false);
@@ -127,15 +163,32 @@ export default function UniversalPlayerDesk({
     setEngineResults({});
     setEngineDiagnostic(null);
     setEngineAttempt(0);
+    setAnalysisEnabled(true);
+    setFactualReviewDurable(false);
+    setRetryCandidateIds(null);
+    setRecoveryState("checking");
+    autoRecoveryPasses.current = 0;
+    setPersistenceError("");
     setLoading(true);
     const anchor = cadenceAnchor ? `?anchorStart=${encodeURIComponent(cadenceAnchor)}` : "";
 
     fetch(`/api/boardsignal/${encodeURIComponent(requestedUsername)}${anchor}`, { cache: "no-store" })
       .then(async (response) => ({ response, body: await response.json() as DeskApiResponse }))
-      .then(({ response, body }) => {
+      .then(async ({ response, body }) => {
         if (!active) return;
         if (!response.ok || !body.ok) throw new Error(body.ok ? "BoardSignal could not build this Desk." : body.error);
-        setDesk(body.desk);
+        if (ownerToken && onFactualReviewReady) {
+          try {
+            await onFactualReviewReady(body.desk);
+            if (active) {
+              setFactualReviewDurable(true);
+              setPersistenceError("");
+            }
+          } catch (reason) {
+            if (active) setPersistenceError(reason instanceof Error ? reason.message : "Your factual week is available in this session, but BoardSignal could not save it for return yet.");
+          }
+        }
+        if (active) setDesk(body.desk);
       })
       .catch((reason) => {
         if (!active) return;
@@ -152,11 +205,12 @@ export default function UniversalPlayerDesk({
     return () => {
       active = false;
     };
-  }, [requestedUsername, mode, seeded, cadenceAnchor, publishedDesk, publishedEngineResults]);
+  }, [requestedUsername, mode, seeded, cadenceAnchor, publishedDesk, publishedEngineResults, pendingFactualReview, pendingDesk, ownerToken, onFactualReviewReady]);
 
   useEffect(() => {
-    if (!desk || desk.source !== "live" || isPublishedView) return;
-    const candidates = desk.candidates.filter((candidate) => candidate.fenBefore ?? candidate.fen);
+    if (!desk || desk.source !== "live" || isPublishedView || !analysisEnabled) return;
+    const retrySet = retryCandidateIds ? new Set(retryCandidateIds) : undefined;
+    const candidates = desk.candidates.filter((candidate) => (candidate.fenBefore ?? candidate.fen) && (!retrySet || retrySet.has(candidate.id)));
     if (!candidates.length) return;
 
     let cancelled = false;
@@ -459,7 +513,40 @@ export default function UniversalPlayerDesk({
       if (stopTimer) clearTimeout(stopTimer);
       worker?.terminate();
     };
-  }, [desk, engineAttempt, isPublishedView]);
+  }, [desk, engineAttempt, isPublishedView, analysisEnabled, retryCandidateIds]);
+
+  useEffect(() => {
+    if (!desk || desk.source !== "live" || isPublishedView || !analysisEnabled) return;
+    const reviewable = desk.candidates.filter((candidate) => candidate.fenBefore ?? candidate.fen);
+    if (!reviewable.length || !reviewable.every((candidate) => Boolean(engineResults[candidate.id]))) return;
+
+    const failed = reviewable.filter((candidate) => engineResults[candidate.id]?.status === "failed");
+    if (!failed.length) {
+      setRecoveryState("idle");
+      return;
+    }
+    const retryable = failed.filter((candidate) => !NON_RETRYABLE_ENGINE_CODES.has(engineResults[candidate.id]?.failureCode as EngineDiagnosticCode));
+    const blocked = failed.filter((candidate) => NON_RETRYABLE_ENGINE_CODES.has(engineResults[candidate.id]?.failureCode as EngineDiagnosticCode));
+    if (!retryable.length) {
+      setRecoveryState("blocked");
+      setAnalysisEnabled(false);
+      return;
+    }
+    if (autoRecoveryPasses.current >= MAX_AUTO_ENGINE_RECOVERY_PASSES) {
+      setRecoveryState(blocked.length ? "blocked" : "manual");
+      setAnalysisEnabled(false);
+      return;
+    }
+
+    autoRecoveryPasses.current += 1;
+    setRecoveryState("auto-retrying");
+    const timer = window.setTimeout(() => {
+      setRetryCandidateIds(retryable.map((candidate) => candidate.id));
+      setEngineDiagnostic(null);
+      setEngineAttempt((attempt) => attempt + 1);
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [analysisEnabled, desk, engineResults, isPublishedView]);
 
   useEffect(() => {
     if (!desk || desk.source !== "live" || isPublishedView || typeof window === "undefined") return;
@@ -497,19 +584,45 @@ export default function UniversalPlayerDesk({
   if (error || !desk) return <DeskError username={requestedUsername} error={error} />;
 
   const retryAnalysis = () => {
-    setEngineResults({});
-    setEngineDiagnostic(null);
-    setEngineAttempt((attempt) => attempt + 1);
+    const retryableIds = desk.candidates
+      .filter((candidate) => (candidate.fenBefore ?? candidate.fen) && (!engineResults[candidate.id] || engineResults[candidate.id]?.status === "failed"))
+      .map((candidate) => candidate.id);
+    const start = () => {
+      autoRecoveryPasses.current = 0;
+      setRetryCandidateIds(retryableIds.length ? retryableIds : null);
+      setEngineDiagnostic(null);
+      setRecoveryState("checking");
+      setAnalysisEnabled(true);
+      setEngineAttempt((attempt) => attempt + 1);
+    };
+    if (persistenceError && ownerToken && onFactualReviewReady && desk.source === "live") {
+      void onFactualReviewReady(desk)
+        .then(() => {
+          setFactualReviewDurable(true);
+          setPersistenceError("");
+        })
+        .catch((reason) => setPersistenceError(reason instanceof Error ? reason.message : "Your factual week is still only available in this session."))
+        .finally(start);
+      return;
+    }
+    start();
   };
+
+  if (isPendingFactualView && !analysisEnabled) {
+    return <DeskQualityHold desk={desk} codes={["ENGINE_REVIEW_INCOMPLETE"]} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={Object.keys(engineResults).length} total={desk.candidates.length} />;
+  }
 
   const interpretation = desk.source === "live" && !isPublishedView ? applyEngineInterpretation(desk, engineResults) : { desk, complete: true, reviewed: desk.candidates.length, total: desk.candidates.length };
   const shown = interpretation.desk;
   if (desk.source === "live" && !isPublishedView && desk.candidates.length && !interpretation.complete) {
+    if (ownerToken && onFactualReviewReady) {
+      return <DeskQualityHold desk={desk} codes={["ENGINE_REVIEW_INCOMPLETE"]} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={interpretation.reviewed} total={interpretation.total} />;
+    }
     return <DeskAnalysisProgress username={desk.player.username} reviewed={interpretation.reviewed} total={interpretation.total} />;
   }
   const quality = validateDeskForPublication(shown, engineResults);
   if (quality.status === "FAIL") {
-    return <DeskQualityHold desk={shown} codes={quality.codes} diagnostic={engineDiagnostic} onRetry={retryAnalysis} />;
+    return <DeskQualityHold desk={shown} codes={quality.codes} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={interpretation.reviewed} total={interpretation.total} />;
   }
   const hasPositions = shown.candidates.some((candidate) => candidate.fen || candidate.gameUrl);
   const universeView = shown.source === "live" ? buildPlayerUniverseView(foundingBetaField, shown) : undefined;
@@ -703,11 +816,21 @@ function DeskQualityHold({
   codes,
   diagnostic,
   onRetry,
+  persistenceNotice,
+  durable = false,
+  recoveryState = "manual",
+  reviewed = 0,
+  total = 0,
 }: {
   desk: BoardSignalDesk;
   codes: string[];
   diagnostic: EngineDiagnostic | null;
   onRetry: () => void;
+  persistenceNotice?: string;
+  durable?: boolean;
+  recoveryState?: EngineRecoveryState;
+  reviewed?: number;
+  total?: number;
 }) {
   const engineUnavailable = codes.includes("ENGINE_REVIEW_UNAVAILABLE") || codes.includes("ENGINE_REVIEW_INCOMPLETE");
   if (engineUnavailable) {
@@ -748,10 +871,12 @@ function DeskQualityHold({
           </section> : null}
 
           <section className="universal-section">
-            <div className="last-active-banner"><LoaderCircle size={18} /><div><strong>Position review is still finishing.</strong><p>Your factual review stays here in My BoardSignal while you retry. BoardSignal will only add position-based guidance when the evidence is complete.</p></div></div>
+            {persistenceNotice ? <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>This factual review is still open in this session.</strong><p>{persistenceNotice}</p></div></div> : null}
+            <div className="last-active-banner"><LoaderCircle size={18} /><div><strong>Your week is ready. Position review is finishing.</strong><p>{recoveryState === "auto-retrying" ? "Everything below is already confirmed from your games. BoardSignal is retrying the position check before adding final improvement guidance." : recoveryState === "checking" ? "Everything below is already confirmed from your games. BoardSignal is checking the selected positions before adding final improvement guidance." : recoveryState === "blocked" && diagnostic?.code === "ENGINE_UNSUPPORTED" ? "Everything below is already confirmed from your games. This browser cannot run the position check, so BoardSignal is keeping the factual review safe without adding unsupported guidance." : recoveryState === "blocked" && diagnostic?.code === "ENGINE_ASSET_404" ? "Everything below is already confirmed from your games. The position-review file is unavailable right now, so BoardSignal is keeping the factual review safe without pointlessly retrying it." : "Everything below is already confirmed from your games. Position-based guidance remains withheld until the existing evidence checks pass."}</p>{total ? <small>{reviewed} of {total} selected positions checked on this visit.</small> : null}</div></div>
             <p className="quality-reference">Position check: {codes.join(" · ")}</p>
+            {durable ? <p className="quality-reference">Your review is saved. You may leave and return without losing this completed factual week.</p> : null}
             {diagnostic ? <details className="quality-reference" data-engine-code={diagnostic.code}><summary>Beta engine diagnostics</summary><p>{diagnostic.code} · {diagnostic.stage} · attempt {diagnostic.attempt}</p><p>Worker {diagnostic.workerSupported ? "supported" : "unavailable"} · WebAssembly {diagnostic.webAssemblySupported ? "supported" : "unavailable"} · isolation {diagnostic.crossOriginIsolated ? "on" : "off"} · {diagnostic.userAgentCategory}</p>{diagnostic.detail || diagnostic.eventMessage ? <p>{diagnostic.detail ?? diagnostic.eventMessage}</p> : null}</details> : null}
-            <div className="quality-actions"><button type="button" className="button button-lime" onClick={onRetry}>Retry position analysis</button></div>
+            {recoveryState === "manual" ? <div className="quality-actions"><button type="button" className="button button-lime" onClick={onRetry}>TRY POSITION CHECK AGAIN</button></div> : null}
           </section>
         </section>
       </div>

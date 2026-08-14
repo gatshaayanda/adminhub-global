@@ -25,6 +25,7 @@ import type {
   RecurringPattern,
 } from "@/lib/boardsignal/memory";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
+import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import { auth } from "@/utils/firebaseConfig";
 import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 import { clearBoardSignalPrivateOfflineData } from "@/lib/boardsignal/offline/db";
@@ -43,6 +44,7 @@ type Snapshot = {
   recurringPatterns: RecurringPattern[];
   personalRecords: PersonalRecords;
   currentEpisode?: CurrentEpisodeSummary;
+  pendingFactualReview?: FactualReviewDraft;
   progressUnavailable?: string;
   pulseUnavailable?: string;
   generationRequired: boolean;
@@ -243,6 +245,17 @@ export default function BoardSignalPlayerRoom() {
     if (user) await loadRoom(user);
   }
 
+  const saveFactualReview = useCallback(async (desk: BoardSignalDesk) => {
+    if (!connectivity.online) throw new Error("Your factual week is available in this session, but reconnect before BoardSignal can save it for return.");
+    const response = await fetch("/api/boardsignal/player-room", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "saveFactualReview", desk }),
+    });
+    const body = await response.json() as { ok: boolean; error?: string };
+    if (!response.ok || !body.ok) throw new Error(body.error ?? "Your factual week is available in this session, but BoardSignal could not save it for return yet.");
+  }, [connectivity.online, token]);
+
   const publishDesk = useCallback(async (desk: BoardSignalDesk, engineResults: Record<string, DeskEngineResult>) => {
     if (!connectivity.online) throw new Error("Reconnect before generating or publishing a Desk.");
     const response = await fetch("/api/boardsignal/player-room", {
@@ -294,7 +307,7 @@ export default function BoardSignalPlayerRoom() {
       <div id="main" className="player-room-authenticated">
         <RoomIdentity account={snapshot.account} />
         <div className="container member-first-desk-note"><p className="kicker">DESK 1 · PERSISTENT ACCOUNT</p><h2>Your first membership Desk belongs here.</h2><p>{connectivity.online ? "BoardSignal is building the latest eligible closed seven-day episode for your verified Chess.com identity. When it clears the existing deterministic checks, it is stored in this Player Room." : "You're offline. BoardSignal will not retrieve Chess.com games or generate a Desk until you reconnect."}</p><button className="button button-quiet" type="button" onClick={signOutPlayer}>Sign out</button></div>
-        {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} onDeskPublished={publishDesk} /> : <div className="container offline-network-action"><strong>Desk generation needs a connection.</strong><p>Your verified account is unchanged. Reconnect and BoardSignal will continue through the existing deterministic pipeline.</p></div>}
+        {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : <div className="container offline-network-action"><strong>Desk generation needs a connection.</strong><p>Your verified account is unchanged. Reconnect and BoardSignal will continue through the existing deterministic pipeline.</p></div>}
       </div>
     );
   }
@@ -310,7 +323,7 @@ export default function BoardSignalPlayerRoom() {
           {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} returnLoop={returnLoop} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>Current episode check unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed Desk remains unchanged."}</p></div></div>}
           {latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}
         </div>
-        {latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : null}
+        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : null}
       </> : null}
 
       {tab === "progress" ? <div className="container player-room-memory"><ProgressSection desks={snapshot.desks.map((item) => item.summary)} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}

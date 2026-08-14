@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import SignalMark from "@/components/SignalMark";
+import BoardSignalThemeControl from "@/components/BoardSignalThemeControl";
 import { isStandaloneBoardSignal } from "@/lib/boardsignal/offline/install";
 import { BOARDSIGNAL_FOUNDER_DEVICE_EVENT, BOARDSIGNAL_FOUNDER_DEVICE_KEY } from "@/lib/boardsignal/offline/founderDevice";
 
@@ -46,11 +47,13 @@ export default function Header() {
           {primaryNav.map((item) => <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""}>{item.label}</Link>)}
         </nav>
         <div className="header-actions">
+          <BoardSignalThemeControl className="bs-theme-control-desktop" />
           {!insideOwnerFlow ? <Link href="/#get-my-boardsignal" className="button button-dark header-join">Get My BoardSignal</Link> : null}
           <button type="button" className="menu-button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={open ? "Close menu" : "Open menu"}>{open ? <X size={22} /> : <Menu size={22} />}</button>
         </div>
       </div>
       {open ? <nav className="mobile-nav container" aria-label="Mobile navigation">
+        <BoardSignalThemeControl className="bs-theme-control-mobile" />
         {primaryNav.map((item) => <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""}>{item.label}</Link>)}
         {founderEntry ? <Link href="/admin">Founder Newsroom</Link> : null}
         {!insideOwnerFlow ? <Link href="/#get-my-boardsignal" className="button button-lime">Get My BoardSignal</Link> : null}

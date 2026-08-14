@@ -49,12 +49,32 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#101923",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f0e7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
+  ],
 };
+
+const boardSignalThemeBootstrap = `(() => {
+  const key = "boardsignal:theme";
+  let choice = "system";
+  try {
+    const stored = window.localStorage.getItem(key);
+    if (stored === "light" || stored === "dark" || stored === "system") choice = stored;
+  } catch {}
+  const dark = choice === "dark" || (choice === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const root = document.documentElement;
+  root.dataset.bsTheme = dark ? "dark" : "light";
+  root.dataset.bsThemeChoice = choice;
+  root.style.colorScheme = dark ? "dark" : "light";
+})();`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${montserrat.variable} ${inter.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: boardSignalThemeBootstrap }} />
+      </head>
       <body suppressHydrationWarning>
         <Loader />
         <AnalyticsProvider>

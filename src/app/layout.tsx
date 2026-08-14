@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
+import "./boardsignal-accessibility.css";
 
 import InstallPrompt from "@/components/InstallPrompt";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
@@ -96,4 +97,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-

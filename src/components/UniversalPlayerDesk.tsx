@@ -509,7 +509,7 @@ export default function UniversalPlayerDesk({
   }
   const quality = validateDeskForPublication(shown, engineResults);
   if (quality.status === "FAIL") {
-    return <DeskQualityHold username={desk.player.username} codes={quality.codes} diagnostic={engineDiagnostic} onRetry={retryAnalysis} />;
+    return <DeskQualityHold desk={shown} codes={quality.codes} diagnostic={engineDiagnostic} onRetry={retryAnalysis} />;
   }
   const hasPositions = shown.candidates.some((candidate) => candidate.fen || candidate.gameUrl);
   const universeView = shown.source === "live" ? buildPlayerUniverseView(foundingBetaField, shown) : undefined;
@@ -699,21 +699,68 @@ function DeskAnalysisProgress({ username, reviewed, total }: { username: string;
 }
 
 function DeskQualityHold({
-  username,
+  desk,
   codes,
   diagnostic,
   onRetry,
 }: {
-  username: string;
+  desk: BoardSignalDesk;
   codes: string[];
   diagnostic: EngineDiagnostic | null;
   onRetry: () => void;
 }) {
   const engineUnavailable = codes.includes("ENGINE_REVIEW_UNAVAILABLE") || codes.includes("ENGINE_REVIEW_INCOMPLETE");
+  if (engineUnavailable) {
+    return (
+      <div id="main" className="universal-desk-page">
+        <section className="container universal-desk-shell">
+          <header className="universal-player-bar">
+            <div className="universal-avatar">{desk.player.username.slice(0, 2).toUpperCase()}</div>
+            <div><span>MY BOARD SIGNAL</span><h1>{desk.player.username}</h1><p>{desk.primaryPool} · {desk.period.label}</p></div>
+            <div className="private-access"><LockKeyhole size={16} /> Private factual review</div>
+          </header>
+
+          <section className="universal-cover">
+            <div className="universal-cover-copy">
+              <span className="live-pill">Your factual week is ready</span>
+              <p className="kicker">{desk.period.label} · {desk.games} games</p>
+              <h2>{desk.wins}W · {desk.draws}D · {desk.losses}L</h2>
+              <p>{desk.summary}</p>
+            </div>
+            <div className="universal-score-card"><span>Score</span><strong>{desk.score.toFixed(1)}%</strong><small>{desk.longestWinStreak ? `Strongest run · ${desk.longestWinStreak} wins` : "Week facts saved"}</small></div>
+          </section>
+
+          <section className="universal-metrics" aria-label="Factual week summary">
+            <div><span>Games</span><strong>{desk.games}</strong></div>
+            <div><span>Wins</span><strong>{desk.wins}</strong></div>
+            <div><span>Draws</span><strong>{desk.draws}</strong></div>
+            <div><span>Losses</span><strong>{desk.losses}</strong></div>
+          </section>
+
+          {desk.pools.length ? <section className="universal-section">
+            <div className="universal-section-heading"><span>01</span><div><p className="kicker">Ratings and pools</p><h2>The rating facts that are already complete.</h2></div></div>
+            <div className="pool-table">{desk.pools.map((pool) => <article key={pool.pool}><div><span>Pool</span><strong>{pool.pool}</strong></div><div><span>Games</span><strong>{pool.games}</strong></div><div><span>Record</span><strong>{pool.record}</strong></div><div><span>Rating movement</span><strong>{pool.change !== undefined ? `${pool.change >= 0 ? "+" : ""}${pool.change}` : "—"}</strong></div></article>)}</div>
+          </section> : null}
+
+          {desk.days.length ? <section className="universal-section">
+            <div className="universal-section-heading"><span>02</span><div><p className="kicker">The week</p><h2>Your chronology is still here.</h2></div></div>
+            <div className="universal-timeline">{desk.days.map((day) => <article className={day.wins > day.losses ? "positive" : day.losses > day.wins ? "negative" : "neutral"} key={day.date}><span>{day.label}</span><strong>{day.wins}W · {day.draws}D · {day.losses}L</strong>{day.ratingChange !== undefined ? <small>{desk.primaryPool} {day.ratingChange >= 0 ? "+" : ""}{day.ratingChange}</small> : null}</article>)}</div>
+          </section> : null}
+
+          <section className="universal-section">
+            <div className="last-active-banner"><LoaderCircle size={18} /><div><strong>Position review is still finishing.</strong><p>Your factual review stays here in My BoardSignal while you retry. BoardSignal will only add position-based guidance when the evidence is complete.</p></div></div>
+            <p className="quality-reference">Position check: {codes.join(" · ")}</p>
+            {diagnostic ? <details className="quality-reference" data-engine-code={diagnostic.code}><summary>Beta engine diagnostics</summary><p>{diagnostic.code} · {diagnostic.stage} · attempt {diagnostic.attempt}</p><p>Worker {diagnostic.workerSupported ? "supported" : "unavailable"} · WebAssembly {diagnostic.webAssemblySupported ? "supported" : "unavailable"} · isolation {diagnostic.crossOriginIsolated ? "on" : "off"} · {diagnostic.userAgentCategory}</p>{diagnostic.detail || diagnostic.eventMessage ? <p>{diagnostic.detail ?? diagnostic.eventMessage}</p> : null}</details> : null}
+            <div className="quality-actions"><button type="button" className="button button-lime" onClick={onRetry}>Retry position analysis</button></div>
+          </section>
+        </section>
+      </div>
+    );
+  }
   return (
     <div id="main" className="desk-processing-page"><section className="container desk-processing-card error-card">
-      <ShieldCheck /><p className="kicker">We could not finish this Desk</p><h1>{username}</h1><p>{engineUnavailable ? "The on-device position review did not complete, so BoardSignal withheld the Desk instead of publishing unsupported guidance." : "This episode did not clear BoardSignal's evidence checks, so no diagnosis has been published."}</p>
-      <div className="processing-stages"><div className="done"><ShieldCheck /><p>Player, games, period and factual week completed</p></div><div className="active"><AlertTriangle /><p>{engineUnavailable ? "Position analysis needs attention" : "Final evidence validation needs attention"}</p></div></div>
+      <ShieldCheck /><p className="kicker">We could not finish this Desk</p><h1>{desk.player.username}</h1><p>This episode did not clear BoardSignal's evidence checks, so no diagnosis has been published.</p>
+      <div className="processing-stages"><div className="done"><ShieldCheck /><p>Player, games, period and factual week completed</p></div><div className="active"><AlertTriangle /><p>Final evidence validation needs attention</p></div></div>
       <p className="quality-reference">Check: {codes.join(" · ")}</p>
       {diagnostic ? <details className="quality-reference" data-engine-code={diagnostic.code}>
         <summary>Beta engine diagnostics</summary>

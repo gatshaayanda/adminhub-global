@@ -8,7 +8,7 @@ import { isValidBoardSignalEmail } from "../delivery";
 import { resolveChessComPlayer } from "../processor";
 import type { PublicUniverseEvent } from "../pulse";
 import type { DocumentReference } from "firebase-admin/firestore";
-import { getAdminDb } from "../../../utils/firebaseAdmin";
+import { getAdminAuth, getAdminDb } from "../../../utils/firebaseAdmin";
 import {
   betaMagicAccessCredential,
   buildSafeBetaPreview,
@@ -50,6 +50,11 @@ export type FoundingBetaRequest = {
   firebaseUid?: string;
   claimedAt?: string;
   previewClaimConsumedAt?: string;
+  provisionalClaimedAt?: string;
+  identityReviewStatus?: "pending" | "confirmed" | "rejected";
+  founderAlertRequest?: { status: "delivered" | "failed" | "not_eligible"; attemptedAt: string };
+  founderAlertProvisionalClaim?: { status: "delivered" | "failed" | "not_eligible"; attemptedAt: string };
+  revokedAt?: string;
   magicAccess?: {
     ticketHash: string;
     expiresAt: string;
@@ -201,15 +206,21 @@ export async function submitFoundingBetaRequest(input: {
     ...(contact ? { preferredContactMethod: contact.method, preferredContactValue: contact.value, betaContactConsent: true as const, activationReturnMethod: contact.method as BetaActivationReturnMethod } : {}),
     requestedAt: now,
     status: "pending",
+    identityReviewStatus: "pending",
     source,
     shareMomentId,
     statusTokenHash: credential.hash,
   };
   await ref.set(clean(record));
   const generated = await generateAndStorePreview(ref, identity);
-  const founderAlert = await notifyFounderOfBetaRequest({ requestId: id, canonicalUsername: identity.canonicalUsername, previewReady: Boolean(generated.preview) }).catch(() => ({ delivered: 0, failed: 1, eligible: false }));
-  if (founderAlert.delivered > 0) await ref.set({ founderAlertSentAt: new Date().toISOString() }, { merge: true }).catch(() => undefined);
-  const finalRecord = { ...record, previewSnapshot: generated.preview, previewGeneratedAt: generated.preview?.generatedAt, previewError: generated.previewError };
+  const founderAlertAttemptedAt = new Date().toISOString();
+  const founderAlert = await notifyFounderOfBetaRequest({ requestId: id, canonicalUsername: identity.canonicalUsername, previewReady: Boolean(generated.preview) }).catch(() => ({ delivered: 0, failed: 1, eligible: true }));
+  const founderAlertRequest = {
+    status: (founderAlert.delivered > 0 ? "delivered" : founderAlert.eligible ? "failed" : "not_eligible") as "delivered" | "failed" | "not_eligible",
+    attemptedAt: founderAlertAttemptedAt,
+  };
+  await ref.set({ founderAlertRequest, ...(founderAlert.delivered > 0 ? { founderAlertSentAt: founderAlertAttemptedAt } : {}) }, { merge: true }).catch(() => undefined);
+  const finalRecord = { ...record, founderAlertRequest, previewSnapshot: generated.preview, previewGeneratedAt: generated.preview?.generatedAt, previewError: generated.previewError };
   return { request: finalRecord, statusToken: credential.token, preview: generated.preview, previewError: generated.previewError };
 }
 
@@ -326,6 +337,9 @@ export async function approveFoundingBetaRequest(requestId: string) {
     ...(validExternalContact ? { preferredContactMethod: request.preferredContactMethod, preferredContactValue: request.preferredContactValue, betaContactConsent: true } : {}),
     ...(completedReturnDecision ? { contactConfirmedAt: account.contactConfirmedAt ?? decidedAt, preferencesConfirmedAt: account.preferencesConfirmedAt ?? decidedAt } : {}),
     universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? decidedAt,
+    identityStatus: "founder_reviewed",
+    identityReviewStatus: "confirmed",
+    founderReviewedAt: account.founderReviewedAt ?? decidedAt,
     privacy: { ...account.privacy, publicPlayerPage: true, universeCoverage: true },
     notificationPreferences,
   }), { merge: true });
@@ -335,7 +349,7 @@ export async function approveFoundingBetaRequest(requestId: string) {
 
   await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt));
   const magic = betaMagicAccessCredential(request.id, request.chessPlayerId, account.uid, new Date(decidedAt));
-  await ref.set({ status: "approved", decidedAt, firebaseUid: account.uid, magicAccess: magic.record, claimedAt: null, previewClaimConsumedAt: null }, { merge: true });
+  await ref.set({ status: "approved", identityReviewStatus: "confirmed", decidedAt, firebaseUid: account.uid, magicAccess: magic.record, claimedAt: null, previewClaimConsumedAt: null }, { merge: true });
 
   let accessEmailDelivery: FoundingBetaRequest["accessEmailDelivery"] = "not_eligible";
   if (consentedEmail) {
@@ -357,7 +371,7 @@ export async function approveFoundingBetaRequest(requestId: string) {
   await ref.set({ activationDeviceDelivery: deviceDelivery.status }, { merge: true }).catch(() => undefined);
 
   return {
-    request: { ...request, status: "approved" as const, decidedAt, firebaseUid: account.uid, magicAccess: magic.record, accessEmailDelivery, activationDeviceDelivery: deviceDelivery.status },
+    request: { ...request, status: "approved" as const, identityReviewStatus: "confirmed" as const, decidedAt, firebaseUid: account.uid, magicAccess: magic.record, accessEmailDelivery, activationDeviceDelivery: deviceDelivery.status },
     account,
     accessCode: result.accessCode,
     magicLink: magic.link,
@@ -368,12 +382,90 @@ export async function approveFoundingBetaRequest(requestId: string) {
   };
 }
 
+export async function confirmFoundingBetaIdentity(requestId: string) {
+  const db = getAdminDb();
+  const ref = db.collection("betaRequests").doc(requestId);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
+  const request = snapshot.data() as FoundingBetaRequest;
+  if (request.status === "approved" && request.identityReviewStatus === "confirmed") {
+    return { request, alreadyConfirmed: true, playerAlreadyInside: Boolean(request.provisionalClaimedAt || request.claimedAt) };
+  }
+  if (request.status !== "pending" || request.identityReviewStatus === "rejected") {
+    throw Object.assign(new Error("This Founding Beta identity cannot be confirmed from its current state."), { status: 409 });
+  }
+
+  // If the player has not entered yet, preserve the existing reviewed-approval
+  // flow so historical magic/Beta recovery remains compatible.
+  if (!request.provisionalClaimedAt) {
+    const approved = await approveFoundingBetaRequest(requestId);
+    return { ...approved, alreadyConfirmed: false, playerAlreadyInside: false };
+  }
+
+  const uid = request.firebaseUid ?? `chesscom_${request.chessPlayerId}`;
+  const userRef = db.collection("users").doc(uid);
+  const userSnapshot = await userRef.get();
+  const account = userSnapshot.data() as BoardSignalAccount | undefined;
+  if (!account || account.uid !== uid || account.chessCom?.playerId !== request.chessPlayerId || account.identityStatus !== "provisional") {
+    throw Object.assign(new Error("The provisional Player Room no longer matches this stable request identity."), { status: 409, code: "PROVISIONAL_IDENTITY_MISMATCH" });
+  }
+  const decidedAt = new Date().toISOString();
+  await userRef.set(clean({
+    identityStatus: "founder_reviewed",
+    identityReviewStatus: "confirmed",
+    founderReviewedAt: decidedAt,
+    universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? decidedAt,
+    privacy: { ...account.privacy, publicPlayerPage: true, universeCoverage: true },
+  }), { merge: true });
+  await db.collection("publicPlayers").doc(String(request.chessPlayerId)).set(clean({
+    chessPlayerId: String(request.chessPlayerId),
+    username: request.canonicalUsername,
+    usernameKey: request.canonicalUsername.toLowerCase(),
+    avatar: request.avatar,
+    profileUrl: request.profileUrl,
+    pageEnabled: true,
+  }), { merge: true });
+  await ref.set({ status: "approved", identityReviewStatus: "confirmed", decidedAt }, { merge: true });
+  await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt));
+  return {
+    request: { ...request, status: "approved" as const, identityReviewStatus: "confirmed" as const, decidedAt },
+    account: { ...account, identityStatus: "founder_reviewed" as const, identityReviewStatus: "confirmed" as const, founderReviewedAt: decidedAt },
+    alreadyConfirmed: false,
+    playerAlreadyInside: true,
+  };
+}
+
+export async function revokeProvisionalFoundingBetaIdentity(requestId: string) {
+  const db = getAdminDb();
+  const ref = db.collection("betaRequests").doc(requestId);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
+  const request = snapshot.data() as FoundingBetaRequest;
+  if (!request.provisionalClaimedAt) {
+    if (request.status === "pending") return rejectFoundingBetaRequest(requestId);
+    throw Object.assign(new Error("Only an active provisional Player Room can be revoked here."), { status: 409 });
+  }
+  const uid = request.firebaseUid ?? `chesscom_${request.chessPlayerId}`;
+  const userRef = db.collection("users").doc(uid);
+  const userSnapshot = await userRef.get();
+  const account = userSnapshot.data() as BoardSignalAccount | undefined;
+  if (!account || account.chessCom?.playerId !== request.chessPlayerId || account.identityStatus !== "provisional") {
+    throw Object.assign(new Error("This request is not an active provisional BoardSignal identity."), { status: 409, code: "PROVISIONAL_REVOKE_BLOCKED" });
+  }
+  const revokedAt = new Date().toISOString();
+  await userRef.set({ identityStatus: "revoked", identityReviewStatus: "rejected", accessStatus: "paused" }, { merge: true });
+  await ref.set({ status: "rejected", identityReviewStatus: "rejected", decidedAt: revokedAt, revokedAt, activationDevice: null }, { merge: true });
+  await getAdminAuth().revokeRefreshTokens(uid);
+  return { request: { ...request, status: "rejected" as const, identityReviewStatus: "rejected" as const, decidedAt: revokedAt, revokedAt }, uid, revokedAt };
+}
+
 export async function regenerateFoundingBetaMagicAccess(requestId: string) {
   const ref = getAdminDb().collection("betaRequests").doc(requestId);
   const snapshot = await ref.get();
   if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
   const request = snapshot.data() as FoundingBetaRequest;
-  if (request.status !== "approved") throw Object.assign(new Error("Approve this request before creating a private access link."), { status: 409 });
+  const provisionalRecovery = request.status === "pending" && Boolean(request.provisionalClaimedAt) && request.identityReviewStatus !== "rejected";
+  if (!(request.status === "approved" || provisionalRecovery)) throw Object.assign(new Error("Private recovery access is not available for this request yet."), { status: 409 });
   const uid = request.firebaseUid ?? `chesscom_${request.chessPlayerId}`;
   const magic = betaMagicAccessCredential(request.id, request.chessPlayerId, uid);
   await ref.set(clean({ magicAccess: magic.record, claimedAt: null, previewClaimConsumedAt: null }), { merge: true });

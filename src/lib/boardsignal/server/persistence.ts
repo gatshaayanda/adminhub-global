@@ -78,6 +78,10 @@ function hashTicket(ticket: string) {
   return createHash("sha256").update(ticket).digest("hex");
 }
 
+function publicIdentityAllowed(account: BoardSignalAccount) {
+  return account.identityStatus !== "provisional" && account.identityStatus !== "revoked";
+}
+
 async function recordUniversePulseException(account: BoardSignalAccount, type: string, error: unknown) {
   const createdAt = new Date().toISOString();
   const id = safeDocumentId(createHash("sha256")
@@ -168,7 +172,11 @@ export async function createAuthCompletionTicket(account: BoardSignalAccount) {
 
 export async function markChessComOAuthLinked(uid: string) {
   const chessComOAuthLinkedAt = new Date().toISOString();
-  await getAdminDb().collection("users").doc(uid).set({ chessComOAuthLinkedAt }, { merge: true });
+  await getAdminDb().collection("users").doc(uid).set({
+    chessComOAuthLinkedAt,
+    identityStatus: "oauth_verified",
+    identityReviewStatus: "confirmed",
+  }, { merge: true });
   return chessComOAuthLinkedAt;
 }
 
@@ -202,6 +210,10 @@ export async function accountForToken(token: DecodedIdToken) {
   const snapshot = await db.collection("users").doc(token.uid).get();
   if (snapshot.exists) {
     const account = snapshot.data() as BoardSignalAccount;
+    if (account.identityStatus === "revoked" || account.accessStatus !== "active") {
+      throw Object.assign(new Error("This BoardSignal access is no longer active."), { status: 403, code: "ACCOUNT_ACCESS_REVOKED" });
+    }
+    const allowPublicIdentity = publicIdentityAllowed(account);
     const normalized: BoardSignalAccount = {
       ...account,
       privacy: {
@@ -209,8 +221,8 @@ export async function accountForToken(token: DecodedIdToken) {
         publicGameLinks: false,
         expandedPublicProfile: false,
         ...(account.privacy ?? {}),
-        publicPlayerPage: true,
-        universeCoverage: true,
+        publicPlayerPage: allowPublicIdentity ? true : false,
+        universeCoverage: allowPublicIdentity ? true : false,
       },
       notificationPreferences: {
         ...defaultNotificationPreferences(),
@@ -252,11 +264,12 @@ export async function updatePlayerPreferences(
   },
 ) {
   const account = await accountForToken(token);
+  const allowPublicIdentity = publicIdentityAllowed(account);
   const normalizedPrivacy: BoardSignalPrivacySettings = {
     ...account.privacy,
     ...privacy,
-    publicPlayerPage: true,
-    universeCoverage: true,
+    publicPlayerPage: allowPublicIdentity ? true : false,
+    universeCoverage: allowPublicIdentity ? true : false,
   };
   const normalizedNotifications: BoardSignalNotificationPreferences = {
     ...defaultNotificationPreferences(),
@@ -298,20 +311,22 @@ export async function updatePlayerPreferences(
     universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? preferencesConfirmedAt,
     ...contactUpdate,
   }), { merge: true });
-  await db.collection("publicPlayers").doc(canonicalPlayerKey(account.chessCom)).set(clean({
-    chessPlayerId: canonicalPlayerKey(account.chessCom),
-    username: account.chessCom.canonicalUsername,
-    usernameKey: account.chessCom.canonicalUsername.toLowerCase(),
-    avatar: account.chessCom.avatar,
-    profileUrl: account.chessCom.profileUrl,
-    pageEnabled: true,
-  }), { merge: true });
-  const coverage = await db.collection("publicCoverage")
-    .where("chessPlayerId", "==", canonicalPlayerKey(account.chessCom))
-    .get();
-  await Promise.all(coverage.docs.map((document) => (
-    document.ref.set(clean({ visibility: { publicPlayerPage: true, universeCoverage: true } }), { merge: true })
-  )));
+  if (allowPublicIdentity) {
+    await db.collection("publicPlayers").doc(canonicalPlayerKey(account.chessCom)).set(clean({
+      chessPlayerId: canonicalPlayerKey(account.chessCom),
+      username: account.chessCom.canonicalUsername,
+      usernameKey: account.chessCom.canonicalUsername.toLowerCase(),
+      avatar: account.chessCom.avatar,
+      profileUrl: account.chessCom.profileUrl,
+      pageEnabled: true,
+    }), { merge: true });
+    const coverage = await db.collection("publicCoverage")
+      .where("chessPlayerId", "==", canonicalPlayerKey(account.chessCom))
+      .get();
+    await Promise.all(coverage.docs.map((document) => (
+      document.ref.set(clean({ visibility: { publicPlayerPage: true, universeCoverage: true } }), { merge: true })
+    )));
+  }
   const updatedAccount = {
     ...account,
     privacy: normalizedPrivacy,
@@ -320,9 +335,11 @@ export async function updatePlayerPreferences(
     universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? preferencesConfirmedAt,
     ...contactUpdate,
   };
-  await recordNewPlayerUniverseIntro(updatedAccount).catch(async (error) => {
-    await recordUniversePulseException(updatedAccount, "universe_new_player_event", error);
-  });
+  if (allowPublicIdentity) {
+    await recordNewPlayerUniverseIntro(updatedAccount).catch(async (error) => {
+      await recordUniversePulseException(updatedAccount, "universe_new_player_event", error);
+    });
+  }
   return {
     privacy: normalizedPrivacy,
     notificationPreferences: normalizedNotifications,
@@ -360,10 +377,11 @@ export async function publishPrivateDesk(
   }
 
   const db = getAdminDb();
-  const beforeUniverseState = await loadActiveUniverseState().catch(async (error) => {
+  const allowPublicIdentity = publicIdentityAllowed(account);
+  const beforeUniverseState = allowPublicIdentity ? await loadActiveUniverseState().catch(async (error) => {
     await recordUniversePulseException(account, "universe_pre_publish_snapshot", error);
     return undefined;
-  });
+  }) : undefined;
   const summary = toDeskSummary(desk);
   const deskDocumentId = safeDocumentId(summary.deskKey);
   const desksRef = db.collection("users").doc(account.uid).collection("desks");
@@ -413,16 +431,16 @@ export async function publishPrivateDesk(
     lastSeenAt: new Date().toISOString(),
   }), { merge: true });
 
-  const publicCoverage = buildSafePublicCoverage(
+  const publicCoverage = allowPublicIdentity ? buildSafePublicCoverage(
     desk,
     true,
     { publicPlayerPage: true, universeCoverage: true },
-  );
+  ) : undefined;
   if (publicCoverage) {
     const publicId = safeDocumentId(`${account.chessCom.playerId}:${summary.deskKey}`);
     await db.collection("publicCoverage").doc(publicId).set(clean(publicCoverage));
   }
-  if (!alreadyPublished && beforeUniverseState) {
+  if (allowPublicIdentity && !alreadyPublished && beforeUniverseState) {
     await recordCompletedDeskUniverseArtifacts({
       account,
       desk,
@@ -432,7 +450,7 @@ export async function publishPrivateDesk(
     }).catch(async (error) => {
       await recordUniversePulseException(account, "universe_completed_desk_artifacts", error);
     });
-  } else if (alreadyPublished) {
+  } else if (allowPublicIdentity && alreadyPublished) {
     await ensureShareMomentsForActiveDesks(account, [{ desk, summary }], beforeUniverseState).catch(async (error) => {
       await recordUniversePulseException(account, "universe_share_backfill", error);
     });
@@ -491,15 +509,15 @@ export async function buildPlayerRoomSnapshot(
     pulseUnavailable = "Universe Pulse is temporarily unavailable. Your saved Desks are unchanged.";
     await recordUniversePulseException(accountSnapshot, "universe_player_room_pulse", error);
   }
-  if (desks.length) {
+  if (desks.length && publicIdentityAllowed(accountSnapshot)) {
     await ensureShareMomentsForActiveDesks(accountSnapshot, desks).catch(async (error) => {
       await recordUniversePulseException(accountSnapshot, "universe_share_backfill", error);
     });
   }
-  const shareMoments = await listPlayerShareMoments(account.chessCom.playerId, summaries.map((summary) => summary.deskKey)).catch(async (error) => {
+  const shareMoments = publicIdentityAllowed(accountSnapshot) ? await listPlayerShareMoments(account.chessCom.playerId, summaries.map((summary) => summary.deskKey)).catch(async (error) => {
     await recordUniversePulseException(accountSnapshot, "universe_share_load", error);
     return [] as Array<SafeShareMoment & { activeDesk?: boolean }>;
-  });
+  }) : [];
   return {
     account: accountSnapshot,
     desks,

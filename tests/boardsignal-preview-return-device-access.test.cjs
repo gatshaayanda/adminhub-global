@@ -2,11 +2,17 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
+const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
-const hash = (file) => crypto.createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex');
+const BASELINE_SHA = 'b24191dca59c0ce5c33631c414745df4f17d02d7';
+const normalizeText = (value) => value.replace(/\r\n/g, '\n');
+const assertBaselineFile = (file) => {
+  const current = normalizeText(read(file));
+  const baseline = normalizeText(execFileSync('git', ['show', `${BASELINE_SHA}:${file}`], { cwd: root, encoding: 'utf8' }));
+  assert.equal(current, baseline, `${file} changed from locked baseline ${BASELINE_SHA}`);
+};
 const pkg = JSON.parse(read('package.json'));
 const requestForm = read('src/components/UsernameDeskForm.tsx');
 const previewRoom = read('src/components/BetaPreviewRoom.tsx');
@@ -36,7 +42,7 @@ function all(source, parts) { return parts.every((part) => typeof part === 'stri
 
 const submit = section(betaRequests, 'export async function submitFoundingBetaRequest', 'export async function retryFoundingBetaPreview');
 const updateReturn = section(betaRequests, 'export async function updateFoundingBetaReturnPreference', 'export async function listFoundingBetaRequests');
-const approval = section(betaRequests, 'export async function approveFoundingBetaRequest', 'export async function regenerateFoundingBetaMagicAccess');
+const approval = section(betaRequests, 'export async function approveFoundingBetaRequest', 'export async function confirmFoundingBetaIdentity');
 const registerDevice = section(serverActivation, 'export async function registerBetaPreviewNotificationDevice', 'export async function notifyApprovedBetaPreviewDevice');
 const approvalPush = section(serverActivation, 'export async function notifyApprovedBetaPreviewDevice', 'export async function registerFounderNotificationDevice');
 const claim = section(serverActivation, 'export async function claimApprovedBetaPreview', 'export async function registerBetaPreviewNotificationDevice');
@@ -133,16 +139,16 @@ test('Ask and Founder surfaces reflect return state and keep audiences separate'
   // 33 Ask explains actual return state
   assert.ok(all(guide, ['how do i come back', 'Email is optional', 'activationReturnMethod === "device" && p.deviceAlertsEnabled']) && serverGuide.includes('activationReturnMethod:'));
   // 34 Founder UI shows return method
-  assert.ok(all(founderUi, ['DEVICE ALERTS ENABLED', 'SAVED ON DEVICE', 'PREVIEW ONLY · RETURN METHOD NOT CHOSEN']));
+  assert.ok(all(founderUi, ['DEVICE ALERTS ENABLED', 'SAVED ON DEVICE', 'PREVIEW SAVED']));
   // 35 Founder alert path remains separate from player approval push
   assert.ok(founderAlerts.toLowerCase().includes('founder') && !approvalPush.includes('founderNotificationDevices'));
 });
 
 test('locked infrastructure and release gates remain unchanged', () => {
   // 36 PWA service worker unchanged
-  assert.equal(hash('public/sw.js'), 'ce18a54c1401c569959d43cc1546b15d9dea49b1cd582cde4d2800cf2b00938b');
+  assertBaselineFile('public/sw.js');
   // 37 no Firestore rule loosening
-  assert.equal(hash('firestore.rules'), 'ca46fb477990da3314b2e952b7b190fc585859ab3ea5a1b388e1931783496611');
+  assertBaselineFile('firestore.rules');
   // 38 current production prebuild remains unchanged
   assert.equal(pkg.scripts.prebuild, 'npm run prepare:stockfish && npm run test:contrast');
   // 39 contrast contract remains wired and Preview styles use semantic surfaces

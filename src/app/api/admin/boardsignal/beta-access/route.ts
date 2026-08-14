@@ -7,9 +7,11 @@ import {
 } from "@/lib/boardsignal/server/betaAccess";
 import {
   approveFoundingBetaRequest,
+  confirmFoundingBetaIdentity,
   listFoundingBetaRequests,
   regenerateFoundingBetaMagicAccess,
   rejectFoundingBetaRequest,
+  revokeProvisionalFoundingBetaIdentity,
 } from "@/lib/boardsignal/server/betaRequests";
 import { registerFounderNotificationDevice, unregisterFounderNotificationDevice } from "@/lib/boardsignal/server/activation";
 
@@ -47,6 +49,22 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json() as { action?: unknown; username?: unknown; playerId?: unknown; requestId?: unknown; fcmToken?: unknown; userAgent?: unknown };
+    if (body.action === "confirmIdentity" && typeof body.requestId === "string") {
+      const result = await confirmFoundingBetaIdentity(body.requestId);
+      const resultRequest = result.request;
+      return response({
+        ok: true,
+        player: { username: resultRequest.canonicalUsername, playerId: resultRequest.chessPlayerId },
+        playerAlreadyInside: result.playerAlreadyInside,
+        accessCode: "accessCode" in result ? result.accessCode : undefined,
+        approvalMessage: "approvalMessage" in result ? result.approvalMessage : undefined,
+        magicLink: "magicLink" in result ? result.magicLink : undefined,
+        magicAccessExpiresAt: "magicAccessExpiresAt" in result ? result.magicAccessExpiresAt : undefined,
+      });
+    }
+    if (body.action === "revokeIdentity" && typeof body.requestId === "string") {
+      return response({ ok: true, result: await revokeProvisionalFoundingBetaIdentity(body.requestId) });
+    }
     if (body.action === "approveRequest" && typeof body.requestId === "string") {
       const result = await approveFoundingBetaRequest(body.requestId);
       return response({
@@ -92,7 +110,7 @@ export async function POST(request: Request) {
     if (body.action === "revoke") {
       return response({ ok: true, result: await revokeFoundingBetaAccess(body.playerId) });
     }
-    return response({ ok: false, error: "Choose Approve/Reject Request, Regenerate Access, Founder Alerts, Create Beta Access, Reset Access, or Revoke Access." }, 400);
+    return response({ ok: false, error: "Choose Confirm/Revoke Identity, recovery access, Founder Alerts, Create Beta Access, Reset Access, or Revoke Access." }, 400);
   } catch (error) {
     return response({
       ok: false,

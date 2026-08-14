@@ -13,7 +13,10 @@ type RequestRow = {
   preferredContactMethod?: BoardSignalContactMethod; preferredContactValue?: string; requestedAt: string;
   activationReturnMethod?: BetaActivationReturnMethod;
   activationDevice?: { registeredAt?: string } | null; activationDeviceDelivery?: "delivered" | "failed" | "not_eligible";
-  status: "pending" | "approved" | "rejected"; decidedAt?: string; claimedAt?: string;
+  status: "pending" | "approved" | "rejected"; decidedAt?: string; claimedAt?: string; provisionalClaimedAt?: string;
+  identityReviewStatus?: "pending" | "confirmed" | "rejected";
+  founderAlertRequest?: { status: "delivered" | "failed" | "not_eligible"; attemptedAt: string };
+  founderAlertProvisionalClaim?: { status: "delivered" | "failed" | "not_eligible"; attemptedAt: string };
   previewSnapshot?: BoardSignalBetaPreview; previewError?: string;
   accessEmailDelivery?: "delivered" | "failed" | "not_eligible" | "not_configured";
   magicAccess?: { expiresAt?: string; consumedAt?: string };
@@ -22,7 +25,7 @@ type RequestRow = {
 type ApiResult = {
   ok: boolean; players?: FounderPlayerIdentityRow[]; requests?: RequestRow[]; player?: { username?: string; playerId: number };
   accessCode?: string; approvalMessage?: string; magicLink?: string; magicAccessExpiresAt?: string;
-  accessEmailDelivery?: RequestRow["accessEmailDelivery"]; deviceDelivery?: RequestRow["activationDeviceDelivery"]; error?: string;
+  accessEmailDelivery?: RequestRow["accessEmailDelivery"]; deviceDelivery?: RequestRow["activationDeviceDelivery"]; playerAlreadyInside?: boolean; error?: string;
 };
 
 type ManualCode = { username: string; playerId: number; accessCode: string; action: "created" | "reset" };
@@ -46,7 +49,8 @@ export default function FoundingBetaPlayersAdmin() {
   const claimed = useMemo(() => approved.filter((item) => Boolean(item.claimedAt || item.magicAccess?.consumedAt)), [approved]);
   const accessReady = useMemo(() => approved.filter((item) => !item.claimedAt && !item.magicAccess?.consumedAt && Boolean(item.magicAccess)), [approved]);
   const legacyExisting = useMemo(() => approved.filter((item) => !item.claimedAt && !item.magicAccess && playerById.get(item.chessPlayerId)?.betaAccessStatus === "active"), [approved, playerById]);
-  const approvedNeedsReview = useMemo(() => approved.filter((item) => !claimed.includes(item) && !accessReady.includes(item) && !legacyExisting.includes(item)), [accessReady, approved, claimed, legacyExisting]);
+  const identityConfirmed = useMemo(() => approved.filter((item) => Boolean(item.provisionalClaimedAt) && item.identityReviewStatus === "confirmed"), [approved]);
+  const approvedNeedsReview = useMemo(() => approved.filter((item) => !claimed.includes(item) && !accessReady.includes(item) && !legacyExisting.includes(item) && !identityConfirmed.includes(item)), [accessReady, approved, claimed, identityConfirmed, legacyExisting]);
 
   const loadPlayers = useCallback(async () => {
     setLoading(true); setError("");
@@ -79,14 +83,14 @@ export default function FoundingBetaPlayersAdmin() {
     finally { setBusyPlayer(null); }
   }
 
-  async function decideRequest(request: RequestRow, action: "approveRequest" | "rejectRequest") {
-    if (action === "rejectRequest" && !window.confirm("Decline this Founding Beta request?")) return;
+  async function decideRequest(request: RequestRow, action: "confirmIdentity" | "revokeIdentity") {
+    if (action === "revokeIdentity" && !window.confirm(request.provisionalClaimedAt ? "Revoke this provisional Player Room? The stored BoardSignal data will remain for Founder recovery." : "Close this Founding Beta request?")) return;
     setBusyPlayer(request.id); setError(""); setPreparedAccess(null); setManualCode(null); setCopied(null); setShowFallbackCode(false);
     try {
       const response = await fetch("/api/admin/boardsignal/beta-access", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ action, requestId: request.id }) });
       const body = await response.json() as ApiResult;
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Founding Beta request could not be updated.");
-      if (action === "approveRequest" && body.player && body.magicLink && body.approvalMessage) setPreparedAccess({ requestId: request.id, username: body.player.username ?? request.canonicalUsername, playerId: body.player.playerId, accessCode: body.accessCode, magicLink: body.magicLink, approvalMessage: body.approvalMessage, expiresAt: body.magicAccessExpiresAt, emailDelivery: body.accessEmailDelivery, deviceDelivery: body.deviceDelivery });
+      if (action === "confirmIdentity" && body.player && body.magicLink && body.approvalMessage) setPreparedAccess({ requestId: request.id, username: body.player.username ?? request.canonicalUsername, playerId: body.player.playerId, accessCode: body.accessCode, magicLink: body.magicLink, approvalMessage: body.approvalMessage, expiresAt: body.magicAccessExpiresAt, emailDelivery: body.accessEmailDelivery, deviceDelivery: body.deviceDelivery });
       await loadPlayers();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Founding Beta request could not be updated."); }
     finally { setBusyPlayer(null); }
@@ -96,7 +100,7 @@ export default function FoundingBetaPlayersAdmin() {
     const hasMagic = Boolean(request.magicAccess);
     if (!window.confirm(hasMagic
       ? `Generate a fresh one-time access link for ${request.canonicalUsername}? The prior magic link will stop working. Their fallback Beta code and Firebase session stay unchanged.`
-      : `Create an optional one-time magic access link for ${request.canonicalUsername}? Their existing fallback Beta code and Firebase session stay unchanged.`)) return;
+      : `Create an optional one-time recovery link for ${request.canonicalUsername}? This does not reset fallback Beta Access or end the current Firebase session.`)) return;
     setBusyPlayer(request.id); setError(""); setCopied(null);
     try {
       const response = await fetch("/api/admin/boardsignal/beta-access", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ action: "regenerateMagic", requestId: request.id }) });
@@ -119,8 +123,8 @@ export default function FoundingBetaPlayersAdmin() {
     <FounderBetaRequestAlerts />
 
     <section className="desk-section pending-beta-requests">
-      <div className="founder-directory-heading"><div><p className="kicker">NEW BETA REQUESTS · {pending.length}</p><h2>Preview is already live. You only approve access.</h2><p>One action establishes/reuses stable identity and fallback Beta Access without rotating an existing credential, publishes New To The Board, creates one-time magic access and hydrates any valid external contact or completed return decision into Profile without forcing duplicate setup.</p></div><button className="button button-quiet" type="button" onClick={loadPlayers} disabled={loading}><RefreshCcw size={15}/> Refresh</button></div>
-      {loading ? <div className="founder-directory-loading"><LoaderCircle className="button-spinner"/> Loading requests</div> : pending.length ? <div className="pending-request-grid">{pending.map((request) => <RequestCard key={request.id} request={request} busy={busyPlayer === request.id} onApprove={() => decideRequest(request, "approveRequest")} onDecline={() => decideRequest(request, "rejectRequest")} />)}</div> : <div className="universe-empty"><p>No new Founding Beta requests.</p></div>}
+      <div className="founder-directory-heading"><div><p className="kicker">IDENTITY REVIEW · {pending.length}</p><h2>Private access no longer waits for Founder review.</h2><p>Preview players can continue into their private Player Room immediately. Confirm Identity upgrades the same stable account for official public participation without rotating credentials or ending the player's session; Revoke Access blocks a mistaken provisional identity.</p></div><button className="button button-quiet" type="button" onClick={loadPlayers} disabled={loading}><RefreshCcw size={15}/> Refresh</button></div>
+      {loading ? <div className="founder-directory-loading"><LoaderCircle className="button-spinner"/> Loading requests</div> : pending.length ? <div className="pending-request-grid">{pending.map((request) => <RequestCard key={request.id} request={request} busy={busyPlayer === request.id} onConfirm={() => decideRequest(request, "confirmIdentity")} onRevoke={() => decideRequest(request, "revokeIdentity")} onRecovery={() => regenerate(request)} />)}</div> : <div className="universe-empty"><p>No new Founding Beta requests.</p></div>}
     </section>
 
     {preparedAccess ? <section className="one-time-access-code activation-access-ready" aria-live="polite"><button type="button" className="one-time-code-close" aria-label="Hide prepared access" onClick={() => setPreparedAccess(null)}><X size={18}/></button><UserRoundCheck size={24}/><div><p className="kicker">ACCESS READY</p><h3>{preparedAccess.username}</h3><p>{preparedAccess.deviceDelivery === "delivered" ? "The player's saved Preview can unlock itself and the device alert was sent." : preparedAccess.deviceDelivery === "failed" ? "Preview access is ready. The device alert failed, but approval is still complete and the saved Preview will show access when the player returns." : "The player's saved Preview will show access when they return."} {preparedAccess.emailDelivery === "delivered" ? "A backup email was also delivered." : preparedAccess.emailDelivery === "failed" ? "No backup email was delivered." : "Magic access remains available as recovery."}</p><div className="one-time-code-actions"><button className="button button-dark" type="button" onClick={() => copyPrepared("message")}><Clipboard size={15}/> {copied === "message" ? "Message copied" : "Copy access message"}</button><button className="button button-outline" type="button" onClick={() => copyPrepared("link")}><Clipboard size={15}/> {copied === "link" ? "Link copied" : "Copy magic link"}</button>{preparedAccess.accessCode ? <button className="button button-quiet" type="button" onClick={() => setShowFallbackCode((value) => !value)}><KeyRound size={15}/> {showFallbackCode ? "Hide fallback code" : "Show fallback Beta code"}</button> : null}</div>{showFallbackCode && preparedAccess.accessCode ? <div className="activation-fallback-code"><code>{preparedAccess.accessCode}</code><button className="text-link social-text-button" type="button" onClick={() => copyPrepared("code")}>{copied === "code" ? "Copied" : "Copy code"}</button></div> : null}<pre className="approval-message-preview">{preparedAccess.approvalMessage}</pre>{preparedAccess.expiresAt ? <small>Magic access expires {new Date(preparedAccess.expiresAt).toLocaleString()}.</small> : null}</div></section> : null}
@@ -131,9 +135,11 @@ export default function FoundingBetaPlayersAdmin() {
 
     {claimed.length ? <section className="desk-section approved-beta-requests"><p className="kicker">CLAIMED</p><div className="pending-request-grid">{claimed.map((request) => <article className="pending-request-card access-ready-card" id={`request-${request.id}`} key={request.id}><header>{request.avatar ? <Image src={request.avatar} alt="" width={46} height={46} unoptimized/> : <div className="universal-avatar">{request.canonicalUsername.slice(0,2).toUpperCase()}</div>}<div><h3>{request.canonicalUsername}</h3><code>Chess.com ID {request.chessPlayerId}</code></div><span className="state-pill ready">CLAIMED</span></header><dl><div><dt>Claimed</dt><dd>{request.claimedAt ? new Date(request.claimedAt).toLocaleString() : "Magic access consumed"}</dd></div><div><dt>Fallback access</dt><dd>{playerById.get(request.chessPlayerId)?.betaAccessStatus === "active" ? "Beta Access active" : "See identity card below"}</dd></div></dl><div className="founder-player-actions"><Link className="button button-quiet" href={`/player/${encodeURIComponent(request.canonicalUsername)}`} target="_blank" rel="noreferrer"><ExternalLink size={14}/> Open public player</Link></div></article>)}</div></section> : null}
 
+    {identityConfirmed.length ? <section className="desk-section approved-beta-requests"><p className="kicker">IDENTITY CONFIRMED</p><div className="pending-request-grid">{identityConfirmed.map((request) => <article className="pending-request-card access-ready-card" id={`request-${request.id}`} key={request.id}><header>{request.avatar ? <Image src={request.avatar} alt="" width={46} height={46} unoptimized/> : <div className="universal-avatar">{request.canonicalUsername.slice(0,2).toUpperCase()}</div>}<div><h3>{request.canonicalUsername}</h3><code>Chess.com ID {request.chessPlayerId}</code></div><span className="state-pill ready">IDENTITY CONFIRMED</span></header><p>Player already has access. No onboarding action is needed.</p><div className="founder-player-actions"><button className="button button-outline" type="button" disabled={busyPlayer !== null} onClick={() => regenerate(request)}><RefreshCcw size={14}/> Recovery options</button>{request.profileUrl ? <a className="button button-quiet" href={request.profileUrl} target="_blank" rel="noreferrer"><ExternalLink size={14}/> Open Chess.com profile</a> : null}</div></article>)}</div></section> : null}
+
     {approvedNeedsReview.length ? <section className="desk-section approved-beta-requests"><p className="kicker">APPROVED · ACCESS CHECK</p><div className="pending-request-grid">{approvedNeedsReview.map((request) => <article className="pending-request-card access-ready-card" id={`request-${request.id}`} key={request.id}><header><div><h3>{request.canonicalUsername}</h3><code>Chess.com ID {request.chessPlayerId}</code></div><span className="state-pill processing">ACCESS CHECK</span></header><p>This historical approval has no active fallback credential or Activation Bridge claim state. Review the player identity below before taking a recovery action.</p></article>)}</div></section> : null}
 
-    <section className="founder-access-create"><div><p className="kicker">RECOVERY ACCESS</p><h2>Username + Beta code remains the fallback.</h2><p>Normal new-player activation now uses Preview → magic access. Keep this manual path for recovery.</p></div><div className="founder-access-form"><label htmlFor="founder-beta-username">Approved Chess.com username</label><input id="founder-beta-username" value={username} onChange={(event) => setUsername(event.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={50}/><button className="button button-lime" type="button" onClick={() => mutate("create")} disabled={busyPlayer !== null}>{busyPlayer === "create" ? <><LoaderCircle className="button-spinner" size={15}/> Creating</> : <><KeyRound size={15}/> Create Beta Access</>}</button></div></section>
+    <section className="founder-access-create"><div><p className="kicker">RECOVERY ACCESS</p><h2>Username + Beta code remains the fallback.</h2><p>Normal new-player activation now uses Preview → private provisional Player Room. Keep username + Beta code only for recovery.</p></div><div className="founder-access-form"><label htmlFor="founder-beta-username">Approved Chess.com username</label><input id="founder-beta-username" value={username} onChange={(event) => setUsername(event.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={50}/><button className="button button-lime" type="button" onClick={() => mutate("create")} disabled={busyPlayer !== null}>{busyPlayer === "create" ? <><LoaderCircle className="button-spinner" size={15}/> Creating</> : <><KeyRound size={15}/> Create Beta Access</>}</button></div></section>
 
     {manualCode ? <section className="one-time-access-code" aria-live="polite"><button type="button" className="one-time-code-close" aria-label="Hide access code" onClick={() => setManualCode(null)}><X size={18}/></button><UserRoundCheck size={24}/><div><p className="kicker">FALLBACK ACCESS {manualCode.action.toUpperCase()}</p><h3>{manualCode.username}</h3><p>Copy this recovery code now. Raw Beta Access codes are not stored for later retrieval.</p><code>{manualCode.accessCode}</code><div className="one-time-code-actions"><button className="button button-dark" type="button" onClick={async () => { await navigator.clipboard.writeText(manualCode.accessCode); setCopied("code"); }}><Clipboard size={15}/> {copied === "code" ? "Code copied" : "Copy code"}</button></div></div></section> : null}
 
@@ -143,14 +149,22 @@ export default function FoundingBetaPlayersAdmin() {
   </>;
 }
 
-function RequestCard({ request, busy, onApprove, onDecline }: { request: RequestRow; busy: boolean; onApprove: () => void; onDecline: () => void }) {
+function RequestCard({ request, busy, onConfirm, onRevoke, onRecovery }: { request: RequestRow; busy: boolean; onConfirm: () => void; onRevoke: () => void; onRecovery: () => void }) {
   const preview = request.previewSnapshot;
+  const provisionalActive = Boolean(request.provisionalClaimedAt);
   const returnLabel = request.activationReturnMethod === "device" && request.activationDevice?.registeredAt
     ? "DEVICE ALERTS ENABLED"
     : request.activationReturnMethod === "return_here"
       ? "SAVED ON DEVICE"
       : request.preferredContactMethod && request.preferredContactValue
         ? `${request.preferredContactMethod.toUpperCase()} · ${request.preferredContactValue}`
-        : "PREVIEW ONLY · RETURN METHOD NOT CHOSEN";
-  return <article className="pending-request-card new-request-card" id={`request-${request.id}`}><header>{request.avatar ? <Image src={request.avatar} alt="" width={46} height={46} unoptimized/> : <div className="universal-avatar">{request.canonicalUsername.slice(0,2).toUpperCase()}</div>}<div><span className="request-new-label">NEW REQUEST</span><h3>{request.canonicalUsername}</h3><code>Chess.com ID {request.chessPlayerId}</code></div></header><dl><div><dt>Return</dt><dd>{returnLabel}</dd></div><div><dt>Requested</dt><dd>{new Date(request.requestedAt).toLocaleString()}</dd></div></dl>{preview ? <div className="request-preview-summary"><span>PREVIEW READY</span><strong>{preview.games} games found</strong><p>{preview.wins}W · {preview.draws}D · {preview.losses}L{preview.primaryPool ? ` · ${preview.primaryPool}` : ""}</p></div> : <div className="request-preview-summary is-error"><span>REQUEST SAVED</span><p>{request.previewError ?? "Preview is not ready yet. Approval can still continue."}</p></div>}<div className="founder-player-actions"><button className="button button-lime" type="button" disabled={busy} onClick={onApprove}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : <Check size={14}/>} Approve + Prepare Access</button><button className="button button-quiet" type="button" disabled={busy} onClick={onDecline}><XCircle size={14}/> Decline</button>{request.profileUrl ? <a className="button button-outline" href={request.profileUrl} target="_blank" rel="noreferrer"><ExternalLink size={14}/> Open public Chess.com profile</a> : null}</div></article>;
+        : "PREVIEW SAVED";
+  const alertState = request.founderAlertProvisionalClaim?.status ?? request.founderAlertRequest?.status;
+  return <article className="pending-request-card new-request-card" id={`request-${request.id}`}>
+    <header>{request.avatar ? <Image src={request.avatar} alt="" width={46} height={46} unoptimized/> : <div className="universal-avatar">{request.canonicalUsername.slice(0,2).toUpperCase()}</div>}<div><span className="request-new-label">{provisionalActive ? "PROVISIONAL PLAYER ROOM ACTIVE" : "PREVIEW ACTIVE"}</span><h3>{request.canonicalUsername}</h3><code>Chess.com ID {request.chessPlayerId}</code></div></header>
+    <p>{provisionalActive ? "Player already has private BoardSignal access. Identity review is still pending." : "Player has not continued into private access yet. You may review identity now without gating their ability to continue."}</p>
+    <dl><div><dt>Return</dt><dd>{returnLabel}</dd></div><div><dt>Founder alert</dt><dd>{alertState === "delivered" ? "Delivered" : alertState ? "Not delivered" : "Not recorded"}</dd></div><div><dt>Requested</dt><dd>{new Date(request.requestedAt).toLocaleString()}</dd></div></dl>
+    {preview ? <div className="request-preview-summary"><span>PREVIEW READY</span><strong>{preview.games} games found</strong><p>{preview.wins}W · {preview.draws}D · {preview.losses}L{preview.primaryPool ? ` · ${preview.primaryPool}` : ""}</p></div> : <div className="request-preview-summary is-error"><span>REQUEST SAVED</span><p>{request.previewError ?? "Preview is not ready yet. Private access still does not depend on Founder notification delivery."}</p></div>}
+    <div className="founder-player-actions"><button className="button button-lime" type="button" disabled={busy} onClick={onConfirm}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : <Check size={14}/>} Confirm Identity</button><button className="button button-quiet" type="button" disabled={busy} onClick={onRevoke}><ShieldX size={14}/> Revoke Access</button>{provisionalActive ? <button className="button button-outline" type="button" disabled={busy} onClick={onRecovery}><KeyRound size={14}/> Recovery options</button> : null}{request.profileUrl ? <a className="button button-outline" href={request.profileUrl} target="_blank" rel="noreferrer"><ExternalLink size={14}/> Open public Chess.com profile</a> : null}</div>
+  </article>;
 }

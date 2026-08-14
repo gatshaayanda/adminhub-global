@@ -196,6 +196,7 @@ export async function listFounderPlayerIdentities(): Promise<FounderPlayerIdenti
       preferredContactMethod: account.betaContactConsent === true ? account.preferredContactMethod : undefined,
       preferredContactValue: account.betaContactConsent === true ? account.preferredContactValue : undefined,
       betaContactConsent: account.betaContactConsent,
+      identityStatus: account.identityStatus ?? (account.chessComOAuthLinkedAt ? "oauth_verified" : undefined),
     };
   })).then((rows) => rows.sort((a, b) => a.username.localeCompare(b.username)));
 }

@@ -76,6 +76,7 @@ export type BoardSignalBetaPreview = {
 export type BetaActivationReturnMethod = "device" | "email" | "discord" | "telegram" | "return_here";
 
 export type BetaPreviewRequestState = "preview_ready" | "approved" | "claimed" | "rejected" | "expired";
+export type BetaIdentityReviewStatus = "pending" | "confirmed" | "rejected";
 
 export type BetaPreviewStatus = {
   requestId: string;
@@ -86,8 +87,11 @@ export type BetaPreviewStatus = {
   preview?: BoardSignalBetaPreview;
   previewError?: string;
   accessReady: boolean;
+  provisionalAccessReady?: boolean;
   approvedAt?: string;
   claimedAt?: string;
+  provisionalClaimedAt?: string;
+  identityReviewStatus?: BetaIdentityReviewStatus;
   magicAccessExpiresAt?: string;
   emailDelivery?: "delivered" | "failed" | "not_eligible" | "not_configured";
   activationReturnMethod?: BetaActivationReturnMethod;

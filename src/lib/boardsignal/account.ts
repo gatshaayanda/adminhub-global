@@ -5,6 +5,8 @@ export const FOUNDING_BETA_AGREEMENT_VERSION = "founding-beta-2026-08-12";
 export type BoardSignalAccessTier = "founding_beta" | "paid";
 export type BoardSignalAccessStatus = "active" | "paused" | "deleted";
 export type BoardSignalContactMethod = "email" | "discord" | "telegram";
+export type BoardSignalIdentityStatus = "provisional" | "founder_reviewed" | "oauth_verified" | "revoked";
+export type BoardSignalIdentityReviewStatus = "pending" | "confirmed" | "rejected";
 
 export type StableChessComIdentity = {
   playerId: number;
@@ -41,6 +43,9 @@ export type BoardSignalAccount = {
   maxActiveDesks: 4;
   chessCom: StableChessComIdentity;
   chessComOAuthLinkedAt?: string;
+  identityStatus?: BoardSignalIdentityStatus;
+  identityReviewStatus?: BoardSignalIdentityReviewStatus;
+  founderReviewedAt?: string;
   betaAgreementVersion?: string;
   betaAgreementAcceptedAt?: string;
   universeParticipationDisclosedAt?: string;
@@ -84,6 +89,7 @@ export type FounderPlayerIdentityRow = {
   preferredContactMethod?: BoardSignalContactMethod;
   preferredContactValue?: string;
   betaContactConsent?: boolean;
+  identityStatus?: BoardSignalIdentityStatus;
 };
 
 const REQUIRED_CHESSCOM_ENV = [

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import type { StableChessComIdentity } from "../account";
+import { createFoundingBetaAccount, firebaseUidForChessPlayer, type BoardSignalAccount, type StableChessComIdentity } from "../account";
 import {
   BETA_MAGIC_ACCESS_LIFETIME_MS,
   BETA_MAGIC_ACCESS_TOKEN_BYTES,
@@ -200,7 +200,8 @@ export async function consumeBetaMagicTicket(ticketInput: unknown) {
     if (!snapshot.exists) throw Object.assign(new Error("This BoardSignal access link was not found."), { status: 404, code: "MAGIC_ACCESS_NOT_FOUND" });
     const request = snapshot.data() as Record<string, unknown>;
     const magic = request.magicAccess as Record<string, unknown> | undefined;
-    if (request.status !== "approved" || !magic || !sameHash(String(magic.ticketHash ?? ""), ticket)) {
+    const provisionalRecovery = request.status === "pending" && Boolean(request.provisionalClaimedAt) && request.identityReviewStatus !== "rejected";
+    if (!(request.status === "approved" || provisionalRecovery) || !magic || !sameHash(String(magic.ticketHash ?? ""), ticket)) {
       throw Object.assign(new Error("This BoardSignal access link is no longer active."), { status: 403, code: "MAGIC_ACCESS_INVALID" });
     }
     if (magic.consumedAt || Date.parse(String(magic.expiresAt ?? "")) <= Date.now()) {
@@ -214,6 +215,7 @@ export async function consumeBetaMagicTicket(ticketInput: unknown) {
       playerId: Number(magic.playerId),
       canonicalUsername: String(request.canonicalUsername ?? ""),
       consumedAt,
+      identityStatus: provisionalRecovery ? "provisional" as const : "founder_reviewed" as const,
     };
   });
   if (!data.uid || !Number.isSafeInteger(data.playerId) || data.playerId <= 0 || !data.canonicalUsername) throw Object.assign(new Error("This BoardSignal access link is incomplete."), { status: 500 });
@@ -223,6 +225,7 @@ export async function consumeBetaMagicTicket(ticketInput: unknown) {
     chessPlayerId: String(data.playerId),
     chessUsername: data.canonicalUsername,
     boardsignalAuthProvider: "founding_beta_magic",
+    boardsignalIdentityStatus: data.identityStatus,
   });
   return { ...data, customToken };
 }
@@ -237,11 +240,168 @@ export async function verifyBetaPreviewStatusCredential(requestId: string, statu
   return { ref: snapshot.ref, request };
 }
 
+function founderAlertState(result: { eligible: boolean; delivered: number; failed: number }, attemptedAt = new Date().toISOString()) {
+  const status = result.delivered > 0 ? "delivered" : result.eligible ? "failed" : "not_eligible";
+  return { status: status as "delivered" | "failed" | "not_eligible", attemptedAt };
+}
+
+async function notifyFounderOfProvisionalClaim(input: { requestId: string; canonicalUsername: string }) {
+  if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()) return { eligible: false, delivered: 0, failed: 0 };
+  const devices = await getAdminDb().collection("founderNotificationDevices").get();
+  if (devices.empty) return { eligible: false, delivered: 0, failed: 0 };
+  const link = `/admin/players?request=${encodeURIComponent(input.requestId)}`;
+  let delivered = 0;
+  let failed = 0;
+  for (const device of devices.docs) {
+    const token = String(device.data().token ?? "");
+    if (!token) continue;
+    try {
+      await getAdminMessaging().send({
+        token,
+        notification: { title: "BoardSignal", body: `${input.canonicalUsername} entered their provisional Player Room.` },
+        webpush: { fcmOptions: { link } },
+        data: { type: "founder_beta_provisional_claim", link, requestId: input.requestId },
+      });
+      delivered += 1;
+    } catch (error) {
+      failed += 1;
+      const code = String((error as { code?: string }).code ?? "");
+      if (code.includes("registration-token-not-registered") || code.includes("invalid-registration-token")) await device.ref.delete().catch(() => undefined);
+    }
+  }
+  return { eligible: true, delivered, failed };
+}
+
+function provisionalIdentityFromRequest(request: Record<string, unknown>): StableChessComIdentity {
+  const playerId = Number(request.chessPlayerId);
+  const canonicalUsername = String(request.canonicalUsername ?? "").trim();
+  if (!Number.isSafeInteger(playerId) || playerId <= 0 || !canonicalUsername) {
+    throw Object.assign(new Error("This BoardSignal Preview is missing its stable Chess.com identity."), { status: 409, code: "PREVIEW_IDENTITY_INCOMPLETE" });
+  }
+  return {
+    playerId,
+    canonicalUsername,
+    avatar: typeof request.avatar === "string" ? request.avatar : undefined,
+    profileUrl: typeof request.profileUrl === "string" ? request.profileUrl : undefined,
+  };
+}
+
+export async function claimProvisionalBetaPreview(requestId: string, statusTokenInput: unknown) {
+  const verified = await verifyBetaPreviewStatusCredential(requestId, statusTokenInput);
+  const statusToken = String(statusTokenInput ?? "").trim();
+  const db = getAdminDb();
+  const claim = await db.runTransaction(async (transaction) => {
+    const fresh = await transaction.get(verified.ref);
+    if (!fresh.exists) throw Object.assign(new Error("This BoardSignal Preview was not found."), { status: 404, code: "PREVIEW_NOT_FOUND" });
+    const request = fresh.data() as Record<string, unknown>;
+    if (!sameHash(String(request.statusTokenHash ?? ""), statusToken)) throw Object.assign(new Error("Preview access is invalid."), { status: 401, code: "PREVIEW_STATUS_INVALID" });
+    if (request.status !== "pending" || request.identityReviewStatus === "rejected") {
+      throw Object.assign(new Error("This Preview cannot start provisional private access."), { status: 409, code: "PROVISIONAL_ACCESS_UNAVAILABLE" });
+    }
+
+    const identity = provisionalIdentityFromRequest(request);
+    const uid = firebaseUidForChessPlayer(identity.playerId);
+    const mappingRef = db.collection("chessPlayerAccounts").doc(String(identity.playerId));
+    const userRef = db.collection("users").doc(uid);
+    const accessRef = db.collection("betaAccess").doc(String(identity.playerId));
+    const [mapping, userSnapshot, betaAccess] = await Promise.all([
+      transaction.get(mappingRef),
+      transaction.get(userRef),
+      transaction.get(accessRef),
+    ]);
+
+    const mappedUid = mapping.exists && typeof mapping.data()?.uid === "string" ? String(mapping.data()!.uid) : uid;
+    if (mappedUid !== uid) {
+      throw Object.assign(new Error("This BoardSignal already exists. Use the existing private access or recovery path."), { status: 409, code: "ESTABLISHED_ACCOUNT_EXISTS" });
+    }
+    const existing = userSnapshot.exists ? userSnapshot.data() as BoardSignalAccount : undefined;
+    const alreadyThisProvisionalClaim = Boolean(request.provisionalClaimedAt)
+      && existing?.uid === uid
+      && existing.identityStatus === "provisional"
+      && existing.identityReviewStatus !== "rejected";
+    if (!alreadyThisProvisionalClaim && (userSnapshot.exists || betaAccess.exists)) {
+      throw Object.assign(new Error("This BoardSignal already exists. Use the existing private access or recovery path."), { status: 409, code: "ESTABLISHED_ACCOUNT_EXISTS" });
+    }
+    if (existing?.identityStatus === "founder_reviewed" || existing?.identityStatus === "oauth_verified" || existing?.identityStatus === "revoked" || existing?.chessComOAuthLinkedAt) {
+      throw Object.assign(new Error("This BoardSignal already exists. Use the existing private access or recovery path."), { status: 409, code: "ESTABLISHED_ACCOUNT_EXISTS" });
+    }
+
+    const claimedAt = typeof request.provisionalClaimedAt === "string" ? String(request.provisionalClaimedAt) : new Date().toISOString();
+    const base = existing ?? createFoundingBetaAccount(identity, new Date(claimedAt));
+    const hasExternalContact = ["email", "discord", "telegram"].includes(String(request.preferredContactMethod ?? ""))
+      && typeof request.preferredContactValue === "string"
+      && Boolean(String(request.preferredContactValue).trim())
+      && request.betaContactConsent === true;
+    const next: BoardSignalAccount = {
+      ...base,
+      uid,
+      chessCom: identity,
+      accessTier: "founding_beta",
+      accessStatus: "active",
+      identityStatus: "provisional",
+      identityReviewStatus: "pending",
+      contactConfirmedAt: base.contactConfirmedAt ?? claimedAt,
+      preferencesConfirmedAt: base.preferencesConfirmedAt ?? claimedAt,
+      privacy: {
+        ...base.privacy,
+        publicPlayerPage: false,
+        universeCoverage: false,
+      },
+      notificationPreferences: {
+        ...base.notificationPreferences,
+        email: hasExternalContact && request.preferredContactMethod === "email" ? true : base.notificationPreferences.email,
+      },
+      ...(hasExternalContact ? {
+        preferredContactMethod: request.preferredContactMethod as "email" | "discord" | "telegram",
+        preferredContactValue: String(request.preferredContactValue),
+        betaContactConsent: true,
+      } : {}),
+      lastSeenAt: claimedAt,
+    };
+
+    transaction.set(mappingRef, clean({ uid, playerId: identity.playerId, canonicalUsername: identity.canonicalUsername }), { merge: true });
+    transaction.set(userRef, clean(next), { merge: true });
+    transaction.set(db.collection("playerIdentityAliases").doc(identity.canonicalUsername.toLowerCase()), clean({ uid, playerId: identity.playerId }), { merge: true });
+    transaction.set(verified.ref, clean({
+      firebaseUid: uid,
+      provisionalClaimedAt: claimedAt,
+      identityReviewStatus: "pending",
+      activationDevice: null,
+    }), { merge: true });
+    return { uid, playerId: identity.playerId, canonicalUsername: identity.canonicalUsername, claimedAt, firstClaim: !request.provisionalClaimedAt };
+  });
+
+  const customToken = await getAdminAuth().createCustomToken(claim.uid, {
+    role: "player",
+    accessTier: "founding_beta",
+    chessPlayerId: String(claim.playerId),
+    chessUsername: claim.canonicalUsername,
+    boardsignalAuthProvider: "beta_preview_provisional",
+    boardsignalIdentityStatus: "provisional",
+  });
+
+  if (claim.firstClaim) {
+    const attemptedAt = new Date().toISOString();
+    const result = await notifyFounderOfProvisionalClaim({ requestId, canonicalUsername: claim.canonicalUsername })
+      .catch(() => ({ eligible: true, delivered: 0, failed: 1 }));
+    await verified.ref.set({ founderAlertProvisionalClaim: founderAlertState(result, attemptedAt) }, { merge: true }).catch(() => undefined);
+  }
+  return { ...claim, customToken, provisional: true as const };
+}
+
+export async function claimBetaPreviewAccess(requestId: string, statusTokenInput: unknown) {
+  const verified = await verifyBetaPreviewStatusCredential(requestId, statusTokenInput);
+  const status = String(verified.request.status ?? "pending");
+  if (status === "approved") return claimApprovedBetaPreview(requestId, statusTokenInput);
+  return claimProvisionalBetaPreview(requestId, statusTokenInput);
+}
+
 export function publicBetaPreviewStatus(requestId: string, request: Record<string, unknown>): BetaPreviewStatus {
   const status = String(request.status ?? "pending");
   const magic = request.magicAccess as Record<string, unknown> | undefined;
   const magicExpired = status === "approved" && !request.claimedAt && magic?.expiresAt && Date.parse(String(magic.expiresAt)) <= Date.now();
-  const state: BetaPreviewStatus["state"] = request.claimedAt ? "claimed" : magicExpired ? "expired" : status === "approved" ? "approved" : status === "rejected" ? "rejected" : "preview_ready";
+  const provisionalClaimedAt = typeof request.provisionalClaimedAt === "string" ? request.provisionalClaimedAt : undefined;
+  const state: BetaPreviewStatus["state"] = request.claimedAt || provisionalClaimedAt ? "claimed" : magicExpired ? "expired" : status === "approved" ? "approved" : status === "rejected" ? "rejected" : "preview_ready";
   return clean({
     requestId,
     state,
@@ -251,10 +411,13 @@ export function publicBetaPreviewStatus(requestId: string, request: Record<strin
     preview: request.previewSnapshot as BoardSignalBetaPreview | undefined,
     previewError: typeof request.previewError === "string" ? request.previewError : undefined,
     accessReady: status === "approved" && !request.claimedAt && !magicExpired,
+    provisionalAccessReady: status === "pending" && !provisionalClaimedAt && request.identityReviewStatus !== "rejected",
     approvedAt: typeof request.decidedAt === "string" ? request.decidedAt : undefined,
     claimedAt: typeof request.claimedAt === "string" ? request.claimedAt : undefined,
+    provisionalClaimedAt,
+    identityReviewStatus: ["pending", "confirmed", "rejected"].includes(String(request.identityReviewStatus ?? "")) ? request.identityReviewStatus as "pending" | "confirmed" | "rejected" : status === "approved" ? "confirmed" : status === "rejected" ? "rejected" : "pending",
     magicAccessExpiresAt: typeof magic?.expiresAt === "string" ? magic.expiresAt : undefined,
-    emailDelivery: typeof request.accessEmailDelivery === "string" && ["delivered", "failed", "not_eligible", "not_configured"].includes(request.accessEmailDelivery) ? request.accessEmailDelivery as BetaPreviewStatus["emailDelivery"] : undefined,
+    emailDelivery: ["delivered", "failed", "not_eligible", "not_configured"].includes(String(request.accessEmailDelivery ?? "")) ? request.accessEmailDelivery as "delivered" | "failed" | "not_eligible" | "not_configured" : undefined,
     activationReturnMethod: ["device", "email", "discord", "telegram", "return_here"].includes(String(request.activationReturnMethod ?? "")) ? request.activationReturnMethod as BetaActivationReturnMethod : undefined,
     preferredContactMethod: ["email", "discord", "telegram"].includes(String(request.preferredContactMethod ?? "")) ? request.preferredContactMethod as "email" | "discord" | "telegram" : undefined,
     preferredContactValue: typeof request.preferredContactValue === "string" ? request.preferredContactValue : undefined,
@@ -366,7 +529,7 @@ export async function notifyFounderOfBetaRequest(input: { requestId: string; can
     try {
       await getAdminMessaging().send({
         token,
-        notification: { title: "BoardSignal", body: input.previewReady === false ? `New beta request — ${input.canonicalUsername}\nRequest saved; preview needs a retry.` : `New beta request — ${input.canonicalUsername}\nPreview is ready for approval.` },
+        notification: { title: "BoardSignal", body: input.previewReady === false ? `New beta request — ${input.canonicalUsername}\nRequest saved; preview needs a retry.` : `New beta request — ${input.canonicalUsername}\nPreview is ready; identity review is pending.` },
         webpush: { fcmOptions: { link } },
         data: { type: "founder_beta_request", link, requestId: input.requestId },
       });

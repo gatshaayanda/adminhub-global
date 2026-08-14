@@ -21,7 +21,7 @@ function functionSlice(source, name, nextName) {
 
 const loadExisting = functionSlice(betaAccess, 'loadExistingFoundingBetaAccess', 'resetFoundingBetaAccess');
 const resetAccess = functionSlice(betaAccess, 'resetFoundingBetaAccess', 'revokeFoundingBetaAccess');
-const approval = functionSlice(betaRequests, 'approveFoundingBetaRequest', 'regenerateFoundingBetaMagicAccess');
+const approval = functionSlice(betaRequests, 'approveFoundingBetaRequest', 'confirmFoundingBetaIdentity');
 const regenerate = functionSlice(betaRequests, 'regenerateFoundingBetaMagicAccess', 'rejectFoundingBetaRequest');
 
 test('1 legacy approval reuses existing Beta Access instead of resetting it', () => {
@@ -77,7 +77,7 @@ test('9 claimed magic access is rendered separately as CLAIMED', () => {
 
 test('10 legacy player gets explicit Create magic access link without resetting fallback access', () => {
   assert.match(founderUi, /Create magic access link/);
-  assert.match(founderUi, /existing fallback Beta code and Firebase session stay unchanged/);
+  assert.match(founderUi, /does not reset fallback Beta Access or end the current Firebase session/);
   assert.match(founderUi, /action: "regenerateMagic"/);
 });
 

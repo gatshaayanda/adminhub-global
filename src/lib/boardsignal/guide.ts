@@ -257,7 +257,7 @@ export function detectGuideIntent(message: string, context: Pick<GuideContext, "
   if (context.mode === "beta_preview") {
     if (has(text, "what did you find", "show me my week", "my week")) return "explain_desk";
     if (has(text, "where would i be", "universe preview", "explain my universe")) return "explain_rank";
-    if (has(text, "what unlocks next", "when i'm approved", "when approved", "what happens when", "how do i come back", "where is my access link")) return "beta_next";
+    if (has(text, "what unlocks next", "when i'm approved", "when approved", "am i approved", "do i need to wait", "can i use this now", "what happens when", "how do i come back", "where is my access link")) return "beta_next";
     if (has(text, "do i need email", "email wrong", "wrong email", "how will i know", "notify this phone", "notify this device", "device alert")) return "notifications";
     if (has(text, "can i add friends", "add friends", "head-to-head", "rival watch")) return "friends";
   }
@@ -283,7 +283,7 @@ export function detectGuideIntent(message: string, context: Pick<GuideContext, "
   if (has(text, "what is universe", "what's universe", "whats universe", "what is the universe", "why am i here")) return "universe_what";
   if (has(text, "what stays private", "what is private", "what's private", "privacy", "public")) return "privacy";
   if (has(text, "why do you need my username", "why username")) return "username_reason";
-  if (has(text, "what happens next", "after request", "beta request", "request beta access", "get my boardsignal")) return "beta_next";
+  if (has(text, "what happens next", "after request", "beta request", "request beta access", "get my boardsignal", "am i approved", "do i need to wait", "can i use this now")) return "beta_next";
   if (has(text, "why is universe included", "universe included")) return "universe_included";
   if (has(text, "explain this desk", "explain my desk", "week's story", "weeks story", "headline")) return "explain_desk";
   if (has(text, "amber", "blue", "red signal", "my signal", "signals")) return "explain_signal";
@@ -495,15 +495,15 @@ function renderBetaPreviewGuide(intent: GuideIntent, context: GuideContext): Gui
   if (context.mode !== "beta_preview" || !context.previewContext) return undefined;
   const p = context.previewContext; let reply: string | undefined;
   if (intent === "explain_desk" || intent === "what_changed") reply = p.playableWeek ? `I found ${p.games} games in ${p.periodLabel ?? "this preview week"}: ${p.wins}W · ${p.draws}D · ${p.losses}L. ${p.safeHighlight}` : `I found ${p.canonicalUsername}'s Chess.com profile, but there isn't a playable completed week to show yet. I won't invent one.`;
-  else if (["explain_rank","universe_what","in_reach"].includes(intent)) { const best=[...(p.universePreview??[])].sort((a,b)=>a.rank-b.rank)[0]; reply=best ? `Preview only: if the field held, ${p.canonicalUsername} would be #${best.rank} of ${best.denominator} in ${best.categoryTitle}${best.scopeLabel ? ` · ${best.scopeLabel}` : ""}. This is provisional and does not publish the player into the Universe before approval.` : `This preview does not have a compatible provisional Universe placement yet. BoardSignal will not manufacture a rank.`; }
+  else if (["explain_rank","universe_what","in_reach"].includes(intent)) { const best=[...(p.universePreview??[])].sort((a,b)=>a.rank-b.rank)[0]; reply=best ? `Preview only: if the field held, ${p.canonicalUsername} would be #${best.rank} of ${best.denominator} in ${best.categoryTitle}${best.scopeLabel ? ` · ${best.scopeLabel}` : ""}. This is provisional and does not publish the player into the official Universe before identity review or future Chess.com verification.` : `This preview does not have a compatible provisional Universe placement yet. BoardSignal will not manufacture a rank.`; }
   else if (intent === "beta_next") {
-    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "This Preview is your main return path. I can alert this device when your private Player Room is ready; tapping the alert opens this same Preview, where Open My Player Room appears. Magic access remains a cross-device/recovery option.";
-    else if (p.activationReturnMethod === "return_here") reply = "Your Preview is saved on this device for the bounded activation window. Come back to BoardSignal and choose Continue your Preview; when approval is ready, Open My Player Room appears here. Email is not required.";
-    else if (["email", "discord", "telegram"].includes(String(p.activationReturnMethod ?? ""))) reply = `Your ${p.activationReturnMethod} choice is a backup return channel. This saved Preview itself still unlocks here when Founder approval arrives, so you do not need to wait for or understand a magic link.`;
-    else reply = "After seeing your Preview, choose how BoardSignal should bring you back: Notify this device, an optional email/Discord/Telegram backup, or I'll come back here. Founder approval then unlocks this same Preview; the compact agreement follows, then Desk.";
+    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "You do not need to wait. Continue to My Player Room opens private Founding Beta access now. Device alerts are an optional return channel, and magic access remains cross-device/recovery only.";
+    else if (p.activationReturnMethod === "return_here") reply = "You do not need to wait. Continue to My Player Room opens private Founding Beta access now. Your Preview is also saved on this device if you leave before continuing; email is not required.";
+    else if (["email", "discord", "telegram"].includes(String(p.activationReturnMethod ?? ""))) reply = `You do not need to wait for ${p.activationReturnMethod}. Continue to My Player Room opens private Founding Beta access now; ${p.activationReturnMethod} is only a backup return channel.`;
+    else reply = "Ready when you are: Continue to My Player Room opens your private Founding Beta access now. The compact agreement comes next, then Desk. Identity review happens quietly in the background; email, magic access and Beta codes are not required for this first entry.";
   }
   else if (intent === "notifications") {
-    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "Device alerts are enabled for this Preview. BoardSignal can alert this browser when your private Player Room is ready. That does not prove Chess.com ownership; Founder approval still controls private access.";
+    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "Device alerts are enabled for this Preview as an optional return channel. Private Founding Beta access can start now from Continue to My Player Room; the background identity review does not block that first private entry.";
     else if (!context.deliveryStatus?.browserPushConfigured) reply = "Device alerts are not configured by BoardSignal yet. Your Preview is still saved on this device, so you can come back here without email, or add email/Discord/Telegram as an optional backup.";
     else reply = "Email is optional. After you have seen the Preview, choose Notify this device if you want this browser to alert you, or choose I'll come back here. Email/Discord/Telegram are backup return channels and can be corrected while the request is pending.";
   }
@@ -554,7 +554,7 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
       reply = "Your Chess.com username lets BoardSignal resolve the stable Chess.com player ID that anchors your account. The stable ID—not the spelling of your username—is what keeps your Desks, Friends and future OAuth identity attached to the same player.";
       break;
     case "beta_next":
-      reply = context.authenticated ? "You're already inside your persistent Founding Beta account. Your completed Desks belong to this Player Room and your current episode can form here between weeks." : "After you request Founding Beta access, BoardSignal opens a public-safe Preview immediately while Ayanda reviews it. If approved, one-time private access opens the compact Founding Beta agreement and then lands on your Desk. Valid contact and notification setup from the request carries into Profile automatically; username + Beta code stays available only as recovery.";
+      reply = context.authenticated ? "You're already in. Your private BoardSignal is available now; Founding Beta identity review can happen quietly in the background without making you log in again." : "After your public-safe Preview, Continue to My Player Room starts private Founding Beta access immediately for an eligible first-time BoardSignal identity. The compact agreement comes next, then Desk; Ayanda reviews identity in the background. Magic access and username + Beta code remain recovery paths, not onboarding gates.";
       actions.push(...baseActions(context));
       break;
     case "beta_cost":

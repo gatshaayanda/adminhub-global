@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { claimApprovedBetaPreview, publicBetaPreviewStatus, registerBetaPreviewNotificationDevice, verifyBetaPreviewStatusCredential } from "@/lib/boardsignal/server/activation";
+import { claimBetaPreviewAccess, publicBetaPreviewStatus, registerBetaPreviewNotificationDevice, verifyBetaPreviewStatusCredential } from "@/lib/boardsignal/server/activation";
 import { retryFoundingBetaPreview, updateFoundingBetaReturnPreference } from "@/lib/boardsignal/server/betaRequests";
 
 export const runtime = "nodejs";
@@ -21,7 +21,7 @@ export async function POST(request: Request, context: { params: Promise<{ reques
     const body = await request.json() as { action?: unknown; statusToken?: unknown; method?: unknown; contactValue?: unknown; betaContactConsent?: unknown; fcmToken?: unknown; userAgent?: unknown };
     const action = String(body.action ?? "status");
     if (action === "claim") {
-      const claim = await claimApprovedBetaPreview(id, body.statusToken);
+      const claim = await claimBetaPreviewAccess(id, body.statusToken);
       return response({ ok: true, customToken: claim.customToken, claimedAt: claim.claimedAt });
     }
     if (action === "registerDevice") {

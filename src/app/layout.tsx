@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import "./boardsignal-accessibility.css";
+import "./boardsignal-motion.css";
 
 import InstallPrompt from "@/components/InstallPrompt";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
@@ -14,6 +15,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import AskBoardSignal from "@/components/AskBoardSignal";
 import ConnectivityProvider from "@/components/ConnectivityProvider";
 import PwaLaunchRedirect from "@/components/PwaLaunchRedirect";
+import BoardSignalSituationalMotion from "@/components/BoardSignalSituationalMotion";
 
 const montserrat = Montserrat({
   variable: "--font-sans",
@@ -78,6 +80,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body suppressHydrationWarning>
         <Loader />
+        <BoardSignalSituationalMotion />
         <AnalyticsProvider>
           <ConnectivityProvider>
           <div className="site-frame">

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { hasAcceptedCurrentBetaAgreement } from "@/lib/boardsignal/account";
+import { withPreviousReviewGuidance } from "@/lib/boardsignal/activeWeekGuidance";
 import { buildCurrentEpisodeSummary } from "@/lib/boardsignal/processor";
+import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
 import {
   acceptFoundingBetaAgreement,
   accountForToken,
@@ -18,6 +20,12 @@ export const dynamic = "force-dynamic";
 
 function response(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store, private", "X-Robots-Tag": "noindex, nofollow" } });
+}
+
+function factualEpisodeCheckpoint(episode: Awaited<ReturnType<typeof buildCurrentEpisodeSummary>>): CurrentEpisodeSummary {
+  const { nextGameGuidance, ...factualEpisode } = episode;
+  void nextGameGuidance;
+  return factualEpisode;
 }
 
 export async function GET(request: Request) {
@@ -41,14 +49,33 @@ export async function GET(request: Request) {
         },
       });
     }
-    let currentEpisode;
+    let currentEpisode: Awaited<ReturnType<typeof buildCurrentEpisodeSummary>> | undefined;
     let progressUnavailable;
     try {
       currentEpisode = await buildCurrentEpisodeSummary(account.chessCom.canonicalUsername, { anchorStart: account.cadenceAnchor });
     } catch (error) {
       progressUnavailable = error instanceof Error ? error.message : "Current episode progress is temporarily unavailable.";
     }
-    const snapshot = await buildPlayerRoomSnapshot(token, currentEpisode, progressUnavailable);
+    // Keep B.1's temporary action out of the durable user-root episode checkpoint.
+    // The existing factual forming-week checkpoint persists unchanged; guidance is
+    // recomputed from live current-week games and attached to this private response.
+    const factualCurrentEpisode = currentEpisode ? factualEpisodeCheckpoint(currentEpisode) : undefined;
+    const snapshot = await buildPlayerRoomSnapshot(token, factualCurrentEpisode, progressUnavailable);
+    if (snapshot.currentEpisode && currentEpisode) {
+      const previous = snapshot.desks[0]?.summary;
+      currentEpisode = {
+        ...currentEpisode,
+        nextGameGuidance: withPreviousReviewGuidance(currentEpisode.nextGameGuidance, previous?.previousBlue ? {
+          title: previous.previousBlue.title,
+          copy: previous.previousBlue.copy,
+          family: previous.signalFamilies.blueFamily,
+          sourcePeriod: previous.periodLabel,
+        } : undefined),
+      };
+      // B.1 continuity is a response-time enrichment. The existing persistence
+      // layer stays untouched and the current-week game set remains authoritative.
+      snapshot.currentEpisode = currentEpisode;
+    }
     await recordGuidePlayerRoomSnapshot(account, {
       currentEpisode,
       latestDesk: snapshot.desks[0]?.desk,

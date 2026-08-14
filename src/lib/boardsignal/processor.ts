@@ -1,6 +1,12 @@
 import { Chess } from "chess.js";
 import type { BoardSignalDesk, DeskCandidate, DeskDay, DeskPool, ResolvedPlayer } from "./types";
-import type { CurrentEpisodeSummary } from "./memory";
+import {
+  deriveActiveWeekNextGameGuidance,
+  unavailableActiveWeekGuidance,
+  type ActiveWeekEvidenceFact,
+  type ActiveWeekGuidanceFamily,
+  type CurrentEpisodeWithNextGameGuidance,
+} from "./activeWeekGuidance";
 
 type ChessComPlayer = {
   player_id?: number;
@@ -361,6 +367,52 @@ function candidatePositions(game: ChessComGame, username: string): DeskCandidate
   } catch {
     return [];
   }
+}
+
+function activeWeekFamilyForCandidate(candidate: DeskCandidate): ActiveWeekGuidanceFamily | undefined {
+  if (candidate.kind === "timeout") return "clock_conversion";
+  if (candidate.motif === "queen-safety") return "queen_safety";
+  if (candidate.motif === "king-safety") return "king_safety";
+  if (candidate.motif === "forcing-reply") return "forcing_reply";
+  if (candidate.motif === "material") return "material_conversion";
+  return undefined;
+}
+
+function activeWeekEvidenceForGame(game: ChessComGame, username: string): ActiveWeekEvidenceFact[] {
+  const result = resultFor(game, username);
+  if (result.result !== "loss") return [];
+  const id = gameId(game);
+  const byFamily = new Map<ActiveWeekGuidanceFamily, ActiveWeekEvidenceFact>();
+  const add = (fact: ActiveWeekEvidenceFact) => {
+    const existing = byFamily.get(fact.family);
+    if (!existing || fact.severity > existing.severity || (fact.severity === existing.severity && fact.id < existing.id)) byFamily.set(fact.family, fact);
+  };
+
+  if (result.player.result === "timeout") {
+    add({
+      id: `${id}:timeout`,
+      gameId: id,
+      family: "clock_conversion",
+      occurredAt: game.end_time,
+      summary: "A current-week game ended on time.",
+      severity: 100,
+    });
+  }
+
+  for (const candidate of candidatePositions(game, username)) {
+    if (candidate.role !== "correction") continue;
+    const family = activeWeekFamilyForCandidate(candidate);
+    if (!family || family === "clock_conversion") continue;
+    add({
+      id: `${id}:${family}:${candidate.id}`,
+      gameId: id,
+      family,
+      occurredAt: game.end_time,
+      summary: candidate.reason,
+      severity: Math.max(0, Math.min(100, candidate.heuristicScore ?? 0)),
+    });
+  }
+  return [...byFamily.values()];
 }
 
 function selectCandidates(games: ChessComGame[], username: string, limit = 8) {
@@ -790,13 +842,14 @@ export function currentAlignedPeriod(anchorStart: string | undefined, reference 
 }
 
 /**
- * Reads only factual public-game progress for the open anchored episode.
- * It never selects candidate positions, starts Stockfish, or mutates a closed Desk.
+ * Reads factual public-game progress for the open anchored episode and derives
+ * one private, non-engine next-game action from the SAME retrieved game set.
+ * It never starts Stockfish or mutates a closed Desk.
  */
 export async function buildCurrentEpisodeSummary(
   requestedUsername: string,
   options: BuildCurrentEpisodeOptions = {},
-): Promise<CurrentEpisodeSummary> {
+): Promise<CurrentEpisodeWithNextGameGuidance> {
   const resolved = await resolveChessComPlayer(requestedUsername);
   const referenceDate = options.referenceDate ?? new Date();
   const { start, end } = currentAlignedPeriod(options.anchorStart, referenceDate);
@@ -830,6 +883,7 @@ export async function buildCurrentEpisodeSummary(
   let losses = 0;
   let currentWinRun = 0;
   let currentLossRun = 0;
+  const guidanceEvidence: ActiveWeekEvidenceFact[] = [];
   const poolMap = new Map<string, {
     games: number;
     wins: number;
@@ -845,6 +899,7 @@ export async function buildCurrentEpisodeSummary(
     losses += result.result === "loss" ? 1 : 0;
     currentWinRun = result.result === "win" ? currentWinRun + 1 : 0;
     currentLossRun = result.result === "loss" ? currentLossRun + 1 : 0;
+    guidanceEvidence.push(...activeWeekEvidenceForGame(game, resolved.username));
     const poolName = game.time_class ?? "other";
     const pool = poolMap.get(poolName) ?? { games: 0, wins: 0, draws: 0, losses: 0, ratings: [] };
     pool.games += 1;
@@ -860,6 +915,19 @@ export async function buildCurrentEpisodeSummary(
   for (const game of games) {
     if (previousEnd === undefined || game.end_time - previousEnd >= 30 * 60) sessions += 1;
     previousEnd = game.end_time;
+  }
+
+  let nextGameGuidance;
+  try {
+    nextGameGuidance = deriveActiveWeekNextGameGuidance({
+      gamesConsidered: games.length,
+      currentLossRun,
+      latestGameAt: games.at(-1)?.end_time,
+      evidence: guidanceEvidence,
+    });
+  } catch {
+    // Guidance is enrichment. The factual forming-week state must still render.
+    nextGameGuidance = unavailableActiveWeekGuidance(games.length);
   }
 
   const today = atUtcMidnight(referenceDate);
@@ -890,5 +958,6 @@ export async function buildCurrentEpisodeSummary(
       ratingDelta: item.ratings.length ? item.ratings.at(-1)! - item.ratings[0] : undefined,
     })).sort((a, b) => b.games - a.games),
     nextDeskDueAt: isoDay(new Date(end.getTime() + DAY_MS)),
+    nextGameGuidance,
   };
 }

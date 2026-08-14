@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { BarChart3, CalendarDays, Inbox, ShieldCheck, Swords, TrendingUp, WifiOff } from "lucide-react";
 import UniversalPlayerDesk from "@/components/UniversalPlayerDesk";
+import type { CurrentEpisodeWithNextGameGuidance } from "@/lib/boardsignal/activeWeekGuidance";
 import { loadPlayerRoomOfflineSnapshot, loadSocialOfflineSnapshot } from "@/lib/boardsignal/offline/snapshots";
 import type { OfflinePlayerRoomSnapshot, OfflineSocialSnapshot } from "@/lib/boardsignal/offline/types";
 import { auth } from "@/utils/firebaseConfig";
@@ -50,6 +51,7 @@ export default function OfflinePlayerRoom({ uid: suppliedUid, initialSnapshot, e
   }, [embedded]);
 
   const selectedDesk = useMemo(() => snapshot?.desks.find((item) => item.summary.deskKey === selectedDeskKey) ?? snapshot?.desks[0], [selectedDeskKey, snapshot]);
+  const savedCurrentEpisode = snapshot?.currentEpisode as CurrentEpisodeWithNextGameGuidance | undefined;
 
   if (!authReady) return <div className="container offline-player-room-loading"><span className="button-spinner"/> Opening your saved BoardSignal…</div>;
   if (!uid) return <div id="main" className="container offline-player-room-empty"><WifiOff size={24}/><p className="kicker">BOARDSIGNAL OFFLINE</p><h1>Your saved Player Room needs the same signed-in account.</h1><p>Signing in and Beta Access verification need a connection. Reconnect, sign in once, and BoardSignal can keep your own saved Desk available on this device.</p></div>;
@@ -64,7 +66,7 @@ export default function OfflinePlayerRoom({ uid: suppliedUid, initialSnapshot, e
       <div className="container player-room-memory offline-desk-controls">
         <div><p className="kicker">SAVED DESKS</p><h2>Latest four active Desks</h2><p>Last synchronized {savedLabel(snapshot.lastSyncedAt)}. This does not update while offline.</p></div>
         {snapshot.desks.length > 1 ? <div className="offline-desk-picker">{snapshot.desks.map((item, index) => <button type="button" key={item.summary.deskKey} className={selectedDesk?.summary.deskKey === item.summary.deskKey ? "active" : ""} onClick={() => setSelectedDeskKey(item.summary.deskKey)}><span>Desk {snapshot.desks.length-index}</span><strong>{item.summary.periodLabel}</strong></button>)}</div> : null}
-        {snapshot.currentEpisode ? <section className="offline-forming-snapshot"><CalendarDays size={18}/><div><strong>Current episode — saved snapshot</strong><p>{snapshot.currentEpisode.periodLabel} · {snapshot.currentEpisode.games} games · {snapshot.currentEpisode.wins}W {snapshot.currentEpisode.draws}D {snapshot.currentEpisode.losses}L</p><small>Latest available data when last synchronized. No new episode analysis runs offline.</small></div></section> : null}
+        {savedCurrentEpisode ? <section className="offline-forming-snapshot"><CalendarDays size={18}/><div><strong>Current episode — saved snapshot</strong><p>{savedCurrentEpisode.periodLabel} · {savedCurrentEpisode.games} games · {savedCurrentEpisode.wins}W {savedCurrentEpisode.draws}D {savedCurrentEpisode.losses}L</p>{savedCurrentEpisode.nextGameGuidance && savedCurrentEpisode.nextGameGuidance.status !== "insufficient_evidence" ? <p><strong>Before your next game — saved:</strong> {savedCurrentEpisode.nextGameGuidance.title} {savedCurrentEpisode.nextGameGuidance.copy}</p> : null}<small>Latest available data when last synchronized. No new episode analysis runs offline.</small></div></section> : null}
       </div>
       {selectedDesk ? <UniversalPlayerDesk requestedUsername={selectedDesk.desk.player.username} publishedDesk={selectedDesk.desk} publishedEngineResults={selectedDesk.engineResults}/> : <div className="container offline-empty-card">No completed Desk was saved yet.</div>}
     </> : null}

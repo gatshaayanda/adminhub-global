@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { BarChart3, CalendarDays, Inbox, LoaderCircle, ShieldCheck, Target, TrendingUp } from "lucide-react";
 import BetaAgreementGate from "@/components/BetaAgreementGate";
@@ -15,10 +15,9 @@ import ShareMomentActions from "@/components/ShareMomentActions";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { removeBoardSignalBrowserPush } from "@/components/BrowserPushControl";
 import { hasAcceptedCurrentBetaAgreement, type BoardSignalAccount } from "@/lib/boardsignal/account";
-import { buildDeskReturnLoop } from "@/lib/boardsignal/universe";
+import type { CurrentEpisodeWithNextGameGuidance } from "@/lib/boardsignal/activeWeekGuidance";
 import type { PlayerPulse, PublicUniverseEvent, SafeShareMoment } from "@/lib/boardsignal/pulse";
 import type {
-  CurrentEpisodeSummary,
   DeskSummary,
   PersonalRecords,
   ProgressSeries,
@@ -43,7 +42,7 @@ type Snapshot = {
   progress: ProgressSeries[];
   recurringPatterns: RecurringPattern[];
   personalRecords: PersonalRecords;
-  currentEpisode?: CurrentEpisodeSummary;
+  currentEpisode?: CurrentEpisodeWithNextGameGuidance;
   pendingFactualReview?: FactualReviewDraft;
   progressUnavailable?: string;
   pulseUnavailable?: string;
@@ -279,7 +278,6 @@ export default function BoardSignalPlayerRoom() {
   }, [connectivity.online, token, user?.uid]);
 
   const latest = snapshot?.desks[0];
-  const returnLoop = useMemo(() => latest ? buildDeskReturnLoop(latest.desk, snapshot?.pulse?.standings ?? []) : undefined, [latest, snapshot?.pulse?.standings]);
 
   if (!authReady || loading) return <RoomLoading />;
   if (!user && connectivity.state === "offline") return (
@@ -320,7 +318,7 @@ export default function BoardSignalPlayerRoom() {
 
       {tab === "desk" ? <>
         <div className="container player-room-memory">
-          {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} returnLoop={returnLoop} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}
+          {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}
           {latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}
         </div>
         {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : null}
@@ -351,7 +349,7 @@ function RoomNav({ tab, setTab, unreadCount }: { tab: RoomTab; setTab: (tab: Roo
   return <nav className="container room-tab-nav" aria-label="My BoardSignal"><div>{items.map((item) => <button type="button" key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)} aria-current={tab === item.id ? "page" : undefined}>{item.label}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge">{unreadCount}</span> : null}</button>)}</div></nav>;
 }
 
-function CurrentEpisodeCard({ episode, returnLoop }: { episode: CurrentEpisodeSummary; returnLoop?: ReturnType<typeof buildDeskReturnLoop> }) {
+function CurrentEpisodeCard({ episode }: { episode: CurrentEpisodeWithNextGameGuidance }) {
   const strongestRun = episode.currentWinRun >= episode.currentLossRun
     ? episode.currentWinRun > 1 ? `${episode.currentWinRun} consecutive wins are the strongest live run so far.` : undefined
     : episode.currentLossRun > 1 ? `${episode.currentLossRun} consecutive losses are the longest negative run so far.` : undefined;
@@ -359,16 +357,27 @@ function CurrentEpisodeCard({ episode, returnLoop }: { episode: CurrentEpisodeSu
   const factualStandout = strongestRun
     ?? (leadPool?.ratingDelta !== undefined ? `${leadPool.pool} is currently ${leadPool.ratingDelta >= 0 ? "+" : ""}${leadPool.ratingDelta} across ${leadPool.games} game${leadPool.games === 1 ? "" : "s"}.` : undefined)
     ?? (episode.games ? `${episode.games} games are already shaping this week's record.` : "BoardSignal is waiting for the first games of this week.");
+  const guidance = episode.nextGameGuidance;
+  const hasGuidance = guidance.status === "available" || guidance.status === "fallback_previous_review";
+  const guidanceSource = guidance.source === "previous_review"
+    ? `FROM YOUR LAST REVIEW${guidance.previousReviewPeriod ? ` · ${guidance.previousReviewPeriod}` : ""}`
+    : `Based on ${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} so far.`;
+  const noGuidanceCopy = guidance.reason === "no_games"
+    ? "Play the first game of this week and BoardSignal will look for one safe thing to carry into the next one."
+    : guidance.reason === "derivation_unavailable"
+      ? "BoardSignal has your current week. Next-game guidance isn't available yet."
+      : "Nothing in the current games has enough factual support for a useful next-game action yet.";
+
   return <section className="current-episode-card">
     <div className="current-episode-heading"><div><p className="kicker">THIS WEEK</p><h2>Your week is taking shape.</h2><p>{episode.games ? `${episode.games} games so far. Here's what BoardSignal can already see.` : "Your review will start taking shape as new Chess.com games arrive."}</p></div><small>{episode.periodLabel}</small></div>
     <p className="kicker">WHAT'S HAPPENED SO FAR?</p><div className="current-episode-stats" aria-label="What's happened so far"><div><span>Games so far</span><strong>{episode.games}</strong></div><div><span>Record so far</span><strong>{episode.wins}W · {episode.draws}D · {episode.losses}L</strong></div><div><span>Sessions</span><strong>{episode.sessions}</strong></div><div><span>Week progress</span><strong>{episode.daysComplete} of 7 days</strong></div></div>
     {episode.pools.length ? <div className="forming-pools">{episode.pools.map((pool) => <article key={pool.pool}><span>{pool.pool}</span><strong>{pool.games} games</strong><p>{pool.wins}W · {pool.draws}D · {pool.losses}L{pool.ratingDelta !== undefined ? ` · ${pool.ratingDelta >= 0 ? "+" : ""}${pool.ratingDelta}` : ""}</p></article>)}</div> : null}
     <div className="return-loop-grid">
-      <article className="return-loop-amber"><span>WHAT'S STARTING TO STAND OUT?</span><h3>So far, this is factual.</h3><p>{factualStandout}</p><small>No final diagnosis is made from an unfinished week.</small></article>
-      {returnLoop?.previousBlue ? <article className="return-loop-blue"><span>CARRY INTO YOUR NEXT GAMES</span><h3>{returnLoop.previousBlue.title}</h3><p>{returnLoop.previousBlue.copy}</p><small>From your last completed review.</small></article> : null}
-      <article className="return-loop-next"><span>WHAT BOARDSIGNAL IS WATCHING</span><h3>How the week finishes.</h3><p>BoardSignal is watching whether the current record, runs and rating direction hold as more games are added.</p><small>Position-based conclusions wait for the completed review.</small></article>
+      <article className="return-loop-blue"><span>BEFORE YOUR NEXT GAME</span>{hasGuidance ? <><h3>{guidance.title}</h3><p>{guidance.copy}</p><small>{guidanceSource}</small>{guidance.reinforcement ? <p><strong>{guidance.reinforcement.label}.</strong> Your last Review asked you to watch “{guidance.reinforcement.previousTitle}”. This week's games independently support the same evidence family.</p> : null}</> : <><h3>Nothing specific yet.</h3><p>{noGuidanceCopy}</p><small>{guidance.gamesConsidered ? `Based on ${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} so far.` : "No current-week evidence yet."}</small></>}</article>
+      <article className="return-loop-amber"><span>WHAT'S STARTING TO STAND OUT?</span><h3>So far, this is factual.</h3><p>{factualStandout}</p><small>This describes the forming week; it is not the final diagnosis.</small></article>
+      <article className="return-loop-next"><span>WHAT BOARDSIGNAL IS WATCHING</span><h3>What the next games add.</h3><p>BoardSignal is watching whether the current factual events repeat, strengthen or give way to something else as this fixed week continues.</p><small>Position-based conclusions still wait for the completed Review.</small></article>
     </div>
-    {returnLoop?.amberWatch ? <p className="forming-note"><ShieldCheck size={15} /> Keep in mind from your last completed review: {returnLoop.amberWatch.title}. This is previous guidance, not a new conclusion about this unfinished week.</p> : <p className="forming-note"><ShieldCheck size={15} /> This is live factual progress. Final improvement guidance waits for the completed review.</p>}
+    <p className="forming-note"><ShieldCheck size={15} /> Your next-game cue is deliberately narrow. The completed Review remains the authority for durable Signals and position conclusions.</p>
     <p className="helper-copy"><strong>When the review will be ready:</strong> {episode.nextDeskDueAt} · {episode.daysRemaining} day{episode.daysRemaining === 1 ? "" : "s"} remaining in this fixed week.</p>
   </section>;
 }

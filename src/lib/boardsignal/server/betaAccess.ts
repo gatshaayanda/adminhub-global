@@ -10,6 +10,7 @@ import {
 import { resolveChessComPlayer } from "../processor";
 import { getAdminAuth, getAdminDb } from "../../../utils/firebaseAdmin";
 import { ensureStablePlayerAccount } from "./persistence";
+import { inspectSafePublicCoverageForAccount } from "./publicCoverageRepair";
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]{2,50}$/;
 
@@ -175,8 +176,7 @@ export async function listFounderPlayerIdentities(): Promise<FounderPlayerIdenti
     .filter((account) => account.role === "player" && Number.isSafeInteger(account.chessCom?.playerId));
 
   return Promise.all(accounts.map(async (account) => {
-    const desks = await db.collection("users").doc(account.uid).collection("desks").orderBy("periodEnd", "desc").limit(4).get();
-    const latest = desks.docs[0]?.data() as { deskKey?: string; summary?: { periodLabel?: string; periodEnd?: string } } | undefined;
+    const publicHighlights = await inspectSafePublicCoverageForAccount(account);
     const betaAccess = accessByPlayer.get(String(account.chessCom.playerId));
     const betaAccessStatus: FounderPlayerIdentityRow["betaAccessStatus"] = betaAccess?.status ?? "not_created";
     return {
@@ -187,10 +187,15 @@ export async function listFounderPlayerIdentities(): Promise<FounderPlayerIdenti
       profileUrl: account.chessCom.profileUrl,
       betaAccessStatus,
       accountStatus: account.accessStatus,
-      desksStored: desks.size,
-      latestDesk: latest?.deskKey && latest.summary?.periodLabel && latest.summary.periodEnd
-        ? { deskKey: latest.deskKey, periodLabel: latest.summary.periodLabel, periodEnd: latest.summary.periodEnd }
-        : undefined,
+      desksStored: publicHighlights.retainedReviews,
+      latestDesk: publicHighlights.latestReview,
+      publicHighlights: {
+        status: publicHighlights.status,
+        retainedReviews: publicHighlights.retainedReviews,
+        expectedCoverage: publicHighlights.expectedCoverage,
+        liveCoverage: publicHighlights.liveCoverage,
+        repairAvailable: publicHighlights.repairAvailable,
+      },
       lastSeen: account.lastSeenAt,
       oauthLinked: Boolean(account.chessComOAuthLinkedAt),
       preferredContactMethod: account.betaContactConsent === true ? account.preferredContactMethod : undefined,

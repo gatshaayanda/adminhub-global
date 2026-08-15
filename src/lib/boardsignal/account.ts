@@ -7,6 +7,13 @@ export type BoardSignalAccessStatus = "active" | "paused" | "deleted";
 export type BoardSignalContactMethod = "email" | "discord" | "telegram";
 export type BoardSignalIdentityStatus = "provisional" | "founder_reviewed" | "oauth_verified" | "revoked";
 export type BoardSignalIdentityReviewStatus = "pending" | "confirmed" | "rejected";
+export type BoardSignalPublicHighlightsStatus =
+  | "live"
+  | "waiting_identity_review"
+  | "no_completed_review"
+  | "no_safe_highlight"
+  | "repair_needed"
+  | "unavailable";
 
 export type StableChessComIdentity = {
   playerId: number;
@@ -74,6 +81,14 @@ export type ChessComOAuthStatus = {
   message: string;
 };
 
+export type FounderPublicHighlightsState = {
+  status: BoardSignalPublicHighlightsStatus;
+  retainedReviews: number;
+  expectedCoverage: number;
+  liveCoverage: number;
+  repairAvailable: boolean;
+};
+
 export type FounderPlayerIdentityRow = {
   uid: string;
   username: string;
@@ -84,6 +99,7 @@ export type FounderPlayerIdentityRow = {
   accountStatus: BoardSignalAccessStatus;
   desksStored: number;
   latestDesk?: { deskKey: string; periodLabel: string; periodEnd: string };
+  publicHighlights: FounderPublicHighlightsState;
   lastSeen?: string;
   oauthLinked: boolean;
   preferredContactMethod?: BoardSignalContactMethod;

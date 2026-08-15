@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Clipboard, ExternalLink, KeyRound, LoaderCircle, RefreshCcw, ShieldX, UserRoundCheck, X, XCircle } from "lucide-react";
+import { Check, Clipboard, ExternalLink, KeyRound, LoaderCircle, RefreshCcw, ShieldX, UserRoundCheck, X } from "lucide-react";
 import type { BoardSignalContactMethod, FounderPlayerIdentityRow } from "@/lib/boardsignal/account";
 import type { BetaActivationReturnMethod, BoardSignalBetaPreview } from "@/lib/boardsignal/activation";
 import FounderBetaRequestAlerts from "@/components/FounderBetaRequestAlerts";
@@ -25,11 +25,38 @@ type RequestRow = {
 type ApiResult = {
   ok: boolean; players?: FounderPlayerIdentityRow[]; requests?: RequestRow[]; player?: { username?: string; playerId: number };
   accessCode?: string; approvalMessage?: string; magicLink?: string; magicAccessExpiresAt?: string;
-  accessEmailDelivery?: RequestRow["accessEmailDelivery"]; deviceDelivery?: RequestRow["activationDeviceDelivery"]; playerAlreadyInside?: boolean; error?: string;
+  accessEmailDelivery?: RequestRow["accessEmailDelivery"]; deviceDelivery?: RequestRow["activationDeviceDelivery"]; playerAlreadyInside?: boolean;
+  publicHighlights?: { status?: string; repairAvailable?: boolean; error?: string }; error?: string;
 };
 
 type ManualCode = { username: string; playerId: number; accessCode: string; action: "created" | "reset" };
 type PreparedAccess = { requestId: string; username: string; playerId: number; accessCode?: string; magicLink: string; approvalMessage: string; expiresAt?: string; emailDelivery?: RequestRow["accessEmailDelivery"]; deviceDelivery?: RequestRow["activationDeviceDelivery"] };
+
+function privateAccessLabel(status: FounderPlayerIdentityRow["accountStatus"]) {
+  return status === "active" ? "Active" : status === "paused" ? "Paused" : "Deleted";
+}
+
+function identityLabel(player: FounderPlayerIdentityRow) {
+  if (player.identityStatus === "provisional") return "Pending Founder review";
+  if (player.identityStatus === "founder_reviewed") return "Founder reviewed";
+  if (player.identityStatus === "oauth_verified") return "OAuth verified";
+  if (player.identityStatus === "revoked") return "Revoked";
+  if (player.oauthLinked) return "OAuth verified";
+  return "Legacy / status not recorded";
+}
+
+function publicHighlightsLabel(status: FounderPlayerIdentityRow["publicHighlights"]["status"]) {
+  if (status === "live") return "Live";
+  if (status === "waiting_identity_review") return "Waiting for identity review";
+  if (status === "no_completed_review") return "No completed Review yet";
+  if (status === "no_safe_highlight") return "No safe public highlight yet";
+  if (status === "repair_needed") return "Repair needed";
+  return "Unavailable";
+}
+
+function fallbackAccessLabel(status: FounderPlayerIdentityRow["betaAccessStatus"]) {
+  return status === "active" ? "Active" : status === "revoked" ? "Revoked" : "Not configured";
+}
 
 export default function FoundingBetaPlayersAdmin() {
   const [players, setPlayers] = useState<FounderPlayerIdentityRow[]>([]);
@@ -69,8 +96,8 @@ export default function FoundingBetaPlayersAdmin() {
 
   async function mutate(action: "create" | "reset" | "revoke", playerId?: number) {
     if (action === "create" && !username.trim()) { setError("Enter the approved player's Chess.com username."); return; }
-    if (action === "reset" && !window.confirm("Reset this player's fallback Beta Access code?")) return;
-    if (action === "revoke" && !window.confirm("Revoke this player's Founding Beta Access?")) return;
+    if (action === "reset" && !window.confirm("Reset this player's fallback code and sign out existing sessions?")) return;
+    if (action === "revoke" && !window.confirm("Revoke this player's fallback access and sign out existing sessions?")) return;
     setBusyPlayer(action === "create" ? "create" : playerId ?? null); setError(""); setManualCode(null); setPreparedAccess(null); setCopied(null);
     try {
       const response = await fetch("/api/admin/boardsignal/beta-access", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify(action === "create" ? { action, username: username.trim() } : { action, playerId }) });
@@ -80,6 +107,22 @@ export default function FoundingBetaPlayersAdmin() {
       if (action === "create") setUsername("");
       await loadPlayers();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Founding Beta Access could not be updated."); }
+    finally { setBusyPlayer(null); }
+  }
+
+  async function repairPublicHighlights(player: FounderPlayerIdentityRow) {
+    setBusyPlayer(player.playerId); setError(""); setManualCode(null); setPreparedAccess(null);
+    try {
+      const response = await fetch("/api/admin/boardsignal/beta-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ action: "repairPublicHighlights", playerId: player.playerId }),
+      });
+      const body = await response.json() as ApiResult;
+      if (!response.ok || !body.ok) throw new Error(body.error ?? "Public highlights could not be repaired.");
+      await loadPlayers();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Public highlights could not be repaired."); }
     finally { setBusyPlayer(null); }
   }
 
@@ -145,7 +188,28 @@ export default function FoundingBetaPlayersAdmin() {
 
     {error ? <p className="founder-access-error" role="alert">{error}</p> : null}
 
-    <section className="desk-section founder-player-directory"><div className="founder-directory-heading"><div><p className="kicker">IDENTITY AND MEMBERSHIP</p><h2>Founding Beta players</h2><p>Stable identity, account state, retained Desks, hydrated private contact and provider status.</p></div></div>{loading ? <div className="founder-directory-loading"><LoaderCircle className="button-spinner"/> Loading player identities</div> : players.length ? <div className="founder-player-grid">{players.map((player) => <article className="founder-player-card" key={player.playerId}><header>{player.avatar ? <Image src={player.avatar} alt="" width={44} height={44} unoptimized/> : <div className="universal-avatar">{player.username.slice(0,2).toUpperCase()}</div>}<div><h3>{player.username}</h3><code>Chess.com ID {player.playerId}</code></div><span className={`state-pill ${player.accountStatus === "active" ? "ready" : "processing"}`}>{player.accountStatus}</span></header><dl><div><dt>Founding Beta</dt><dd>{player.betaAccessStatus === "active" ? "Beta Access active" : player.betaAccessStatus === "revoked" ? "Beta Access revoked" : "Access not created"}</dd></div><div><dt>Contact</dt><dd>{player.preferredContactMethod && player.preferredContactValue ? `${player.preferredContactMethod}: ${player.preferredContactValue}` : "Not confirmed"}</dd></div><div><dt>Desks stored</dt><dd>{player.desksStored} of 4</dd></div><div><dt>Latest Desk</dt><dd>{player.latestDesk?.periodLabel ?? "No stored Desk"}</dd></div><div><dt>Last seen</dt><dd>{player.lastSeen ? new Date(player.lastSeen).toLocaleString() : "Not recorded"}</dd></div><div><dt>Chess.com OAuth</dt><dd>{player.oauthLinked ? "OAuth linked" : "Awaiting OAuth"}</dd></div></dl><div className="founder-player-actions">{player.betaAccessStatus === "not_created" ? <button className="button button-outline" type="button" onClick={() => { setUsername(player.username); window.scrollTo({ top: 0, behavior: "smooth" }); }}><KeyRound size={14}/> Create fallback access</button> : <button className="button button-outline" type="button" onClick={() => mutate("reset", player.playerId)} disabled={busyPlayer !== null}><RefreshCcw size={14}/> Reset fallback code</button>}{player.betaAccessStatus === "active" ? <button className="button button-quiet" type="button" onClick={() => mutate("revoke", player.playerId)} disabled={busyPlayer !== null}><ShieldX size={14}/> Revoke Access</button> : null}<Link className="button button-quiet" href={`/player/${encodeURIComponent(player.username)}`} target="_blank" rel="noreferrer"><ExternalLink size={14}/> Open Public Coverage</Link></div></article>)}</div> : <div className="universe-empty"><p>No persistent BoardSignal player accounts exist yet.</p></div>}</section>
+    <section className="desk-section founder-player-directory">
+      <div className="founder-directory-heading"><div><p className="kicker">IDENTITY AND MEMBERSHIP</p><h2>Founding Beta players</h2><p>Private access, identity review, public highlights and fallback recovery are separate server-derived states.</p></div></div>
+      {loading ? <div className="founder-directory-loading"><LoaderCircle className="button-spinner"/> Loading player identities</div> : players.length ? <div className="founder-player-grid">{players.map((player) => <article className="founder-player-card" key={player.playerId}>
+        <header>{player.avatar ? <Image src={player.avatar} alt="" width={44} height={44} unoptimized/> : <div className="universal-avatar">{player.username.slice(0,2).toUpperCase()}</div>}<div><h3>{player.username}</h3><code>Chess.com ID {player.playerId}</code></div><span className={`state-pill ${player.accountStatus === "active" ? "ready" : "processing"}`}>{privateAccessLabel(player.accountStatus)}</span></header>
+        <dl>
+          <div><dt>PRIVATE ACCESS</dt><dd>{privateAccessLabel(player.accountStatus)}</dd></div>
+          <div><dt>IDENTITY</dt><dd>{identityLabel(player)}</dd></div>
+          <div><dt>PUBLIC HIGHLIGHTS</dt><dd>{publicHighlightsLabel(player.publicHighlights.status)}{player.publicHighlights.expectedCoverage ? ` · ${player.publicHighlights.liveCoverage} of ${player.publicHighlights.expectedCoverage}` : ""}</dd></div>
+          <div><dt>FALLBACK ACCESS</dt><dd>{fallbackAccessLabel(player.betaAccessStatus)}</dd></div>
+          <div><dt>Contact</dt><dd>{player.preferredContactMethod && player.preferredContactValue ? `${player.preferredContactMethod}: ${player.preferredContactValue}` : "Not confirmed"}</dd></div>
+          <div><dt>Reviews stored</dt><dd>{player.desksStored} of 4</dd></div>
+          <div><dt>Latest Review</dt><dd>{player.latestDesk?.periodLabel ?? "No stored Review"}</dd></div>
+          <div><dt>Last seen</dt><dd>{player.lastSeen ? new Date(player.lastSeen).toLocaleString() : "Not recorded"}</dd></div>
+        </dl>
+        <div className="founder-player-actions">
+          {player.publicHighlights.repairAvailable ? <button className="button button-outline" type="button" onClick={() => repairPublicHighlights(player)} disabled={busyPlayer !== null}>{busyPlayer === player.playerId ? <LoaderCircle className="button-spinner" size={14}/> : <RefreshCcw size={14}/>} Repair public highlights</button> : null}
+          {player.betaAccessStatus === "not_created" ? <button className="button button-outline" type="button" onClick={() => { setUsername(player.username); window.scrollTo({ top: 0, behavior: "smooth" }); }}><KeyRound size={14}/> Create fallback access</button> : <button className="button button-outline" type="button" onClick={() => mutate("reset", player.playerId)} disabled={busyPlayer !== null}><RefreshCcw size={14}/> Reset fallback code</button>}
+          {player.betaAccessStatus === "active" ? <button className="button button-quiet" type="button" onClick={() => mutate("revoke", player.playerId)} disabled={busyPlayer !== null}><ShieldX size={14}/> Revoke fallback access</button> : null}
+          <Link className="button button-quiet" href={`/player/${encodeURIComponent(player.username)}`} target="_blank" rel="noreferrer"><ExternalLink size={14}/> Open Public Coverage</Link>
+        </div>
+      </article>)}</div> : <div className="universe-empty"><p>No persistent BoardSignal player accounts exist yet.</p></div>}
+    </section>
   </>;
 }
 

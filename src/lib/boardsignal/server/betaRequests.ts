@@ -19,6 +19,7 @@ import {
 } from "./activation";
 import { createFoundingBetaAccess, loadExistingFoundingBetaAccess } from "./betaAccess";
 import { ensureStablePlayerAccount } from "./persistence";
+import { ensureSafePublicCoverageForAccount } from "./publicCoverageRepair";
 import { getBoardSignalDeliveryStatus } from "./delivery";
 import { sendBoardSignalEmail } from "./email";
 import { writePublicUniverseEvent } from "./universePulse";
@@ -279,6 +280,18 @@ function accessMessage(username: string, link: string) {
   return `Your BoardSignal is ready — open your private Player Room here:\n${link}`;
 }
 
+async function reconcileConfirmedPublicHighlights(account: BoardSignalAccount) {
+  try {
+    return await ensureSafePublicCoverageForAccount(account);
+  } catch (error) {
+    return {
+      status: "repair_needed" as const,
+      repairAvailable: true,
+      error: error instanceof Error ? error.message : "Public highlights could not be reconciled.",
+    };
+  }
+}
+
 export async function approveFoundingBetaRequest(requestId: string) {
   const db = getAdminDb();
   const ref = db.collection("betaRequests").doc(requestId);
@@ -333,6 +346,17 @@ export async function approveFoundingBetaRequest(requestId: string) {
     universeAchievement: currentPreferences.universeAchievement ?? true,
     founderUpdates: currentPreferences.founderUpdates ?? true,
   };
+  const confirmedAccount: BoardSignalAccount = {
+    ...account,
+    ...(validExternalContact ? { preferredContactMethod: request.preferredContactMethod, preferredContactValue: request.preferredContactValue, betaContactConsent: true } : {}),
+    ...(completedReturnDecision ? { contactConfirmedAt: account.contactConfirmedAt ?? decidedAt, preferencesConfirmedAt: account.preferencesConfirmedAt ?? decidedAt } : {}),
+    universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? decidedAt,
+    identityStatus: "founder_reviewed",
+    identityReviewStatus: "confirmed",
+    founderReviewedAt: account.founderReviewedAt ?? decidedAt,
+    privacy: { ...account.privacy, publicPlayerPage: true, universeCoverage: true },
+    notificationPreferences,
+  };
   await db.collection("users").doc(account.uid).set(clean({
     ...(validExternalContact ? { preferredContactMethod: request.preferredContactMethod, preferredContactValue: request.preferredContactValue, betaContactConsent: true } : {}),
     ...(completedReturnDecision ? { contactConfirmedAt: account.contactConfirmedAt ?? decidedAt, preferencesConfirmedAt: account.preferencesConfirmedAt ?? decidedAt } : {}),
@@ -346,6 +370,7 @@ export async function approveFoundingBetaRequest(requestId: string) {
   await db.collection("publicPlayers").doc(String(request.chessPlayerId)).set(clean({
     chessPlayerId: String(request.chessPlayerId), username: request.canonicalUsername, usernameKey: request.canonicalUsername.toLowerCase(), avatar: request.avatar, profileUrl: request.profileUrl, pageEnabled: true,
   }), { merge: true });
+  const publicHighlights = await reconcileConfirmedPublicHighlights(confirmedAccount);
 
   await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt));
   const magic = betaMagicAccessCredential(request.id, request.chessPlayerId, account.uid, new Date(decidedAt));
@@ -372,13 +397,14 @@ export async function approveFoundingBetaRequest(requestId: string) {
 
   return {
     request: { ...request, status: "approved" as const, identityReviewStatus: "confirmed" as const, decidedAt, firebaseUid: account.uid, magicAccess: magic.record, accessEmailDelivery, activationDeviceDelivery: deviceDelivery.status },
-    account,
+    account: confirmedAccount,
     accessCode: result.accessCode,
     magicLink: magic.link,
     magicAccessExpiresAt: magic.expiresAt,
     approvalMessage: accessMessage(request.canonicalUsername, magic.link),
     accessEmailDelivery,
     deviceDelivery: deviceDelivery.status,
+    publicHighlights,
   };
 }
 
@@ -410,6 +436,14 @@ export async function confirmFoundingBetaIdentity(requestId: string) {
     throw Object.assign(new Error("The provisional Player Room no longer matches this stable request identity."), { status: 409, code: "PROVISIONAL_IDENTITY_MISMATCH" });
   }
   const decidedAt = new Date().toISOString();
+  const confirmedAccount: BoardSignalAccount = {
+    ...account,
+    identityStatus: "founder_reviewed",
+    identityReviewStatus: "confirmed",
+    founderReviewedAt: decidedAt,
+    universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? decidedAt,
+    privacy: { ...account.privacy, publicPlayerPage: true, universeCoverage: true },
+  };
   await userRef.set(clean({
     identityStatus: "founder_reviewed",
     identityReviewStatus: "confirmed",
@@ -425,11 +459,13 @@ export async function confirmFoundingBetaIdentity(requestId: string) {
     profileUrl: request.profileUrl,
     pageEnabled: true,
   }), { merge: true });
+  const publicHighlights = await reconcileConfirmedPublicHighlights(confirmedAccount);
   await ref.set({ status: "approved", identityReviewStatus: "confirmed", decidedAt }, { merge: true });
   await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt));
   return {
     request: { ...request, status: "approved" as const, identityReviewStatus: "confirmed" as const, decidedAt },
-    account: { ...account, identityStatus: "founder_reviewed" as const, identityReviewStatus: "confirmed" as const, founderReviewedAt: decidedAt },
+    account: confirmedAccount,
+    publicHighlights,
     alreadyConfirmed: false,
     playerAlreadyInside: true,
   };

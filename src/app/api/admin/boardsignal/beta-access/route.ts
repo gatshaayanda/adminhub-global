@@ -14,6 +14,7 @@ import {
   rejectFoundingBetaRequest,
   revokeProvisionalFoundingBetaIdentity,
 } from "@/lib/boardsignal/server/betaRequests";
+import { repairSafePublicCoverageForPlayer } from "@/lib/boardsignal/server/publicCoverageRepair";
 import { registerFounderNotificationDevice, unregisterFounderNotificationDevice } from "@/lib/boardsignal/server/activation";
 
 export const runtime = "nodejs";
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
         approvalMessage: "approvalMessage" in result ? result.approvalMessage : undefined,
         magicLink: "magicLink" in result ? result.magicLink : undefined,
         magicAccessExpiresAt: "magicAccessExpiresAt" in result ? result.magicAccessExpiresAt : undefined,
+        publicHighlights: "publicHighlights" in result ? result.publicHighlights : undefined,
       });
     }
     if (body.action === "revokeIdentity" && typeof body.requestId === "string") {
@@ -81,6 +83,7 @@ export async function POST(request: Request) {
         magicAccessExpiresAt: result.magicAccessExpiresAt,
         accessEmailDelivery: result.accessEmailDelivery,
         deviceDelivery: result.deviceDelivery,
+        publicHighlights: result.publicHighlights,
       });
     }
     if (body.action === "rejectRequest" && typeof body.requestId === "string") {
@@ -95,6 +98,9 @@ export async function POST(request: Request) {
     }
     if (body.action === "unregisterFounderPush") {
       return response({ ok: true, result: await unregisterFounderNotificationDevice(body.fcmToken) });
+    }
+    if (body.action === "repairPublicHighlights") {
+      return response({ ok: true, publicHighlights: await repairSafePublicCoverageForPlayer(body.playerId) });
     }
     if (body.action === "create" && typeof body.username === "string") {
       const result = await createFoundingBetaAccess(body.username);
@@ -115,7 +121,7 @@ export async function POST(request: Request) {
     if (body.action === "revoke") {
       return response({ ok: true, result: await revokeFoundingBetaAccess(body.playerId) });
     }
-    return response({ ok: false, error: "Choose Confirm/Revoke Identity, recovery access, Founder Alerts, Create Beta Access, Reset Access, Revoke Access, or Delete BoardSignal Account." }, 400);
+    return response({ ok: false, error: "Choose Confirm/Revoke Identity, Repair Public Highlights, recovery access, Founder Alerts, Create Beta Access, Reset Access, Revoke Access, or Delete BoardSignal Account." }, 400);
   } catch (error) {
     return response({
       ok: false,

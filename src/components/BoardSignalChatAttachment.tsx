@@ -54,6 +54,7 @@ export function BoardSignalAttachmentComposer({
   const resetRef = useRef(resetKey);
   const mountedRef = useRef(true);
   const cleanupAuthHeaderRef = useRef(authHeader);
+  const uploadAttemptRef = useRef(0);
   const [file, setFile] = useState<File>();
   const [previewUrl, setPreviewUrl] = useState("");
   const [state, setState] = useState<UploadState>(value ? "uploaded" : "idle");
@@ -70,12 +71,9 @@ export function BoardSignalAttachmentComposer({
     const previous = draftRef.current;
     draftRef.current = value;
     cleanupAuthHeaderRef.current = authHeader;
-    // If a parent clears a completed draft without using this component's Remove button,
-    // dispose of any still-unclaimed upload. A successfully sent/claimed file is protected
-    // server-side and the discard request safely becomes a no-op/error.
     if (previous && !value && state === "uploaded") void discardWithAuth(previous, authHeader);
   }, [authHeader, state, value]);
-  useEffect(() => { onBusyChange?.(isUploading || state === "uploading"); }, [isUploading, onBusyChange, state]);
+  useEffect(() => { onBusyChange?.(!offline && (isUploading || state === "uploading")); }, [isUploading, offline, onBusyChange, state]);
   useEffect(() => {
     if (!value && state === "uploaded") {
       setFile(undefined);
@@ -85,6 +83,26 @@ export function BoardSignalAttachmentComposer({
       if (inputRef.current) inputRef.current.value = "";
     }
   }, [state, value]);
+
+  function report(message: string) {
+    setError(message);
+    onError?.(message);
+  }
+
+  // UploadThing has no offline binary queue in BoardSignal. If connectivity drops
+  // during an in-flight upload, invalidate that attempt immediately. A late server
+  // success is discarded instead of becoming a fake ready-to-send attachment.
+  useEffect(() => {
+    if (!offline || state !== "uploading") return;
+    uploadAttemptRef.current += 1;
+    onChange(undefined);
+    setState("failed");
+    setProgress(undefined);
+    report("Attachment upload was interrupted when the connection was lost. Reconnect and choose the file again to retry.");
+    // report/onChange are stable parent callbacks in current composers; this effect is
+    // intentionally keyed to the actual connectivity/state transition only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offline, state]);
 
   async function discardWithAuth(draft: BoardSignalAttachmentDraft | undefined, header?: string) {
     if (!draft?.attachment.fileKey) return;
@@ -96,7 +114,7 @@ export function BoardSignalAttachmentComposer({
         cache: "no-store",
       });
     } catch {
-      // Cleanup is best effort. The server receipt remains discoverable for later cleanup.
+      // Cleanup is best effort. The existing server receipt remains discoverable for later cleanup.
     }
   }
 
@@ -108,6 +126,7 @@ export function BoardSignalAttachmentComposer({
     if (resetRef.current === resetKey) return;
     const previous = draftRef.current;
     resetRef.current = resetKey;
+    uploadAttemptRef.current += 1;
     if (previous) void discard(previous);
     onChange(undefined);
     setFile(undefined);
@@ -116,7 +135,6 @@ export function BoardSignalAttachmentComposer({
     setProgress(undefined);
     setError("");
     if (inputRef.current) inputRef.current.value = "";
-    // resetKey is specifically the authenticated composer identity/thread boundary.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
@@ -124,10 +142,10 @@ export function BoardSignalAttachmentComposer({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      uploadAttemptRef.current += 1;
       const pending = draftRef.current;
       if (pending) void discardWithAuth(pending, cleanupAuthHeaderRef.current);
     };
-    // The latest authenticated composer identity is retained for unmount cleanup.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -135,12 +153,8 @@ export function BoardSignalAttachmentComposer({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
 
-  function report(message: string) {
-    setError(message);
-    onError?.(message);
-  }
-
   function resetLocal() {
+    uploadAttemptRef.current += 1;
     setFile(undefined);
     setPreviewUrl((current) => { if (current) URL.revokeObjectURL(current); return ""; });
     setProgress(undefined);
@@ -157,12 +171,14 @@ export function BoardSignalAttachmentComposer({
   }
 
   async function upload(next: File) {
-    const uploadResetKey = resetKey;
-    const uploadAuthHeader = authHeader;
     if (offline) { report("Reconnect before attaching an image or PDF."); return; }
     const validation = clientValidation(next);
     if (validation) { setState("failed"); report(validation); return; }
     if (value) await discard(value);
+    const attempt = uploadAttemptRef.current + 1;
+    uploadAttemptRef.current = attempt;
+    const uploadResetKey = resetKey;
+    const uploadAuthHeader = authHeader;
     onChange(undefined);
     setError("");
     setState("selected");
@@ -180,7 +196,7 @@ export function BoardSignalAttachmentComposer({
       const serverData = first?.serverData as { attachment?: BoardSignalChatAttachment; viewUrl?: string } | null | undefined;
       if (!serverData?.attachment) throw new Error("Upload finished, but BoardSignal did not receive a valid attachment receipt.");
       const draft = { attachment: serverData.attachment, viewUrl: serverData.viewUrl };
-      if (!mountedRef.current || resetRef.current !== uploadResetKey) {
+      if (!mountedRef.current || resetRef.current !== uploadResetKey || uploadAttemptRef.current !== attempt || offline) {
         await discardWithAuth(draft, uploadAuthHeader);
         return;
       }
@@ -188,6 +204,7 @@ export function BoardSignalAttachmentComposer({
       setState("uploaded");
       setProgress(100);
     } catch (reason) {
+      if (uploadAttemptRef.current !== attempt) return;
       onChange(undefined);
       setState("failed");
       report(reason instanceof Error ? reason.message : "Attachment upload failed. Text messaging is still available.");
@@ -216,7 +233,7 @@ export function BoardSignalAttachmentComposer({
           }}
         />
       </label>
-      <span className={styles.limit}>Image max 4MB · PDF max 2GB · one attachment</span>
+      <span className={styles.limit}>{offline ? "Attachments need a connection · no upload is queued" : "Image max 4MB · PDF max 2GB · one attachment"}</span>
     </div>
 
     {name ? <div className={styles.preview}>
@@ -226,7 +243,7 @@ export function BoardSignalAttachmentComposer({
         <span>{kind === "pdf" ? "PDF" : "Image"}{size ? ` · ${formatBoardSignalAttachmentSize(size)}` : ""}</span>
         {state === "uploading" ? <small className={styles.statusUploading}><LoaderCircle className="button-spinner" size={12} aria-hidden="true"/> Uploading {kind === "pdf" ? "PDF" : "image"}{typeof progress === "number" ? ` · ${Math.round(progress)}%` : "…"}</small> : null}
         {state === "uploaded" ? <small>Ready to send</small> : null}
-        {state === "failed" ? <small className={styles.statusFailed}>Attachment failed. Remove it or choose the file again; text chat still works.</small> : null}
+        {state === "failed" ? <small className={styles.statusFailed}>Attachment failed or was interrupted. Reconnect and choose the file again to retry; nothing is queued.</small> : null}
         {state === "uploading" && typeof progress === "number" ? <progress className={styles.progress} max={100} value={progress} aria-label={`Upload progress ${Math.round(progress)} percent`} /> : null}
       </div>
       <button type="button" className={styles.removeButton} disabled={state === "uploading" || isUploading} onClick={() => void removeAttachment()}><X size={14} aria-hidden="true"/> Remove</button>

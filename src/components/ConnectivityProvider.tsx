@@ -1,7 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { Wifi, WifiOff } from "lucide-react";
+import { auth } from "@/utils/firebaseConfig";
+import { clearBoardSignalPrivateOfflineData } from "@/lib/boardsignal/offline/db";
 import { BOARDSIGNAL_RECONNECTED_EVENT, probeBoardSignalConnectivity, type BoardSignalConnectivityState } from "@/lib/boardsignal/offline/connectivity";
 
 type ConnectivityContextValue = {
@@ -22,8 +25,19 @@ export default function ConnectivityProvider({ children }: { children: ReactNode
   const inFlightRef = useRef<Promise<boolean> | null>(null);
   const lastStateRef = useRef<BoardSignalConnectivityState>("checking");
   const updatedTimerRef = useRef<number | undefined>(undefined);
+  const previousUidRef = useRef<string>();
 
   useEffect(() => { lastStateRef.current = state; }, [state]);
+
+  // Private offline records are UID-scoped. If Firebase changes identity (including
+  // a server-deleted/revoked account becoming signed-out), best-effort purge the
+  // previous UID only. Safe public/static service-worker caches are intentionally untouched.
+  useEffect(() => onAuthStateChanged(auth, (activeUser) => {
+    const previousUid = previousUidRef.current;
+    const nextUid = activeUser?.uid;
+    if (previousUid && previousUid !== nextUid) void clearBoardSignalPrivateOfflineData(previousUid).catch(() => undefined);
+    previousUidRef.current = nextUid;
+  }), []);
 
   const check = useCallback(async () => {
     if (inFlightRef.current) return inFlightRef.current;
@@ -82,8 +96,8 @@ export default function ConnectivityProvider({ children }: { children: ReactNode
   const value = useMemo<ConnectivityContextValue>(() => ({ state, online: state === "online", lastHealthyAt, check }), [check, lastHealthyAt, state]);
   return <ConnectivityContext.Provider value={value}>
     {children}
-    {state === "offline" ? <div className="bs-connectivity-strip is-offline" role="status"><WifiOff size={15}/><strong>OFFLINE</strong><span>Showing saved coverage</span></div> : null}
-    {state === "reconnecting" ? <div className="bs-connectivity-strip is-checking" role="status"><Wifi size={15}/><strong>BACK ONLINE</strong><span>Checking for new BoardSignal activity…</span></div> : null}
-    {updated && state === "online" ? <div className="bs-connectivity-strip is-updated" role="status"><Wifi size={15}/><strong>UPDATED</strong><span>Your saved BoardSignal is current again.</span></div> : null}
+    {state === "offline" ? <div className="bs-connectivity-strip is-offline" role="status"><WifiOff size={15}/><strong>SAVED</strong><span>You're offline. Showing saved BoardSignal.</span></div> : null}
+    {state === "reconnecting" ? <div className="bs-connectivity-strip is-checking" role="status"><Wifi size={15}/><strong>RECONNECTING</strong><span>Reconnecting…</span></div> : null}
+    {updated && state === "online" ? <div className="bs-connectivity-strip is-updated" role="status"><Wifi size={15}/><strong>LIVE</strong><span>BoardSignal is live again.</span></div> : null}
   </ConnectivityContext.Provider>;
 }

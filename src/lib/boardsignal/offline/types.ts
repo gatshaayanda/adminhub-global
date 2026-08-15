@@ -1,3 +1,4 @@
+import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import type { CurrentEpisodeSummary, DeskSummary, PersonalRecords, ProgressSeries, RecurringPattern } from "@/lib/boardsignal/memory";
 import type { PlayerPulse, SafeShareMoment } from "@/lib/boardsignal/pulse";
 import type { HeadToHeadPayload, SocialPlayerCard } from "@/lib/boardsignal/social";
@@ -27,6 +28,7 @@ export type OfflinePlayerRoomSnapshot = {
   recurringPatterns: RecurringPattern[];
   personalRecords: PersonalRecords;
   currentEpisode?: CurrentEpisodeSummary;
+  pendingFactualReview?: FactualReviewDraft;
   pulse?: PlayerPulse;
   shareMoments: SafeShareMoment[];
 };

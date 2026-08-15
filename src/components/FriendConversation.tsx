@@ -29,9 +29,21 @@ export default function FriendConversation({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const clientMessageId = useRef(crypto.randomUUID());
+  const onlineRef = useRef(online);
+  const sendAttemptRef = useRef(0);
+
+  useEffect(() => {
+    onlineRef.current = online;
+    if (!online) {
+      sendAttemptRef.current += 1;
+      setLoading(false);
+      setSending(false);
+      setUploadBusy(false);
+    }
+  }, [online]);
 
   const load = useCallback(async () => {
-    if (!online) { setLoading(false); return; }
+    if (!onlineRef.current) { setLoading(false); return; }
     setLoading(true);
     setError("");
     try {
@@ -41,15 +53,15 @@ export default function FriendConversation({
       });
       const result = await response.json() as { ok?: boolean; conversation?: BoardSignalFriendConversationView; error?: string };
       if (!response.ok || !result.ok || !result.conversation) throw new Error(result.error ?? "Private friend conversation could not be loaded.");
-      setConversation(result.conversation);
+      if (onlineRef.current) setConversation(result.conversation);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Private friend conversation could not be loaded.");
+      if (onlineRef.current) setError(reason instanceof Error ? reason.message : "Private friend conversation could not be loaded.");
     } finally {
       setLoading(false);
     }
-  }, [friend.playerId, online, token]);
+  }, [friend.playerId, token]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (online) void load(); else setLoading(false); }, [load, online]);
   useEffect(() => {
     setBody("");
     setAttachment(undefined);
@@ -61,7 +73,10 @@ export default function FriendConversation({
   }
 
   async function send() {
-    if (!online || sending || uploadBusy || (!body.trim() && !attachment)) return;
+    if (!onlineRef.current) { setError("Reconnect to send this friend message. Nothing was sent or queued."); return; }
+    if (sending || uploadBusy || (!body.trim() && !attachment)) return;
+    const attempt = sendAttemptRef.current + 1;
+    sendAttemptRef.current = attempt;
     setSending(true);
     setError("");
     try {
@@ -79,16 +94,15 @@ export default function FriendConversation({
       });
       const result = await response.json() as { ok?: boolean; message?: BoardSignalFriendMessageView; error?: string };
       if (!response.ok || !result.ok || !result.message) throw new Error(result.error ?? "Message wasn't sent.");
+      if (!onlineRef.current || sendAttemptRef.current !== attempt) throw new Error("Connection was lost before BoardSignal could confirm the message. Refresh after reconnecting before retrying.");
       setConversation((current) => current ? { ...current, messages: [...current.messages.filter((item) => item.id !== result.message!.id), result.message!] } : current);
       setBody("");
       setAttachment(undefined);
       clientMessageId.current = crypto.randomUUID();
     } catch (reason) {
-      // Keep the uploaded draft for a same-ID retry when the network response is ambiguous.
-      // The server owns cleanup when it definitively claimed and failed the message save.
-      setError(reason instanceof Error ? reason.message : "Message wasn't sent.");
+      if (sendAttemptRef.current === attempt || !onlineRef.current) setError(reason instanceof Error ? reason.message : "Message wasn't sent.");
     } finally {
-      setSending(false);
+      if (sendAttemptRef.current === attempt) setSending(false);
     }
   }
 
@@ -97,15 +111,15 @@ export default function FriendConversation({
       <div><span>PRIVATE FRIEND MESSAGE</span><h3>{friend.canonicalUsername}</h3><p>Only accepted friends can read or send here. Private Signals and evidence are not shared.</p></div>
       <button type="button" className="button button-quiet" onClick={onClose} aria-label={`Close conversation with ${friend.canonicalUsername}`}><X size={16}/></button>
     </header>
-    {!online ? <p className={styles.offline}>Reconnect to load or send friend messages. E.2 does not cache attachment files offline.</p> : null}
+    {!online ? <p className={styles.offline}><strong>NETWORK REQUIRED.</strong> Existing rendered messages are saved in memory for this open session only and are stale/read-only. Reconnect to load, mark or send messages. Attachments are online only.</p> : null}
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
     <div className={styles.messages}>
-      {loading ? <div className={styles.empty}><LoaderCircle className="button-spinner" size={16}/> Loading private messages</div> : null}
-      {!loading && !conversation?.messages.length ? <div className={styles.empty}><MessageCircle size={18}/><p>No messages yet. Start with a text, image or PDF.</p></div> : null}
+      {loading && online ? <div className={styles.empty}><LoaderCircle className="button-spinner" size={16}/> Loading private messages</div> : null}
+      {!loading && !conversation?.messages.length ? <div className={styles.empty}><MessageCircle size={18}/><p>{online ? "No messages yet. Start with a text, image or PDF." : "Reconnect to load this private conversation."}</p></div> : null}
       {conversation?.messages.map((message) => {
         const mine = message.senderUid === uid;
         return <article key={message.id} className={`${styles.message} ${mine ? styles.mine : ""}`}>
-          <span>{mine ? "You" : friend.canonicalUsername}</span>
+          <span>{mine ? "You" : friend.canonicalUsername}{!online ? " · SAVED" : ""}</span>
           {message.body ? <p>{message.body}</p> : null}
           <BoardSignalChatAttachmentRenderer attachment={message.attachment}/>
           <small>{new Date(message.createdAt).toLocaleString()}</small>
@@ -121,7 +135,7 @@ export default function FriendConversation({
         maxLength={2000}
         disabled={!online || sending}
         onChange={(event) => { setBody(event.target.value); contentChanged(); }}
-        placeholder="Write a private message…"
+        placeholder={online ? "Write a private message…" : "Reconnect to send a message"}
       />
       <BoardSignalAttachmentComposer
         value={attachment}
@@ -130,7 +144,7 @@ export default function FriendConversation({
         onError={setError}
         authHeader={`Bearer ${token}`}
         offline={!online}
-        disabled={sending}
+        disabled={!online || sending}
         resetKey={`${uid}:${friend.playerId}`}
       />
       <div className={styles.actions}>

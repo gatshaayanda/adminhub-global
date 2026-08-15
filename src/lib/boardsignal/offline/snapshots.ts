@@ -1,4 +1,5 @@
 import type { BoardSignalAccount } from "@/lib/boardsignal/account";
+import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import type { CurrentEpisodeSummary, PersonalRecords, ProgressSeries, RecurringPattern } from "@/lib/boardsignal/memory";
 import type { PlayerPulse, SafeShareMoment } from "@/lib/boardsignal/pulse";
 import type { HeadToHeadPayload } from "@/lib/boardsignal/social";
@@ -23,6 +24,7 @@ type OnlineSnapshotInput = {
   recurringPatterns: RecurringPattern[];
   personalRecords: PersonalRecords;
   currentEpisode?: CurrentEpisodeSummary;
+  pendingFactualReview?: FactualReviewDraft;
   pulse?: PlayerPulse;
   shareMoments?: SafeShareMoment[];
 };
@@ -49,6 +51,9 @@ export async function savePlayerRoomOfflineSnapshot(uid: string, input: OnlineSn
     recurringPatterns: input.recurringPatterns,
     personalRecords: input.personalRecords,
     currentEpisode: input.currentEpisode,
+    // A.1 durable factual readiness is safe to preserve offline, but it remains
+    // explicitly engine-pending and can only resume through the existing online pipeline.
+    pendingFactualReview: input.pendingFactualReview,
     pulse: input.pulse,
     shareMoments: (input.shareMoments ?? []).filter((item) => activeDeskKeys.has(item.deskKey)).slice(0, 12),
   };
@@ -118,7 +123,6 @@ export async function loadOfflineDrafts(uid: string) {
   const drafts = await Promise.all(index.map(async (id) => (await getOfflineRecord<OfflineDraft>("drafts", offlineKey(uid, "draft", id), uid))?.payload));
   return drafts.filter((item): item is OfflineDraft => Boolean(item));
 }
-
 
 export async function deleteOfflineDraft(uid: string, id: string) {
   const { deleteOfflineRecord } = await import("./db");

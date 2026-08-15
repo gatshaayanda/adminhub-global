@@ -25,7 +25,7 @@ export default function ConnectivityProvider({ children }: { children: ReactNode
   const inFlightRef = useRef<Promise<boolean> | null>(null);
   const lastStateRef = useRef<BoardSignalConnectivityState>("checking");
   const updatedTimerRef = useRef<number | undefined>(undefined);
-  const previousUidRef = useRef<string>();
+  const previousUidRef = useRef<string | undefined>(undefined);
 
   useEffect(() => { lastStateRef.current = state; }, [state]);
 

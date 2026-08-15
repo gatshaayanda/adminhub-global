@@ -11,7 +11,7 @@ import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 import { buildOfflineGuideResponse } from "@/lib/boardsignal/offline/guide";
 import { deleteOfflineDraft, loadOfflineDrafts, loadPlayerRoomOfflineSnapshot, loadSocialOfflineSnapshot, saveOfflineDraft } from "@/lib/boardsignal/offline/snapshots";
 
-type ChatMessage = { id: string; sender: "player" | "guide"; body: string; response?: GuideResponse };
+type ChatMessage = { id: string; sender: "player" | "guide"; body: string; response?: GuideResponse; feedback?: "helpful" | "unclear" };
 type AskContextObservation = {
   stateKey: string;
   priority: number;
@@ -29,6 +29,11 @@ let activeContinuityGeneration = "guest";
 
 function eligiblePath(pathname: string) {
   return ELIGIBLE.some((prefix) => prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function isNegativeFeedbackPhrase(value: string) {
+  const plain = value.trim().toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, " ").replace(/[.!?]+$/g, "");
+  return /^(?:not really|no|i don't get it|i do not get it|i don't understand|i do not understand|that wasn't clear|that was not clear|can you explain that simpler|explain that more simply)$/.test(plain);
 }
 
 function generationForUser(user?: User | null) {
@@ -58,7 +63,13 @@ function readContinuity(uid?: string): ChatMessage[] {
     const stored = JSON.parse(window.localStorage.getItem(continuityKey(uid)) ?? "null") as { updatedAt?: string; messages?: ChatMessage[] } | null;
     if (!stored || !Array.isArray(stored.messages)) return [];
     if (stored.updatedAt && Date.now() - Date.parse(stored.updatedAt) > 14 * 24 * 60 * 60 * 1000) return [];
-    return stored.messages.slice(-12).map((item) => ({ id: String(item.id), sender: item.sender === "player" ? "player" : "guide", body: String(item.body).slice(0, 1800), response: item.response }));
+    return stored.messages.slice(-12).map((item) => ({
+      id: String(item.id),
+      sender: item.sender === "player" ? "player" : "guide",
+      body: String(item.body).slice(0, 1800),
+      response: item.response,
+      feedback: item.feedback === "helpful" || item.feedback === "unclear" ? item.feedback : undefined,
+    }));
   } catch { return []; }
 }
 
@@ -121,13 +132,17 @@ export default function AskBoardSignal() {
   const launcherRef = useRef<HTMLButtonElement>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   const restoredDraftRef = useRef<string | undefined>(undefined);
+  const feedbackHandledRef = useRef(new Set<string>());
 
   useEffect(() => onAuthStateChanged(auth, (activeUser) => {
     activeContinuityGeneration = generationForUser(activeUser);
     setContinuityGeneration(activeContinuityGeneration);
     setUser(activeUser);
   }), []);
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => {
+    messagesRef.current = messages;
+    for (const item of messages) if (item.feedback) feedbackHandledRef.current.add(item.id);
+  }, [messages]);
   useEffect(() => {
     restoredDraftRef.current = undefined;
     setMessages(readContinuity(user?.uid));
@@ -288,13 +303,15 @@ export default function AskBoardSignal() {
     return pageGuideSuggestions(pathname, activeTab, Boolean(user));
   }, [activeTab, connectivity.online, observation?.chips, pathname, previewAccess, user]);
 
-  const callGuide = useCallback(async (message: string) => {
+  const callGuide = useCallback(async (message: string, conversationOverride?: ChatMessage[]) => {
     setBusy(true);
     setFailure(false);
     try {
       if (!connectivity.online) {
         const [saved, social] = user ? await Promise.all([loadPlayerRoomOfflineSnapshot(user.uid), loadSocialOfflineSnapshot(user.uid)]) : [undefined, undefined];
-        const offlineResponse = buildOfflineGuideResponse({ message, pathname, activeTab, snapshot: saved, social, authenticated: Boolean(user), recentConversation: recentConversationForServer(messagesRef.current) });
+        const offlineResponse = conversationOverride
+          ? buildOfflineGuideResponse({ message, pathname, activeTab, snapshot: saved, social, authenticated: Boolean(user), recentConversation: recentConversationForServer(conversationOverride) })
+          : buildOfflineGuideResponse({ message, pathname, activeTab, snapshot: saved, social, authenticated: Boolean(user), recentConversation: recentConversationForServer(messagesRef.current) });
         const item: ChatMessage = { id: crypto.randomUUID(), sender: "guide" as const, body: offlineResponse.reply, response: offlineResponse };
         setMessages((current) => [...current, item].slice(-12));
         if (!open) setUnread(true);
@@ -304,7 +321,7 @@ export default function AskBoardSignal() {
       const response = await fetch("/api/boardsignal/guide", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ action: "ask", message, pathname, activeTab, visibleEntityId, recentConversation: recentConversationForServer(messagesRef.current), ...(previewAccess && !user ? { mode: "beta_preview", previewRequestId: previewAccess.requestId, previewStatusToken: previewAccess.statusToken } : {}) }),
+        body: JSON.stringify({ action: "ask", message, pathname, activeTab, visibleEntityId, recentConversation: recentConversationForServer(conversationOverride ?? messagesRef.current), ...(previewAccess && !user ? { mode: "beta_preview", previewRequestId: previewAccess.requestId, previewStatusToken: previewAccess.statusToken } : {}) }),
       });
       const body = await response.json() as { ok?: boolean; response?: GuideResponse; error?: string };
       if (!response.ok || !body.ok || !body.response) throw new Error(body.error ?? "Ask BoardSignal is unavailable right now.");
@@ -324,6 +341,30 @@ export default function AskBoardSignal() {
     const message = value.trim();
     if (!message || busy) return;
     const item: ChatMessage = { id: crypto.randomUUID(), sender: "player" as const, body: message };
+    const previous = messagesRef.current.at(-1);
+    const negativeFeedback = isNegativeFeedbackPhrase(message);
+
+    if (negativeFeedback && previous?.sender === "guide" && previous.response) {
+      const clarificationContext = [...messagesRef.current];
+      const shouldRecordFeedback = !previous.feedback && !feedbackHandledRef.current.has(previous.id);
+      if (shouldRecordFeedback) feedbackHandledRef.current.add(previous.id);
+      setMessages((current) => [
+        ...current.map((entry) => entry.id === previous.id && !entry.feedback ? { ...entry, feedback: "unclear" as const } : entry),
+        item,
+      ].slice(-12));
+      setInput("");
+      if (shouldRecordFeedback) void feedback(false, previous.response);
+      await callGuide("Explain that more simply.", clarificationContext);
+      return;
+    }
+
+    if (negativeFeedback) {
+      const clarification: ChatMessage = { id: crypto.randomUUID(), sender: "guide", body: "What would you like me to explain more simply?" };
+      setMessages((current) => [...current, item, clarification].slice(-12));
+      setInput("");
+      return;
+    }
+
     setMessages((current) => [...current, item].slice(-12));
     setInput("");
     await callGuide(message);
@@ -397,6 +438,17 @@ export default function AskBoardSignal() {
     try { await authenticatedAction("feedback", { helpful, category: response?.category ?? "general" }); } catch { /* feedback never blocks chat */ }
   }
 
+  async function handleFeedback(messageId: string, helpful: boolean, response?: GuideResponse) {
+    if (feedbackHandledRef.current.has(messageId)) return;
+    const source = messagesRef.current.find((item) => item.id === messageId);
+    if (!source || source.sender !== "guide" || source.feedback) return;
+    feedbackHandledRef.current.add(messageId);
+    const clarificationContext = [...messagesRef.current];
+    setMessages((current) => current.map((item) => item.id === messageId ? { ...item, feedback: helpful ? "helpful" : "unclear" } : item));
+    void feedback(helpful, response);
+    if (!helpful) await callGuide("Explain that more simply.", clarificationContext);
+  }
+
   if (!eligiblePath(pathname)) return null;
   const opener = observation?.opener.reply ?? "What do you want to understand?";
   const openerProvenance = observation?.opener ? provenanceLabel(observation.opener) : "";
@@ -439,7 +491,7 @@ export default function AskBoardSignal() {
       <header className="ask-bs-header bs-surface-dark"><div><span>BOARD SIGNAL</span><h2 id="ask-bs-title">Ask BoardSignal</h2><p>{user ? "Verified context, explained" : "Product guide"}</p></div><button type="button" className="ask-bs-close" aria-label="Close Ask BoardSignal" onClick={() => closePanel(true)}><X size={20}/></button></header>
       <div className="ask-bs-messages" aria-live="polite" aria-relevant="additions text">
         {!messages.length ? <div className="ask-bs-welcome"><MessageCircle size={22}/><strong>{opener}</strong>{openerProvenance ? <small style={{ display: "block", marginTop: ".35rem", color: "var(--bs-text-muted)", fontSize: ".68rem", fontWeight: 800, letterSpacing: ".04em" }}>{openerProvenance}</small> : null}<p>I explain verified BoardSignal context and help you find the useful part. I don't create new chess analysis.</p></div> : null}
-        {messages.map((message, index) => <div key={message.id} className={`ask-bs-message ${message.sender === "player" ? "from-player" : "from-guide"}`}><p>{message.body}</p>{message.sender === "guide" && provenanceLabel(message.response) ? <small style={{ display: "block", marginTop: ".35rem", color: "var(--bs-text-muted)", fontSize: ".66rem", fontWeight: 800, letterSpacing: ".035em" }}>{provenanceLabel(message.response)}</small> : null}{message.sender === "guide" && message.response?.actions?.length ? <div className="ask-bs-actions">{message.response.actions.map((action) => <button key={action.id} type="button" onClick={() => void runAction(action, message.response)}>{action.label}</button>)}</div> : null}{message.sender === "guide" && index === messages.length - 1 && messages.filter((item) => item.sender === "guide").length % 3 === 0 && user ? <div className="ask-bs-feedback"><span>Was that clear?</span><button type="button" onClick={() => void feedback(true, message.response)}>Yes</button><button type="button" onClick={() => void feedback(false, message.response)}>Not really</button></div> : null}</div>)}
+        {messages.map((message, index) => <div key={message.id} className={`ask-bs-message ${message.sender === "player" ? "from-player" : "from-guide"}`}><p>{message.body}</p>{message.sender === "guide" && provenanceLabel(message.response) ? <small style={{ display: "block", marginTop: ".35rem", color: "var(--bs-text-muted)", fontSize: ".66rem", fontWeight: 800, letterSpacing: ".035em" }}>{provenanceLabel(message.response)}</small> : null}{message.sender === "guide" && message.response?.actions?.length ? <div className="ask-bs-actions">{message.response.actions.map((action) => <button key={action.id} type="button" onClick={() => void runAction(action, message.response)}>{action.label}</button>)}</div> : null}{message.sender === "guide" && message.feedback ? <div className="ask-bs-feedback" role="status"><span>{message.feedback === "helpful" ? "Got it." : "I'll explain that more simply."}</span></div> : message.sender === "guide" && message.response && index === messages.length - 1 && messages.filter((item) => item.sender === "guide" && item.response).length % 3 === 0 && user ? <div className="ask-bs-feedback"><span>Was that clear?</span><button type="button" onClick={() => void handleFeedback(message.id, true, message.response)}>Yes</button><button type="button" onClick={() => void handleFeedback(message.id, false, message.response)}>Not really</button></div> : null}</div>)}
         {busy ? <div className="ask-bs-thinking"><LoaderCircle className="button-spinner" size={16}/> Checking BoardSignal facts</div> : null}
         {failure ? <div className="ask-bs-failure" role="alert"><strong>Ask BoardSignal isn't available right now.</strong><div><Link href="/boardsignal/player-room?tab=inbox">Open Inbox</Link>{user ? <button type="button" onClick={() => void runAction({ id: "handoff", label: "Message Ayanda", kind: "handoff", requiresConfirmation: true })}>Message Ayanda</button> : null}</div></div> : null}
       </div>

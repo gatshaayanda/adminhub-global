@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePlayerToken } from "@/lib/boardsignal/server/persistence";
-import { contextualGuideResponse, guideContextObservation } from "@/lib/boardsignal/server/askContext";
+import { contextualGuideFeedbackFollowup, contextualGuideResponse, guideContextObservation } from "@/lib/boardsignal/server/askContext";
 import { createGuideHandoff, getGuideProfileState, guideResponse, recordGuideFeedback, saveGuidePreference, updateGuideState } from "@/lib/boardsignal/server/guide";
 
 export const runtime = "nodejs";
@@ -48,6 +48,18 @@ export async function POST(request: Request) {
     }
 
     if (action === "ask") {
+      const feedbackFollowup = await contextualGuideFeedbackFollowup({
+        token,
+        message: body.message,
+        pathname: body.pathname,
+        activeTab: body.activeTab,
+        visibleEntityId: body.visibleEntityId,
+        recentConversation: body.recentConversation,
+        mode: body.mode,
+        previewRequestId: body.previewRequestId,
+        previewStatusToken: body.previewStatusToken,
+      });
+      if (feedbackFollowup.handled && feedbackFollowup.response) return response({ ok: true, response: feedbackFollowup.response });
       if (body.mode === "beta_preview") {
         return response({ ok: true, response: await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation, mode: "beta_preview", previewRequestId: body.previewRequestId, previewStatusToken: body.previewStatusToken }) });
       }

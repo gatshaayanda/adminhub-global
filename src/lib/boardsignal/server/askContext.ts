@@ -20,6 +20,7 @@ import {
 } from "./persistence";
 
 export const PATCH_E_BASELINE = "216056e2766c980ca3e898aec0872a082b540340" as const;
+export const PATCH_E1_BASELINE = "a600850024ca510c88cee2d01b118dc58daf3bca" as const;
 
 type AskContextInput = {
   token?: DecodedIdToken;
@@ -453,6 +454,167 @@ function lastContextualReferent(recentConversation: unknown) {
   const safe = recentConversation.slice(-12) as GuideConversationTurn[];
   const last = [...safe].reverse().find((turn) => turn.role === "guide" && typeof turn.provenance?.id === "string");
   return last?.provenance?.id;
+}
+
+function lastImmediateGuideTurn(recentConversation: unknown, currentMessage: string): GuideConversationTurn | undefined {
+  if (!Array.isArray(recentConversation)) return undefined;
+  const safe = recentConversation.slice(-12) as GuideConversationTurn[];
+  const last = safe.at(-1);
+  if (last?.role === "guide" && safeText(last.body, 1200)) return last;
+  if (last?.role === "player" && normalizeMessage(last.body) === currentMessage) {
+    const previous = safe.at(-2);
+    if (previous?.role === "guide" && safeText(previous.body, 1200)) return previous;
+  }
+  return undefined;
+}
+
+function isNegativeFeedbackFollowup(message: string) {
+  const plain = message.replace(/[.!?]+$/g, "").trim();
+  return /^(?:not really|no|i don't get it|i do not get it|i don't understand|i do not understand|that wasn't clear|that was not clear|can you explain that simpler|explain that more simply)$/.test(plain);
+}
+
+function previousResponse(reply: string, previous: GuideConversationTurn): GuideResponse {
+  return guideResponse(
+    reply,
+    previous.intent ?? "followup_clarify",
+    previous.provenance,
+    [],
+  );
+}
+
+function simplePreviousBody(previous: GuideConversationTurn) {
+  const cleaned = consumerLanguage(safeText(previous.body, 1200))
+    .replace(/^(?:WHAT HAPPENED|WHAT MATTERED|FOCUS NEXT)\s*[—:-]\s*/i, "")
+    .replace(/independently produced the same guidance family as/gi, "points to the same kind of advice as")
+    .replace(/current-game evidence/gi, "evidence from this week's games")
+    .replace(/position-based conclusions/gi, "conclusions that need position review")
+    .trim();
+  return `Put simply: ${cleaned}`;
+}
+
+function simplerActiveWeek(episode: CurrentEpisodeWithNextGameGuidance, previous: GuideConversationTurn): GuideResponse {
+  const guidance = episode.nextGameGuidance;
+  if (guidance.status === "insufficient_evidence" || guidance.source === "insufficient_current_evidence") {
+    return previousResponse(
+      "Put simply: BoardSignal does not have enough evidence from this week's games yet to give you a new next-game action. It is deliberately not guessing.",
+      previous,
+    );
+  }
+  if (guidance.source === "previous_review") {
+    return previousResponse(
+      `Put simply: keep using the advice from your last completed Review for now. This week's games have not given BoardSignal enough evidence to replace it yet.${guidance.copy ? ` ${consumerLanguage(guidance.copy)}` : ""}`,
+      previous,
+    );
+  }
+  if (guidance.source === "current_week_reinforces_previous_review") {
+    return previousResponse(
+      `Put simply: the same kind of issue or opportunity from your last Review is showing up again in this week's games.${guidance.copy ? ` For your next game: ${consumerLanguage(guidance.copy)}` : ""}`,
+      previous,
+    );
+  }
+  return previousResponse(
+    `Put simply: this advice comes from the games BoardSignal has checked in your current week.${guidance.copy ? ` ${consumerLanguage(guidance.copy)}` : ""}`,
+    previous,
+  );
+}
+
+function simplerPendingReview(previous: GuideConversationTurn): GuideResponse {
+  return previousResponse(
+    "Put simply: your completed week facts are already saved. The position check is the part still finishing, so BoardSignal is not treating position-based WHAT MATTERED or FOCUS NEXT guidance as final yet.",
+    previous,
+  );
+}
+
+function completedReferent(id: string | undefined) {
+  if (!id?.startsWith("review:")) return undefined;
+  for (const section of ["happened", "mattered", "focus", "evidence"] as const) {
+    const suffix = `:${section}`;
+    if (id.endsWith(suffix)) return { deskKey: id.slice("review:".length, -suffix.length), section };
+  }
+  return undefined;
+}
+
+function simplerCompletedReview(bundle: PublishedDeskBundle, section: "happened" | "mattered" | "focus" | "evidence", previous: GuideConversationTurn): GuideResponse {
+  const desk = bundle.desk;
+  if (section === "happened") {
+    return previousResponse(
+      `Put simply: you played ${desk.games} games — ${desk.wins} wins, ${desk.losses} losses and ${desk.draws} draw${desk.draws === 1 ? "" : "s"}${primaryPoolLine(desk)}.`,
+      previous,
+    );
+  }
+  if (section === "mattered") {
+    return previousResponse(
+      `Put simply: the main thing BoardSignal took from that Review was this: ${consumerLanguage(desk.headline)} ${consumerLanguage(desk.summary)}`.trim(),
+      previous,
+    );
+  }
+  if (section === "focus") {
+    const focus = desk.signals.blue;
+    return previousResponse(
+      focus.status === "withheld"
+        ? "Put simply: that Review did not have enough support for a reliable Focus Next, so BoardSignal did not invent one."
+        : `Put simply: the one thing to carry into your next games is: ${consumerLanguage(focus.title)} ${consumerLanguage(focus.copy)}`.trim(),
+      previous,
+    );
+  }
+  return previousResponse(`Put simply: ${focusEvidence(bundle)}`, previous);
+}
+
+export async function contextualGuideFeedbackFollowup(input: AskContextInput): Promise<{ handled: boolean; response?: GuideResponse }> {
+  const message = normalizeMessage(input.message);
+  if (!isNegativeFeedbackFollowup(message)) return { handled: false };
+
+  const previous = lastImmediateGuideTurn(input.recentConversation, message);
+  if (!previous) {
+    return {
+      handled: true,
+      response: guideResponse("What would you like me to explain more simply?", "followup_clarify"),
+    };
+  }
+
+  if (input.mode === "beta_preview") {
+    const requestId = safeText(input.previewRequestId, 180);
+    const statusToken = safeText(input.previewStatusToken, 400);
+    if (!requestId || !statusToken) return { handled: true, response: guideResponse("What would you like me to explain more simply?", "followup_clarify") };
+    await verifyBetaPreviewStatusCredential(requestId, statusToken);
+    const provenanceId = previous.provenance?.id;
+    if (provenanceId?.startsWith("preview:") && provenanceId !== `preview:${requestId}`) {
+      return { handled: true, response: guideResponse("What would you like me to explain more simply?", "followup_clarify") };
+    }
+    return { handled: true, response: previousResponse(simplePreviousBody(previous), previous) };
+  }
+
+  if (!input.token) return { handled: true, response: previousResponse(simplePreviousBody(previous), previous) };
+
+  const provenanceId = previous.provenance?.id;
+  const needsPrivateReload = Boolean(
+    provenanceId?.startsWith("active-week:")
+    || provenanceId?.startsWith("position-review:")
+    || provenanceId?.startsWith("review:"),
+  );
+  if (!needsPrivateReload) return { handled: true, response: previousResponse(simplePreviousBody(previous), previous) };
+
+  const state = await loadPrivateState(input.token);
+
+  if (provenanceId?.startsWith("active-week:") && state.currentEpisode) {
+    const currentProvenance = activeProvenance(state.currentEpisode);
+    if (currentProvenance?.id === provenanceId) return { handled: true, response: simplerActiveWeek(state.currentEpisode, previous) };
+    return { handled: true, response: previousResponse(simplePreviousBody(previous), previous) };
+  }
+
+  if (provenanceId?.startsWith("position-review:") && state.pendingFactualReview) {
+    const currentProvenance = pendingProvenance(state.pendingFactualReview);
+    if (currentProvenance?.id === provenanceId) return { handled: true, response: simplerPendingReview(previous) };
+    return { handled: true, response: previousResponse(simplePreviousBody(previous), previous) };
+  }
+
+  const review = completedReferent(provenanceId);
+  if (review) {
+    const bundle = state.desks.find((item) => item.summary.deskKey === review.deskKey);
+    if (bundle) return { handled: true, response: simplerCompletedReview(bundle, review.section, previous) };
+  }
+
+  return { handled: true, response: previousResponse(simplePreviousBody(previous), previous) };
 }
 
 function isFollowup(message: string) {

@@ -15,11 +15,27 @@ import {
   type CommunicationCampaignDraft,
   type CommunicationSegment,
 } from "../communications";
+import {
+  attachmentOnlyNotificationCopy,
+  normalizeChatMessageBody,
+  requireChatMessageContent,
+  validateBoardSignalChatAttachment,
+  type BoardSignalChatAttachment,
+} from "../chatAttachments";
 import { getAdminDb, getAdminMessaging } from "../../../utils/firebaseAdmin";
 import { absoluteBoardSignalLink, accountCanReceiveBoardSignalEmail, boardSignalMessageLink } from "../delivery";
 import { accountForToken } from "./persistence";
 import { getBoardSignalDeliveryStatus, getFounderDeliveryStatus } from "./delivery";
 import { sendBoardSignalEmail } from "./email";
+import {
+  claimBoardSignalChatAttachment,
+  cleanupClaimedAttachmentAfterFailedMessage,
+  founderChatUploadActor,
+  hydrateBoardSignalChatAttachment,
+  playerChatUploadActor,
+  validateChatAttachmentOwnership,
+  type BoardSignalAttachmentClaim,
+} from "./chatAttachments";
 
 function clean<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -33,6 +49,25 @@ function validateText(value: unknown, label: string, max = 4000) {
   const text = String(value ?? "").trim();
   if (!text || text.length > max) throw Object.assign(new Error(`${label} is required and must be under ${max} characters.`), { status: 400 });
   return text;
+}
+
+function stableMessageId(scope: string, input: unknown) {
+  const clientId = String(input ?? "").trim();
+  if (!clientId) return randomUUID();
+  if (clientId.length > 160) throw Object.assign(new Error("Message request ID is invalid."), { status: 400 });
+  return `msg_${createHash("sha256").update(`${scope}:${clientId}`).digest("hex").slice(0, 40)}`;
+}
+
+function safePrivateMessagePreview(body: string, attachment?: BoardSignalChatAttachment) {
+  return body || attachmentOnlyNotificationCopy(attachment);
+}
+
+async function hydrateInboxMessage(message: BoardSignalInboxMessage) {
+  return { ...message, attachment: await hydrateBoardSignalChatAttachment(message.attachment) };
+}
+
+async function hydrateConversationMessage(message: BoardSignalConversationMessage) {
+  return { ...message, attachment: await hydrateBoardSignalChatAttachment(message.attachment) };
 }
 
 function pushPayload(type: BoardSignalMessageType, title: string, body: string, forceVisible = false) {
@@ -69,8 +104,9 @@ export async function listPlayerInbox(token: DecodedIdToken) {
   const db = getAdminDb();
   const snapshot = await db.collection("users").doc(account.uid).collection("inbox")
     .orderBy("createdAt", "desc").limit(100).get();
-  const messages = snapshot.docs.map((document) => ({ id: document.id, ...document.data() } as BoardSignalInboxMessage));
-  return { messages, unreadCount: messages.filter((message) => !message.readAt).length };
+  const durable = snapshot.docs.map((document) => ({ id: document.id, ...document.data() } as BoardSignalInboxMessage));
+  const messages = await Promise.all(durable.map(hydrateInboxMessage));
+  return { messages, unreadCount: durable.filter((message) => !message.readAt).length };
 }
 
 export async function markInboxMessageRead(token: DecodedIdToken, messageIdInput: unknown) {
@@ -98,23 +134,41 @@ export async function listPlayerConversation(token: DecodedIdToken, threadIdInpu
   const thread = await threadRef.get();
   if (!thread.exists) throw Object.assign(new Error("That conversation was not found."), { status: 404 });
   const messages = await threadRef.collection("messages").orderBy("createdAt", "asc").limit(200).get();
+  const hydrated = await Promise.all(messages.docs.map(async (document) => hydrateConversationMessage({ id: document.id, ...document.data() } as BoardSignalConversationMessage)));
   return {
     thread: { id: thread.id, ...thread.data() },
-    messages: messages.docs.map((document) => ({ id: document.id, ...document.data() } as BoardSignalConversationMessage)),
+    messages: hydrated,
   };
 }
 
-export async function replyToFounder(token: DecodedIdToken, threadIdInput: unknown, bodyInput: unknown) {
+export async function replyToFounder(
+  token: DecodedIdToken,
+  threadIdInput: unknown,
+  bodyInput: unknown,
+  attachmentInput?: unknown,
+  clientMessageIdInput?: unknown,
+) {
   const account = await accountForToken(token);
   const threadId = safeId(validateText(threadIdInput, "Thread ID", 700));
-  const body = validateText(bodyInput, "Reply", 2000);
+  const body = normalizeChatMessageBody(bodyInput, 2000);
+  const requestedAttachment = attachmentInput === undefined || attachmentInput === null ? undefined : validateBoardSignalChatAttachment(attachmentInput);
+  requireChatMessageContent(body, requestedAttachment);
+
   const db = getAdminDb();
   const threadRef = db.collection("users").doc(account.uid).collection("conversations").doc(threadId);
   const thread = await threadRef.get();
   if (!thread.exists || thread.data()?.allowReply !== true) {
     throw Object.assign(new Error("Replies are not enabled for this conversation."), { status: 403 });
   }
-  const messageId = randomUUID();
+  const messageId = stableMessageId(`${account.uid}:${threadId}:player`, clientMessageIdInput);
+  const existing = await threadRef.collection("messages").doc(messageId).get();
+  if (existing.exists) return hydrateConversationMessage({ id: existing.id, ...existing.data() } as BoardSignalConversationMessage);
+
+  const actor = playerChatUploadActor(account);
+  const claim: BoardSignalAttachmentClaim = { kind: "player_reply", id: messageId, threadId, recipientUid: "founder" };
+  let attachment: BoardSignalChatAttachment | undefined;
+  if (requestedAttachment) attachment = await claimBoardSignalChatAttachment(requestedAttachment, actor, claim);
+
   const createdAt = new Date().toISOString();
   const message: BoardSignalConversationMessage = {
     id: messageId,
@@ -124,10 +178,18 @@ export async function replyToFounder(token: DecodedIdToken, threadIdInput: unkno
     senderType: "player",
     createdAt,
     campaignId: typeof thread.data()?.campaignId === "string" ? thread.data()!.campaignId : undefined,
+    ...(attachment ? { attachment } : {}),
   };
-  await threadRef.collection("messages").doc(messageId).set(clean(message));
-  await threadRef.set({ updatedAt: createdAt, unreadForFounder: true, lastSenderType: "player" }, { merge: true });
-  return message;
+  try {
+    const batch = db.batch();
+    batch.set(threadRef.collection("messages").doc(messageId), clean(message), { merge: false });
+    batch.set(threadRef, { updatedAt: createdAt, unreadForFounder: true, lastSenderType: "player" }, { merge: true });
+    await batch.commit();
+    return hydrateConversationMessage(message);
+  } catch (reason) {
+    if (attachment) await cleanupClaimedAttachmentAfterFailedMessage(actor, attachment, claim).catch(() => false);
+    throw reason;
+  }
 }
 
 export async function registerPlayerPushToken(token: DecodedIdToken, fcmTokenInput: unknown, userAgentInput?: unknown) {
@@ -233,6 +295,7 @@ export async function resolveFounderAudience(draft: Pick<CommunicationCampaignDr
 }
 
 export async function previewFounderCampaign(draft: CommunicationCampaignDraft) {
+  if (draft.attachment) await validateChatAttachmentOwnership(draft.attachment, founderChatUploadActor());
   const audience = await resolveFounderAudience(draft);
   const deliveryStatus = getBoardSignalDeliveryStatus();
   let pushEligibleCount = 0;
@@ -295,12 +358,19 @@ async function sendPushToAccount(account: BoardSignalAccount, type: BoardSignalM
 
 export async function sendFounderCampaign(draft: CommunicationCampaignDraft) {
   const title = validateText(draft.title, "Message title", 140);
-  const body = validateText(draft.body, "Message body", 4000);
+  const body = normalizeChatMessageBody(draft.body, 4000);
+  const requestedAttachment = draft.attachment ? validateBoardSignalChatAttachment(draft.attachment) : undefined;
+  requireChatMessageContent(body, requestedAttachment);
   const audience = await resolveFounderAudience(draft);
   if (!audience.length) throw Object.assign(new Error("This audience currently contains no active Founding Beta players."), { status: 400 });
   const db = getAdminDb();
   const campaignId = randomUUID();
   const createdAt = new Date().toISOString();
+  const actor = founderChatUploadActor();
+  const claim: BoardSignalAttachmentClaim = { kind: "founder_campaign", id: campaignId };
+  let attachment: BoardSignalChatAttachment | undefined;
+  if (requestedAttachment) attachment = await claimBoardSignalChatAttachment(requestedAttachment, actor, claim);
+  let persistedAny = false;
   let sentCount = 0;
   let pushEligibleCount = 0;
   let pushDelivered = 0;
@@ -309,74 +379,86 @@ export async function sendFounderCampaign(draft: CommunicationCampaignDraft) {
   let emailDelivered = 0;
   let emailFailed = 0;
 
-  for (const account of audience) {
-    if (!preferenceAllowsMessage(account.notificationPreferences, draft.type) && draft.type !== "custom") continue;
-    const messageId = randomUUID();
-    const threadId = draft.allowReply ? safeId(`${campaignId}_${account.uid}`) : undefined;
-    const message: BoardSignalInboxMessage = {
-      id: messageId,
-      userId: account.uid,
-      type: draft.type,
+  try {
+    for (const account of audience) {
+      if (!preferenceAllowsMessage(account.notificationPreferences, draft.type) && draft.type !== "custom") continue;
+      const messageId = randomUUID();
+      const threadId = draft.allowReply ? safeId(`${campaignId}_${account.uid}`) : undefined;
+      const message: BoardSignalInboxMessage = {
+        id: messageId,
+        userId: account.uid,
+        type: draft.type,
+        title,
+        body,
+        link: messageLink(draft.type, draft.link),
+        actionLabel: draft.actionLabel,
+        createdAt,
+        senderType: "founder",
+        campaignId,
+        threadId,
+        allowReply: draft.allowReply,
+        ...(attachment ? { attachment } : {}),
+      };
+      const recipientBatch = db.batch();
+      recipientBatch.set(db.collection("users").doc(account.uid).collection("inbox").doc(messageId), clean(message));
+      if (threadId) {
+        const threadRef = db.collection("users").doc(account.uid).collection("conversations").doc(threadId);
+        recipientBatch.set(threadRef, clean({
+          id: threadId,
+          userId: account.uid,
+          campaignId,
+          allowReply: true,
+          title,
+          createdAt,
+          updatedAt: createdAt,
+          unreadForFounder: false,
+          lastSenderType: "founder",
+        }));
+        const first: BoardSignalConversationMessage = { id: messageId, userId: account.uid, threadId, body, senderType: "founder", createdAt, campaignId, ...(attachment ? { attachment } : {}) };
+        recipientBatch.set(threadRef.collection("messages").doc(messageId), clean(first));
+      }
+      await recipientBatch.commit();
+      persistedAny = true;
+      sentCount += 1;
+      const deliveryBody = safePrivateMessagePreview(body, attachment);
+      if (draft.channels.browserPush) {
+        const push = await sendPushToAccount(account, draft.type, title, deliveryBody, message.link);
+        if (push.eligible) pushEligibleCount += 1;
+        pushDelivered += push.delivered;
+        pushFailed += push.failed;
+      }
+      if (draft.channels.email) {
+        const emailResult = await sendEmailToAccount(account, draft.type, title, deliveryBody, message.link);
+        if (emailResult.eligible) emailEligibleCount += 1;
+        emailDelivered += emailResult.delivered;
+        emailFailed += emailResult.failed;
+      }
+    }
+
+    const campaign = clean({
+      id: campaignId,
+      ...draft,
       title,
       body,
-      link: messageLink(draft.type, draft.link),
-      actionLabel: draft.actionLabel,
+      ...(attachment ? { attachment } : {}),
       createdAt,
-      senderType: "founder",
-      campaignId,
-      threadId,
-      allowReply: draft.allowReply,
-    };
-    await db.collection("users").doc(account.uid).collection("inbox").doc(messageId).set(clean(message));
-    if (threadId) {
-      const threadRef = db.collection("users").doc(account.uid).collection("conversations").doc(threadId);
-      await threadRef.set(clean({
-        id: threadId,
-        userId: account.uid,
-        campaignId,
-        allowReply: true,
-        title,
-        createdAt,
-        updatedAt: createdAt,
-        unreadForFounder: false,
-        lastSenderType: "founder",
-      }));
-      const first: BoardSignalConversationMessage = { id: messageId, userId: account.uid, threadId, body, senderType: "founder", createdAt, campaignId };
-      await threadRef.collection("messages").doc(messageId).set(clean(first));
-    }
-    sentCount += 1;
-    if (draft.channels.browserPush) {
-      const push = await sendPushToAccount(account, draft.type, title, body, message.link);
-      if (push.eligible) pushEligibleCount += 1;
-      pushDelivered += push.delivered;
-      pushFailed += push.failed;
-    }
-    if (draft.channels.email) {
-      const email = await sendEmailToAccount(account, draft.type, title, body, message.link);
-      if (email.eligible) emailEligibleCount += 1;
-      emailDelivered += email.delivered;
-      emailFailed += email.failed;
-    }
+      audienceCount: audience.length,
+      sentCount,
+      readCount: 0,
+      pushEligibleCount,
+      pushDelivered,
+      pushFailed,
+      emailEligibleCount,
+      emailDelivered,
+      emailFailed,
+    });
+    await db.collection("communications").doc(campaignId).set(campaign);
+    persistedAny = true;
+    return campaign;
+  } catch (reason) {
+    if (attachment && !persistedAny) await cleanupClaimedAttachmentAfterFailedMessage(actor, attachment, claim).catch(() => false);
+    throw reason;
   }
-
-  const campaign = clean({
-    id: campaignId,
-    ...draft,
-    title,
-    body,
-    createdAt,
-    audienceCount: audience.length,
-    sentCount,
-    readCount: 0,
-    pushEligibleCount,
-    pushDelivered,
-    pushFailed,
-    emailEligibleCount,
-    emailDelivered,
-    emailFailed,
-  });
-  await db.collection("communications").doc(campaignId).set(campaign);
-  return campaign;
 }
 
 export async function listFounderCommunications() {
@@ -419,14 +501,22 @@ export async function founderConversation(uidInput: unknown, threadIdInput: unkn
   return {
     player: { uid, username: account.chessCom.canonicalUsername },
     thread: { id: thread.id, ...thread.data() },
-    messages: messages.docs.map((document) => ({ id: document.id, ...document.data() })),
+    messages: await Promise.all(messages.docs.map(async (document) => hydrateConversationMessage({ id: document.id, ...document.data() } as BoardSignalConversationMessage))),
   };
 }
 
-export async function founderReply(uidInput: unknown, threadIdInput: unknown, bodyInput: unknown) {
+export async function founderReply(
+  uidInput: unknown,
+  threadIdInput: unknown,
+  bodyInput: unknown,
+  attachmentInput?: unknown,
+  clientMessageIdInput?: unknown,
+) {
   const uid = safeId(validateText(uidInput, "User ID", 700));
   const threadId = safeId(validateText(threadIdInput, "Thread ID", 700));
-  const body = validateText(bodyInput, "Reply", 2000);
+  const body = normalizeChatMessageBody(bodyInput, 2000);
+  const requestedAttachment = attachmentInput === undefined || attachmentInput === null ? undefined : validateBoardSignalChatAttachment(attachmentInput);
+  requireChatMessageContent(body, requestedAttachment);
   const db = getAdminDb();
   const accountSnapshot = await db.collection("users").doc(uid).get();
   if (!accountSnapshot.exists) throw Object.assign(new Error("The player account was not found."), { status: 404 });
@@ -434,11 +524,20 @@ export async function founderReply(uidInput: unknown, threadIdInput: unknown, bo
   const threadRef = db.collection("users").doc(uid).collection("conversations").doc(threadId);
   const thread = await threadRef.get();
   if (!thread.exists || thread.data()?.allowReply !== true) throw Object.assign(new Error("Replies are not enabled for this conversation."), { status: 403 });
-  const id = randomUUID();
+  const id = stableMessageId(`${uid}:${threadId}:founder`, clientMessageIdInput);
+  const existing = await threadRef.collection("messages").doc(id).get();
+  if (existing.exists) {
+    const message = await hydrateConversationMessage({ id: existing.id, ...existing.data() } as BoardSignalConversationMessage);
+    return { message, push: { eligible: false, delivered: 0, failed: 0 }, email: { eligible: false, delivered: 0, failed: 0 } };
+  }
+
+  const actor = founderChatUploadActor();
+  const claim: BoardSignalAttachmentClaim = { kind: "founder_reply", id, threadId, recipientUid: uid };
+  let attachment: BoardSignalChatAttachment | undefined;
+  if (requestedAttachment) attachment = await claimBoardSignalChatAttachment(requestedAttachment, actor, claim);
+
   const createdAt = new Date().toISOString();
-  const message: BoardSignalConversationMessage = { id, userId: uid, threadId, body, senderType: "founder", createdAt, campaignId: thread.data()?.campaignId };
-  await threadRef.collection("messages").doc(id).set(clean(message));
-  await threadRef.set({ updatedAt: createdAt, unreadForFounder: false, lastSenderType: "founder" }, { merge: true });
+  const message: BoardSignalConversationMessage = { id, userId: uid, threadId, body, senderType: "founder", createdAt, campaignId: thread.data()?.campaignId, ...(attachment ? { attachment } : {}) };
   const inbox: BoardSignalInboxMessage = {
     id,
     userId: uid,
@@ -450,14 +549,27 @@ export async function founderReply(uidInput: unknown, threadIdInput: unknown, bo
     campaignId: thread.data()?.campaignId,
     threadId,
     allowReply: true,
+    ...(attachment ? { attachment } : {}),
   };
-  await db.collection("users").doc(uid).collection("inbox").doc(id).set(clean(inbox));
-  const link = boardSignalMessageLink("custom");
-  const push = await sendPushToAccount(account, "custom", inbox.title, body, link);
-  const email = await sendEmailToAccount(account, "custom", inbox.title, body, link);
-  return { message, push, email };
-}
+  try {
+    const batch = db.batch();
+    batch.set(threadRef.collection("messages").doc(id), clean(message));
+    batch.set(threadRef, { updatedAt: createdAt, unreadForFounder: false, lastSenderType: "founder" }, { merge: true });
+    batch.set(db.collection("users").doc(uid).collection("inbox").doc(id), clean(inbox));
+    await batch.commit();
+  } catch (reason) {
+    if (attachment) await cleanupClaimedAttachmentAfterFailedMessage(actor, attachment, claim).catch(() => false);
+    throw reason;
+  }
 
+  const link = boardSignalMessageLink("custom");
+  const deliveryBody = safePrivateMessagePreview(body, attachment);
+  const push = await sendPushToAccount(account, "custom", inbox.title, deliveryBody, link)
+    .catch(() => ({ eligible: true, delivered: 0, failed: 1 }));
+  const emailResult = await sendEmailToAccount(account, "custom", inbox.title, deliveryBody, link)
+    .catch(() => ({ eligible: true, delivered: 0, failed: 1, configured: getBoardSignalDeliveryStatus().emailConfigured }));
+  return { message: await hydrateConversationMessage(message), push, email: emailResult };
+}
 
 export async function sendAutomatedPlayerMessage(
   account: BoardSignalAccount,
@@ -483,18 +595,17 @@ export async function sendAutomatedPlayerMessage(
   const push = pushAllowed
     ? await sendPushToAccount(account, message.type, message.title, message.body, inbox.link)
     : { eligible: false, delivered: 0, failed: 0 };
-  const email = await sendEmailToAccount(account, message.type, message.title, message.body, inbox.link);
+  const emailResult = await sendEmailToAccount(account, message.type, message.title, message.body, inbox.link);
   return {
     sent: true,
     pushEligible: push.eligible,
     pushDelivered: push.delivered,
     pushFailed: push.failed,
-    emailEligible: email.eligible,
-    emailDelivered: email.delivered,
-    emailFailed: email.failed,
+    emailEligible: emailResult.eligible,
+    emailDelivered: emailResult.delivered,
+    emailFailed: emailResult.failed,
   };
 }
-
 
 export async function sendFounderTestBrowserAlert(uidInput: unknown) {
   const uid = safeId(validateText(uidInput, "Player", 700));

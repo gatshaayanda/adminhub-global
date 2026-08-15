@@ -1,4 +1,5 @@
 import type { BoardSignalNotificationPreferences } from "./account";
+import type { BoardSignalChatAttachment } from "./chatAttachments";
 import type { BoardSignalNotificationEventType, CurrentEpisodeSummary } from "./memory";
 import { boardSignalMessageLink } from "./delivery";
 
@@ -29,6 +30,7 @@ export type BoardSignalInboxMessage = {
   campaignId?: string;
   threadId?: string;
   allowReply: boolean;
+  attachment?: BoardSignalChatAttachment;
 };
 
 export type BoardSignalConversationMessage = {
@@ -39,6 +41,7 @@ export type BoardSignalConversationMessage = {
   senderType: "founder" | "player";
   createdAt: string;
   campaignId?: string;
+  attachment?: BoardSignalChatAttachment;
 };
 
 export type CommunicationAudienceKind = "one" | "selected" | "all_active_beta" | "segment";
@@ -62,6 +65,7 @@ export type CommunicationCampaignDraft = {
   link?: string;
   actionLabel?: string;
   allowReply: boolean;
+  attachment?: BoardSignalChatAttachment;
   channels: {
     inApp: true;
     browserPush: boolean;

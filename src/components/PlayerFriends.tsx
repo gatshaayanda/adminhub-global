@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, Ban, Check, CircleUserRound, LoaderCircle, Search, Shield, Swords, UserMinus, UserPlus, X } from "lucide-react";
+import { ArrowRight, Ban, Check, CircleUserRound, LoaderCircle, MessageCircle, Search, Shield, Swords, UserMinus, UserPlus, X } from "lucide-react";
 import type { HeadToHeadPayload, SocialPlayerCard } from "@/lib/boardsignal/social";
 import { shouldRunInitialFriendsLoad } from "@/lib/boardsignal/friendsLoader";
 import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 import { loadSocialOfflineSnapshot, saveSocialComparisonOfflineSnapshot, saveSocialOverviewOfflineSnapshot } from "@/lib/boardsignal/offline/snapshots";
+import FriendConversation from "@/components/FriendConversation";
 
 type Overview = {
   friends: SocialPlayerCard[];
@@ -61,6 +62,7 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SocialPlayerCard[]>([]);
   const [comparison, setComparison] = useState<HeadToHeadPayload | null>(null);
+  const [messageTarget, setMessageTarget] = useState<SocialPlayerCard | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,7 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
 
   useEffect(() => { onChangedRef.current = onChanged; }, [onChanged]);
   useEffect(() => { uidRef.current = uid; }, [uid]);
+  useEffect(() => { setMessageTarget(null); }, [uid]);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     const overviewBody = await api<{ overview: Overview }>(token, "/api/boardsignal/social?view=overview", undefined, signal);
@@ -82,9 +85,10 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
       });
     setOverview(overviewBody.overview);
     setSuggested(suggestedBody.players);
+    if (messageTarget && !overviewBody.overview.friends.some((friend) => friend.playerId === messageTarget.playerId)) setMessageTarget(null);
     void saveSocialOverviewOfflineSnapshot(uidRef.current, overviewBody.overview).then(() => window.dispatchEvent(new CustomEvent("boardsignal:offline-saved"))).catch(() => undefined);
     onChangedRef.current?.(overviewBody.overview);
-  }, [token]);
+  }, [messageTarget, token]);
 
   useEffect(() => {
     if (connectivity.state === "checking" || connectivity.state === "reconnecting") return;
@@ -147,8 +151,9 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
     if (typeof window === "undefined") return;
     window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: comparison
       ? { activeTab: "head-to-head", visibleEntityId: comparison.right.playerId }
-      : { activeTab: "friends" } }));
-  }, [comparison]);
+      : messageTarget ? { activeTab: "friends", visibleEntityId: messageTarget.playerId }
+        : { activeTab: "friends" } }));
+  }, [comparison, messageTarget]);
 
   async function socialAction(action: string, playerId: number, pinned?: boolean) {
     if (!connectivity.online) { setError("Reconnect to change your BoardSignal connections."); return; }
@@ -156,7 +161,10 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
     setError("");
     try {
       await api(token, "/api/boardsignal/social", { method: "POST", body: JSON.stringify({ action, playerId, pinned }) });
-      if (action === "unfriend" || action === "block") setComparison(null);
+      if (action === "unfriend" || action === "block") {
+        setComparison(null);
+        if (messageTarget?.playerId === playerId) setMessageTarget(null);
+      }
       await load();
       if (query.trim().length >= 2) await search(query);
     } catch (reason) {
@@ -188,8 +196,8 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
   if (loading) return <section className="friends-surface"><div className="social-loading"><LoaderCircle className="button-spinner" /><span>Loading your BoardSignal connections</span></div></section>;
 
   return <section className="friends-surface">
-    {!connectivity.online ? <div className="offline-action-note" role="status">Offline · saved connection state is read-only. Reconnect to change your BoardSignal connections.</div> : null}
-    <div className="room-section-heading"><div><p className="kicker">FRIENDS</p><h2>Recent chess gets more interesting when the gap has a name.</h2><p>Connect using stable BoardSignal identities. Friendship compares public-safe sporting results only—never private Signals, evidence, contact details or founder messages.</p></div></div>
+    {!connectivity.online ? <div className="offline-action-note" role="status">Offline · saved connection state is read-only. Reconnect to change connections or send private friend messages.</div> : null}
+    <div className="room-section-heading"><div><p className="kicker">FRIENDS</p><h2>Recent chess gets more interesting when the gap has a name.</h2><p>Connect using stable BoardSignal identities. Accepted friends can also message privately; private Signals, evidence, contact details and founder messages never enter friend chat.</p></div></div>
     {error ? <div className="notice notice-error social-load-error" role="alert"><p>{error}</p><button type="button" className="button button-quiet" onClick={() => { loadedTokenRef.current = undefined; setLoading(true); setError(""); void load().then(() => { loadedTokenRef.current = token; }).catch((reason) => setError(reason instanceof Error ? reason.message : "Friends could not be loaded.")).finally(() => setLoading(false)); }}>Try again</button></div> : null}
 
     {overview.socialPulse.length ? <section className="social-panel"><p className="kicker">SOCIAL PULSE</p><div className="social-pulse-grid">{overview.socialPulse.map((event) => <article key={event.id}><span>{event.eyebrow}</span><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small></article>)}</div></section> : null}
@@ -201,10 +209,13 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
 
     {overview.friends.length ? <section className="social-panel"><div className="social-panel-heading"><p className="kicker">FRIENDS</p><span>{overview.friends.length} connected</span></div><div className="friend-card-grid">{overview.friends.map((player) => <FriendCard key={player.playerId} player={player} status="friends" actions={<>
       <button className="button button-blue" type="button" disabled={Boolean(busy)} onClick={() => compare(player.playerId)}><Swords size={15}/> Compare</button>
+      <button className="button button-lime" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => { setComparison(null); setMessageTarget(player); }}><MessageCircle size={15}/> Message</button>
       <button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("pin", player.playerId, !player.rivalPinned)}>{player.rivalPinned ? "Unpin rival" : "Pin to Rival Watch"}</button>
       <button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("unfriend", player.playerId)}><UserMinus size={15}/> Unfriend</button>
       <button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("block", player.playerId)}><Ban size={15}/> Block</button>
     </>} />)}</div></section> : null}
+
+    {messageTarget ? <FriendConversation uid={uid} token={token} friend={messageTarget} online={connectivity.online} onClose={() => setMessageTarget(null)} /> : null}
 
     {overview.rivalWatch.length ? <section className="social-panel rival-watch-panel"><p className="kicker">RIVAL WATCH</p><div className="rival-watch-grid">{overview.rivalWatch.map((item) => <article key={item.player.playerId}><span>{item.label}</span><h3>{item.player.canonicalUsername}</h3><p>{item.detail}</p><button type="button" className="text-link social-text-button" disabled={Boolean(busy)} onClick={() => compare(item.player.playerId)}>Open Head-to-Head</button></article>)}</div></section> : null}
 

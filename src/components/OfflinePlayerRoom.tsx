@@ -25,7 +25,7 @@ export default function OfflinePlayerRoom({ uid: suppliedUid, initialSnapshot, e
   const [social, setSocial] = useState<OfflineSocialSnapshot | null>(null);
   const [tab, setTab] = useState<OfflineTab>("desk");
   const [selectedDeskKey, setSelectedDeskKey] = useState(initialSnapshot?.desks[0]?.summary.deskKey ?? "");
-  const previousAuthUidRef = useRef<string>();
+  const previousAuthUidRef = useRef<string | undefined>(undefined);
   const uid = suppliedUid ?? user?.uid;
 
   useEffect(() => {

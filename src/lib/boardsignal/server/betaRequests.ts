@@ -3,8 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { BoardSignalAccount, BoardSignalContactMethod, StableChessComIdentity } from "../account";
 import { defaultNotificationPreferences } from "../account";
-import type { BetaActivationReturnMethod, BoardSignalBetaPreview } from "../activation";
-import { isValidBoardSignalEmail } from "../delivery";
+import type { BetaActivationReturnMethod, BetaPreviewStatus, BoardSignalBetaPreview } from "../activation";
 import { resolveChessComPlayer } from "../processor";
 import type { PublicUniverseEvent } from "../pulse";
 import type { DocumentReference } from "firebase-admin/firestore";
@@ -13,15 +12,13 @@ import {
   betaMagicAccessCredential,
   buildSafeBetaPreview,
   createBetaPreviewStatusCredential,
-  notifyApprovedBetaPreviewDevice,
   notifyFounderOfBetaRequest,
   verifyBetaPreviewStatusCredential,
 } from "./activation";
 import { createFoundingBetaAccess, loadExistingFoundingBetaAccess } from "./betaAccess";
 import { ensureStablePlayerAccount } from "./persistence";
 import { ensureSafePublicCoverageForAccount } from "./publicCoverageRepair";
-import { getBoardSignalDeliveryStatus } from "./delivery";
-import { sendBoardSignalEmail } from "./email";
+import { deliverFoundingBetaIdentityConfirmation } from "./foundingBetaIdentityConfirmation";
 import { writePublicUniverseEvent } from "./universePulse";
 
 export type BetaRequestStatus = "pending" | "approved" | "rejected";
@@ -38,7 +35,11 @@ export type FoundingBetaRequest = {
   activationReturnMethod?: BetaActivationReturnMethod;
   activationReturnUpdatedAt?: string;
   activationDevice?: { token: string; registeredAt: string; updatedAt: string; userAgentSummary?: string } | null;
+  approvalAlertDevice?: { token: string; registeredAt: string; updatedAt: string; userAgentSummary?: string } | null;
+  approvalAlertEmail?: string;
+  approvalAlertEmailConsent?: true;
   activationDeviceDelivery?: "delivered" | "failed" | "not_eligible";
+  identityConfirmationDelivery?: { channel: "device" | "email" | "none"; status: "attempting" | "delivered" | "failed" | "not_eligible" | "not_configured"; attemptedAt?: string; deliveredAt?: string; playerAlreadyInside?: boolean; reason?: string };
   requestedAt: string;
   status: BetaRequestStatus;
   decidedAt?: string;
@@ -242,16 +243,54 @@ export async function updateFoundingBetaReturnPreference(input: { requestId: str
   const method = String(input.method ?? "") as BetaActivationReturnMethod;
   if (!["device", "email", "discord", "telegram", "return_here"].includes(method)) throw Object.assign(new Error("Choose how BoardSignal should bring you back."), { status: 400 });
   const now = new Date().toISOString();
-  if (method === "email" || method === "discord" || method === "telegram") {
+  if (method === "email") {
     const contact = validateContact(method, input.contactValue, input.betaContactConsent);
-    await verified.ref.set(clean({ activationReturnMethod: method, activationReturnUpdatedAt: now, preferredContactMethod: contact.method, preferredContactValue: contact.value, betaContactConsent: true, activationDevice: null }), { merge: true });
+    // F.2: this is a narrow one-time Founder-review confirmation address.
+    // Do not silently turn it into the Player Room's ongoing email preference.
+    await verified.ref.set(clean({
+      activationReturnMethod: method,
+      activationReturnUpdatedAt: now,
+      approvalAlertEmail: contact.value,
+      approvalAlertEmailConsent: true,
+      activationDevice: null,
+      approvalAlertDevice: null,
+    }), { merge: true });
+  } else if (method === "discord" || method === "telegram") {
+    // Legacy compatibility: preserve historical contact methods when an older
+    // client submits them, but F.2 does not advertise them as automatic alerts.
+    const contact = validateContact(method, input.contactValue, input.betaContactConsent);
+    await verified.ref.set(clean({ activationReturnMethod: method, activationReturnUpdatedAt: now, preferredContactMethod: contact.method, preferredContactValue: contact.value, betaContactConsent: true, activationDevice: null, approvalAlertDevice: null }), { merge: true });
   } else if (method === "return_here") {
-    await verified.ref.set(clean({ activationReturnMethod: method, activationReturnUpdatedAt: now, activationDevice: null }), { merge: true });
+    await verified.ref.set(clean({ activationReturnMethod: method, activationReturnUpdatedAt: now, activationDevice: null, approvalAlertDevice: null }), { merge: true });
   } else {
     throw Object.assign(new Error("Use Notify this device to enable device alerts."), { status: 400, code: "PREVIEW_DEVICE_ACTION_REQUIRED" });
   }
   const refreshed = await verified.ref.get();
   return refreshed.data() as FoundingBetaRequest;
+}
+
+export async function rememberFoundingBetaApprovalDevice(input: { requestId: string; statusToken: unknown }) {
+  const verified = await verifyBetaPreviewStatusCredential(input.requestId, input.statusToken);
+  const snapshot = await verified.ref.get();
+  const request = snapshot.data() as FoundingBetaRequest;
+  if (request.status !== "pending" || request.activationReturnMethod !== "device" || !request.activationDevice?.token) {
+    return request;
+  }
+  // Keep a server-owned copy specifically for the one Founder-review alert.
+  // Provisional claim may retire the Preview activationDevice, but this copy
+  // remains until the player changes away from Device or delivery completes.
+  await verified.ref.set(clean({ approvalAlertDevice: request.activationDevice }), { merge: true });
+  return { ...request, approvalAlertDevice: request.activationDevice };
+}
+
+export function withFoundingBetaApprovalAlertStatus(status: BetaPreviewStatus, request: FoundingBetaRequest): BetaPreviewStatus {
+  if (request.activationReturnMethod !== "email" || request.approvalAlertEmailConsent !== true || !request.approvalAlertEmail) return status;
+  return {
+    ...status,
+    preferredContactMethod: "email",
+    preferredContactValue: request.approvalAlertEmail,
+    betaContactConsent: true,
+  };
 }
 
 export async function listFoundingBetaRequests(status?: BetaRequestStatus) {
@@ -314,12 +353,10 @@ export async function approveFoundingBetaRequest(requestId: string) {
   }
 
   let result: { account?: BoardSignalAccount; accessCode?: string };
-  let newlyCreatedAccess = true;
   try {
     result = await createFoundingBetaAccess(request.canonicalUsername);
   } catch (error) {
     if (String((error as { code?: string }).code) !== "BETA_ACCESS_EXISTS") throw error;
-    newlyCreatedAccess = false;
     // Legacy compatibility: an existing fallback credential is already valid.
     // Reuse it without rotating its hash/salt and without revoking Firebase sessions.
     const existing = await loadExistingFoundingBetaAccess(request.chessPlayerId);
@@ -334,11 +371,11 @@ export async function approveFoundingBetaRequest(requestId: string) {
   const currentPreferences = account.notificationPreferences ?? defaultNotificationPreferences();
   const validExternalContact = Boolean(request.preferredContactMethod && request.preferredContactValue && request.betaContactConsent === true);
   const completedReturnDecision = Boolean(request.activationReturnMethod || validExternalContact);
-  const consentedEmail = request.preferredContactMethod === "email" && request.betaContactConsent === true && isValidBoardSignalEmail(request.preferredContactValue);
   const notificationPreferences = {
     ...defaultNotificationPreferences(),
     ...currentPreferences,
-    email: newlyCreatedAccess && consentedEmail ? true : currentPreferences.email ?? false,
+    // This one-time approval-alert choice does not opt the player into ongoing email notifications.
+    email: currentPreferences.email ?? false,
     browserPush: currentPreferences.browserPush ?? false,
     deskReady: currentPreferences.deskReady ?? true,
     episodeProgress: currentPreferences.episodeProgress ?? true,
@@ -376,34 +413,33 @@ export async function approveFoundingBetaRequest(requestId: string) {
   const magic = betaMagicAccessCredential(request.id, request.chessPlayerId, account.uid, new Date(decidedAt));
   await ref.set({ status: "approved", identityReviewStatus: "confirmed", decidedAt, firebaseUid: account.uid, magicAccess: magic.record, claimedAt: null, previewClaimConsumedAt: null }, { merge: true });
 
-  let accessEmailDelivery: FoundingBetaRequest["accessEmailDelivery"] = "not_eligible";
-  if (consentedEmail) {
-    const delivery = getBoardSignalDeliveryStatus();
-    if (!delivery.emailConfigured) accessEmailDelivery = "not_configured";
-    else {
-      const email = await sendBoardSignalEmail({
-        to: String(request.preferredContactValue),
-        subject: "Your BoardSignal is ready",
-        text: `Your private Player Room is ready.\n\nOpen My Player Room: ${magic.link}`,
-      });
-      accessEmailDelivery = email.delivered ? "delivered" : "failed";
-    }
-    await ref.set({ accessEmailDelivery }, { merge: true });
-  }
-
-  const previewDevice = request.activationReturnMethod === "device" ? request.activationDevice : undefined;
-  const deviceDelivery = await notifyApprovedBetaPreviewDevice({ requestId: request.id, fcmToken: previewDevice?.token }).catch(() => ({ eligible: true, delivered: 0, failed: 1, status: "failed" as const }));
-  await ref.set({ activationDeviceDelivery: deviceDelivery.status }, { merge: true }).catch(() => undefined);
+  // Shared Founder-confirmation delivery policy. Identity truth is already committed;
+  // notification delivery is secondary and may fail without rolling approval back.
+  const identityConfirmationDelivery = await deliverFoundingBetaIdentityConfirmation({
+    requestId: request.id,
+    playerAlreadyInside: false,
+    magicLink: magic.link,
+  }).catch(() => ({ channel: "none" as const, status: "failed" as const }));
+  const accessEmailDelivery: FoundingBetaRequest["accessEmailDelivery"] = identityConfirmationDelivery.channel === "email"
+    ? identityConfirmationDelivery.status === "delivered" ? "delivered"
+      : identityConfirmationDelivery.status === "not_configured" ? "not_configured"
+        : identityConfirmationDelivery.status === "not_eligible" ? "not_eligible" : "failed"
+    : "not_eligible";
+  const deviceDelivery: FoundingBetaRequest["activationDeviceDelivery"] = identityConfirmationDelivery.channel === "device"
+    ? identityConfirmationDelivery.status === "delivered" ? "delivered"
+      : identityConfirmationDelivery.status === "not_eligible" || identityConfirmationDelivery.status === "not_configured" ? "not_eligible" : "failed"
+    : "not_eligible";
 
   return {
-    request: { ...request, status: "approved" as const, identityReviewStatus: "confirmed" as const, decidedAt, firebaseUid: account.uid, magicAccess: magic.record, accessEmailDelivery, activationDeviceDelivery: deviceDelivery.status },
+    request: { ...request, status: "approved" as const, identityReviewStatus: "confirmed" as const, decidedAt, firebaseUid: account.uid, magicAccess: magic.record, identityConfirmationDelivery, accessEmailDelivery, activationDeviceDelivery: deviceDelivery },
     account: confirmedAccount,
     accessCode: result.accessCode,
     magicLink: magic.link,
     magicAccessExpiresAt: magic.expiresAt,
     approvalMessage: accessMessage(request.canonicalUsername, magic.link),
     accessEmailDelivery,
-    deviceDelivery: deviceDelivery.status,
+    deviceDelivery,
+    identityConfirmationDelivery,
     publicHighlights,
   };
 }
@@ -415,7 +451,10 @@ export async function confirmFoundingBetaIdentity(requestId: string) {
   if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
   const request = snapshot.data() as FoundingBetaRequest;
   if (request.status === "approved" && request.identityReviewStatus === "confirmed") {
-    return { request, alreadyConfirmed: true, playerAlreadyInside: Boolean(request.provisionalClaimedAt || request.claimedAt) };
+    const playerAlreadyInside = Boolean(request.provisionalClaimedAt || request.claimedAt);
+    const identityConfirmationDelivery = await deliverFoundingBetaIdentityConfirmation({ requestId, playerAlreadyInside })
+      .catch(() => request.identityConfirmationDelivery ?? { channel: "none" as const, status: "failed" as const });
+    return { request: { ...request, identityConfirmationDelivery }, identityConfirmationDelivery, alreadyConfirmed: true, playerAlreadyInside };
   }
   if (request.status !== "pending" || request.identityReviewStatus === "rejected") {
     throw Object.assign(new Error("This Founding Beta identity cannot be confirmed from its current state."), { status: 409 });
@@ -462,10 +501,13 @@ export async function confirmFoundingBetaIdentity(requestId: string) {
   const publicHighlights = await reconcileConfirmedPublicHighlights(confirmedAccount);
   await ref.set({ status: "approved", identityReviewStatus: "confirmed", decidedAt }, { merge: true });
   await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt));
+  const identityConfirmationDelivery = await deliverFoundingBetaIdentityConfirmation({ requestId, playerAlreadyInside: true })
+    .catch(() => ({ channel: "none" as const, status: "failed" as const }));
   return {
-    request: { ...request, status: "approved" as const, identityReviewStatus: "confirmed" as const, decidedAt },
+    request: { ...request, status: "approved" as const, identityReviewStatus: "confirmed" as const, decidedAt, identityConfirmationDelivery },
     account: confirmedAccount,
     publicHighlights,
+    identityConfirmationDelivery,
     alreadyConfirmed: false,
     playerAlreadyInside: true,
   };

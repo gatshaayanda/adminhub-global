@@ -3,6 +3,7 @@ import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import "./boardsignal-accessibility.css";
 import "./boardsignal-motion.css";
+import "./boardsignal-f2-readability.css";
 
 import InstallPrompt from "@/components/InstallPrompt";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FormEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { browserLocalPersistence, setPersistence, signInWithCustomToken } from "firebase/auth";
-import { ArrowRight, Bell, Check, ChevronRight, LoaderCircle, LockKeyhole, Mail, MessageCircle, RefreshCcw, ShieldCheck, Sparkles, Swords, TrendingUp } from "lucide-react";
+import { ArrowRight, Bell, Check, ChevronRight, LoaderCircle, LockKeyhole, Mail, RefreshCcw, ShieldCheck, Sparkles, Swords, TrendingUp } from "lucide-react";
 import type { BetaActivationReturnMethod, BetaPreviewStatus, BoardSignalBetaPreview } from "@/lib/boardsignal/activation";
 import { BETA_PREVIEW_POLL_MS, betaPreviewContainsPrivateFields } from "@/lib/boardsignal/activation";
 import { auth } from "@/utils/firebaseConfig";
@@ -348,10 +348,12 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
       {canContinue ? <button type="button" className="button button-lime beta-preview-primary-cta" onClick={openPlayerRoom} disabled={claiming}>{claiming ? <><LoaderCircle className="button-spinner" size={16}/> Opening</> : <>Continue to My BoardSignal <ArrowRight size={17}/></>}</button> : null}
     </section>
 
+    {status?.state === "preview_ready" ? <PreviewReturnChoice requestId={requestId} statusToken={statusToken} status={status} onStatus={handleInteractiveStatus} onError={setError} /> : null}
+
     {runtime.refreshNotice ? <div className="container notice" role="status">{runtime.refreshNotice}</div> : null}
     {visibleError && preview ? <div className="container notice notice-error" role="alert">{visibleError}</div> : null}
 
-    {!preview ? <section className="container beta-preview-failure bs-surface-paper"><Sparkles/><div><p className="kicker">REQUEST SAVED</p><h2>Chess.com didn't return the preview yet.</h2><p>Your Founding Beta request is safe. Try the Preview again; identity review is not the gate to private access.</p></div><button type="button" className="button button-dark" onClick={retryPreview} disabled={retrying}>{retrying ? <><LoaderCircle className="button-spinner" size={15}/> Trying</> : <><RefreshCcw size={15}/> Try preview again</>}</button></section> : <PreviewContent preview={preview} ask={ask} showAskIntro={showAskIntro} accessCta={canContinue ? <section className="container beta-preview-next bs-surface-dark"><p className="kicker">READY FOR THE FULL PICTURE?</p><h2>See what happened, what mattered, and what to focus on next.</h2><p>Founding Beta access starts immediately. Identity checks happen quietly in the background.</p><button type="button" className="button button-lime" onClick={openPlayerRoom} disabled={claiming}>{claiming ? "Opening…" : "Continue to My BoardSignal"}<ArrowRight size={16}/></button></section> : null} returnChoice={status?.state === "preview_ready" ? <PreviewReturnChoice requestId={requestId} statusToken={statusToken} status={status} onStatus={handleInteractiveStatus} onError={setError} /> : null} />}
+    {!preview ? <section className="container beta-preview-failure bs-surface-paper"><Sparkles/><div><p className="kicker">REQUEST SAVED</p><h2>Chess.com didn't return the preview yet.</h2><p>Your Founding Beta request is safe. Try the Preview again; identity review is not the gate to private access.</p></div><button type="button" className="button button-dark" onClick={retryPreview} disabled={retrying}>{retrying ? <><LoaderCircle className="button-spinner" size={15}/> Trying</> : <><RefreshCcw size={15}/> Try preview again</>}</button></section> : <PreviewContent preview={preview} ask={ask} showAskIntro={showAskIntro} accessCta={canContinue ? <section className="container beta-preview-access-cta bs-surface-dark"><p className="kicker">READY FOR THE FULL PICTURE?</p><h2>See what happened, what mattered, and what to focus on next.</h2><p>Founding Beta access starts immediately. Identity checks happen quietly in the background.</p><button type="button" className="button button-lime" onClick={openPlayerRoom} disabled={claiming}>{claiming ? "Opening…" : "Continue to My BoardSignal"}<ArrowRight size={16}/></button></section> : null} />}
 
     {rejected ? <section className="container beta-preview-next bs-surface-paper"><p className="kicker">REQUEST STATUS</p><h2>This Founding Beta request is closed.</h2><p>The public-safe preview can remain useful, but private BoardSignal access was not activated.</p></section> : null}
 
@@ -362,79 +364,98 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
 }
 
 function PreviewReturnChoice({ requestId, statusToken, status, onStatus, onError }: { requestId: string; statusToken: string; status: BetaPreviewStatus; onStatus: (value: BetaPreviewStatus) => void; onError: (value: string) => void }) {
-  const [selected, setSelected] = useState<BetaActivationReturnMethod | "">(status.activationReturnMethod ?? "");
-  const [contactValue, setContactValue] = useState(status.preferredContactValue ?? "");
-  const [consent, setConsent] = useState(status.betaContactConsent === true);
+  const supportedSelection = status.activationReturnMethod === "device" || status.activationReturnMethod === "email" || status.activationReturnMethod === "return_here"
+    ? status.activationReturnMethod
+    : "";
+  const [selected, setSelected] = useState<BetaActivationReturnMethod | "">(supportedSelection);
+  const [contactValue, setContactValue] = useState(status.preferredContactMethod === "email" ? status.preferredContactValue ?? "" : "");
+  const [consent, setConsent] = useState(status.preferredContactMethod === "email" && status.betaContactConsent === true);
   const [busy, setBusy] = useState(false);
+  const [localMessage, setLocalMessage] = useState("");
   const configured = Boolean(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim());
+  const legacyMethod = status.activationReturnMethod === "discord" || status.activationReturnMethod === "telegram" ? status.activationReturnMethod : undefined;
 
-  // Keep unsaved return-method/contact edits local while background status polls
-  // run. Explicit save/register responses update status and local selection below.
+  // Keep unsaved approval-alert edits local while background status polls run.
+  // Explicit save/register responses remain authoritative for the request.
   async function update(actionBody: Record<string, unknown>) {
-    setBusy(true); onError("");
+    setBusy(true); onError(""); setLocalMessage("");
     try {
       const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
         body: JSON.stringify({ statusToken, ...actionBody }),
       });
       const body = await response.json() as { ok?: boolean; status?: BetaPreviewStatus; error?: string };
-      if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "BoardSignal could not save this return method.");
+      if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "BoardSignal could not save this approval alert.");
       onStatus(body.status);
-      setSelected(body.status.activationReturnMethod ?? "");
-    } catch (reason) { onError(reason instanceof Error ? reason.message : "BoardSignal could not save this return method."); }
+      const next = body.status.activationReturnMethod;
+      setSelected(next === "device" || next === "email" || next === "return_here" ? next : "");
+      setLocalMessage(next === "email" ? "Approval email saved." : next === "return_here" ? "No approval alert selected. Your access is unchanged." : "Approval alert saved.");
+    } catch (reason) { onError(reason instanceof Error ? reason.message : "BoardSignal could not save this approval alert."); }
     finally { setBusy(false); }
   }
 
   async function enableDevice() {
-    if (!configured) { onError("Device alerts aren't configured yet. Your Preview is still saved on this device, so you can choose I'll come back here or add a backup contact."); return; }
-    if (!("Notification" in window) || !("serviceWorker" in navigator)) { onError("This browser doesn't support BoardSignal device alerts. Your saved Preview still works."); return; }
-    setBusy(true); onError("");
+    if (!configured) { setLocalMessage("Device alerts aren't configured yet. Your BoardSignal access is unchanged — use Email or choose No alert."); return; }
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) { setLocalMessage("This browser doesn't support device alerts. Your BoardSignal access is unchanged — use Email or choose No alert."); return; }
+    setBusy(true); onError(""); setLocalMessage("");
     try {
-      // Permission is requested only because the player deliberately clicked Notify this device.
+      // Native permission follows this deliberate button action only.
       const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
-      if (permission !== "granted") { setSelected(""); return; }
+      if (permission !== "granted") {
+        setSelected("");
+        setLocalMessage("No problem — your BoardSignal access is unchanged. You can use Email or choose No alert.");
+        return;
+      }
       const fcmToken = await getBoardSignalBrowserPushToken();
       const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
         body: JSON.stringify({ action: "registerDevice", statusToken, fcmToken, userAgent: navigator.userAgent }),
       });
       const body = await response.json() as { ok?: boolean; status?: BetaPreviewStatus; error?: string };
-      if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "This device could not be attached to the Preview.");
-      onStatus(body.status); setSelected("device");
-    } catch (reason) { onError(reason instanceof Error ? reason.message : "This device could not be attached to the Preview."); }
+      if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "This device could not be attached to the Founder-review alert.");
+      onStatus(body.status); setSelected("device"); setLocalMessage("Approval alert saved to this device.");
+    } catch (reason) { onError(reason instanceof Error ? reason.message : "This device could not be attached to the Founder-review alert."); }
     finally { setBusy(false); }
   }
 
-  async function choose(method: BetaActivationReturnMethod) {
-    setSelected(method); onError("");
+  async function choose(method: "device" | "email" | "return_here") {
+    setSelected(method); onError(""); setLocalMessage("");
     if (method === "device") { await enableDevice(); return; }
     if (method === "return_here") await update({ action: "updateReturn", method: "return_here" });
   }
 
   async function saveContact(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!(selected === "email" || selected === "discord" || selected === "telegram")) return;
-    await update({ action: "updateReturn", method: selected, contactValue: contactValue.trim(), betaContactConsent: consent });
+    if (selected !== "email") return;
+    await update({ action: "updateReturn", method: "email", contactValue: contactValue.trim(), betaContactConsent: consent });
   }
 
-  const savedLabel = status.activationReturnMethod === "device" && status.deviceAlertsEnabled ? "DEVICE ALERTS ENABLED" : status.activationReturnMethod === "return_here" ? "SAVED ON THIS DEVICE" : status.activationReturnMethod && status.preferredContactValue ? `${status.activationReturnMethod.toUpperCase()} · ${status.preferredContactValue}` : undefined;
+  const savedLabel = status.activationReturnMethod === "device" && status.deviceAlertsEnabled
+    ? "APPROVAL ALERT · THIS DEVICE"
+    : status.activationReturnMethod === "email" && status.betaContactConsent === true && status.preferredContactValue
+      ? `APPROVAL ALERT · ${status.preferredContactValue}`
+      : status.activationReturnMethod === "return_here"
+        ? "NO APPROVAL ALERT · I'LL CHECK MYSELF"
+        : legacyMethod
+          ? `LEGACY CONTACT SAVED · ${legacyMethod.toUpperCase()} · NOT AN AUTOMATIC APPROVAL ALERT`
+          : undefined;
 
-  return <section className="container beta-preview-return bs-surface-paper">
-    <div className="beta-preview-section-heading"><div><p className="kicker">KEEP MY BOARDSIGNAL READY</p><h2>Optional: how should BoardSignal help you return later?</h2><p>Your private review is already available above. Device alerts and external contact are optional ways to return later.</p></div>{savedLabel ? <span className="state-pill ready">{savedLabel}</span> : null}</div>
-    <div className="beta-return-options">
-      <button type="button" className={`beta-return-option recommended ${selected === "device" ? "is-selected" : ""}`} onClick={() => void choose("device")} disabled={busy}><Bell size={19}/><span><strong>Notify this device</strong><small>Recommended · alert this browser about important BoardSignal updates.</small></span></button>
-      <button type="button" className={selected === "email" ? "is-selected" : ""} onClick={() => setSelected("email")} disabled={busy}><Mail size={18}/> Email</button>
-      <button type="button" className={selected === "discord" ? "is-selected" : ""} onClick={() => setSelected("discord")} disabled={busy}><MessageCircle size={18}/> Discord</button>
-      <button type="button" className={selected === "telegram" ? "is-selected" : ""} onClick={() => setSelected("telegram")} disabled={busy}><MessageCircle size={18}/> Telegram</button>
-      <button type="button" className={selected === "return_here" ? "is-selected" : ""} onClick={() => void choose("return_here")} disabled={busy}>I'll come back here</button>
+  return <section className="container beta-preview-return beta-preview-approval-alert bs-surface-paper" aria-labelledby="founder-review-alert-heading">
+    <div className="beta-preview-section-heading"><div><p className="kicker">FOUNDER REVIEW</p><h2 id="founder-review-alert-heading">Want a heads-up when your identity is confirmed?</h2><p>Your private BoardSignal is ready now. Founder review happens quietly in the background. Pick one way to hear when your identity is confirmed.</p></div>{savedLabel ? <span className="state-pill ready">{savedLabel}</span> : null}</div>
+    {legacyMethod ? <p className="helper-copy">Your saved {legacyMethod} contact is preserved, but BoardSignal does not send automatic Founder-review alerts through {legacyMethod}. Choose Device, Email or No alert below if you want to change this.</p> : null}
+    <div className="beta-return-options" aria-label="Founder review approval alert">
+      <button type="button" className={`beta-return-option recommended ${selected === "device" ? "is-selected" : ""}`} onClick={() => void choose("device")} disabled={busy}><Bell size={19}/><span><strong>Notify this device</strong><small>Recommended · One alert when Founder review is confirmed.</small></span></button>
+      <button type="button" className={selected === "email" ? "is-selected" : ""} onClick={() => void choose("email")} disabled={busy}><Mail size={18}/><span><strong>Email me</strong><small>Send the confirmation to my email.</small></span></button>
+      <button type="button" className={selected === "return_here" ? "is-selected" : ""} onClick={() => void choose("return_here")} disabled={busy}><Check size={18}/><span><strong>No alert — I'll check myself</strong><small>Your access is unaffected.</small></span></button>
     </div>
-    {selected === "device" ? <p className="helper-copy">{configured ? status.deviceAlertsEnabled ? "This browser is ready for BoardSignal alerts. Your private review does not depend on Founder approval or email." : "Your browser will ask for notification permission only because you clicked Notify this device." : "Device alerts aren't configured yet. Your saved Preview still works, and private access is available without alerts."}</p> : null}
-    {selected === "return_here" ? <p className="helper-copy">Your Preview is saved on this device for the activation window. Come back to BoardSignal and choose Continue Preview.</p> : null}
-    {(selected === "email" || selected === "discord" || selected === "telegram") ? <form className="beta-return-contact" onSubmit={saveContact}><label>{selected === "email" ? "Email address" : selected === "discord" ? "Discord username" : "Telegram username / contact"}<input value={contactValue} onChange={(event) => setContactValue(event.target.value)} type={selected === "email" ? "email" : "text"} autoComplete={selected === "email" ? "email" : "off"} maxLength={160} placeholder={selected === "email" ? "you@example.com" : "@username"}/></label><label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)}/><span>BoardSignal may use this contact for Founding Beta access, review availability, important product updates and beta feedback.</span></label><button className="button button-dark" type="submit" disabled={busy || !contactValue.trim() || !consent}>{busy ? <><LoaderCircle className="button-spinner" size={14}/> Saving</> : `Save ${selected}`}</button><p className="helper-copy">You can correct this while the Preview is pending. Your Preview still works here even if this backup channel is unavailable.</p></form> : null}
+    {selected === "device" ? <p className="helper-copy">{configured ? status.deviceAlertsEnabled ? "This device is ready for one Founder-review confirmation alert." : "The browser permission prompt appears only after you press Notify this device." : "Device alerts aren't configured yet. Email and No alert remain available."}</p> : null}
+    {selected === "return_here" ? <p className="helper-copy">No outbound approval alert will be sent. Founder review still completes normally and your private access is unchanged.</p> : null}
+    {selected === "email" ? <form className="beta-return-contact" onSubmit={saveContact}><label>Email address<input value={contactValue} onChange={(event) => setContactValue(event.target.value)} type="email" autoComplete="email" maxLength={160} placeholder="you@example.com"/></label><label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)}/><span>Email me when my Founder review is confirmed. BoardSignal may also use this email for Beta access recovery.</span></label><button className="button button-dark" type="submit" disabled={busy || !contactValue.trim() || !consent}>{busy ? <><LoaderCircle className="button-spinner" size={14}/> Saving</> : "Save approval email"}</button><p className="helper-copy">This does not opt you into ongoing Review alerts or product marketing. Those settings stay inside My BoardSignal.</p></form> : null}
+    {localMessage ? <p className="helper-copy beta-preview-alert-response" role="status" aria-live="polite">{localMessage}</p> : null}
   </section>;
 }
 
-function PreviewContent({ preview, ask, showAskIntro, accessCta, returnChoice }: { preview: BoardSignalBetaPreview; ask: (prompt: string) => void; showAskIntro: boolean; accessCta?: ReactNode; returnChoice?: ReactNode }) {
+function PreviewContent({ preview, ask, showAskIntro, accessCta }: { preview: BoardSignalBetaPreview; ask: (prompt: string) => void; showAskIntro: boolean; accessCta?: ReactNode }) {
   const leadPool = useMemo(() => [...preview.pools].sort((a,b) => b.games - a.games)[0], [preview.pools]);
   return <>
     <section className="container beta-preview-week bs-surface-paper">
@@ -452,7 +473,6 @@ function PreviewContent({ preview, ask, showAskIntro, accessCta, returnChoice }:
       {preview.recentUniverseActivity.length ? <div className="beta-preview-activity"><p className="kicker">WHAT'S HAPPENING AROUND BOARDSIGNAL</p>{preview.recentUniverseActivity.slice(0,3).map((item) => <article key={item.eventId}><span>{item.canonicalUsername}</span><strong>{item.headline}</strong><p>{item.supportingFact}</p></article>)}</div> : null}
     </section>
 
-    {returnChoice}
 
     {showAskIntro ? <section className="container beta-preview-ask bs-surface-dark"><Sparkles size={22}/><div><p className="kicker">ASK BOARDSIGNAL</p><h2>I found your games. Want me to show you what stands out?</h2><p>I can explain what the Preview found, what the comparison means, and what you can explore inside My BoardSignal.</p><div className="beta-preview-ask-actions"><button type="button" onClick={() => ask("Show me my week")}>Show me my week</button><button type="button" onClick={() => ask("Explain Around BoardSignal")}>Explain Around BoardSignal</button><button type="button" onClick={() => ask("What unlocks next?")}>What unlocks next?</button></div></div></section> : null}
 

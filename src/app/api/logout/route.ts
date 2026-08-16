@@ -1,15 +1,18 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
+import { FOUNDER_SESSION_COOKIE } from "@/lib/boardsignal/founderSession.mjs";
 
 export async function POST() {
-  const res = NextResponse.json({ success: true })
-  res.cookies.set({
-    name:     'admin_token',
-    value:    '',
-    maxAge:   0,
-    path:     '/',        // must match the login cookie path
+  const res = NextResponse.json({ success: true });
+  const clear = (name: string) => res.cookies.set({
+    name,
+    value: "",
+    maxAge: 0,
+    path: "/",
     httpOnly: true,
-    sameSite: 'lax',
-    secure:   process.env.NODE_ENV === 'production',
-  })
-  return res
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+  clear(FOUNDER_SESSION_COOKIE);
+  clear("admin_token");
+  return res;
 }

@@ -12,7 +12,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as { ticket?: unknown };
     const result = await consumeBetaMagicTicket(body.ticket);
-    return response({ ok: true, customToken: result.customToken, canonicalUsername: result.canonicalUsername });
+    console.info("[BoardSignal player entry]", {
+      requestId: result.requestId,
+      playerId: result.playerId,
+      stage: "MAGIC_CONSUMED",
+      outcome: "consumed",
+      source: "magic",
+      sameUidResume: false,
+      timestamp: new Date().toISOString(),
+    });
+    return response({ ok: true, customToken: result.customToken, canonicalUsername: result.canonicalUsername, uid: result.uid, playerId: result.playerId });
   } catch (error) {
     return response({ ok: false, code: String((error as { code?: string }).code ?? "MAGIC_ACCESS_FAILED"), error: error instanceof Error ? error.message : "BoardSignal access could not be completed." }, Number((error as { status?: number }).status ?? 500));
   }

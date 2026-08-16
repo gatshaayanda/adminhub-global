@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { browserLocalPersistence, setPersistence, signInWithCustomToken } from "firebase/auth";
+import { browserLocalPersistence, onAuthStateChanged, setPersistence, signInWithCustomToken, signOut } from "firebase/auth";
 import { ArrowRight, Bell, Check, ChevronRight, LoaderCircle, LockKeyhole, Mail, RefreshCcw, ShieldCheck, Sparkles, Swords, TrendingUp } from "lucide-react";
 import type { BetaActivationReturnMethod, BetaPreviewStatus, BoardSignalBetaPreview } from "@/lib/boardsignal/activation";
 import { BETA_PREVIEW_POLL_MS, betaPreviewContainsPrivateFields } from "@/lib/boardsignal/activation";
@@ -25,6 +25,7 @@ import {
   previewVisualState,
   restorePreviewContinuity,
 } from "@/lib/boardsignal/previewRuntime.mjs";
+import { credentialMatchesExpectedUid, decidePreviewEntry, stableFirebaseUidForPlayerId } from "@/lib/boardsignal/playerEntryRecovery.mjs";
 
 // Public-safe Preview continuity only. No private Review, Signal, evidence,
 // contact value or status credential is stored here.
@@ -92,6 +93,21 @@ function formatSync(value: string) {
   return Number.isNaN(parsed.getTime()) ? "Just now" : parsed.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
 
+function restoredFirebaseUser() {
+  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  return new Promise<import("firebase/auth").User | null>((resolve) => {
+    let settled = false;
+    let unsubscribe: (() => void) | undefined;
+    const finish = (user: import("firebase/auth").User | null) => {
+      if (settled) return;
+      settled = true;
+      unsubscribe?.();
+      resolve(user);
+    };
+    unsubscribe = onAuthStateChanged(auth, finish, () => finish(auth.currentUser));
+  });
+}
+
 export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
   const router = useRouter();
   // This read happens during client construction, before an effect can let the
@@ -103,6 +119,7 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState("");
   const [showAskIntro, setShowAskIntro] = useState(false);
+  const [entryRecovery, setEntryRecovery] = useState<"cross_account" | "recovery" | "identity_mismatch" | null>(null);
 
   const runtimeRef = useRef(runtime);
   const statusTokenRef = useRef("");
@@ -286,29 +303,69 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
     finally { setRetrying(false); }
   }
 
+  const clearPreviewEntryState = useCallback(() => {
+    clearSavedBetaPreviewReturn(requestId);
+    clearPreviewContinuity(requestId);
+    window.sessionStorage.removeItem(statusStorageKey(requestId));
+  }, [requestId]);
+
+  const resumeSameUid = useCallback((expectedUid: string) => {
+    const token = statusTokenRef.current;
+    clearPreviewEntryState();
+    if (token) {
+      void fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+        body: JSON.stringify({ action: "entryResume", statusToken: token }),
+      }).catch(() => undefined);
+    }
+    router.replace("/boardsignal/player-room?source=beta_preview_resume&tab=desk");
+    return expectedUid;
+  }, [clearPreviewEntryState, requestId, router]);
+
   async function openPlayerRoom() {
     if (!statusToken || claiming) return;
+    const expectedUid = stableFirebaseUidForPlayerId(preview?.playerId);
+    if (!expectedUid) { setEntryRecovery("identity_mismatch"); return; }
     cancelActiveStatusRequest();
-    setClaiming(true); setError("");
+    setClaiming(true); setError(""); setEntryRecovery(null);
     try {
+      const restored = await restoredFirebaseUser();
+      const initialDecision = decidePreviewEntry({ expectedUid, currentUid: restored?.uid });
+      if (initialDecision.action === "resume") { resumeSameUid(expectedUid); return; }
+      if (initialDecision.action === "cross_account") { setEntryRecovery("cross_account"); return; }
+
       const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
         body: JSON.stringify({ action: "claim", statusToken }),
       });
-      const body = await response.json() as { ok?: boolean; customToken?: string; error?: string };
-      if (!response.ok || !body.ok || !body.customToken) throw new Error(body.error ?? "My BoardSignal could not be opened.");
+      const body = await response.json() as { ok?: boolean; customToken?: string; code?: string; error?: string };
+      if (!response.ok || !body.ok || !body.customToken) {
+        const claimDecision = decidePreviewEntry({ expectedUid, currentUid: (await restoredFirebaseUser())?.uid, claimCode: body.code });
+        if (claimDecision.action === "resume") { resumeSameUid(expectedUid); return; }
+        if (claimDecision.action === "cross_account") { setEntryRecovery("cross_account"); return; }
+        if (claimDecision.action === "recovery") { setEntryRecovery("recovery"); return; }
+        throw new Error(body.error ?? "My BoardSignal could not be opened.");
+      }
       await setPersistence(auth, browserLocalPersistence);
       const credential = await signInWithCustomToken(auth, body.customToken);
+      if (!credentialMatchesExpectedUid(expectedUid, credential.user.uid)) {
+        await signOut(auth).catch(() => undefined);
+        setEntryRecovery("identity_mismatch");
+        return;
+      }
       if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         const idToken = await credential.user.getIdToken();
         await registerBoardSignalBrowserPush(idToken).catch(() => undefined);
       }
-      clearSavedBetaPreviewReturn(requestId);
-      clearPreviewContinuity(requestId);
-      window.sessionStorage.removeItem(statusStorageKey(requestId));
+      clearPreviewEntryState();
       router.replace("/boardsignal/player-room?source=beta_preview&tab=desk");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "My BoardSignal could not be opened."); }
     finally { setClaiming(false); }
+  }
+
+  async function leaveOtherPlayerForRecovery() {
+    await signOut(auth).catch(() => undefined);
+    router.replace("/boardsignal/player-room?source=beta_preview_recovery");
   }
 
   function ask(prompt: string) {
@@ -349,6 +406,11 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
     </section>
 
     {status?.state === "preview_ready" ? <PreviewReturnChoice requestId={requestId} statusToken={statusToken} status={status} onStatus={handleInteractiveStatus} onError={setError} /> : null}
+
+    {entryRecovery ? <section className="container beta-preview-failure bs-surface-paper" role="alert">
+      <ShieldCheck/><div><p className="kicker">PRIVATE ACCESS RECOVERY</p><h2>{entryRecovery === "cross_account" ? "Another BoardSignal player is signed in on this browser." : entryRecovery === "identity_mismatch" ? "BoardSignal stopped an identity mismatch." : "This BoardSignal already exists."}</h2><p>{entryRecovery === "cross_account" ? "BoardSignal will not claim this Preview over a different player. Open the signed-in Player Room, or explicitly sign out before using private recovery." : entryRecovery === "identity_mismatch" ? "The returned Firebase identity did not match this Preview's stable Chess.com player ID, so Player Room entry was blocked." : "Your account is safe. Open My BoardSignal if this browser is already signed in, or use a fresh private access link."}</p></div>
+      <div className="resolved-player-actions"><Link className="button button-dark" href="/boardsignal/player-room">Open My BoardSignal</Link><button type="button" className="button button-quiet" onClick={() => void leaveOtherPlayerForRecovery()}>Use private access / recovery</button></div>
+    </section> : null}
 
     {runtime.refreshNotice ? <div className="container notice" role="status">{runtime.refreshNotice}</div> : null}
     {visibleError && preview ? <div className="container notice notice-error" role="alert">{visibleError}</div> : null}

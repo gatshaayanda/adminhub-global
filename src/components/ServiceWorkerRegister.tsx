@@ -1,63 +1,91 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCcw, X } from "lucide-react";
+import { shouldCheckServiceWorkerUpdate } from "@/lib/boardsignal/serviceWorkerUpdate.mjs";
 
 export default function ServiceWorkerRegister() {
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
+  const [dismissed, setDismissed] = useState(false);
   const reloadForUpdateRef = useRef(false);
-  const reloadedRef = useRef(false);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+  const lastUpdateCheckRef = useRef(0);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    let active = true;
-    let registration: ServiceWorkerRegistration | undefined;
+    let cancelled = false;
+    let cleanupUpdateListener: (() => void) | undefined;
 
-    const inspectWaiting = () => {
-      if (active && registration?.waiting) setWaiting(registration.waiting);
-    };
-
-    const register = async () => {
-      try {
-        registration = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-        inspectWaiting();
-        registration.addEventListener("updatefound", () => {
-          const worker = registration?.installing;
-          if (!worker) return;
-          worker.addEventListener("statechange", () => {
-            if (worker.state === "installed" && navigator.serviceWorker.controller && active) setWaiting(worker);
-          });
-        });
-      } catch (error) {
-        console.warn("BoardSignal service worker registration failed:", error);
+    const inspectWaiting = (registration: ServiceWorkerRegistration) => {
+      if (!cancelled && registration.waiting && navigator.serviceWorker.controller) {
+        setWaiting(registration.waiting);
+        setDismissed(false);
       }
     };
 
-    const controllerChanged = () => {
-      if (!reloadForUpdateRef.current || reloadedRef.current) return;
-      reloadedRef.current = true;
-      window.location.reload();
+    const checkForUpdate = async (force = false) => {
+      const registration = registrationRef.current;
+      if (!registration || (!force && !shouldCheckServiceWorkerUpdate(lastUpdateCheckRef.current))) return;
+      lastUpdateCheckRef.current = Date.now();
+      try {
+        await registration.update();
+      } catch {
+        // Update checks are best effort; existing controlled app remains usable.
+      }
+      inspectWaiting(registration);
     };
-    navigator.serviceWorker.addEventListener("controllerchange", controllerChanged);
 
-    if (document.readyState === "complete") void register();
-    else window.addEventListener("load", register, { once: true });
+    void navigator.serviceWorker.register("/sw.js").then((registration) => {
+      if (cancelled) return;
+      registrationRef.current = registration;
+      inspectWaiting(registration);
+      const onUpdateFound = () => {
+        const worker = registration.installing;
+        if (!worker) return;
+        const onState = () => {
+          if (worker.state === "installed") inspectWaiting(registration);
+        };
+        worker.addEventListener("statechange", onState);
+      };
+      registration.addEventListener("updatefound", onUpdateFound);
+      cleanupUpdateListener = () => registration.removeEventListener("updatefound", onUpdateFound);
+      void checkForUpdate(true);
+    }).catch(() => undefined);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void checkForUpdate(false);
+    };
+    const onFocus = () => { void checkForUpdate(false); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+
+    const onControllerChange = () => {
+      if (reloadForUpdateRef.current) window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
     return () => {
-      active = false;
-      window.removeEventListener("load", register);
-      navigator.serviceWorker.removeEventListener("controllerchange", controllerChanged);
+      cancelled = true;
+      cleanupUpdateListener?.();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      registrationRef.current = null;
     };
   }, []);
 
-  function refreshToUpdate() {
-    if (!waiting) return;
+  if (!waiting || dismissed) return null;
+
+  const applyUpdate = () => {
     reloadForUpdateRef.current = true;
     waiting.postMessage({ type: "SKIP_WAITING" });
-  }
+  };
 
-  return waiting ? <div className="bs-update-ready" role="status">
-    <div><strong>BoardSignal update ready</strong><span>Refresh when you're ready. Your current session will not reload by itself.</span></div>
-    <button type="button" onClick={refreshToUpdate}><RefreshCw size={15}/> Refresh</button>
-  </div> : null;
+  return (
+    <div className="boardsignal-update-ready" role="status" aria-live="polite">
+      <div><strong>BoardSignal update ready</strong><span>Refresh when you're ready. Your current screen will not reload on its own.</span></div>
+      <button type="button" className="button button-lime" onClick={applyUpdate}><RefreshCcw size={15} /> Refresh</button>
+      <button type="button" className="update-ready-dismiss" aria-label="Dismiss update notice" onClick={() => setDismissed(true)}><X size={16} /></button>
+    </div>
+  );
 }

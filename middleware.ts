@@ -1,29 +1,51 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import {
+  FOUNDER_SESSION_COOKIE,
+  verifyFounderAuthorization,
+} from "./src/lib/boardsignal/founderSession.mjs";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD!
+const FOUNDER_LOGIN_PATH = "/login-secret-login-for-admins97F4B2NXQ";
 
-export function middleware(req: NextRequest) {
-  const isFounderRoute = req.nextUrl.pathname === '/admin'
-    || req.nextUrl.pathname.startsWith('/admin/')
-    || req.nextUrl.pathname.startsWith('/api/admin/boardsignal/')
-  if (isFounderRoute) {
-    const auth = req.headers.get('authorization') || ''
-    const [scheme, encoded] = auth.split(' ')
-    if (scheme !== 'Basic' || !encoded) {
-      return new NextResponse('Auth required', {
-        status: 401,
-        headers: { 'WWW-Authenticate': 'Basic realm="Admin Area"' },
-      })
-    }
-    const [, pass] = atob(encoded).split(':')
-    if (pass !== ADMIN_PASSWORD) {
-      return new NextResponse('Forbidden', { status: 403 })
-    }
+function isFounderRoute(pathname: string) {
+  return pathname === "/admin"
+    || pathname.startsWith("/admin/")
+    || pathname.startsWith("/api/admin/boardsignal/");
+}
+
+function isFounderApi(pathname: string) {
+  return pathname.startsWith("/api/admin/boardsignal/");
+}
+
+export async function middleware(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+  if (!isFounderRoute(pathname)) return NextResponse.next();
+
+  const authorization = await verifyFounderAuthorization({
+    sessionValue: req.cookies.get(FOUNDER_SESSION_COOKIE)?.value,
+    authorization: req.headers.get("authorization"),
+    adminPassword: process.env.ADMIN_PASSWORD,
+  });
+  if (authorization.authorized) return NextResponse.next();
+  if (authorization.reason === "not_configured") {
+    if (isFounderApi(pathname)) return NextResponse.json({ ok: false, error: "Founder authentication is not configured." }, { status: 503 });
+    return new NextResponse("Founder authentication is not configured.", { status: 503 });
   }
-  return NextResponse.next()
+
+  if (isFounderApi(pathname)) {
+    return NextResponse.json({ ok: false, error: "Founder authentication is required." }, {
+      status: 401,
+      headers: { "Cache-Control": "no-store, private" },
+    });
+  }
+
+  const loginUrl = req.nextUrl.clone();
+  loginUrl.pathname = FOUNDER_LOGIN_PATH;
+  loginUrl.search = "";
+  loginUrl.searchParams.set("next", pathname);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-  matcher: ['/admin', '/admin/:path*', '/api/admin/boardsignal/:path*'],
-}
+  matcher: ["/admin", "/admin/:path*", "/api/admin/boardsignal/:path*"],
+};

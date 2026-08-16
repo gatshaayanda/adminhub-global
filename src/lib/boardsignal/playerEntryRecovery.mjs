@@ -9,7 +9,7 @@ export function stableFirebaseUidForPlayerId(playerId) {
   return `chesscom_${numeric}`;
 }
 
-export function decidePreviewEntry({ expectedUid, currentUid, claimCode }) {
+export function decidePreviewEntry({ expectedUid, currentUid, claimCode = "" }) {
   const expected = String(expectedUid ?? "").trim();
   const current = String(currentUid ?? "").trim();
   const code = String(claimCode ?? "").trim();

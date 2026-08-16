@@ -97,14 +97,13 @@ function restoredFirebaseUser() {
   if (auth.currentUser) return Promise.resolve(auth.currentUser);
   return new Promise<import("firebase/auth").User | null>((resolve) => {
     let settled = false;
-    let unsubscribe: (() => void) | undefined;
     const finish = (user: import("firebase/auth").User | null) => {
       if (settled) return;
       settled = true;
       unsubscribe?.();
       resolve(user);
     };
-    unsubscribe = onAuthStateChanged(auth, finish, () => finish(auth.currentUser));
+    const unsubscribe = onAuthStateChanged(auth, finish, () => finish(auth.currentUser));
   });
 }
 

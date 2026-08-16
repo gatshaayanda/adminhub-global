@@ -95,7 +95,7 @@ export function verifyFounderBasicAuthorization(authorization, adminPassword) {
   return Boolean(adminPassword) && submitted !== undefined && submitted === adminPassword;
 }
 
-export async function verifyFounderAuthorization({ sessionValue, authorization, adminPassword, nowMs }) {
+export async function verifyFounderAuthorization({ sessionValue, authorization, adminPassword, nowMs = Date.now() }) {
   if (!adminPassword) return { authorized: false, method: "none", reason: "not_configured" };
   if (sessionValue && await verifyFounderSession(sessionValue, adminPassword, { nowMs })) {
     return { authorized: true, method: "session" };

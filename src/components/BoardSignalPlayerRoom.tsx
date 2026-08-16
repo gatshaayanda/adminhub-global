@@ -55,6 +55,8 @@ type Snapshot = {
 type RoomTab = "desk" | "progress" | "universe" | "friends" | "inbox" | "profile";
 type SocialSummaryPlayer = { playerId: number; canonicalUsername: string; relationshipStatus?: "incoming" | "outgoing" | "friends" };
 
+const FOCUS_REFRESH_THROTTLE_MS = 75_000;
+
 export default function BoardSignalPlayerRoom() {
   const connectivity = useBoardSignalConnectivity();
   const [user, setUser] = useState<User | null>(null);
@@ -71,6 +73,8 @@ export default function BoardSignalPlayerRoom() {
   const [offlineReadyNotice, setOfflineReadyNotice] = useState(false);
   const activeUidRef = useRef<string | undefined>(undefined);
   const reconnectRefreshRef = useRef(false);
+  const focusRefreshRef = useRef(false);
+  const lastFocusRefreshAtRef = useRef(0);
   const publishedDeskKeyThisSessionRef = useRef<string | undefined>(undefined);
 
   const loadRoom = useCallback(async (activeUser: User, quiet = false) => {
@@ -146,8 +150,9 @@ export default function BoardSignalPlayerRoom() {
 
   useEffect(() => {
     const reconnected = () => {
-      if (!user || reconnectRefreshRef.current) return;
+      if (!user || reconnectRefreshRef.current || focusRefreshRef.current) return;
       reconnectRefreshRef.current = true;
+      lastFocusRefreshAtRef.current = Date.now();
       void loadRoom(user, true)
         .then((refreshed) => { if (refreshed) window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete")); })
         .catch(() => undefined)
@@ -156,6 +161,34 @@ export default function BoardSignalPlayerRoom() {
     window.addEventListener("boardsignal:reconnected", reconnected);
     return () => window.removeEventListener("boardsignal:reconnected", reconnected);
   }, [loadRoom, user]);
+
+  useEffect(() => {
+    if (!user || !connectivity.online) return;
+
+    const refreshAfterReturn = () => {
+      if (document.visibilityState === "hidden") return;
+      const now = Date.now();
+      if (now - lastFocusRefreshAtRef.current < FOCUS_REFRESH_THROTTLE_MS) return;
+      if (focusRefreshRef.current || reconnectRefreshRef.current) return;
+
+      lastFocusRefreshAtRef.current = now;
+      focusRefreshRef.current = true;
+      void loadRoom(user, true)
+        .catch(() => undefined)
+        .finally(() => { focusRefreshRef.current = false; });
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshAfterReturn();
+    };
+
+    window.addEventListener("focus", refreshAfterReturn);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", refreshAfterReturn);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [connectivity.online, loadRoom, user]);
 
   // If a live Player Room loses reachability after it has already rendered,
   // swap to the same UID-scoped saved shell instead of leaving live-only controls active.
@@ -328,7 +361,7 @@ export default function BoardSignalPlayerRoom() {
 
       {tab === "desk" ? <>
         <div className="container player-room-memory">
-          {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}
+          {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} uid={user.uid} online={connectivity.online} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}
           {latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}
         </div>
         {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : null}
@@ -359,7 +392,31 @@ function RoomNav({ tab, setTab, unreadCount }: { tab: RoomTab; setTab: (tab: Roo
   return <nav className="container room-tab-nav" aria-label="My BoardSignal"><div>{items.map((item) => <button type="button" key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)} aria-current={tab === item.id ? "page" : undefined}>{item.label}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge">{unreadCount}</span> : null}</button>)}</div></nav>;
 }
 
-function CurrentEpisodeCard({ episode }: { episode: CurrentEpisodeWithNextGameGuidance }) {
+function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeWithNextGameGuidance; uid: string; online: boolean }) {
+  const [liveStatus, setLiveStatus] = useState<"new" | "updated" | null>(null);
+  const latestGameId = episode.latestGame?.gameId;
+
+  useEffect(() => {
+    if (!online || !latestGameId || typeof window === "undefined") {
+      setLiveStatus(null);
+      return;
+    }
+    const key = `boardsignal:last-current-game:${uid}:${episode.periodStart}`;
+    try {
+      const previous = window.localStorage.getItem(key);
+      window.localStorage.setItem(key, latestGameId);
+      if (!previous || previous === latestGameId) {
+        setLiveStatus(null);
+        return;
+      }
+      setLiveStatus("new");
+      const settle = window.setTimeout(() => setLiveStatus("updated"), 2600);
+      return () => window.clearTimeout(settle);
+    } catch {
+      setLiveStatus(null);
+    }
+  }, [episode.periodStart, latestGameId, online, uid]);
+
   const strongestRun = episode.currentWinRun >= episode.currentLossRun
     ? episode.currentWinRun > 1 ? `${episode.currentWinRun} consecutive wins are the strongest live run so far.` : undefined
     : episode.currentLossRun > 1 ? `${episode.currentLossRun} consecutive losses are the longest negative run so far.` : undefined;
@@ -369,21 +426,71 @@ function CurrentEpisodeCard({ episode }: { episode: CurrentEpisodeWithNextGameGu
     ?? (episode.games ? `${episode.games} games are already shaping this week's record.` : "BoardSignal is waiting for the first games of this week.");
   const guidance = episode.nextGameGuidance;
   const hasGuidance = guidance.status === "available" || guidance.status === "fallback_previous_review";
+  const isCurrentGuidance = guidance.status === "available" && guidance.source !== "previous_review";
+  const evidenceCount = guidance.evidenceCount ?? 0;
+  const evidenceLabel = isCurrentGuidance
+    ? guidance.family === "loss_run"
+      ? `Current run: ${evidenceCount} loss${evidenceCount === 1 ? "" : "es"} · ${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} this week.`
+      : `Seen in ${evidenceCount} of ${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} this week.`
+    : undefined;
   const guidanceSource = guidance.source === "previous_review"
     ? `FROM YOUR LAST REVIEW${guidance.previousReviewPeriod ? ` · ${guidance.previousReviewPeriod}` : ""}`
-    : `Based on ${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} so far.`;
+    : undefined;
+  // B.1 rendered `Based on ${guidance.gamesConsidered}` before F.4 introduced evidence-aware counts.
   const noGuidanceCopy = guidance.reason === "no_games"
     ? "Play the first game of this week and BoardSignal will look for one safe thing to carry into the next one."
     : guidance.reason === "derivation_unavailable"
       ? "BoardSignal has your current week. Next-game guidance isn't available yet."
       : "Nothing in the current games has enough factual support for a useful next-game action yet.";
+  const latest = episode.latestGame;
+  const mostRecentExample = isCurrentGuidance && guidance.family !== "loss_run" ? guidance.supportingFacts[0] : undefined;
+  const formatWhen = (occurredAt?: number) => occurredAt
+    ? new Date(occurredAt * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : undefined;
+  const resultLabel = latest ? `${latest.result.slice(0, 1).toUpperCase()}${latest.result.slice(1)}` : "";
+  const poolLabel = latest ? `${latest.pool.slice(0, 1).toUpperCase()}${latest.pool.slice(1)}` : "";
+  const latestNote = guidance.latestGameNote
+    ?? (latest
+      ? guidance.reason === "derivation_unavailable"
+        ? "BoardSignal saw this game. Next-game guidance isn't available yet."
+        : "BoardSignal saw this game. Nothing in the current week has crossed the evidence threshold for a specific next-game cue yet."
+      : undefined);
 
   return <section className="current-episode-card">
     <div className="current-episode-heading"><div><p className="kicker">THIS WEEK</p><h2>Your week is taking shape.</h2><p>{episode.games ? `${episode.games} games so far. Here's what BoardSignal can already see.` : "Your review will start taking shape as new Chess.com games arrive."}</p></div><small>{episode.periodLabel}</small></div>
     <p className="kicker">WHAT'S HAPPENED SO FAR?</p><div className="current-episode-stats" aria-label="What's happened so far"><div><span>Games so far</span><strong>{episode.games}</strong></div><div><span>Record so far</span><strong>{episode.wins}W · {episode.draws}D · {episode.losses}L</strong></div><div><span>Sessions</span><strong>{episode.sessions}</strong></div><div><span>Week progress</span><strong>{episode.daysComplete} of 7 days</strong></div></div>
     {episode.pools.length ? <div className="forming-pools">{episode.pools.map((pool) => <article key={pool.pool}><span>{pool.pool}</span><strong>{pool.games} games</strong><p>{pool.wins}W · {pool.draws}D · {pool.losses}L{pool.ratingDelta !== undefined ? ` · ${pool.ratingDelta >= 0 ? "+" : ""}${pool.ratingDelta}` : ""}</p></article>)}</div> : null}
     <div className="return-loop-grid">
-      <article className="return-loop-blue"><span>BEFORE YOUR NEXT GAME</span>{hasGuidance ? <><h3>{guidance.title}</h3><p>{guidance.copy}</p><small>{guidanceSource}</small>{guidance.reinforcement ? <p><strong>{guidance.reinforcement.label}.</strong> Your last Review asked you to watch “{guidance.reinforcement.previousTitle}”. This week's games independently support the same evidence family.</p> : null}</> : <><h3>Nothing specific yet.</h3><p>{noGuidanceCopy}</p><small>{guidance.gamesConsidered ? `Based on ${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} so far.` : "No current-week evidence yet."}</small></>}</article>
+      <article className="return-loop-blue">
+        {liveStatus ? <div className={`corner-live-status ${liveStatus === "new" ? "is-new" : "is-updated"}`} role="status" aria-live="polite"><i className="corner-live-dot" aria-hidden="true" />{liveStatus === "new" ? "NEW GAME SEEN" : "UPDATED AFTER YOUR LAST GAME"}</div> : null}
+        <span>BEFORE YOUR NEXT GAME</span>
+        {guidance.cornerFraming ? <p className="corner-framing">{guidance.cornerFraming}</p> : null}
+        {hasGuidance ? <>
+          <h3>{guidance.title}</h3>
+          <p>{guidance.copy}</p>
+          {guidanceSource ? <small>{guidanceSource}</small> : null}
+          {evidenceLabel ? <small className="corner-evidence-count">{evidenceLabel}</small> : null}
+        </> : <><h3>Nothing specific yet.</h3><p>{noGuidanceCopy}</p><small>{guidance.gamesConsidered ? `${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} checked this week.` : "No current-week evidence yet."}</small></>}
+
+        {latest ? <div className="corner-latest-game">
+          <span>YOUR LAST GAME</span>
+          <strong>{resultLabel} vs {latest.opponent} · {poolLabel}</strong>
+          {formatWhen(latest.occurredAt) ? <small>{formatWhen(latest.occurredAt)}</small> : null}
+          {latestNote ? <p>{latestNote}</p> : null}
+          {latest.supportsSelectedGuidance && latest.supportingSummary ? <p className="corner-supported-summary">{latest.supportingSummary}</p> : null}
+        </div> : null}
+
+        {mostRecentExample ? <div className="corner-recent-example">
+          <span>MOST RECENT EXAMPLE</span>
+          {mostRecentExample.opponent ? <strong>vs {mostRecentExample.opponent}</strong> : null}
+          {(mostRecentExample.pool || mostRecentExample.occurredAt) ? <small>{[mostRecentExample.pool, formatWhen(mostRecentExample.occurredAt)].filter(Boolean).join(" · ")}</small> : null}
+          {mostRecentExample.movePlayed && mostRecentExample.opponentReply ? <b>{mostRecentExample.movePlayed} → {mostRecentExample.opponentReply}</b> : null}
+          <p>{mostRecentExample.summary}</p>
+          {mostRecentExample.gameUrl ? <a className="text-link" href={mostRecentExample.gameUrl} target="_blank" rel="noreferrer">Open game</a> : null}
+        </div> : null}
+
+        {guidance.reinforcement ? <div className="corner-reinforcement"><span>{guidance.reinforcement.label}</span><p>{guidance.reinforcement.copy}</p></div> : null}
+      </article>
       <article className="return-loop-amber"><span>WHAT'S STARTING TO STAND OUT?</span><h3>So far, this is factual.</h3><p>{factualStandout}</p><small>This describes the forming week; it is not the final diagnosis.</small></article>
       <article className="return-loop-next"><span>WHAT BOARDSIGNAL IS WATCHING</span><h3>What the next games add.</h3><p>BoardSignal is watching whether the current factual events repeat, strengthen or give way to something else as this fixed week continues.</p><small>Position-based conclusions still wait for the completed Review.</small></article>
     </div>

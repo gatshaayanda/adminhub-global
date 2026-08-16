@@ -23,8 +23,9 @@ function response(body: unknown, status = 200) {
 }
 
 function factualEpisodeCheckpoint(episode: Awaited<ReturnType<typeof buildCurrentEpisodeSummary>>): CurrentEpisodeSummary {
-  const { nextGameGuidance, ...factualEpisode } = episode;
+  const { nextGameGuidance, latestGame, ...factualEpisode } = episode;
   void nextGameGuidance;
+  void latestGame;
   return factualEpisode;
 }
 
@@ -52,13 +53,16 @@ export async function GET(request: Request) {
     let currentEpisode: Awaited<ReturnType<typeof buildCurrentEpisodeSummary>> | undefined;
     let progressUnavailable;
     try {
-      currentEpisode = await buildCurrentEpisodeSummary(account.chessCom.canonicalUsername, { anchorStart: account.cadenceAnchor });
+      currentEpisode = await buildCurrentEpisodeSummary(account.chessCom.canonicalUsername, {
+        anchorStart: account.cadenceAnchor,
+        playerKey: account.uid,
+      });
     } catch (error) {
       progressUnavailable = error instanceof Error ? error.message : "Current episode progress is temporarily unavailable.";
     }
-    // Keep B.1's temporary action out of the durable user-root episode checkpoint.
-    // The existing factual forming-week checkpoint persists unchanged; guidance is
-    // recomputed from live current-week games and attached to this private response.
+    // Keep B.1/F.4 temporary coaching enrichment out of the durable user-root
+    // episode checkpoint. Guidance/latest-game context are recomputed from the
+    // same live current-week game set and attached only to this private response.
     const factualCurrentEpisode = currentEpisode ? factualEpisodeCheckpoint(currentEpisode) : undefined;
     const snapshot = await buildPlayerRoomSnapshot(token, factualCurrentEpisode, progressUnavailable);
     if (snapshot.currentEpisode && currentEpisode) {

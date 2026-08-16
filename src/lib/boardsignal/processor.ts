@@ -5,6 +5,8 @@ import {
   unavailableActiveWeekGuidance,
   type ActiveWeekEvidenceFact,
   type ActiveWeekGuidanceFamily,
+  type ActiveWeekLatestGame,
+  type ActiveWeekSupportingFact,
   type CurrentEpisodeWithNextGameGuidance,
 } from "./activeWeekGuidance";
 
@@ -39,6 +41,7 @@ export type BuildLiveDeskOptions = {
 export type BuildCurrentEpisodeOptions = {
   anchorStart?: string;
   referenceDate?: Date;
+  playerKey?: string;
 };
 
 const CHESS_COM_HEADERS = {
@@ -382,6 +385,14 @@ function activeWeekEvidenceForGame(game: ChessComGame, username: string): Active
   const result = resultFor(game, username);
   if (result.result !== "loss") return [];
   const id = gameId(game);
+  const shared = {
+    gameId: id,
+    gameUrl: game.url,
+    occurredAt: game.end_time,
+    opponent: result.opponent.username,
+    opponentRating: result.opponent.rating,
+    pool: game.time_class ?? "other",
+  };
   const byFamily = new Map<ActiveWeekGuidanceFamily, ActiveWeekEvidenceFact>();
   const add = (fact: ActiveWeekEvidenceFact) => {
     const existing = byFamily.get(fact.family);
@@ -390,10 +401,9 @@ function activeWeekEvidenceForGame(game: ChessComGame, username: string): Active
 
   if (result.player.result === "timeout") {
     add({
+      ...shared,
       id: `${id}:timeout`,
-      gameId: id,
       family: "clock_conversion",
-      occurredAt: game.end_time,
       summary: "A current-week game ended on time.",
       severity: 100,
     });
@@ -404,10 +414,12 @@ function activeWeekEvidenceForGame(game: ChessComGame, username: string): Active
     const family = activeWeekFamilyForCandidate(candidate);
     if (!family || family === "clock_conversion") continue;
     add({
+      ...shared,
       id: `${id}:${family}:${candidate.id}`,
-      gameId: id,
       family,
-      occurredAt: game.end_time,
+      moveNumber: candidate.moveNumber,
+      movePlayed: candidate.movePlayed,
+      opponentReply: candidate.opponentReply,
       summary: candidate.reason,
       severity: Math.max(0, Math.min(100, candidate.heuristicScore ?? 0)),
     });
@@ -883,6 +895,7 @@ export async function buildCurrentEpisodeSummary(
   let losses = 0;
   let currentWinRun = 0;
   let currentLossRun = 0;
+  let currentLossRunFacts: ActiveWeekSupportingFact[] = [];
   const guidanceEvidence: ActiveWeekEvidenceFact[] = [];
   const poolMap = new Map<string, {
     games: number;
@@ -899,6 +912,18 @@ export async function buildCurrentEpisodeSummary(
     losses += result.result === "loss" ? 1 : 0;
     currentWinRun = result.result === "win" ? currentWinRun + 1 : 0;
     currentLossRun = result.result === "loss" ? currentLossRun + 1 : 0;
+    currentLossRunFacts = result.result === "loss"
+      ? [...currentLossRunFacts, {
+        id: `${gameId(game)}:loss-run`,
+        gameId: gameId(game),
+        gameUrl: game.url,
+        occurredAt: game.end_time,
+        opponent: result.opponent.username,
+        opponentRating: result.opponent.rating,
+        pool: game.time_class ?? "other",
+        summary: "This game is part of the current result run.",
+      }]
+      : [];
     guidanceEvidence.push(...activeWeekEvidenceForGame(game, resolved.username));
     const poolName = game.time_class ?? "other";
     const pool = poolMap.get(poolName) ?? { games: 0, wins: 0, draws: 0, losses: 0, ratings: [] };
@@ -917,17 +942,46 @@ export async function buildCurrentEpisodeSummary(
     previousEnd = game.end_time;
   }
 
+  const latestGameSource = games.at(-1);
+  const latestResult = latestGameSource ? resultFor(latestGameSource, resolved.username) : undefined;
+  const latestGameInput = latestGameSource && latestResult ? {
+    gameId: gameId(latestGameSource),
+    gameUrl: latestGameSource.url,
+    occurredAt: latestGameSource.end_time,
+    opponent: latestResult.opponent.username,
+    opponentRating: latestResult.opponent.rating,
+    result: latestResult.result,
+    pool: latestGameSource.time_class ?? "other",
+  } : undefined;
+
   let nextGameGuidance;
   try {
     nextGameGuidance = deriveActiveWeekNextGameGuidance({
       gamesConsidered: games.length,
       currentLossRun,
-      latestGameAt: games.at(-1)?.end_time,
+      latestGameAt: latestGameSource?.end_time,
       evidence: guidanceEvidence,
+      playerKey: options.playerKey ?? resolved.username.toLowerCase(),
+      periodStart: isoDay(start),
+      periodEnd: isoDay(end),
+      latestGame: latestGameInput,
+      currentLossRunFacts,
     });
   } catch {
     // Guidance is enrichment. The factual forming-week state must still render.
     nextGameGuidance = unavailableActiveWeekGuidance(games.length);
+  }
+
+  let latestGame: ActiveWeekLatestGame | undefined;
+  if (latestGameInput) {
+    const selectedSupport = nextGameGuidance.source === "current_week"
+      ? nextGameGuidance.supportingFacts.find((fact) => fact.gameId === latestGameInput.gameId)
+      : undefined;
+    latestGame = {
+      ...latestGameInput,
+      supportsSelectedGuidance: Boolean(selectedSupport),
+      supportingSummary: selectedSupport?.summary,
+    };
   }
 
   const today = atUtcMidnight(referenceDate);
@@ -959,5 +1013,6 @@ export async function buildCurrentEpisodeSummary(
     })).sort((a, b) => b.games - a.games),
     nextDeskDueAt: isoDay(new Date(end.getTime() + DAY_MS)),
     nextGameGuidance,
+    latestGame,
   };
 }

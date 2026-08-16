@@ -546,7 +546,7 @@ export async function regenerateFoundingBetaMagicAccess(requestId: string) {
   if (!(request.status === "approved" || provisionalRecovery)) throw Object.assign(new Error("Private recovery access is not available for this request yet."), { status: 409 });
   const uid = request.firebaseUid ?? `chesscom_${request.chessPlayerId}`;
   const magic = betaMagicAccessCredential(request.id, request.chessPlayerId, uid);
-  await ref.set(clean({ magicAccess: magic.record, claimedAt: null, previewClaimConsumedAt: null }), { merge: true });
+  await ref.set(clean({ magicAccess: { ...magic.record, consumedAt: null }, claimedAt: null, previewClaimConsumedAt: null }), { merge: true });
   return { request, magicLink: magic.link, magicAccessExpiresAt: magic.expiresAt, approvalMessage: accessMessage(request.canonicalUsername, magic.link) };
 }
 

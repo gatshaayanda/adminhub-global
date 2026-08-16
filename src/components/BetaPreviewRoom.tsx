@@ -307,7 +307,6 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
       clearPreviewContinuity(requestId);
       window.sessionStorage.removeItem(statusStorageKey(requestId));
       router.replace("/boardsignal/player-room?source=beta_preview&tab=desk");
-      router.refresh();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "My BoardSignal could not be opened."); }
     finally { setClaiming(false); }
   }

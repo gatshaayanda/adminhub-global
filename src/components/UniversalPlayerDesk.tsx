@@ -20,6 +20,7 @@ import { applyEngineInterpretation, finalizeEngineResult } from "@/lib/boardsign
 import { factualReviewToRetryDesk, type FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import { validateDeskForPublication } from "@/lib/boardsignal/quality";
 import { buildDeskReturnLoop, buildPlayerUniverseView } from "@/lib/boardsignal/universe";
+import { buildLiveDeskRequestPath, resolveEffectiveCadenceAnchor } from "@/lib/boardsignal/firstReviewGeneration.mjs";
 import type {
   BoardSignalDesk,
   DeskApiResponse,
@@ -79,6 +80,7 @@ type UniversalPlayerDeskProps = {
   requestedUsername: string;
   mode?: "seed" | "live";
   ownerToken?: string;
+  cadenceAnchor?: string;
   onDeskPublished?: (desk: BoardSignalDesk, engineResults: Record<string, DeskEngineResult>) => Promise<void>;
   onFactualReviewReady?: (desk: BoardSignalDesk) => Promise<void>;
   pendingFactualReview?: FactualReviewDraft;
@@ -90,6 +92,7 @@ export default function UniversalPlayerDesk({
   requestedUsername,
   mode = "live",
   ownerToken,
+  cadenceAnchor: explicitCadenceAnchor,
   onDeskPublished,
   onFactualReviewReady,
   pendingFactualReview,
@@ -99,7 +102,8 @@ export default function UniversalPlayerDesk({
   const isPublishedView = Boolean(publishedDesk);
   const isPendingFactualView = Boolean(pendingFactualReview) && !isPublishedView;
   const seeded = useMemo(() => findSeededDesk(requestedUsername), [requestedUsername]);
-  const cadenceAnchor = useMemo(() => findSeedCadence(requestedUsername), [requestedUsername]);
+  const seedCadenceAnchor = useMemo(() => mode === "seed" ? findSeedCadence(requestedUsername) : undefined, [mode, requestedUsername]);
+  const effectiveCadenceAnchor = resolveEffectiveCadenceAnchor(mode, explicitCadenceAnchor, seedCadenceAnchor);
   const pendingDesk = useMemo(() => pendingFactualReview ? factualReviewToRetryDesk(pendingFactualReview) : undefined, [pendingFactualReview]);
   const [desk, setDesk] = useState<BoardSignalDesk | null>(publishedDesk ?? pendingDesk ?? (mode === "seed" ? seeded ?? null : null));
   const [error, setError] = useState("");
@@ -170,9 +174,7 @@ export default function UniversalPlayerDesk({
     autoRecoveryPasses.current = 0;
     setPersistenceError("");
     setLoading(true);
-    const anchor = cadenceAnchor ? `?anchorStart=${encodeURIComponent(cadenceAnchor)}` : "";
-
-    fetch(`/api/boardsignal/${encodeURIComponent(requestedUsername)}${anchor}`, { cache: "no-store" })
+    fetch(buildLiveDeskRequestPath(requestedUsername, effectiveCadenceAnchor), { cache: "no-store" })
       .then(async (response) => ({ response, body: await response.json() as DeskApiResponse }))
       .then(async ({ response, body }) => {
         if (!active) return;
@@ -205,7 +207,7 @@ export default function UniversalPlayerDesk({
     return () => {
       active = false;
     };
-  }, [requestedUsername, mode, seeded, cadenceAnchor, publishedDesk, publishedEngineResults, pendingFactualReview, pendingDesk, ownerToken, onFactualReviewReady]);
+  }, [requestedUsername, mode, seeded, effectiveCadenceAnchor, publishedDesk, publishedEngineResults, pendingFactualReview, pendingDesk, ownerToken, onFactualReviewReady]);
 
   useEffect(() => {
     if (!desk || desk.source !== "live" || isPublishedView || !analysisEnabled) return;

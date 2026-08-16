@@ -17,12 +17,14 @@ import { removeBoardSignalBrowserPush } from "@/components/BrowserPushControl";
 import { hasAcceptedCurrentBetaAgreement, type BoardSignalAccount } from "@/lib/boardsignal/account";
 import type { CurrentEpisodeWithNextGameGuidance } from "@/lib/boardsignal/activeWeekGuidance";
 import type { PlayerPulse, PublicUniverseEvent, SafeShareMoment } from "@/lib/boardsignal/pulse";
-import type {
-  DeskSummary,
-  PersonalRecords,
-  ProgressSeries,
-  RecurringPattern,
+import {
+  deskKeyFor,
+  type DeskSummary,
+  type PersonalRecords,
+  type ProgressSeries,
+  type RecurringPattern,
 } from "@/lib/boardsignal/memory";
+import { shouldMountAutomaticReviewGenerator } from "@/lib/boardsignal/firstReviewGeneration.mjs";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import { auth } from "@/utils/firebaseConfig";
@@ -69,6 +71,7 @@ export default function BoardSignalPlayerRoom() {
   const [offlineReadyNotice, setOfflineReadyNotice] = useState(false);
   const activeUidRef = useRef<string | undefined>(undefined);
   const reconnectRefreshRef = useRef(false);
+  const publishedDeskKeyThisSessionRef = useRef<string | undefined>(undefined);
 
   const loadRoom = useCallback(async (activeUser: User, quiet = false) => {
     if (!quiet) setLoading(true);
@@ -110,6 +113,7 @@ export default function BoardSignalPlayerRoom() {
   useEffect(() => onAuthStateChanged(auth, (activeUser) => {
     const previousUid = activeUidRef.current;
     const nextUid = activeUser?.uid;
+    if (previousUid && previousUid !== nextUid) publishedDeskKeyThisSessionRef.current = undefined;
     if (previousUid && nextUid && previousUid !== nextUid) {
       // Invalidate Player A immediately before any Player B read begins. The async purge is defense-in-depth.
       setSnapshot(null);
@@ -264,6 +268,7 @@ export default function BoardSignalPlayerRoom() {
     });
     const body = await response.json() as { ok: boolean; error?: string };
     if (!response.ok || !body.ok) throw new Error(body.error ?? "The completed review could not be saved.");
+    publishedDeskKeyThisSessionRef.current = deskKeyFor(desk);
     if (user) await loadRoom(user);
   }, [connectivity.online, loadRoom, token, user]);
 
@@ -278,6 +283,11 @@ export default function BoardSignalPlayerRoom() {
   }, [connectivity.online, token, user?.uid]);
 
   const latest = snapshot?.desks[0];
+  const automaticGenerationRequired = snapshot ? shouldMountAutomaticReviewGenerator({
+    generationRequired: snapshot.generationRequired,
+    latestDeskKey: latest?.summary.deskKey,
+    publishedDeskKeyThisSession: publishedDeskKeyThisSessionRef.current,
+  }) : false;
 
   if (!authReady || loading) return <RoomLoading />;
   if (!user && connectivity.state === "offline") return (
@@ -300,12 +310,12 @@ export default function BoardSignalPlayerRoom() {
   if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <BetaAgreementGate onAccept={acceptAgreement} />;
   if (!snapshot.account.preferencesConfirmedAt || !snapshot.account.contactConfirmedAt) return <PlayerPreferencesGate account={snapshot.account} onContinue={confirmPreferences} />;
 
-  if (snapshot.generationRequired) {
+  if (automaticGenerationRequired) {
     return (
       <div id="main" className="player-room-authenticated">
         <RoomIdentity account={snapshot.account} />
         <div className="container member-first-desk-note"><p className="kicker">DESK 1 · PERSISTENT ACCOUNT</p><h2>Your first review belongs here.</h2><p>{connectivity.online ? "BoardSignal is building the latest completed week for your Chess.com identity. When the evidence checks are complete, the review is saved here in My BoardSignal." : "You're offline. BoardSignal will not retrieve new Chess.com games or build a review until you reconnect."}</p><button className="button button-quiet" type="button" onClick={signOutPlayer}>Sign out</button></div>
-        {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : <div className="container offline-network-action"><strong>Building a new review needs a connection.</strong><p>Your account is unchanged. Reconnect and BoardSignal will continue your review.</p></div>}
+        {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : <div className="container offline-network-action"><strong>Building a new review needs a connection.</strong><p>Your account is unchanged. Reconnect and BoardSignal will continue your review.</p></div>}
       </div>
     );
   }
@@ -321,7 +331,7 @@ export default function BoardSignalPlayerRoom() {
           {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}
           {latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}
         </div>
-        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : null}
+        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : null}
       </> : null}
 
       {tab === "progress" ? <div className="container player-room-memory"><ProgressSection desks={snapshot.desks.map((item) => item.summary)} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}

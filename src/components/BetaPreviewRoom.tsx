@@ -7,13 +7,48 @@ import { useRouter } from "next/navigation";
 import { browserLocalPersistence, setPersistence, signInWithCustomToken } from "firebase/auth";
 import { ArrowRight, Bell, Check, ChevronRight, LoaderCircle, LockKeyhole, Mail, MessageCircle, RefreshCcw, ShieldCheck, Sparkles, Swords, TrendingUp } from "lucide-react";
 import type { BetaActivationReturnMethod, BetaPreviewStatus, BoardSignalBetaPreview } from "@/lib/boardsignal/activation";
-import { BETA_PREVIEW_POLL_MS } from "@/lib/boardsignal/activation";
+import { BETA_PREVIEW_POLL_MS, betaPreviewContainsPrivateFields } from "@/lib/boardsignal/activation";
 import { auth } from "@/utils/firebaseConfig";
 import { getBoardSignalBrowserPushToken, registerBoardSignalBrowserPush } from "@/components/BrowserPushControl";
 import { clearSavedBetaPreviewReturn, loadSavedBetaPreviewReturn, saveBetaPreviewReturn } from "@/lib/boardsignal/previewReturn";
+import { BOARDSIGNAL_RECONNECTED_EVENT } from "@/lib/boardsignal/offline/connectivity";
+
+type PreviewLoadPhase = "initializing" | "ready" | "refreshing_background" | "error_with_last_good_preview" | "initial_error";
+
+// A client-memory copy prevents harmless client remounts from putting an already
+// displayed Preview back behind the first-load screen. sessionStorage is the
+// same-session fallback if the Preview component itself is reconstructed.
+const previewContinuity = new Map<string, BoardSignalBetaPreview>();
 
 function statusStorageKey(requestId: string) { return `boardsignal-beta-preview-status-v1:${requestId}`; }
 function introStorageKey(requestId: string) { return `boardsignal-beta-preview-intro-v1:${requestId}`; }
+function previewStorageKey(requestId: string) { return `boardsignal-beta-preview-public-v1:${requestId}`; }
+
+function readPreviewContinuity(requestId: string) {
+  const memory = previewContinuity.get(requestId);
+  if (memory) return memory;
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(previewStorageKey(requestId));
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as BoardSignalBetaPreview;
+    if (!parsed || typeof parsed !== "object" || !parsed.canonicalUsername || !Number.isSafeInteger(Number(parsed.playerId)) || betaPreviewContainsPrivateFields(parsed)) return undefined;
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+function rememberPreviewContinuity(requestId: string, preview: BoardSignalBetaPreview) {
+  if (betaPreviewContainsPrivateFields(preview)) return;
+  previewContinuity.set(requestId, preview);
+  try { window.sessionStorage.setItem(previewStorageKey(requestId), JSON.stringify(preview)); } catch { /* continuity is best effort */ }
+}
+
+function clearPreviewContinuity(requestId: string) {
+  previewContinuity.delete(requestId);
+  try { window.sessionStorage.removeItem(previewStorageKey(requestId)); } catch { /* continuity cleanup is best effort */ }
+}
 
 function formatSync(value: string) {
   const parsed = new Date(value);
@@ -22,15 +57,57 @@ function formatSync(value: string) {
 
 export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
   const router = useRouter();
+  const continuityAtMount = previewContinuity.get(requestId) ?? null;
   const [statusToken, setStatusToken] = useState("");
   const [status, setStatus] = useState<BetaPreviewStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [lastGoodPreview, setLastGoodPreview] = useState<BoardSignalBetaPreview | null>(continuityAtMount);
+  const [loadPhase, setLoadPhase] = useState<PreviewLoadPhase>(continuityAtMount ? "refreshing_background" : "initializing");
   const [claiming, setClaiming] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState("");
+  const [refreshNotice, setRefreshNotice] = useState("");
   const [showAskIntro, setShowAskIntro] = useState(false);
   const approvalNotifiedRef = useRef(false);
   const pollInFlightRef = useRef(false);
+  const hasResolvedStatusRef = useRef(false);
+  const lastGoodPreviewRef = useRef<BoardSignalBetaPreview | null>(continuityAtMount);
+
+  const keepGoodPreview = useCallback((preview: BoardSignalBetaPreview) => {
+    lastGoodPreviewRef.current = preview;
+    setLastGoodPreview(preview);
+    rememberPreviewContinuity(requestId, preview);
+  }, [requestId]);
+
+  const applyStatus = useCallback((nextStatus: BetaPreviewStatus, mode: "initial" | "background" | "explicit") => {
+    // Replace the previous status only after a complete valid response arrives.
+    // Never clear the current Preview before the replacement data is known-good.
+    setStatus(nextStatus);
+    hasResolvedStatusRef.current = true;
+    if (nextStatus.preview) keepGoodPreview(nextStatus.preview);
+
+    if (["rejected", "expired", "claimed"].includes(nextStatus.state)) {
+      clearSavedBetaPreviewReturn(requestId);
+      window.sessionStorage.removeItem(statusStorageKey(requestId));
+      // The current render may still show the public-safe Preview, but a future
+      // remount must re-establish legitimate possession instead of trusting cache.
+      clearPreviewContinuity(requestId);
+    } else {
+      saveBetaPreviewReturn({ requestId, canonicalUsername: nextStatus.canonicalUsername, statusCredential: statusToken, createdAt: nextStatus.requestedAt });
+    }
+
+    if (nextStatus.preview && window.localStorage.getItem(introStorageKey(requestId)) !== "seen") {
+      window.localStorage.setItem(introStorageKey(requestId), "seen");
+      setShowAskIntro(true);
+    }
+    window.dispatchEvent(new CustomEvent("boardsignal:preview-context", { detail: { requestId, statusToken } }));
+    if (nextStatus.state === "approved" && !approvalNotifiedRef.current) {
+      approvalNotifiedRef.current = true;
+      window.dispatchEvent(new CustomEvent("boardsignal:preview-approved", { detail: { requestId } }));
+    }
+    if (mode === "initial") setError("");
+    setRefreshNotice("");
+    setLoadPhase("ready");
+  }, [keepGoodPreview, requestId, statusToken]);
 
   useEffect(() => {
     const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -43,18 +120,31 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
       window.sessionStorage.setItem(statusStorageKey(requestId), fromHash);
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     }
+
+    const savedPreview = token ? readPreviewContinuity(requestId) : undefined;
+    if (savedPreview && !lastGoodPreviewRef.current) {
+      lastGoodPreviewRef.current = savedPreview;
+      setLastGoodPreview(savedPreview);
+      previewContinuity.set(requestId, savedPreview);
+      setLoadPhase("refreshing_background");
+    }
+
     setStatusToken(token);
     if (!token) {
-      setLoading(false);
+      setLoadPhase("initial_error");
       setError("Your saved Preview isn't available on this device. Use an access link if you have one, return through your original Preview device, or start again with your Chess.com username.");
     }
   }, [requestId]);
 
-  const loadStatus = useCallback(async (quiet = false) => {
+  const loadStatus = useCallback(async (requestedMode: "initial" | "background" = "initial") => {
     if (!statusToken || pollInFlightRef.current) return;
     pollInFlightRef.current = true;
-    if (!quiet) setLoading(true);
-    setError("");
+    const background = requestedMode === "background" || hasResolvedStatusRef.current || Boolean(lastGoodPreviewRef.current);
+    if (background) setLoadPhase("refreshing_background");
+    else {
+      setLoadPhase("initializing");
+      setError("");
+    }
     try {
       const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
         method: "POST",
@@ -64,47 +154,48 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
       });
       const body = await response.json() as { ok?: boolean; status?: BetaPreviewStatus; error?: string };
       if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "BoardSignal preview could not be loaded.");
-      setStatus(body.status);
-      if (["rejected", "expired", "claimed"].includes(body.status.state)) {
-        clearSavedBetaPreviewReturn(requestId);
-        window.sessionStorage.removeItem(statusStorageKey(requestId));
-      } else {
-        saveBetaPreviewReturn({ requestId, canonicalUsername: body.status.canonicalUsername, statusCredential: statusToken, createdAt: body.status.requestedAt });
-      }
-      const preview = body.status.preview;
-      if (preview && window.localStorage.getItem(introStorageKey(requestId)) !== "seen") {
-        window.localStorage.setItem(introStorageKey(requestId), "seen");
-        setShowAskIntro(true);
-      }
-      window.dispatchEvent(new CustomEvent("boardsignal:preview-context", { detail: { requestId, statusToken } }));
-      if (body.status.state === "approved" && !approvalNotifiedRef.current) {
-        approvalNotifiedRef.current = true;
-        window.dispatchEvent(new CustomEvent("boardsignal:preview-approved", { detail: { requestId } }));
-      }
+      applyStatus(body.status, background ? "background" : "initial");
     } catch (reason) {
-      if (!quiet) setError(reason instanceof Error ? reason.message : "BoardSignal preview could not be loaded.");
+      const message = reason instanceof Error ? reason.message : "BoardSignal preview could not be loaded.";
+      if (background && lastGoodPreviewRef.current) {
+        setLoadPhase("error_with_last_good_preview");
+        setRefreshNotice("Couldn't refresh just now. Showing your saved Preview.");
+      } else {
+        setLoadPhase("initial_error");
+        setError(message);
+      }
     } finally {
       pollInFlightRef.current = false;
-      if (!quiet) setLoading(false);
     }
-  }, [requestId, statusToken]);
+  }, [applyStatus, requestId, statusToken]);
 
-  useEffect(() => { if (statusToken) void loadStatus(); }, [loadStatus, statusToken]);
+  useEffect(() => {
+    if (!statusToken) return;
+    void loadStatus(lastGoodPreviewRef.current ? "background" : "initial");
+  }, [loadStatus, statusToken]);
 
   useEffect(() => {
     if (!statusToken || status?.state !== "preview_ready") return;
-    const tick = () => { if (document.visibilityState === "visible") void loadStatus(true); };
+    const refreshInPlace = () => void loadStatus("background");
+    const tick = () => { if (document.visibilityState === "visible") refreshInPlace(); };
     const timer = window.setInterval(tick, BETA_PREVIEW_POLL_MS);
-    const onVisible = () => { if (document.visibilityState === "visible") void loadStatus(true); };
-    const onFocus = () => void loadStatus(true);
+    const onVisible = () => { if (document.visibilityState === "visible") refreshInPlace(); };
+    const onFocus = () => refreshInPlace();
+    const onReconnect = () => refreshInPlace();
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onFocus);
-    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("focus", onFocus); };
+    window.addEventListener(BOARDSIGNAL_RECONNECTED_EVENT, onReconnect);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener(BOARDSIGNAL_RECONNECTED_EVENT, onReconnect);
+    };
   }, [loadStatus, status?.state, statusToken]);
 
   async function retryPreview() {
     if (!statusToken) return;
-    setRetrying(true); setError("");
+    setRetrying(true); setError(""); setRefreshNotice("");
     try {
       const response = await fetch(`/api/boardsignal/beta-preview/${encodeURIComponent(requestId)}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
@@ -112,7 +203,7 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
       });
       const body = await response.json() as { ok?: boolean; status?: BetaPreviewStatus; error?: string };
       if (!response.ok || !body.ok || !body.status) throw new Error(body.error ?? "The preview could not be refreshed.");
-      setStatus(body.status);
+      applyStatus(body.status, "explicit");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The preview could not be refreshed."); }
     finally { setRetrying(false); }
   }
@@ -136,6 +227,7 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
         await registerBoardSignalBrowserPush(idToken).catch(() => undefined);
       }
       clearSavedBetaPreviewReturn(requestId);
+      clearPreviewContinuity(requestId);
       window.sessionStorage.removeItem(statusStorageKey(requestId));
       router.replace("/boardsignal/player-room?source=beta_preview&tab=desk");
       router.refresh();
@@ -147,27 +239,32 @@ export default function BetaPreviewRoom({ requestId }: { requestId: string }) {
     window.dispatchEvent(new CustomEvent("boardsignal:ask-open", { detail: { message: prompt } }));
   }
 
-  const preview = status?.preview;
+  const preview = status?.preview ?? lastGoodPreview;
+  const displayUsername = status?.canonicalUsername ?? preview?.canonicalUsername ?? "BS";
+  const displayAvatar = status?.avatar ?? preview?.avatar;
   const approved = status?.state === "approved" && status.accessReady;
   const provisionalReady = status?.state === "preview_ready" && status.provisionalAccessReady === true;
   const canContinue = approved || provisionalReady;
   const rejected = status?.state === "rejected";
   const expired = status?.state === "expired";
 
-  if (loading) return <main id="main" className="container beta-preview-room"><section className="beta-preview-loading bs-surface-paper"><LoaderCircle className="button-spinner"/><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>Finding your chess week</h1><p>BoardSignal is opening the safe first look attached to this request.</p></section></main>;
+  // The initial full-screen loader is legal only before this visit has ever
+  // resolved or restored a valid public-safe Preview.
+  if (loadPhase === "initializing" && !preview && !status) return <main id="main" className="container beta-preview-room"><section className="beta-preview-loading bs-surface-paper"><LoaderCircle className="button-spinner"/><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>Finding your chess week</h1><p>BoardSignal is opening the safe first look attached to this request.</p></section></main>;
 
-  if (!status && error) return <main id="main" className="container beta-preview-room"><section className="beta-preview-loading bs-surface-paper"><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>This Preview isn't saved on this device</h1><p>{error}</p><div className="resolved-player-actions"><Link href="/#get-my-boardsignal" className="button button-dark">Start with Chess.com username</Link><Link href="/boardsignal/player-room" className="button button-quiet">Use sign-in / recovery</Link></div></section></main>;
+  if (!preview && !status && loadPhase === "initial_error" && error) return <main id="main" className="container beta-preview-room"><section className="beta-preview-loading bs-surface-paper"><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>This Preview isn't saved on this device</h1><p>{error}</p><div className="resolved-player-actions"><Link href="/#get-my-boardsignal" className="button button-dark">Start with Chess.com username</Link><Link href="/boardsignal/player-room" className="button button-quiet">Use sign-in / recovery</Link></div></section></main>;
 
   return <main id="main" className={`beta-preview-room ${canContinue ? "is-approved" : ""}`}>
     <section className="container beta-preview-hero bs-surface-dark">
       <div className="beta-preview-identity">
-        {status?.avatar ? <Image src={status.avatar} alt="" width={70} height={70} unoptimized /> : <span className="beta-preview-avatar">{(status?.canonicalUsername ?? "BS").slice(0,2).toUpperCase()}</span>}
-        <div><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>{approved ? "You're in." : `We found you, ${status?.canonicalUsername}.`}</h1><p>{approved ? "Your private BoardSignal is ready." : "Your games are here. Your full private review is ready to open now while Founding Beta identity checks happen quietly in the background."}</p></div>
+        {displayAvatar ? <Image src={displayAvatar} alt="" width={70} height={70} unoptimized /> : <span className="beta-preview-avatar">{displayUsername.slice(0,2).toUpperCase()}</span>}
+        <div><p className="kicker">BOARD SIGNAL PREVIEW</p><h1>{approved ? "You're in." : `We found you, ${displayUsername}.`}</h1><p>{approved ? "Your private BoardSignal is ready." : "Your games are here. Your full private review is ready to open now while Founding Beta identity checks happen quietly in the background."}</p></div>
       </div>
       <div className="beta-preview-status"><span>{approved ? "IDENTITY CONFIRMED" : expired ? "ACCESS EXPIRED" : rejected ? "REQUEST CLOSED" : "PREVIEW READY"}</span><strong>{approved ? "MY BOARDSIGNAL READY" : expired ? "FRESH LINK REQUIRED" : rejected ? "FOUNDER REVIEW CLOSED" : "FULL PRIVATE REVIEW AVAILABLE"}</strong>{status?.approvedAt ? <small>Founder reviewed {formatSync(status.approvedAt)}</small> : preview ? <small>Preview saved {formatSync(preview.generatedAt)}</small> : null}</div>
       {canContinue ? <button type="button" className="button button-lime beta-preview-primary-cta" onClick={openPlayerRoom} disabled={claiming}>{claiming ? <><LoaderCircle className="button-spinner" size={16}/> Opening</> : <>Continue to My BoardSignal <ArrowRight size={17}/></>}</button> : null}
     </section>
 
+    {refreshNotice ? <div className="container notice" role="status">{refreshNotice}</div> : null}
     {error ? <div className="container notice notice-error" role="alert">{error}</div> : null}
 
     {!preview ? <section className="container beta-preview-failure bs-surface-paper"><Sparkles/><div><p className="kicker">REQUEST SAVED</p><h2>Chess.com didn't return the preview yet.</h2><p>Your Founding Beta request is safe. Try the Preview again; identity review is not the gate to private access.</p></div><button type="button" className="button button-dark" onClick={retryPreview} disabled={retrying}>{retrying ? <><LoaderCircle className="button-spinner" size={15}/> Trying</> : <><RefreshCcw size={15}/> Try preview again</>}</button></section> : <PreviewContent preview={preview} ask={ask} showAskIntro={showAskIntro} accessCta={canContinue ? <section className="container beta-preview-next bs-surface-dark"><p className="kicker">READY FOR THE FULL PICTURE?</p><h2>See what happened, what mattered, and what to focus on next.</h2><p>Founding Beta access starts immediately. Identity checks happen quietly in the background.</p><button type="button" className="button button-lime" onClick={openPlayerRoom} disabled={claiming}>{claiming ? "Opening…" : "Continue to My BoardSignal"}<ArrowRight size={16}/></button></section> : null} returnChoice={status?.state === "preview_ready" ? <PreviewReturnChoice requestId={requestId} statusToken={statusToken} status={status} onStatus={setStatus} onError={setError} /> : null} />}
@@ -187,12 +284,8 @@ function PreviewReturnChoice({ requestId, statusToken, status, onStatus, onError
   const [busy, setBusy] = useState(false);
   const configured = Boolean(process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim());
 
-  useEffect(() => {
-    setSelected(status.activationReturnMethod ?? "");
-    setContactValue(status.preferredContactValue ?? "");
-    setConsent(status.betaContactConsent === true);
-  }, [status.activationReturnMethod, status.betaContactConsent, status.preferredContactValue]);
-
+  // Keep unsaved return-method/contact edits local while background status polls
+  // run. Explicit save/register responses update status and local selection below.
   async function update(actionBody: Record<string, unknown>) {
     setBusy(true); onError("");
     try {

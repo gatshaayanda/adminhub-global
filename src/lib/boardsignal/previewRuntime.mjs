@@ -6,7 +6,7 @@ export const PREVIEW_PHASE = Object.freeze({
   INITIAL_ERROR: "initial_error",
 });
 
-export function createPreviewRuntimeState(continuityPreview = null) {
+export function createPreviewRuntimeState(continuityPreview) {
   const hasPreview = Boolean(continuityPreview);
   return {
     phase: hasPreview ? PREVIEW_PHASE.READY : PREVIEW_PHASE.INITIALIZING,

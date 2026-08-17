@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const ts = require("typescript");
 
 const root = path.resolve(__dirname, "..");
@@ -55,9 +56,9 @@ function transpile(relative) {
 }
 
 test("1 immutable baseline is frozen in package manifest", () => {
-  const manifest = read("PATCH_MANIFEST.md");
-  assert.match(manifest, /50dbcf20434d0583304d6bf9c75a64a8068b7b90/);
-  assert.match(manifest, /Fix universe participant fallback typing/);
+  const manifest = read("PATCH-MANIFEST.txt");
+  assert.match(manifest, /66149f98d153c353a5dd555a23fac82dfd1774a3/);
+  assert.match(manifest, /Add Ayanda professional portfolio/);
 });
 
 test("2-15 route, identity, contact and evidence URLs are exact", () => {
@@ -165,5 +166,60 @@ test("52 source has no whitespace-error markers", () => {
     const source = read(relative);
     const lines = source.split("\n");
     assert.equal(lines.some((line) => /[ \t]+$/.test(line)), false, `${relative} contains trailing whitespace`);
+  }
+});
+
+function relativeLuminance(hex) {
+  const rgb = hex.match(/[0-9a-f]{2}/gi).map((value) => Number.parseInt(value, 16) / 255);
+  const linear = rgb.map((value) => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function contrastRatio(foreground, background) {
+  const a = relativeLuminance(foreground);
+  const b = relativeLuminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+function gitBlobSha(source) {
+  return crypto.createHash("sha1").update(`blob ${Buffer.byteLength(source)}\0`).update(source).digest("hex");
+}
+
+test("53-61 P.1.1 standalone contrast isolation defeats BoardSignal global foregrounds", () => {
+  const css = read(files.css);
+  const client = read(files.client);
+  const isolationStart = css.indexOf("/* Standalone AKG typography:");
+  const isolationEnd = css.indexOf(".page *, .page *::before", isolationStart);
+  assert.ok(isolationStart >= 0 && isolationEnd > isolationStart, "scoped typography isolation block must exist near the page baseline");
+  const isolation = css.slice(isolationStart, isolationEnd);
+
+  assert.match(css, /\.page \.darkSection :where\(h1, h2, h3, h4\)\s*\{\s*color:\s*#fbf6ed;\s*\}/);
+  assert.match(client, /className=\{styles\.methodCard\}[\s\S]*?<h3>\{item\.title\}<\/h3>/);
+  assert.doesNotMatch(css.match(/\.methodCard h3\s*\{[^}]*\}/)?.[0] ?? "", /color:\s*var\(--ink\)/);
+  assert.match(css, /\.page \.contactSection :where\(h1, h2, h3, h4\)\s*\{\s*color:\s*#fffaf2;\s*\}/);
+  assert.match(css, /\.page :where\(h1, h2, h3, h4\)\s*\{\s*color:\s*var\(--akg-ink\);\s*\}/);
+  assert.match(css, /\.page :where\(p\)\s*\{\s*color:\s*inherit;\s*\}/);
+  assert.match(css, /\.page :where\(a\)\s*\{\s*color:\s*inherit;/);
+  assert.doesNotMatch(css, /\.page a\s*\{\s*color:\s*inherit;/, "generic Ayanda anchor baseline must not outrank component CTA/source colors");
+  assert.match(css, /\.page ::selection\s*\{\s*background:\s*#eaa28f;\s*color:\s*#171419;\s*\}/);
+  assert.equal((css.match(/::selection\s*\{/g) || []).length, 1, "selection styling must remain scoped to the Ayanda page only");
+  assert.doesNotMatch(isolation, /!important/, "ordinary standalone typography isolation must not use !important");
+  assert.match(css, /@media print[\s\S]*?\.page \.darkSection :where\(h1, h2, h3, h4\), \.page \.contactSection :where\(h1, h2, h3, h4\) \{ color: #111111; \}/);
+  assert.match(css, /@media print[\s\S]*?\.footer span \{ color: #111111; \}/);
+
+  const globalPath = "src/app/globals.css";
+  if (exists(globalPath)) {
+    assert.equal(gitBlobSha(read(globalPath)), "7f0c74400b857420ab2f219233e49912fe295dbb", "BoardSignal globals.css must remain byte-for-byte at the frozen P.1.1 baseline");
+  } else {
+    assert.equal(exists(globalPath), false, "globals.css must not be included in the P.1.1 patch payload");
+  }
+
+  for (const [foreground, background] of [
+    ["#fbf6ed", "#171419"],
+    ["#fffaf2", "#573d5d"],
+    ["#171419", "#f7f2ea"],
+    ["#171419", "#eee5d9"],
+  ]) {
+    assert.ok(contrastRatio(foreground, background) >= 4.5, `${foreground} on ${background} must meet the 4.5:1 P.1 quality floor`);
   }
 });

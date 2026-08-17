@@ -18,8 +18,30 @@
   overflow-x: clip;
 }
 
+/* Standalone AKG typography: neutralize BoardSignal element-level foregrounds. */
+.page :where(h1, h2, h3, h4) {
+  color: var(--akg-ink);
+}
+
+.page :where(p) {
+  color: inherit;
+}
+
+.page .darkSection :where(h1, h2, h3, h4) {
+  color: #fbf6ed;
+}
+
+.page .contactSection :where(h1, h2, h3, h4) {
+  color: #fffaf2;
+}
+
+.page ::selection {
+  background: #eaa28f;
+  color: #171419;
+}
+
 .page *, .page *::before, .page *::after { box-sizing: border-box; }
-.page a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.22em; }
+.page :where(a) { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 0.22em; }
 .page button, .page a { -webkit-tap-highlight-color: transparent; }
 .page :focus-visible {
   outline: 3px solid var(--akg-coral);
@@ -465,6 +487,8 @@
   .proofCard { min-height: 0; padding: 12px; break-inside: avoid; }
   .proofCard strong { font-size: 19pt; }
   .darkSection, .contactSection, .footer { background: #ffffff !important; color: #111111 !important; }
+  .page .darkSection :where(h1, h2, h3, h4), .page .contactSection :where(h1, h2, h3, h4) { color: #111111; }
+  .footer span { color: #111111; }
   .darkSection .sectionIntro, .darkSection .methodCard p, .contactPrompt { color: #333 !important; }
   .darkSection .eyebrow, .darkSection .sectionNumber, .contactSection .eyebrow { color: #333 !important; }
   .methodGrid { grid-template-columns: repeat(3, 1fr); background: transparent; border-color: #888; }

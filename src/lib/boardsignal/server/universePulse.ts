@@ -401,7 +401,7 @@ export async function buildPlayerPulse(input: {
   const now = input.now ?? new Date();
   const state = await loadActiveUniverseState(now);
   const participantId = input.latestDesk
-    ? deskParticipantId(input.latestDesk)
+    ? deskParticipantId(input.latestDesk) ?? `live:${input.account.chessCom.canonicalUsername.toLowerCase()}`
     : `live:${input.account.chessCom.canonicalUsername.toLowerCase()}`;
   const standings = standingsFromActiveBoards(state.boards, participantId);
   const currentStandings = standingSnapshots(state.boards, participantId);

@@ -44,9 +44,11 @@ export type ActiveUniverseState = {
 
 type ActiveDeskRecord = {
   uid: string;
+  account: BoardSignalAccount;
   deskKey: string;
   publishedAt?: string;
-  desk: BoardSignalDesk;
+  desk?: BoardSignalDesk;
+  originalBetaParticipant?: UniverseParticipant;
 };
 
 async function activeLiveDeskRecords(): Promise<ActiveDeskRecord[]> {
@@ -63,13 +65,37 @@ async function activeLiveDeskRecords(): Promise<ActiveDeskRecord[]> {
       .limit(4)
       .get();
     for (const document of desks.docs) {
-      const data = document.data() as { deskKey?: string; desk?: BoardSignalDesk; publishedAt?: string };
-      if (!data.desk || data.desk.source !== "live" || !data.desk.provenance.verified) continue;
+      const data = document.data() as {
+        deskKey?: string;
+        desk?: BoardSignalDesk;
+        publishedAt?: string;
+        originalBeta?: { universeParticipant?: UniverseParticipant };
+      };
+      if (data.desk?.source === "live" && data.desk.provenance.verified) {
+        records.push({
+          uid: account.uid,
+          account,
+          deskKey: String(data.deskKey ?? document.id),
+          publishedAt: data.publishedAt,
+          desk: data.desk,
+        });
+        continue;
+      }
+      const historical = data.originalBeta?.universeParticipant;
+      if (!historical?.verified) continue;
       records.push({
         uid: account.uid,
+        account,
         deskKey: String(data.deskKey ?? document.id),
-        publishedAt: data.publishedAt,
-        desk: data.desk,
+        originalBetaParticipant: {
+          ...historical,
+          id: `live:${account.chessCom.canonicalUsername.toLowerCase()}`,
+          stablePlayerId: String(account.chessCom.playerId),
+          aliases: [...new Set([...(historical.aliases ?? []), historical.player])],
+          player: account.chessCom.canonicalUsername,
+          source: "live",
+          verified: true,
+        },
       });
     }
   }
@@ -77,12 +103,18 @@ async function activeLiveDeskRecords(): Promise<ActiveDeskRecord[]> {
 }
 
 function participantFromRecord(record: ActiveDeskRecord): UniverseParticipant | undefined {
+  if (record.originalBetaParticipant) return record.originalBetaParticipant;
+  if (!record.desk) return undefined;
   const participant = deskToUniverseParticipant(record.desk);
   if (!participant || participant.source !== "live") return undefined;
   return {
     ...participant,
+    id: `live:${record.account.chessCom.canonicalUsername.toLowerCase()}`,
+    stablePlayerId: String(record.account.chessCom.playerId),
+    aliases: [...new Set([...(participant.aliases ?? []), ...record.account.eligibleCoverageKeys.filter((key) => !/^\d+$/.test(key))])],
+    player: record.account.chessCom.canonicalUsername,
     coverage: {
-      href: `/player/${encodeURIComponent(record.desk.player.username)}`,
+      href: `/player/${encodeURIComponent(record.account.chessCom.canonicalUsername)}`,
       headline: record.desk.headline || record.desk.summary,
     },
   };
@@ -368,16 +400,18 @@ export async function buildPlayerPulse(input: {
 }) : Promise<PlayerPulse | undefined> {
   const now = input.now ?? new Date();
   const state = await loadActiveUniverseState(now);
-  const participantId = input.latestDesk ? deskParticipantId(input.latestDesk) : undefined;
-  const standings = participantId ? standingsFromActiveBoards(state.boards, participantId) : [];
-  const currentStandings = participantId ? standingSnapshots(state.boards, participantId) : [];
+  const participantId = input.latestDesk
+    ? deskParticipantId(input.latestDesk)
+    : `live:${input.account.chessCom.canonicalUsername.toLowerCase()}`;
+  const standings = standingsFromActiveBoards(state.boards, participantId);
+  const currentStandings = standingSnapshots(state.boards, participantId);
 
   const pulseRef = getAdminDb().collection("users").doc(input.account.uid).collection("pulse").doc("current");
   const previousDoc = await pulseRef.get();
   const previous = previousDoc.exists ? previousDoc.data() as PlayerPulseSnapshot : undefined;
   const sinceAway = deriveCurrentEpisodeDelta(previous?.currentEpisode, input.currentEpisode);
   const boardMoved = previous ? deriveBoardMovement(previous.standings ?? [], currentStandings) : [];
-  const proximity = participantId ? deriveProximityCards(state.boards, participantId) : [];
+  const proximity = deriveProximityCards(state.boards, participantId);
 
   let provisional: ReturnType<typeof deriveProvisionalCards> = [];
   if (input.currentEpisode && input.currentEpisode.games > 0) {

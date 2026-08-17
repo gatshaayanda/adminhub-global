@@ -27,6 +27,7 @@ import {
 import { shouldMountAutomaticReviewGenerator } from "@/lib/boardsignal/firstReviewGeneration.mjs";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
+import type { CompletedReviewHistoryItem } from "@/lib/boardsignal/reviewHistory";
 import { auth } from "@/utils/firebaseConfig";
 import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 import { clearBoardSignalPrivateOfflineData } from "@/lib/boardsignal/offline/db";
@@ -41,6 +42,8 @@ type DeskBundle = { desk: BoardSignalDesk; engineResults: Record<string, DeskEng
 type Snapshot = {
   account: BoardSignalAccount;
   desks: DeskBundle[];
+  reviewHistory?: CompletedReviewHistoryItem[];
+  originalBetaReturn?: boolean;
   progress: ProgressSeries[];
   recurringPatterns: RecurringPattern[];
   personalRecords: PersonalRecords;
@@ -316,6 +319,9 @@ export default function BoardSignalPlayerRoom() {
   }, [connectivity.online, token, user?.uid]);
 
   const latest = snapshot?.desks[0];
+  const reviewHistory = snapshot?.reviewHistory ?? [];
+  const hasOriginalHistory = reviewHistory.some((review) => review.source === "original_beta");
+  const originalCadenceAnchor = snapshot?.account.cadenceAnchor;
   const automaticGenerationRequired = snapshot ? shouldMountAutomaticReviewGenerator({
     generationRequired: snapshot.generationRequired,
     latestDeskKey: latest?.summary.deskKey,
@@ -340,10 +346,10 @@ export default function BoardSignalPlayerRoom() {
   );
   if (offlineSnapshot && user) return <OfflinePlayerRoom uid={user.uid} initialSnapshot={offlineSnapshot} embedded />;
   if (error || !snapshot) return <RoomError error={error || "My BoardSignal could not be loaded."} />;
-  if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <BetaAgreementGate onAccept={acceptAgreement} />;
-  if (!snapshot.account.preferencesConfirmedAt || !snapshot.account.contactConfirmedAt) return <PlayerPreferencesGate account={snapshot.account} onContinue={confirmPreferences} />;
+  if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;
+  if (!snapshot.account.preferencesConfirmedAt || !snapshot.account.contactConfirmedAt) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<PlayerPreferencesGate account={snapshot.account} onContinue={confirmPreferences} /></>;
 
-  if (automaticGenerationRequired) {
+  if (automaticGenerationRequired && !hasOriginalHistory) {
     return (
       <div id="main" className="player-room-authenticated">
         <RoomIdentity account={snapshot.account} />
@@ -363,17 +369,22 @@ export default function BoardSignalPlayerRoom() {
         <div className="container player-room-memory">
           {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} uid={user.uid} online={connectivity.online} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}
           {latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}
+          <ReviewHistorySection history={reviewHistory} />
         </div>
-        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : null}
+        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : automaticGenerationRequired && hasOriginalHistory ? <div className="container player-room-memory"><div className="founding-field-note"><CalendarDays size={18}/><div><strong>Your original Review is already here.</strong><p>{connectivity.online ? "BoardSignal is building the next eligible LIVE Review from your preserved seven-day cadence." : "Reconnect before BoardSignal retrieves new Chess.com games for your next Review."}</p></div></div>{connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={originalCadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : null}</div> : null}
       </> : null}
 
-      {tab === "progress" ? <div className="container player-room-memory"><ProgressSection desks={snapshot.desks.map((item) => item.summary)} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}
+      {tab === "progress" ? <div className="container player-room-memory"><ProgressSection history={reviewHistory} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}
       {tab === "universe" ? <div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div> : null}
       {tab === "friends" ? <div className="container player-room-memory"><PlayerFriends uid={user.uid} token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div> : null}
       {tab === "inbox" ? <div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div> : null}
       {tab === "profile" ? <div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} uid={user.uid} token={token} onSaved={async () => { if (user) await loadRoom(user, true); }} onSignOut={signOutPlayer} /></div> : null}
     </div>
   );
+}
+
+function OriginalBetaWelcome() {
+  return <div className="container founding-field-note"><CalendarDays size={18}/><div><p className="kicker">WELCOME BACK TO BOARDSIGNAL</p><strong>You were one of BoardSignal's original beta players.</strong><p>Your first Review is already here.</p></div></div>;
 }
 
 function RoomIdentity({ account }: { account: BoardSignalAccount }) {
@@ -499,13 +510,19 @@ function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeW
   </section>;
 }
 
-function ProgressSection({ desks, progress, patterns, records }: { desks: DeskSummary[]; progress: ProgressSeries[]; patterns: RecurringPattern[]; records: PersonalRecords }) {
-  const chronological = [...desks].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
+function ReviewHistorySection({ history }: { history: CompletedReviewHistoryItem[] }) {
+  if (!history.length) return null;
+  const ordered = [...history].sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
+  return <section className="my-progress-section"><div className="universal-section-heading"><span><CalendarDays size={16}/></span><div><p className="kicker">REVIEW HISTORY</p><h2>Your completed BoardSignal history.</h2><p>Original beta Reviews and later LIVE Reviews share the same four-Review memory without inventing missing historical detail.</p></div></div><div className="desk-sequence">{ordered.map((review, index) => <article key={review.reviewKey}><span>REVIEW {index + 1}{review.source === "original_beta" ? " · ORIGINAL BETA" : " · LIVE"}</span><strong>{review.periodLabel}</strong><p>{review.games} games · {review.wins}W · {review.draws}D · {review.losses}L · {review.scorePct.toFixed(1)}%</p><p>{review.headline}</p>{review.source === "original_beta" ? <><small>{review.sourceRichness} · {review.provenanceLabel}</small>{review.green ? <p><b>Green:</b> {review.green.title}</p> : null}{review.red ? <p><b>Red:</b> {review.red.title}</p> : null}{review.blue ? <p><b>Blue:</b> {review.blue.copy || review.blue.title}</p> : null}{review.publicCoverageHref ? <Link className="text-link" href={review.publicCoverageHref}>Open historical public story</Link> : null}</> : null}</article>)}</div></section>;
+}
+
+function ProgressSection({ history, progress, patterns, records }: { history: CompletedReviewHistoryItem[]; progress: ProgressSeries[]; patterns: RecurringPattern[]; records: PersonalRecords }) {
+  const chronological = [...history].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
   const metric = (label: string, values: Array<number | undefined>, suffix = "") => {
     const present = values.filter((value): value is number => value !== undefined);
     return present.length >= 2 ? <article><span>{label}</span><strong>{present.map((value) => `${value}${suffix}`).join(" → ")}</strong></article> : null;
   };
-  return <section className="my-progress-section"><div className="universal-section-heading"><span><TrendingUp size={16} /></span><div><p className="kicker">MY PROGRESS</p><h2>Your latest four completed reviews.</h2><p>Pool ratings stay separate. Small samples stay out of trend claims.</p></div></div><div className="desk-sequence">{chronological.map((desk, index) => <article key={desk.deskKey}><span>REVIEW {index + 1}</span><strong>{desk.periodLabel}</strong><p>{desk.games} games · {desk.scorePct.toFixed(1)}%</p></article>)}</div>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((desk) => desk.longestWinRun))}{metric("Median game length", chronological.map((desk) => desk.medianGameLength))}{metric("Black score", chronological.map((desk) => desk.blackScorePct), "%")}</div><div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Reviews completed</span><strong>{records.desksCompleted}</strong></div></div>{patterns.length ? <div className="recurring-patterns"><p className="kicker">RECURRING PATTERNS</p>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed reviews are needed before BoardSignal can name a recurring pattern.</p></div>}</section>;
+  return <section className="my-progress-section"><div className="universal-section-heading"><span><TrendingUp size={16} /></span><div><p className="kicker">MY PROGRESS</p><h2>Your latest four completed reviews.</h2><p>Pool ratings stay separate. Missing historical fields stay out of trend claims.</p></div></div><div className="desk-sequence">{chronological.map((review, index) => <article key={review.reviewKey}><span>REVIEW {index + 1}</span><strong>{review.periodLabel}</strong><p>{review.games} games · {review.scorePct.toFixed(1)}%</p></article>)}</div>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((review) => review.longestWinRun))}{metric("Median game length", chronological.map((review) => review.medianGameLength))}{metric("Black score", chronological.map((review) => review.blackScorePct), "%")}</div><div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Reviews completed</span><strong>{records.desksCompleted}</strong></div></div>{patterns.length ? <div className="recurring-patterns"><p className="kicker">RECURRING PATTERNS</p>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed reviews with compatible signal families are needed before BoardSignal can name a recurring pattern.</p></div>}</section>;
 }
 
 function ShareMomentsSection({ moments }: { moments: SafeShareMoment[] }) {

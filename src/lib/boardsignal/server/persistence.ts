@@ -15,9 +15,7 @@ import {
   type StableChessComIdentity,
 } from "../account";
 import {
-  buildPoolProgress,
   buildSafePublicCoverage,
-  deriveRecurringPatterns,
   retainLatestFour,
   toDeskSummary,
   updatePersonalRecords,
@@ -30,6 +28,12 @@ import {
 import { validateDeskForPublication } from "../quality";
 import type { BoardSignalDesk, DeskEngineResult } from "../types";
 import { createFactualReviewDraft, type FactualReviewDraft } from "../factualReview";
+import {
+  buildReviewProgress,
+  deriveRecurringPatternsFromReviewHistory,
+  liveDeskToReviewHistory,
+  type CompletedReviewHistoryItem,
+} from "../reviewHistory";
 import type { PlayerPulse, SafeShareMoment } from "../pulse";
 import {
   buildPlayerPulse,
@@ -49,6 +53,8 @@ export type PublishedDeskBundle = {
 export type PlayerRoomSnapshot = {
   account: BoardSignalAccount;
   desks: PublishedDeskBundle[];
+  reviewHistory: CompletedReviewHistoryItem[];
+  originalBetaReturn: boolean;
   progress: ProgressSeries[];
   recurringPatterns: RecurringPattern[];
   personalRecords: PersonalRecords;
@@ -450,7 +456,11 @@ export async function publishPrivateDesk(
   for (const removed of retention.removed) await deleteDeskTree(account.uid, removed.documentId);
 
   const currentRecords = (await db.collection("users").doc(account.uid).get()).data()?.personalRecords as PersonalRecords | undefined;
-  const personalRecords = alreadyPublished ? currentRecords : updatePersonalRecords(currentRecords, summary);
+  const updatedRecords = alreadyPublished ? currentRecords : updatePersonalRecords(currentRecords, summary);
+  const personalRecords: PersonalRecords = {
+    ...(updatedRecords ?? { personalBestWinRun: summary.longestWinRun, largestPoolSpecificRatingClimb: {} }),
+    desksCompleted: retention.retained.length,
+  };
   await db.collection("users").doc(account.uid).set(clean({
     cadenceAnchor: account.cadenceAnchor ?? desk.cadence?.anchorStart ?? desk.period.start,
     nextDeskDueAt: desk.cadence?.nextAvailableOn,
@@ -493,7 +503,11 @@ export async function loadPublishedDesks(uid: string): Promise<PublishedDeskBund
     .orderBy("periodEnd", "desc")
     .limit(4)
     .get();
-  return Promise.all(deskSnapshots.docs.map(async (document) => {
+  const liveDocuments = deskSnapshots.docs.filter((document) => {
+    const data = document.data() as { desk?: BoardSignalDesk; summary?: DeskSummary };
+    return Boolean(data.desk && data.summary && data.desk.source === "live" && data.desk.provenance.verified);
+  });
+  return Promise.all(liveDocuments.map(async (document) => {
     const data = document.data() as { desk: BoardSignalDesk; summary: DeskSummary };
     const evidence = await document.ref.collection("evidence").orderBy("positionOrder", "asc").get();
     const candidates: BoardSignalDesk["candidates"] = [];
@@ -510,6 +524,25 @@ export async function loadPublishedDesks(uid: string): Promise<PublishedDeskBund
   }));
 }
 
+export async function loadCompletedReviewHistory(uid: string): Promise<CompletedReviewHistoryItem[]> {
+  const snapshot = await getAdminDb().collection("users").doc(uid).collection("desks")
+    .orderBy("periodEnd", "desc")
+    .limit(4)
+    .get();
+  return snapshot.docs.flatMap((document) => {
+    const data = document.data() as {
+      desk?: BoardSignalDesk;
+      summary?: DeskSummary;
+      originalBeta?: { history?: CompletedReviewHistoryItem };
+    };
+    if (data.originalBeta?.history) return [{ ...data.originalBeta.history, reviewKey: String(data.originalBeta.history.reviewKey ?? document.id) }];
+    if (data.desk?.source === "live" && data.desk.provenance.verified && data.summary) {
+      return [liveDeskToReviewHistory(data.desk, data.summary)];
+    }
+    return [];
+  }).sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
+}
+
 export async function buildPlayerRoomSnapshot(
   token: DecodedIdToken,
   currentEpisode?: CurrentEpisodeSummary,
@@ -523,6 +556,7 @@ export async function buildPlayerRoomSnapshot(
     nextDeskDueAt: currentEpisode?.nextDeskDueAt ?? account.nextDeskDueAt,
   }), { merge: true });
   const desks = await loadPublishedDesks(account.uid);
+  const reviewHistory = await loadCompletedReviewHistory(account.uid);
   const summaries = desks.map((item) => item.summary);
   const publishedKeys = new Set(summaries.map((summary) => summary.deskKey));
   const factualReviews = await loadPendingFactualReviews(account.uid);
@@ -543,7 +577,18 @@ export async function buildPlayerRoomSnapshot(
     latest.cadence?.nextAvailableOn
     && latest.cadence.nextAvailableOn <= new Date().toISOString().slice(0, 10),
   );
-  const accountSnapshot = (await getAdminDb().collection("users").doc(account.uid).get()).data() as BoardSignalAccount & { personalRecords?: PersonalRecords };
+  const accountSnapshot = (await getAdminDb().collection("users").doc(account.uid).get()).data() as BoardSignalAccount & { personalRecords?: PersonalRecords; originalBetaPlayer?: boolean };
+  const storedRecords = accountSnapshot.personalRecords ?? {
+    desksCompleted: 0,
+    personalBestWinRun: 0,
+    largestPoolSpecificRatingClimb: {},
+  };
+  const knownHistoricalRuns = reviewHistory.flatMap((review) => review.longestWinRun === undefined ? [] : [review.longestWinRun]);
+  const personalRecords: PersonalRecords = {
+    ...storedRecords,
+    desksCompleted: reviewHistory.length,
+    personalBestWinRun: Math.max(storedRecords.personalBestWinRun, ...knownHistoricalRuns, 0),
+  };
   let pulse: PlayerPulse | undefined;
   let pulseUnavailable: string | undefined;
   try {
@@ -564,13 +609,11 @@ export async function buildPlayerRoomSnapshot(
   return {
     account: accountSnapshot,
     desks,
-    progress: buildPoolProgress(summaries),
-    recurringPatterns: deriveRecurringPatterns(summaries),
-    personalRecords: accountSnapshot.personalRecords ?? {
-      desksCompleted: summaries.length,
-      personalBestWinRun: Math.max(0, ...summaries.map((summary) => summary.longestWinRun)),
-      largestPoolSpecificRatingClimb: {},
-    },
+    reviewHistory,
+    originalBetaReturn: accountSnapshot.originalBetaPlayer === true || reviewHistory.some((review) => review.source === "original_beta"),
+    progress: buildReviewProgress(reviewHistory),
+    recurringPatterns: deriveRecurringPatternsFromReviewHistory(reviewHistory),
+    personalRecords,
     currentEpisode,
     pendingFactualReview,
     progressUnavailable,

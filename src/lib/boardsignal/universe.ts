@@ -47,6 +47,8 @@ export type UniverseMomentFact = {
 
 export type UniverseParticipant = {
   id: string;
+  stablePlayerId?: string;
+  aliases?: string[];
   player: string;
   source: "seed" | "live";
   verified: boolean;
@@ -68,6 +70,7 @@ export type UniverseParticipant = {
 
 export type UniverseEntry = {
   participantId: string;
+  stablePlayerId?: string;
   player: string;
   rank: number;
   value: number;
@@ -231,6 +234,7 @@ function entry(
 ): MetricCandidate {
   return {
     participantId: participant.id,
+    stablePlayerId: participant.stablePlayerId,
     player: participant.player,
     value,
     secondary,
@@ -329,6 +333,8 @@ export function deskToUniverseParticipant(desk: BoardSignalDesk): UniversePartic
   } : undefined;
   const base: UniverseParticipant = {
     id: `${desk.source}:${desk.player.username.toLowerCase()}`,
+    stablePlayerId: desk.player.playerId ? String(desk.player.playerId) : undefined,
+    aliases: [desk.player.requestedUsername],
     player: desk.player.username,
     source: desk.source,
     verified: desk.provenance.verified,

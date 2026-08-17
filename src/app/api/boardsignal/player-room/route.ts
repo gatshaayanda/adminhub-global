@@ -39,6 +39,8 @@ export async function GET(request: Request) {
         snapshot: {
           account,
           desks: [],
+          reviewHistory: [],
+          originalBetaReturn: Boolean((account as typeof account & { originalBetaPlayer?: boolean }).originalBetaPlayer),
           progress: [],
           recurringPatterns: [],
           personalRecords: {
@@ -66,12 +68,12 @@ export async function GET(request: Request) {
     const factualCurrentEpisode = currentEpisode ? factualEpisodeCheckpoint(currentEpisode) : undefined;
     const snapshot = await buildPlayerRoomSnapshot(token, factualCurrentEpisode, progressUnavailable);
     if (snapshot.currentEpisode && currentEpisode) {
-      const previous = snapshot.desks[0]?.summary;
+      const previous = snapshot.reviewHistory[0];
       currentEpisode = {
         ...currentEpisode,
-        nextGameGuidance: withPreviousReviewGuidance(currentEpisode.nextGameGuidance, previous?.previousBlue ? {
-          title: previous.previousBlue.title,
-          copy: previous.previousBlue.copy,
+        nextGameGuidance: withPreviousReviewGuidance(currentEpisode.nextGameGuidance, previous?.blue ? {
+          title: previous.blue.title,
+          copy: previous.blue.copy,
           family: previous.signalFamilies.blueFamily,
           sourcePeriod: previous.periodLabel,
         } : undefined),
@@ -83,7 +85,7 @@ export async function GET(request: Request) {
     await recordGuidePlayerRoomSnapshot(account, {
       currentEpisode,
       latestDesk: snapshot.desks[0]?.desk,
-      recentDeskLabels: snapshot.desks.map((item) => item.summary.periodLabel),
+      recentDeskLabels: snapshot.reviewHistory.map((item) => item.periodLabel),
       pulse: snapshot.pulse,
       shareMoments: snapshot.shareMoments,
     }).catch(() => undefined);

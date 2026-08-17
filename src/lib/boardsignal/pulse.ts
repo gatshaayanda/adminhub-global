@@ -139,7 +139,7 @@ function normalizeUsername(value: string) {
 function dedupeBoardEntries(board: UniverseBoard): UniverseBoard {
   const seen = new Set<string>();
   const entries = board.entries.filter((entry) => {
-    const key = normalizeUsername(entry.player);
+    const key = entry.stablePlayerId ? `player:${entry.stablePlayerId}` : normalizeUsername(entry.player);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -164,7 +164,7 @@ export function buildActiveUniverseBoards(
 ): PulseUniverseBoard[] {
   const live = liveParticipants.filter((participant) => participant.source === "live" && participant.verified);
   const transitionLive = transitionLiveParticipants.filter((participant) => participant.source === "live" && participant.verified);
-  const liveNames = new Set(live.map((participant) => normalizeUsername(participant.player)));
+  const liveNames = new Set(live.flatMap((participant) => [participant.player, ...(participant.aliases ?? [])]).map(normalizeUsername));
   const seeds = seedParticipants.filter((participant) => (
     participant.source === "seed"
     && participant.verified
@@ -383,6 +383,7 @@ export function currentEpisodeToProvisionalParticipant(
 ): UniverseParticipant {
   return {
     id: `provisional:${playerId}`,
+    stablePlayerId: playerId,
     player: username,
     source: "live",
     verified: true,

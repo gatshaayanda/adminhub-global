@@ -5,18 +5,12 @@ import "./boardsignal-accessibility.css";
 import "./boardsignal-motion.css";
 import "./boardsignal-f2-readability.css";
 
-import InstallPrompt from "@/components/InstallPrompt";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import Loader from "@/components/AdminHubLoader";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import AskBoardSignal from "@/components/AskBoardSignal";
 import ConnectivityProvider from "@/components/ConnectivityProvider";
-import PwaLaunchRedirect from "@/components/PwaLaunchRedirect";
-import BoardSignalSituationalMotion from "@/components/BoardSignalSituationalMotion";
+import RouteAwarePublicChrome from "@/components/RouteAwarePublicChrome";
 
 const montserrat = Montserrat({
   variable: "--font-sans",
@@ -80,21 +74,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: boardSignalThemeBootstrap }} />
       </head>
       <body suppressHydrationWarning>
-        <Loader />
-        <BoardSignalSituationalMotion />
         <AnalyticsProvider>
           <ConnectivityProvider>
-          <div className="site-frame">
-            <Header />
-            <main className="site-main">{children}</main>
-            <Footer />
-          </div>
-          <ServiceWorkerRegister />
-          <InstallPrompt />
-          <PwaLaunchRedirect />
-          <AskBoardSignal />
-          <Analytics />
-          <SpeedInsights />
+            <RouteAwarePublicChrome>{children}</RouteAwarePublicChrome>
+            <ServiceWorkerRegister />
+            <Analytics />
+            <SpeedInsights />
           </ConnectivityProvider>
         </AnalyticsProvider>
       </body>

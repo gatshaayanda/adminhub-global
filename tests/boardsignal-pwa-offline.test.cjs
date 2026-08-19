@@ -42,7 +42,7 @@ function installHandlerSource() {
 }
 
 test('manifest is a standalone BoardSignal PWA with stable identity and shortcuts', () => {
-  assert.match(manifest, /name:\s*"BoardSignal — Personal Chess Sports Desk"/); // 1
+  assert.match(manifest, /name:\s*"BoardSignal — Weekly Chess Review"/); // 1
   assert.match(manifest, /short_name:\s*"BoardSignal"/); // 2
   assert.match(manifest, /id:\s*"\/boardsignal"/); // 3
   assert.match(manifest, /start_url:\s*"\/boardsignal\?source=pwa"/); // 4
@@ -141,7 +141,7 @@ test('network-only social and account mutations do not fake success offline', ()
   assert.match(friends, /savedComparison/); // 79
   assert.match(profileDevice, /disabled=\{!connectivity\.online/); // 80
   assert.match(read('src/components/PlayerProfileNotifications.tsx'), /disabled=\{busy \|\| !connectivity\.online/); // 81
-  assert.match(room, /Reconnect before accepting the Founding Beta Agreement/);
+  assert.match(room, /Reconnect before accepting the Founding Access Agreement/);
   assert.match(room, /Reconnect before changing BoardSignal account or communication settings/);
   assert.match(room, /Reconnect before generating or publishing a Desk/);
   assert.match(room, /connectivity\.state !== "offline"[\s\S]*loadPlayerRoomOfflineSnapshot\(user\.uid\)/);

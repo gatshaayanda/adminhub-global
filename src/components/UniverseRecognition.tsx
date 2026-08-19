@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { boardSignalPresentationLabel } from "@/lib/boardsignal/presentationLanguage";
 import { ArrowRight, Radio, Target, TrendingUp } from "lucide-react";
 import {
   publicTopThree,
@@ -18,7 +19,7 @@ export function UniverseCategoryCards({ groups }: { groups: UniverseCategoryGrou
           </div>
           {group.boards.length ? group.boards.map((board) => (
             <div className="universe-board" key={board.key}>
-              <div className="universe-board-scope-row">{board.scopeLabel ? <p className="universe-scope">{board.scopeLabel}</p> : <span />}{"fieldLabel" in board ? <small className="universe-field-label">{String((board as typeof board & { fieldLabel?: string }).fieldLabel ?? "")}</small> : null}</div>
+              <div className="universe-board-scope-row">{board.scopeLabel ? <p className="universe-scope">{board.scopeLabel}</p> : <span />}{"fieldLabel" in board ? <small className="universe-field-label">{boardSignalPresentationLabel(String((board as typeof board & { fieldLabel?: string }).fieldLabel ?? ""))}</small> : null}</div>
               <ol>
                 {publicTopThree(board).map((item) => (
                   <li key={item.participantId}>
@@ -43,7 +44,7 @@ export function PrivateUniverseSections({ view }: { view: PlayerUniverseView }) 
     <>
       <section className="universal-section private-universe-section" id="standing">
         <div className="universal-section-heading"><span>U</span><div><p className="kicker">AROUND BOARDSIGNAL</p><h2>Where your completed week stands.</h2></div></div>
-        <div className="founding-field-note"><TrendingUp size={18} /><div><strong>{view.fieldLabel}</strong><p>{view.fieldDescription}</p></div></div>
+        <div className="founding-field-note"><TrendingUp size={18} /><div><strong>{boardSignalPresentationLabel(view.fieldLabel)}</strong><p>{view.fieldDescription}</p></div></div>
         {view.standings.length ? (
           <div className="private-standing-list">
             {view.standings.map((standing) => (

@@ -138,7 +138,7 @@ export function getChessComOAuthStatus(
       ? "Chess.com account ownership sign-in is configured."
       : explicitlyEnabled
         ? "Chess.com sign-in is unavailable because required provider configuration is incomplete."
-        : "Chess.com sign-in is awaiting official provider approval. Founding Beta Access remains available.",
+        : "Chess.com sign-in is awaiting official provider approval. Founding Access remains available.",
   };
 }
 

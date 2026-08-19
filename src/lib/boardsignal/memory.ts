@@ -354,7 +354,7 @@ export function deriveRecurringPatterns(summaries: DeskSummary[]): RecurringPatt
         status: "repeated",
         appearances,
         desksCompared: chronological.length,
-        message: `We've seen this before. This pattern crossed the evidence threshold in ${appearances} of your last ${chronological.length} Desks.`,
+        message: `We've seen this before. This pattern crossed the evidence threshold in ${appearances} of your last ${chronological.length} Reviews.`,
       });
     } else if (families(previous).includes(family) && !families(latest).includes(family)) {
       output.push({

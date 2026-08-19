@@ -43,7 +43,7 @@ export async function GET() {
     return response({
       ok: false,
       code: String((error as { code?: string }).code ?? "BETA_ACCESS_ADMIN_LIST_FAILED"),
-      error: error instanceof Error ? error.message : "Founding Beta identities could not be loaded.",
+      error: error instanceof Error ? error.message : "Founding Access identities could not be loaded.",
     }, errorStatus(error));
   }
 }
@@ -121,13 +121,13 @@ export async function POST(request: Request) {
     if (body.action === "revoke") {
       return response({ ok: true, result: await revokeFoundingBetaAccess(body.playerId) });
     }
-    return response({ ok: false, error: "Choose Confirm/Revoke Identity, Repair Public Highlights, recovery access, Founder Alerts, Create Beta Access, Reset Access, Revoke Access, or Delete BoardSignal Account." }, 400);
+    return response({ ok: false, error: "Choose Confirm/Revoke Identity, Repair Public Highlights, recovery access, Founder Alerts, Create access, Reset Access, Revoke Access, or Delete BoardSignal Account." }, 400);
   } catch (error) {
     return response({
       ok: false,
       code: String((error as { code?: string }).code ?? "BETA_ACCESS_ADMIN_FAILED"),
       stage: typeof (error as { stage?: unknown }).stage === "string" ? String((error as { stage?: string }).stage) : undefined,
-      error: error instanceof Error ? error.message : "Founding Beta Access could not be updated.",
+      error: error instanceof Error ? error.message : "Founding Access could not be updated.",
     }, errorStatus(error));
   }
 }

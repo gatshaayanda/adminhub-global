@@ -205,7 +205,7 @@ test("recurrence requires repeated stable family keys and never claims a pattern
   ]);
   assert.equal(repeated[0].status, "repeated");
   assert.equal(repeated[0].appearances, 2);
-  assert.match(repeated[0].message, /2 of your last 2 Desks/);
+  assert.match(repeated[0].message, /2 of your last 2 Reviews/);
 
   const notRepeated = deriveRecurringPatterns([
     summary(1, { redFamily: "forcing_reply" }),

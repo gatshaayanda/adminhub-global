@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
+import "./boardsignal-foundation.css";
 import "./boardsignal-accessibility.css";
 import "./boardsignal-motion.css";
 import "./boardsignal-f2-readability.css";
@@ -28,16 +29,16 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "BoardSignal — Your personal chess sports desk",
+    default: "BoardSignal — Your weekly chess Review",
     template: "%s | BoardSignal",
   },
-  description: "BoardSignal turns a fixed seven days of your Chess.com games into a factual sports story, a clear signal and a plan you can use.",
+  description: "BoardSignal turns a fixed seven days of your Chess.com games into a factual Review, a clear signal and a plan you can use.",
   applicationName: "BoardSignal",
   keywords: ["chess improvement", "Chess.com analysis", "weekly chess report", "chess insights", "BoardSignal"],
   manifest: "/manifest.webmanifest",
   openGraph: {
     title: "BoardSignal — Your games, covered like sport",
-    description: "A personal sports desk for everyday chess players.",
+    description: "Personal sports coverage and private performance guidance for everyday chess players.",
     siteName: "BoardSignal",
     type: "website",
   },

@@ -71,7 +71,7 @@ export default function InstallPrompt() {
 
   if (installed || !deferredPrompt || !ready) return null;
   return <div className="install-card bs-surface-paper" role="region" aria-label="Install BoardSignal">
-    <div className="install-card-heading"><div><strong>Keep your Desk close</strong><p>Install BoardSignal after your Player Room is ready for quicker access and offline continuity.</p></div><button type="button" onClick={dismiss} aria-label="Dismiss install prompt"><X size={16}/></button></div>
+    <div className="install-card-heading"><div><strong>Keep your Review close</strong><p>Install BoardSignal after your Player Room is ready for quicker access and offline continuity.</p></div><button type="button" onClick={dismiss} aria-label="Dismiss install prompt"><X size={16}/></button></div>
     <button type="button" onClick={() => void handleInstall()} className="button button-dark install-card-action"><Download size={18}/> Install BoardSignal</button>
   </div>;
 }

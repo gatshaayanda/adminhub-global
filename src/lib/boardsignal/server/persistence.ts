@@ -294,10 +294,10 @@ export async function updatePlayerPreferences(
     const method = contact.preferredContactMethod;
     const value = contact.preferredContactValue?.trim();
     if (!(["email", "discord", "telegram"] as string[]).includes(method) || value.length > 160) {
-      throw Object.assign(new Error("The Founding Beta contact settings were invalid."), { status: 400 });
+      throw Object.assign(new Error("The Founding Access contact settings were invalid."), { status: 400 });
     }
     if (contact.betaContactConsent === true && !value) {
-      throw Object.assign(new Error("A reachable Founding Beta contact is required while contact consent is enabled."), { status: 400 });
+      throw Object.assign(new Error("A reachable Founding Access contact is required while contact consent is enabled."), { status: 400 });
     }
     if (contact.betaContactConsent === true && method === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
       throw Object.assign(new Error("Enter a valid email address."), { status: 400 });
@@ -397,15 +397,15 @@ export async function publishPrivateDesk(
 ) {
   const account = await accountForToken(token);
   if (desk.source !== "live" || !desk.provenance.verified) {
-    throw Object.assign(new Error("Only a verified LIVE Desk can enter a Player Room."), { status: 422 });
+    throw Object.assign(new Error("Only a verified LIVE Review can enter a Player Room."), { status: 422 });
   }
   if (desk.player.playerId !== account.chessCom.playerId
     || desk.player.username.toLowerCase() !== account.chessCom.canonicalUsername.toLowerCase()) {
-    throw Object.assign(new Error("This Desk does not belong to the authenticated Chess.com player."), { status: 403 });
+    throw Object.assign(new Error("This Review does not belong to the authenticated Chess.com player."), { status: 403 });
   }
   const quality = validateDeskForPublication(desk, engineResults);
   if (quality.status !== "PASS") {
-    throw Object.assign(new Error(`The Desk did not clear publication validation: ${quality.codes.join(" · ")}`), { status: 422 });
+    throw Object.assign(new Error(`The Review did not clear publication validation: ${quality.codes.join(" · ")}`), { status: 422 });
   }
 
   const db = getAdminDb();
@@ -594,7 +594,7 @@ export async function buildPlayerRoomSnapshot(
   try {
     pulse = await buildPlayerPulse({ account: accountSnapshot, latestDesk: latest, currentEpisode });
   } catch (error) {
-    pulseUnavailable = "Universe Pulse is temporarily unavailable. Your saved Desks are unchanged.";
+    pulseUnavailable = "Universe Pulse is temporarily unavailable. Your saved Reviews are unchanged.";
     await recordUniversePulseException(accountSnapshot, "universe_player_room_pulse", error);
   }
   if (desks.length && publicIdentityAllowed(accountSnapshot)) {

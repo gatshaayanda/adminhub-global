@@ -29,14 +29,14 @@ export default function FoundingBetaAccessPanel({ oauthAvailable = false }: { oa
         body: JSON.stringify({ username: username.trim(), accessCode: accessCode.trim() }),
       });
       const body = await response.json() as { ok: boolean; customToken?: string; error?: string };
-      if (!response.ok || !body.ok || !body.customToken) throw new Error(body.error ?? "Founding Beta Access could not be completed.");
+      if (!response.ok || !body.ok || !body.customToken) throw new Error(body.error ?? "Founding Access could not be completed.");
       await setPersistence(auth, browserLocalPersistence);
       await signInWithCustomToken(auth, body.customToken);
       setAccessCode("");
       router.replace("/boardsignal/player-room");
       router.refresh();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Founding Beta Access could not be completed.");
+      setError(reason instanceof Error ? reason.message : "Founding Access could not be completed.");
     } finally {
       setBusy(false);
     }
@@ -46,7 +46,7 @@ export default function FoundingBetaAccessPanel({ oauthAvailable = false }: { oa
     <form className="beta-access-form" onSubmit={signIn}>
       <div className="beta-access-heading">
         <KeyRound size={18} />
-        <div><span>FOUNDING BETA ACCESS</span><strong>{oauthAvailable ? "Use your privately issued beta access." : "Enter your private Player Room."}</strong></div>
+        <div><span>FOUNDING ACCESS</span><strong>{oauthAvailable ? "Use your privately issued access." : "Enter your private Player Room."}</strong></div>
       </div>
       <label htmlFor="beta-chess-username">Chess.com username</label>
       <input

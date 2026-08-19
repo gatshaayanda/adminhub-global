@@ -99,7 +99,7 @@ export async function buildSafeBetaPreview(identity: StableChessComIdentity, now
       recentUniverseActivity,
       generatedAt: now.toISOString(),
     };
-    if (betaPreviewContainsPrivateFields(preview)) throw new Error("Private data was blocked from the beta preview.");
+    if (betaPreviewContainsPrivateFields(preview)) throw new Error("Private data was blocked from the Preview.");
     return clean(preview);
   }
 
@@ -161,7 +161,7 @@ export async function buildSafeBetaPreview(identity: StableChessComIdentity, now
     recentUniverseActivity,
     generatedAt: now.toISOString(),
   };
-  if (betaPreviewContainsPrivateFields(preview)) throw new Error("Private data was blocked from the beta preview.");
+  if (betaPreviewContainsPrivateFields(preview)) throw new Error("Private data was blocked from the Preview.");
   return clean(preview);
 }
 
@@ -529,7 +529,7 @@ export async function notifyFounderOfBetaRequest(input: { requestId: string; can
     try {
       await getAdminMessaging().send({
         token,
-        notification: { title: "BoardSignal", body: input.previewReady === false ? `New beta request — ${input.canonicalUsername}\nRequest saved; preview needs a retry.` : `New beta request — ${input.canonicalUsername}\nPreview is ready; identity review is pending.` },
+        notification: { title: "BoardSignal", body: input.previewReady === false ? `New request — ${input.canonicalUsername}\nRequest saved; Preview needs a retry.` : `New request — ${input.canonicalUsername}\nPreview is ready; identity review is pending.` },
         webpush: { fcmOptions: { link } },
         data: { type: "founder_beta_request", link, requestId: input.requestId },
       });

@@ -50,17 +50,17 @@ img, svg, video, canvas { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 
 h1, h2, h3, h4, p { margin: 0; }
-h1, h2, h3, h4 {
+:where(.site-frame) :where(h1, h2, h3, h4) {
   color: var(--ink);
   font-family: var(--font-sans), ui-sans-serif, sans-serif;
   font-weight: 800;
   letter-spacing: -0.045em;
   line-height: 1.02;
 }
-h1 { font-size: clamp(3rem, 8vw, 7rem); }
-h2 { font-size: clamp(2.15rem, 5vw, 4.6rem); }
-h3 { font-size: clamp(1.25rem, 2.4vw, 2rem); }
-p { color: var(--text-secondary); }
+:where(.site-frame) :where(h1) { font-size: clamp(3rem, 8vw, 7rem); }
+:where(.site-frame) :where(h2) { font-size: clamp(2.15rem, 5vw, 4.6rem); }
+:where(.site-frame) :where(h3) { font-size: clamp(1.25rem, 2.4vw, 2rem); }
+:where(.site-frame) :where(p) { color: var(--text-secondary); }
 
 .container { width: min(100% - 2rem, 1240px); margin-inline: auto; }
 .site-frame { min-height: 100vh; display: flex; flex-direction: column; }
@@ -2360,8 +2360,8 @@ html[data-bs-theme="dark"] {
 html[data-bs-theme="light"] { color-scheme: light; }
 
 body { background: var(--bs-bg); color: var(--bs-text); }
-body p { color: var(--bs-text-secondary); }
-html[data-bs-theme="dark"] :is(h1,h2,h3,h4) { color: var(--bs-text); }
+:where(.site-frame) :where(p) { color: var(--bs-text-secondary); }
+html[data-bs-theme="dark"] :where(.site-frame) :where(h1,h2,h3,h4) { color: var(--bs-text); }
 ::selection { background: color-mix(in srgb, var(--bs-blue) 28%, transparent); }
 
 :where(a, button, input, select, textarea, summary):focus-visible {

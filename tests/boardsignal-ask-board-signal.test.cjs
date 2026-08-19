@@ -84,7 +84,7 @@ test('6 no change produces no invented claim', () => {
 test('7 ranking explanation is supplied from deterministic Universe state', () => {
   const response = guide.renderGuideResponse('explain_rank', context({ standings:[{categoryTitle:'Winning Run',scopeLabel:'Rapid',rank:3,denominator:12,valueLabel:'5 straight'}] }));
   assert.match(response.reply, /#3 of 12 in Winning Run · Rapid/);
-  assert.match(response.reply, /deterministic completed-Desk field/);
+  assert.match(response.reply, /deterministic completed-Review field/);
   assert.match(universe, /rank|standing|category/i);
 });
 
@@ -147,7 +147,7 @@ test('15 human handoff writes to the existing private conversation', () => {
 
 test('16 support handoff context excludes secrets/private evidence', () => {
   const section = serverGuide.slice(serverGuide.indexOf('export async function createGuideHandoff'), serverGuide.indexOf('export async function founderGuideSummary'));
-  assert.match(section, /Player:|Page:|Latest completed Desk:|Current episode:|Category:/);
+  assert.match(section, /Player:|Page:|Latest completed Review:|Current episode:|Category:/);
   assert.doesNotMatch(section, /accessCode|preferredContactValue|Authorization|evidence|privateKey|vapid/i);
 });
 

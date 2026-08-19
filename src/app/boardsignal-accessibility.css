@@ -3,49 +3,8 @@
    Presentation-only semantic hardening layered after Patch C.
    ========================================================== */
 
-:root {
-  /* Meaningful UI boundaries are intentionally stronger than decorative borders. */
-  --bs-ui-border: #8c857b;
-  --bs-focus-ring: #3157ff;
-  --bs-focus-gap: #fffdf8;
-
-  /* State foreground roles are separate from decorative state accents. */
-  --bs-positive-text: #23613f;
-  --bs-warning-text: #7a560c;
-  --bs-danger-text: #a83220;
-  --bs-positive-surface: #e8f3ec;
-  --bs-warning-surface: #fff4da;
-  --bs-danger-surface: #fff0ec;
-
-  /* Dark-surface copy never relies on opacity to become secondary. */
-  --bs-text-on-dark-secondary: #d8e0ec;
-  --bs-text-on-dark-muted: #bdc9d8;
-
-  --bs-disabled-text: #4f5963;
-  --bs-disabled-surface: #ebe7df;
-  --bs-selection-bg: #1733b8;
-  --bs-selection-text: #fffdf8;
-
-  /* Legacy aliases may be used as text roles; keep them readable. */
-  --success: var(--bs-positive-text);
-  --danger: var(--bs-danger-text);
-}
-
-html[data-bs-theme="dark"] {
-  --bs-ui-border: #65748c;
-  --bs-focus-ring: #9fb4ff;
-  --bs-focus-gap: #0b1220;
-  --bs-positive-text: #8bd6a6;
-  --bs-warning-text: #f2c86e;
-  --bs-danger-text: #ff9d88;
-  --bs-positive-surface: #173225;
-  --bs-warning-surface: #382d18;
-  --bs-danger-surface: #3b2020;
-  --bs-disabled-text: #aeb9c8;
-  --bs-disabled-surface: #202d40;
-  --bs-selection-bg: #9fb4ff;
-  --bs-selection-text: #0b1220;
-}
+/* G.1: semantic tokens moved to boardsignal-foundation.css.
+   This stylesheet retains accessibility selectors/state protections only. */
 
 ::selection {
   background: var(--bs-selection-bg);
@@ -54,7 +13,7 @@ html[data-bs-theme="dark"] {
 
 /* Focus is a functional state, not decoration. */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 3px solid var(--bs-focus-ring);
+  outline: 3px solid var(--bs-focus);
   outline-offset: 3px;
   box-shadow: 0 0 0 1px var(--bs-focus-gap);
 }
@@ -339,11 +298,24 @@ details.quality-reference p { color: var(--bs-text-secondary); }
   .pulse-unavailable
 ) :is(p, small, span) { color: var(--bs-text-secondary); }
 
+/* G.1 rendered-cascade reinforcement for the protected F.2 Universe card surface.
+   The older translucent learning-card selector is more specific than the generic
+   F.2 card selector, so bind the protected card to F.2's explicit dark role here. */
+.universal-section.universe-learning-section .universe-learning-grid > :is(a, article) {
+  background: var(--bs-f2-learning-card-dark);
+  color: var(--bs-text-on-dark);
+}
+
 /* Active/selected navigation has a boundary as well as a color change. */
 .room-tab-nav button.active,
 [aria-current="page"],
 [aria-selected="true"] {
   box-shadow: inset 0 0 0 2px currentColor;
+}
+.player-inbox-list button.is-selected,
+.founder-conversation-list button.is-selected {
+  border-color: var(--bs-ui-border);
+  box-shadow: inset 0 0 0 2px var(--bs-ui-border);
 }
 
 /* Fixed/sticky helpers must not trap the last useful control underneath them. */

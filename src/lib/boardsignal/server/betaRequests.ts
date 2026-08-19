@@ -94,7 +94,7 @@ function validateContact(methodValue: unknown, contactValue: unknown, consentVal
   const method = String(methodValue ?? "").toLowerCase() as BoardSignalContactMethod;
   const value = String(contactValue ?? "").trim();
   if (!CONTACT_METHODS.has(method)) throw Object.assign(new Error("Choose Email, Discord or Telegram."), { status: 400 });
-  if (consentValue !== true) throw Object.assign(new Error("Contact consent is required for a Founding Beta request."), { status: 400 });
+  if (consentValue !== true) throw Object.assign(new Error("Contact consent is required for a Founding Access request."), { status: 400 });
   if (value.length < 2 || value.length > 160) throw Object.assign(new Error("Enter one reachable contact value."), { status: 400 });
   if (method === "email" && !EMAIL_PATTERN.test(value)) throw Object.assign(new Error("Enter a valid email address."), { status: 400 });
   return { method, value };
@@ -112,7 +112,7 @@ async function enforceRequestRateLimit(request: Request, now = new Date()) {
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const count = Number(snapshot.data()?.count ?? 0);
-    if (count >= 5) throw Object.assign(new Error("Too many Founding Beta requests were submitted from this connection today. Try again later."), { status: 429 });
+    if (count >= 5) throw Object.assign(new Error("Too many Founding Access requests were submitted from this connection today. Try again later."), { status: 429 });
     transaction.set(ref, { count: count + 1, bucket, updatedAt: now.toISOString() }, { merge: true });
   });
 }
@@ -229,7 +229,7 @@ export async function submitFoundingBetaRequest(input: {
 export async function retryFoundingBetaPreview(requestId: string) {
   const ref = getAdminDb().collection("betaRequests").doc(requestId);
   const snapshot = await ref.get();
-  if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
+  if (!snapshot.exists) throw Object.assign(new Error("The Founding Access request was not found."), { status: 404 });
   const request = snapshot.data() as FoundingBetaRequest;
   const identity: StableChessComIdentity = { playerId: request.chessPlayerId, canonicalUsername: request.canonicalUsername, avatar: request.avatar, profileUrl: request.profileUrl };
   return generateAndStorePreview(ref, identity);
@@ -308,7 +308,7 @@ function newPlayerUniverseEvent(request: FoundingBetaRequest, decidedAt: string)
     occurredAt: decidedAt,
     publishedAt: decidedAt,
     headline: `${request.canonicalUsername} has entered the BoardSignal Universe.`,
-    supportingFact: "First Desk forming.",
+    supportingFact: "First Review forming.",
     dataMode: "live",
     finality: "official",
     safePublic: true,
@@ -335,7 +335,7 @@ export async function approveFoundingBetaRequest(requestId: string) {
   const db = getAdminDb();
   const ref = db.collection("betaRequests").doc(requestId);
   const snapshot = await ref.get();
-  if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
+  if (!snapshot.exists) throw Object.assign(new Error("The Founding Access request was not found."), { status: 404 });
   const request = snapshot.data() as FoundingBetaRequest;
   if (request.status !== "pending") throw Object.assign(new Error(`This request is already ${request.status}.`), { status: 409 });
 
@@ -349,7 +349,7 @@ export async function approveFoundingBetaRequest(requestId: string) {
   };
   const stableAccount = await ensureStablePlayerAccount(identity);
   if (stableAccount.uid !== `chesscom_${request.chessPlayerId}` || stableAccount.chessCom.playerId !== request.chessPlayerId) {
-    throw Object.assign(new Error("The Founding Beta request no longer matches its stable BoardSignal identity."), { status: 409, code: "BETA_IDENTITY_MISMATCH" });
+    throw Object.assign(new Error("The Founding Access request no longer matches its stable BoardSignal identity."), { status: 409, code: "BETA_IDENTITY_MISMATCH" });
   }
 
   let result: { account?: BoardSignalAccount; accessCode?: string };
@@ -362,10 +362,10 @@ export async function approveFoundingBetaRequest(requestId: string) {
     const existing = await loadExistingFoundingBetaAccess(request.chessPlayerId);
     result = { account: existing.account };
   }
-  if (!result.account) throw Object.assign(new Error("The existing Founding Beta identity could not be loaded."), { status: 409 });
+  if (!result.account) throw Object.assign(new Error("The existing Founding Access identity could not be loaded."), { status: 409 });
   const account = result.account;
   if (account.uid !== stableAccount.uid || account.uid !== `chesscom_${request.chessPlayerId}` || account.chessCom.playerId !== request.chessPlayerId) {
-    throw Object.assign(new Error("The Founding Beta Access result no longer matches its verified request identity."), { status: 409, code: "BETA_IDENTITY_MISMATCH" });
+    throw Object.assign(new Error("The Founding Access result no longer matches its verified request identity."), { status: 409, code: "BETA_IDENTITY_MISMATCH" });
   }
   const decidedAt = new Date().toISOString();
   const currentPreferences = account.notificationPreferences ?? defaultNotificationPreferences();
@@ -448,7 +448,7 @@ export async function confirmFoundingBetaIdentity(requestId: string) {
   const db = getAdminDb();
   const ref = db.collection("betaRequests").doc(requestId);
   const snapshot = await ref.get();
-  if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
+  if (!snapshot.exists) throw Object.assign(new Error("The Founding Access request was not found."), { status: 404 });
   const request = snapshot.data() as FoundingBetaRequest;
   if (request.status === "approved" && request.identityReviewStatus === "confirmed") {
     const playerAlreadyInside = Boolean(request.provisionalClaimedAt || request.claimedAt);
@@ -457,7 +457,7 @@ export async function confirmFoundingBetaIdentity(requestId: string) {
     return { request: { ...request, identityConfirmationDelivery }, identityConfirmationDelivery, alreadyConfirmed: true, playerAlreadyInside };
   }
   if (request.status !== "pending" || request.identityReviewStatus === "rejected") {
-    throw Object.assign(new Error("This Founding Beta identity cannot be confirmed from its current state."), { status: 409 });
+    throw Object.assign(new Error("This Founding Access identity cannot be confirmed from its current state."), { status: 409 });
   }
 
   // If the player has not entered yet, preserve the existing reviewed-approval
@@ -517,7 +517,7 @@ export async function revokeProvisionalFoundingBetaIdentity(requestId: string) {
   const db = getAdminDb();
   const ref = db.collection("betaRequests").doc(requestId);
   const snapshot = await ref.get();
-  if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
+  if (!snapshot.exists) throw Object.assign(new Error("The Founding Access request was not found."), { status: 404 });
   const request = snapshot.data() as FoundingBetaRequest;
   if (!request.provisionalClaimedAt) {
     if (request.status === "pending") return rejectFoundingBetaRequest(requestId);
@@ -540,7 +540,7 @@ export async function revokeProvisionalFoundingBetaIdentity(requestId: string) {
 export async function regenerateFoundingBetaMagicAccess(requestId: string) {
   const ref = getAdminDb().collection("betaRequests").doc(requestId);
   const snapshot = await ref.get();
-  if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
+  if (!snapshot.exists) throw Object.assign(new Error("The Founding Access request was not found."), { status: 404 });
   const request = snapshot.data() as FoundingBetaRequest;
   const provisionalRecovery = request.status === "pending" && Boolean(request.provisionalClaimedAt) && request.identityReviewStatus !== "rejected";
   if (!(request.status === "approved" || provisionalRecovery)) throw Object.assign(new Error("Private recovery access is not available for this request yet."), { status: 409 });
@@ -553,7 +553,7 @@ export async function regenerateFoundingBetaMagicAccess(requestId: string) {
 export async function rejectFoundingBetaRequest(requestId: string) {
   const ref = getAdminDb().collection("betaRequests").doc(requestId);
   const snapshot = await ref.get();
-  if (!snapshot.exists) throw Object.assign(new Error("The Founding Beta request was not found."), { status: 404 });
+  if (!snapshot.exists) throw Object.assign(new Error("The Founding Access request was not found."), { status: 404 });
   const request = snapshot.data() as FoundingBetaRequest;
   if (request.status !== "pending") throw Object.assign(new Error(`This request is already ${request.status}.`), { status: 409 });
   const decidedAt = new Date().toISOString();

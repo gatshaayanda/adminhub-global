@@ -283,7 +283,7 @@ export function detectGuideIntent(message: string, context: Pick<GuideContext, "
   if (has(text, "what is universe", "what's universe", "whats universe", "what is the universe", "why am i here")) return "universe_what";
   if (has(text, "what stays private", "what is private", "what's private", "privacy", "public")) return "privacy";
   if (has(text, "why do you need my username", "why username")) return "username_reason";
-  if (has(text, "what happens next", "after request", "beta request", "request beta access", "get my boardsignal", "am i approved", "do i need to wait", "can i use this now")) return "beta_next";
+  if (has(text, "what happens next", "after request", "beta request", "request access", "get my boardsignal", "am i approved", "do i need to wait", "can i use this now")) return "beta_next";
   if (has(text, "why is universe included", "universe included")) return "universe_included";
   if (has(text, "explain this desk", "explain my desk", "week's story", "weeks story", "headline")) return "explain_desk";
   if (has(text, "amber", "blue", "red signal", "my signal", "signals")) return "explain_signal";
@@ -314,8 +314,8 @@ export function pageGuideSuggestions(pathname: string, activeTab?: string, authe
   }
   if (activeTab === "agreement") return ["Explain this simply", "What stays private?", "Why is Universe included?"];
   if (activeTab === "head-to-head") return ["Who has the edge?", "Where are we closest?", "What changed recently?"];
-  if (activeTab === "desk") return ["Explain this Desk", "What changed?", "Show my strongest moment"];
-  if (activeTab === "progress") return ["Compare my recent Desks", "Am I improving?", "What has repeated?"];
+  if (activeTab === "desk") return ["Explain this Review", "What changed?", "Show my strongest moment"];
+  if (activeTab === "progress") return ["Compare my recent Reviews", "Am I improving?", "What has repeated?"];
   if (activeTab === "universe") return ["Why am I here?", "Who's in reach?", "What's hot?"];
   if (activeTab === "friends") return ["Who is closest to me?", "Show my requests", "Who can I compare with?"];
   if (activeTab === "inbox") return ["What's unread?", "Message Ayanda"];
@@ -326,7 +326,7 @@ export function pageGuideSuggestions(pathname: string, activeTab?: string, authe
 
 function baseActions(context: GuideContext): GuideAction[] {
   if (!context.authenticated) return [{ id: "join", label: "Get my BoardSignal", href: "/#get-my-boardsignal", kind: "navigate" }, { id: "signin", label: "Open My Player Room", href: "/boardsignal/player-room", kind: "navigate" }];
-  return [{ id: "desk", label: "Open my latest Desk", href: "/boardsignal/player-room?tab=desk", kind: "navigate" }, { id: "progress", label: "Show my Progress", href: "/boardsignal/player-room?tab=progress", kind: "navigate" }];
+  return [{ id: "desk", label: "Open my latest Review", href: "/boardsignal/player-room?tab=desk", kind: "navigate" }, { id: "progress", label: "Show my Progress", href: "/boardsignal/player-room?tab=progress", kind: "navigate" }];
 }
 
 function trimChips(items: string[]) { return [...new Set(items)].slice(0, 5); }
@@ -359,7 +359,7 @@ function provenanceSentence(provenance?: GuideProvenance) {
   const when = provenance.timestamp ? ` at ${provenance.timestamp}` : "";
   switch (provenance.kind) {
     case "founder_announcement": return `That came from ${provenance.title ? `the Founder product update “${provenance.title}”` : "the latest Founder product update"}${when}.`;
-    case "desk": return `That came from ${provenance.title ? `your completed BoardSignal Desk for ${provenance.title}` : "your completed BoardSignal Desk"}${when}.`;
+    case "desk": return `That came from ${provenance.title ? `your completed BoardSignal Review for ${provenance.title}` : "your completed BoardSignal Review"}${when}.`;
     case "pulse": return `That came from your latest BoardSignal Pulse${when}.`;
     case "universe": return `That came from your current BoardSignal Universe context${provenance.title ? ` for ${provenance.title}` : ""}${when}.`;
     case "friends": return `That came from your accepted Friends/Rivals context${provenance.title ? ` involving ${provenance.title}` : ""}${when}.`;
@@ -433,7 +433,7 @@ export function renderGuideFollowup(intent: GuideIntent, context: GuideContext, 
         : `I said “${excerpt},” but that previous turn does not carry verified provenance in the current context, so I can't honestly claim a source.`;
   } else if (intent === "followup_explain" || intent === "followup_meaning") {
     if (has(text, "does that mean i'm improving", "does that mean im improving", "does that mean i am improving")) {
-      reply = `That previous fact does not, by itself, prove you're improving. BoardSignal uses your recent completed Desks in Progress for that comparison.${source ? ` ${source}` : ""}`;
+      reply = `That previous fact does not, by itself, prove you're improving. BoardSignal uses your recent completed Reviews in Progress for that comparison.${source ? ` ${source}` : ""}`;
       actions.push({ id: "progress", label: "Open Progress", href: "/boardsignal/player-room?tab=progress", kind: "navigate" });
     } else {
       reply = `By that, I meant the point in my previous reply: “${excerpt}”${source ? ` ${source}` : ""}`;
@@ -497,20 +497,20 @@ function renderBetaPreviewGuide(intent: GuideIntent, context: GuideContext): Gui
   if (intent === "explain_desk" || intent === "what_changed") reply = p.playableWeek ? `I found ${p.games} games in ${p.periodLabel ?? "this preview week"}: ${p.wins}W · ${p.draws}D · ${p.losses}L. ${p.safeHighlight}` : `I found ${p.canonicalUsername}'s Chess.com profile, but there isn't a playable completed week to show yet. I won't invent one.`;
   else if (["explain_rank","universe_what","in_reach"].includes(intent)) { const best=[...(p.universePreview??[])].sort((a,b)=>a.rank-b.rank)[0]; reply=best ? `Preview only: if the field held, ${p.canonicalUsername} would be #${best.rank} of ${best.denominator} in ${best.categoryTitle}${best.scopeLabel ? ` · ${best.scopeLabel}` : ""}. This is provisional and does not publish the player into the official Universe before identity review or future Chess.com verification.` : `This preview does not have a compatible provisional Universe placement yet. BoardSignal will not manufacture a rank.`; }
   else if (intent === "beta_next") {
-    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "You do not need to wait. Continue to My Player Room opens private Founding Beta access now. Device alerts are an optional return channel, and magic access remains cross-device/recovery only.";
-    else if (p.activationReturnMethod === "return_here") reply = "You do not need to wait. Continue to My Player Room opens private Founding Beta access now. Your Preview is also saved on this device if you leave before continuing; email is not required.";
-    else if (["email", "discord", "telegram"].includes(String(p.activationReturnMethod ?? ""))) reply = `You do not need to wait for ${p.activationReturnMethod}. Continue to My Player Room opens private Founding Beta access now; ${p.activationReturnMethod} is only a backup return channel.`;
-    else reply = "Ready when you are: Continue to My Player Room opens your private Founding Beta access now. The compact agreement comes next, then Desk. Identity review happens quietly in the background; email, magic access and Beta codes are not required for this first entry.";
+    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "You do not need to wait. Continue to My Player Room opens private Founding Access now. Device alerts are an optional return channel, and magic access remains cross-device/recovery only.";
+    else if (p.activationReturnMethod === "return_here") reply = "You do not need to wait. Continue to My Player Room opens private Founding Access now. Your Preview is also saved on this device if you leave before continuing; email is not required.";
+    else if (["email", "discord", "telegram"].includes(String(p.activationReturnMethod ?? ""))) reply = `You do not need to wait for ${p.activationReturnMethod}. Continue to My Player Room opens private Founding Access now; ${p.activationReturnMethod} is only a backup return channel.`;
+    else reply = "Ready when you are: Continue to My Player Room opens your private Founding Access now. The compact agreement comes next, then Review. Identity review happens quietly in the background; email, magic access and access codes are not required for this first entry.";
   }
   else if (intent === "notifications") {
-    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "Device alerts are enabled for this Preview as an optional return channel. Private Founding Beta access can start now from Continue to My Player Room; the background identity review does not block that first private entry.";
+    if (p.activationReturnMethod === "device" && p.deviceAlertsEnabled) reply = "Device alerts are enabled for this Preview as an optional return channel. Private Founding Access can start now from Continue to My Player Room; the background identity review does not block that first private entry.";
     else if (!context.deliveryStatus?.browserPushConfigured) reply = "Device alerts are not configured by BoardSignal yet. Your Preview is still saved on this device, so you can come back here without email, or add email/Discord/Telegram as an optional backup.";
     else reply = "Email is optional. After you have seen the Preview, choose Notify this device if you want this browser to alert you, or choose I'll come back here. Email/Discord/Telegram are backup return channels and can be corrected while the request is pending.";
   }
   else if (intent === "friends") reply = "Preview can show public-safe players in the field, but Add Friend, Head-to-Head and Rival Watch unlock only after private Player Room access.";
   else if (intent === "privacy") reply = "Preview contains public-safe chess facts only. It does not contain Red, Amber, Blue, private evidence, recurrence, Inbox, private Friends state or account settings, and it does not prove ownership of the Chess.com account.";
   if (!reply) return undefined;
-  return { reply, chips: ["Show me my week","Explain my Universe preview","What unlocks next?"], actions: [], handoffAvailable: false, contextReason: "Using the server-verified public-safe beta preview only.", intent, category: guideCategoryForIntent(intent), provenance: { kind: "product_knowledge", title: "BoardSignal Preview", timestamp: p.generatedAt } };
+  return { reply, chips: ["Show me my week","Explain my Universe preview","What unlocks next?"], actions: [], handoffAvailable: false, contextReason: "Using the server-verified public-safe Preview only.", intent, category: guideCategoryForIntent(intent), provenance: { kind: "product_knowledge", title: "BoardSignal Preview", timestamp: p.generatedAt } };
 }
 
 export function renderGuideResponse(intent: GuideIntent, context: GuideContext, message = "", recentConversation: GuideConversationTurn[] = context.recentConversation ?? []): GuideResponse {
@@ -525,7 +525,7 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
 
   switch (intent) {
     case "what_is_boardsignal":
-      reply = "BoardSignal turns a fixed seven days of your Chess.com games into a personal sports Desk: what happened, what mattered, your private Signals, progress across recent Desks, and your public-safe place in the Universe.";
+      reply = "BoardSignal turns a fixed seven days of your Chess.com games into a personal sports Review: what happened, what mattered, your private Signals, progress across recent Reviews, and your public-safe place in the Universe.";
       actions.push({ id: "how", label: "See how it works", href: "/how-it-works", kind: "navigate" });
       break;
     case "how_it_works": {
@@ -534,10 +534,10 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
         reply = "Install BoardSignal from the Player Room or Profile after meaningful use. On supported Chromium browsers, BoardSignal can use the browser install prompt; on iPhone or iPad, use Share → Add to Home Screen → Confirm BoardSignal. Installed mode keeps the same account and routes.";
         actions.push({ id: "profile-install", label: "Open Profile", href: "/boardsignal/player-room?tab=profile", kind: "navigate" });
       } else if (question.includes("offline")) {
-        reply = "Yes—after you've opened your authenticated Player Room online, BoardSignal can save your latest four Desks, recent Progress, last Pulse, a clearly timestamped Universe snapshot and bounded social comparison state on that device. New Chess.com games, messages and mutations still require a connection.";
+        reply = "Yes—after you've opened your authenticated Player Room online, BoardSignal can save your latest four Reviews, recent Progress, last Pulse, a clearly timestamped Universe snapshot and bounded social comparison state on that device. New Chess.com games, messages and mutations still require a connection.";
         actions.push({ id: "profile-offline", label: "Open device settings", href: "/boardsignal/player-room?tab=profile", kind: "navigate" });
       } else {
-        reply = "BoardSignal uses your Chess.com identity, closes one seven-day episode at a time, builds the Desk deterministically, and keeps your latest four completed Desks active. Your next episode can form between publications without becoming a new diagnostic Desk.";
+        reply = "BoardSignal uses your Chess.com identity, closes one seven-day episode at a time, builds the Review deterministically, and keeps your latest four completed Reviews active. Your next episode can form between publications without becoming a new diagnostic Review.";
         actions.push(...baseActions(context));
       }
       break;
@@ -547,30 +547,30 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
       actions.push({ id: "privacy", label: "Open privacy", href: "/boardsignal/privacy", kind: "navigate" });
       break;
     case "agreement":
-      reply = "In plain language: Founding Beta gives you a persistent BoardSignal account; each completed Desk may contribute safe sports-style Universe coverage; your private weakness layer, evidence, progress details, contact information and messages stay private; and beta contact consent is for BoardSignal account, Desk, product-update and feedback communication—not unrelated marketing.";
-      actions.push({ id: "terms", label: "Open Beta terms", href: "/boardsignal/beta-terms", kind: "navigate" }, { id: "privacy", label: "Open privacy", href: "/boardsignal/privacy", kind: "navigate" });
+      reply = "In plain language: Founding Access gives you a persistent BoardSignal account; each completed Review may contribute safe sports-style Universe coverage; your private weakness layer, evidence, progress details, contact information and messages stay private; and BoardSignal contact consent is for BoardSignal account, Review, product-update and feedback communication—not unrelated marketing.";
+      actions.push({ id: "terms", label: "Open Founding Access terms", href: "/boardsignal/beta-terms", kind: "navigate" }, { id: "privacy", label: "Open privacy", href: "/boardsignal/privacy", kind: "navigate" });
       break;
     case "username_reason":
-      reply = "Your Chess.com username lets BoardSignal resolve the stable Chess.com player ID that anchors your account. The stable ID—not the spelling of your username—is what keeps your Desks, Friends and future OAuth identity attached to the same player.";
+      reply = "Your Chess.com username lets BoardSignal resolve the stable Chess.com player ID that anchors your account. The stable ID—not the spelling of your username—is what keeps your Reviews, Friends and future OAuth identity attached to the same player.";
       break;
     case "beta_next":
-      reply = context.authenticated ? "You're already in. Your private BoardSignal is available now; Founding Beta identity review can happen quietly in the background without making you log in again." : "After your public-safe Preview, Continue to My Player Room starts private Founding Beta access immediately for an eligible first-time BoardSignal identity. The compact agreement comes next, then Desk; Ayanda reviews identity in the background. Magic access and username + Beta code remain recovery paths, not onboarding gates.";
+      reply = context.authenticated ? "You're already in. Your private BoardSignal is available now; Founding Access identity review can happen quietly in the background without making you log in again." : "After your public-safe Preview, Continue to My Player Room starts private Founding Access immediately for an eligible first-time BoardSignal identity. The compact agreement comes next, then Review; Ayanda reviews identity in the background. Magic access and username + access code remain recovery paths, not onboarding gates.";
       actions.push(...baseActions(context));
       break;
     case "beta_cost":
-      reply = "Current Founding Beta access does not require billing or a payment gate. BoardSignal is measuring the join → return → repeat loop before pricing is introduced.";
+      reply = "Current Founding Access does not require billing or a payment gate. BoardSignal is measuring the join → return → repeat loop before pricing is introduced.";
       actions.push({ id: "join", label: "Get my BoardSignal", href: "/#get-my-boardsignal", kind: "navigate" });
       break;
     case "sign_in":
-      reply = context.authenticated ? "You're already signed in to your persistent BoardSignal Player Room." : "Open My Player Room and use your working Founding Beta access path. Returning Firebase sessions should take you straight back into the Room.";
+      reply = context.authenticated ? "You're already signed in to your persistent BoardSignal Player Room." : "Open My Player Room and use your working Founding Access path. Returning Firebase sessions should take you straight back into the Room.";
       actions.push({ id: "signin", label: "Open My Player Room", href: "/boardsignal/player-room", kind: "navigate" });
       break;
     case "universe_what":
-      reply = "The BoardSignal Universe is the public-safe recent sports field built primarily from active completed Desks. It can show supported leaders, Top 3 placements, What's Hot and safe coverage without exposing private weakness data.";
+      reply = "The BoardSignal Universe is the public-safe recent sports field built primarily from active completed Reviews. It can show supported leaders, Top 3 placements, What's Hot and safe coverage without exposing private weakness data.";
       actions.push({ id: "universe", label: "Open Universe", href: "/feed", kind: "navigate" });
       break;
     case "universe_included":
-      reply = "Founding Beta includes safe BoardSignal Universe participation. A completed Desk may contribute a positive or neutral factual sports item. That does not make your private weakness layer public.";
+      reply = "Founding Access includes safe BoardSignal Universe participation. A completed Review may contribute a positive or neutral factual sports item. That does not make your private weakness layer public.";
       break;
     case "what_changed": {
       if (!context.authenticated) { reply = "I can only show personal changes after you sign in to your Player Room."; actions.push({ id: "signin", label: "Open My Player Room", href: "/boardsignal/player-room", kind: "navigate" }); break; }
@@ -580,24 +580,24 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
       break;
     }
     case "explain_desk":
-      reply = context.latestDesk ? `${context.latestDesk.headline} BoardSignal chose that story from the completed ${context.latestDesk.periodLabel} episode: ${context.latestDesk.summary}` : "There isn't a completed Desk in the verified account context for me to explain yet.";
-      actions.push({ id: "desk", label: "Open my latest Desk", href: "/boardsignal/player-room?tab=desk", kind: "navigate" });
+      reply = context.latestDesk ? `${context.latestDesk.headline} BoardSignal chose that story from the completed ${context.latestDesk.periodLabel} episode: ${context.latestDesk.summary}` : "There isn't a completed Review in the verified account context for me to explain yet.";
+      actions.push({ id: "desk", label: "Open my latest Review", href: "/boardsignal/player-room?tab=desk", kind: "navigate" });
       break;
     case "explain_signal": {
-      if (!context.latestDesk) { reply = "I need a completed Desk before I can explain one of its Signals."; break; }
+      if (!context.latestDesk) { reply = "I need a completed Review before I can explain one of its Signals."; break; }
       const text = lower(message);
       const selected = text.includes("amber") ? context.latestDesk.amber : text.includes("red") ? context.latestDesk.red : context.latestDesk.blue;
-      reply = selected ? `${selected.title}: ${selected.copy} This is an explanation of the Signal already produced by your completed Desk—not new chess analysis.` : "Your latest Desk has no matching saved Signal for that request.";
+      reply = selected ? `${selected.title}: ${selected.copy} This is an explanation of the Signal already produced by your completed Review—not new chess analysis.` : "Your latest Review has no matching saved Signal for that request.";
       actions.push({ id: "signals", label: "Open my signals", href: "/boardsignal/player-room?tab=desk#signals", kind: "navigate" });
       break;
     }
     case "progress":
-      reply = context.recentDeskLabels?.length ? `Your active comparison window currently contains ${context.recentDeskLabels.length} completed Desk${context.recentDeskLabels.length === 1 ? "" : "s"}: ${context.recentDeskLabels.join(" · ")}. Progress uses this moving recent-four view rather than an infinite archive.` : "You need completed Desks before BoardSignal can show recent progress.";
+      reply = context.recentDeskLabels?.length ? `Your active comparison window currently contains ${context.recentDeskLabels.length} completed Review${context.recentDeskLabels.length === 1 ? "" : "s"}: ${context.recentDeskLabels.join(" · ")}. Progress uses this moving recent-four view rather than an infinite archive.` : "You need completed Reviews before BoardSignal can show recent progress.";
       actions.push({ id: "progress", label: "Open Progress", href: "/boardsignal/player-room?tab=progress", kind: "navigate" });
       break;
     case "explain_rank": {
       const best = [...(context.standings ?? [])].sort((a,b) => a.rank-b.rank)[0];
-      reply = best ? `Your strongest verified current standing here is #${best.rank} of ${best.denominator} in ${best.categoryTitle}${best.scopeLabel ? ` · ${best.scopeLabel}` : ""}, based on the deterministic completed-Desk field. Forming-episode projections do not become official ranks.` : "I don't have a current official Universe standing in the verified context to explain.";
+      reply = best ? `Your strongest verified current standing here is #${best.rank} of ${best.denominator} in ${best.categoryTitle}${best.scopeLabel ? ` · ${best.scopeLabel}` : ""}, based on the deterministic completed-Review field. Forming-episode projections do not become official ranks.` : "I don't have a current official Universe standing in the verified context to explain.";
       actions.push({ id: "universe", label: "Open Universe", href: "/boardsignal/player-room?tab=universe", kind: "navigate" });
       break;
     }
@@ -650,9 +650,9 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
           : "Browser alerts haven't been configured by BoardSignal yet. Your in-app Inbox still works. Once Web Push configuration is enabled, Profile will offer the deliberate browser-alert opt-in.";
       } else if (question.includes("email")) {
         if (!context.deliveryStatus?.emailConfigured) reply = "Email delivery isn't active yet. Your in-app Inbox still works, and browser alerts can work separately when configured and enabled.";
-        else if (!context.authenticated) reply = "BoardSignal email delivery is available only for signed-in beta players who provide an email address, consent to beta contact and enable important email updates.";
-        else if (!context.emailAccountReady) reply = "BoardSignal email delivery is configured, but your account is not currently eligible. In Profile, choose Email as your preferred contact, provide a valid address, keep beta contact consent enabled and turn on important email updates.";
-        else reply = "Your account is set up for important BoardSignal email updates. BoardSignal keeps email selective—Desk Ready, major beta updates, feedback requests and other important eligible messages rather than every Pulse movement.";
+        else if (!context.authenticated) reply = "BoardSignal email delivery is available only for signed-in players who provide an email address, consent to BoardSignal contact and enable important email updates.";
+        else if (!context.emailAccountReady) reply = "BoardSignal email delivery is configured, but your account is not currently eligible. In Profile, choose Email as your preferred contact, provide a valid address, keep BoardSignal contact consent enabled and turn on important email updates.";
+        else reply = "Your account is set up for important BoardSignal email updates. BoardSignal keeps email selective—Review Ready, major BoardSignal updates, feedback requests and other important eligible messages rather than every Pulse movement.";
       } else if (question.includes("badge") || question.includes("number on") || question.includes("icon")) {
         reply = context.authenticated ? `The number on an installed BoardSignal icon represents unread Inbox messages. Your current verified unread count is ${context.unreadInboxCount ?? 0}. It clears when your Inbox reaches zero or when you sign out; browsers that don't support app badging simply ignore it.` : "Where supported, the installed BoardSignal icon can show unread Inbox count. It is a progressive browser feature and does not expose message content.";
       } else {
@@ -667,25 +667,25 @@ export function renderGuideResponse(intent: GuideIntent, context: GuideContext, 
       break;
     case "share": {
       const best = context.shareMoments?.[0];
-      reply = best ? `${best.headline} — ${best.statValue} ${best.statLabel}. That's a public-safe Share Moment from an already completed Desk; your private Signals and evidence are excluded.` : "I don't have a verified Share Moment in the current context yet.";
+      reply = best ? `${best.headline} — ${best.statValue} ${best.statLabel}. That's a public-safe Share Moment from an already completed Review; your private Signals and evidence are excluded.` : "I don't have a verified Share Moment in the current context yet.";
       if (best) actions.push({ id: "share", label: "Share my best moment", href: `/share/${encodeURIComponent(best.id)}`, kind: "navigate" });
       break;
     }
     case "tour":
-      reply = "The 30-second tour is: Desk for the finished week, Progress for the recent-four pattern, Universe for the field, Friends for comparisons, and Inbox / Ask BoardSignal for communication and help.";
+      reply = "The 30-second tour is: Review for the finished week, Progress for the recent-four pattern, Universe for the field, Friends for comparisons, and Inbox / Ask BoardSignal for communication and help.";
       actions.push({ id: "tour-start", label: "Show me", kind: "tour" }, { id: "tour-later", label: "Maybe later", kind: "tour" });
       break;
     case "tone":
       reply = `Your current Ask BoardSignal tone is ${context.preferences?.preferredTone ?? "Balanced"}. Tone changes only after you explicitly choose one.`;
-      actions.push(...(["Direct", "Analytical", "Sports Desk", "Balanced"] as GuideTone[]).map((tone) => ({ id: `tone:${tone}`, label: tone, kind: "preference" as const, requiresConfirmation: true, payload: { preferredTone: tone } })));
+      actions.push(...(["Direct", "Analytical", "Sports Desk", "Balanced"] as GuideTone[]).map((tone) => ({ id: `tone:${tone}`, label: tone === "Sports Desk" ? "Sports coverage" : tone, kind: "preference" as const, requiresConfirmation: true, payload: { preferredTone: tone } })));
       break;
     case "random_position":
-      reply = "I can explain analysis already produced inside your BoardSignal Desk. I don't create new chess analysis from random positions in the guide.";
-      actions.push({ id: "desk", label: "Open my Desk", href: "/boardsignal/player-room?tab=desk", kind: "navigate" });
+      reply = "I can explain analysis already produced inside your BoardSignal Review. I don't create new chess analysis from random positions in the guide.";
+      actions.push({ id: "desk", label: "Open my Review", href: "/boardsignal/player-room?tab=desk", kind: "navigate" });
       break;
     case "welcome": {
       const address = context.preferences?.preferredAddress?.trim();
-      reply = context.authenticated ? `${address ? `${address}, ` : ""}Ask BoardSignal is here to explain your Desk, Pulse, Universe, Friends and account without creating new chess analysis.${context.pulseFacts?.length ? " Your Board has recent movement I can explain." : ""}${context.tourState === "unseen" ? " Want the 30-second tour?" : ""}` : "Ask BoardSignal can explain the product, privacy, Universe and Founding Beta flow. Sign in for personal Desk, Pulse, Friends and Inbox context.";
+      reply = context.authenticated ? `${address ? `${address}, ` : ""}Ask BoardSignal is here to explain your Review, Pulse, Universe, Friends and account without creating new chess analysis.${context.pulseFacts?.length ? " Your Board has recent movement I can explain." : ""}${context.tourState === "unseen" ? " Want the 30-second tour?" : ""}` : "Ask BoardSignal can explain the product, privacy, Universe and Founding Access flow. Sign in for personal Review, Pulse, Friends and Inbox context.";
       if (context.authenticated && context.tourState === "unseen") actions.push({ id: "tour-start", label: "Show me", kind: "tour" }, { id: "tour-later", label: "Maybe later", kind: "tour" });
       if (context.authenticated && context.tourState !== "unseen" && context.releaseHintDismissed === false) actions.push({ id: "friends-release", label: "See Friends & Rivals", href: "/boardsignal/player-room?tab=friends", kind: "navigate" }, { id: "release-later", label: "Later", kind: "tour" });
       break;

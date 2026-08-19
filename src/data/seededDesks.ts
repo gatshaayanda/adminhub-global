@@ -66,7 +66,7 @@ export function findSeededDesk(requestedUsername: string): BoardSignalDesk | und
         reconstruction: "legal",
       })),
       caveats: [
-        "This Desk is based on Ayandakopano's completed seven-day period and reviewed game evidence.",
+        "This Review is based on Ayandakopano's completed seven-day period and reviewed game evidence.",
         "The Blue Signal is advice from this episode, not a cross-week mission BoardSignal grades later.",
       ],
     };

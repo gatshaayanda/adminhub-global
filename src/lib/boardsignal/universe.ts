@@ -136,8 +136,8 @@ export const UNIVERSE_CATEGORY_DEFINITIONS: readonly CategoryDefinition[] = [
   {
     id: "winning-run",
     title: "Winning Run",
-    description: "The longest verified consecutive winning sequence in a completed Desk.",
-    emptyMessage: "No approved Desk currently supplies a qualifying winning run.",
+    description: "The longest verified consecutive winning sequence in a completed Review.",
+    emptyMessage: "No approved Review currently supplies a qualifying winning run.",
   },
   {
     id: "rating-recovery",
@@ -155,24 +155,24 @@ export const UNIVERSE_CATEGORY_DEFINITIONS: readonly CategoryDefinition[] = [
     id: "rapid-rating-leader",
     title: "Rapid Rating Leader",
     description: "The latest recorded Rapid boundary after at least three Rapid games. Rapid only.",
-    emptyMessage: "Fewer than one approved Desk has a usable Rapid finishing boundary.",
+    emptyMessage: "Fewer than one approved Review has a usable Rapid finishing boundary.",
   },
   {
     id: "best-upset",
     title: "Best Upset",
     description: "The largest verified win by rating gap, compared only inside the same pool.",
-    emptyMessage: "No approved Desk currently carries exact winner-and-opponent rating-gap evidence.",
+    emptyMessage: "No approved Review currently carries exact winner-and-opponent rating-gap evidence.",
   },
   {
     id: "breakthrough-desk",
-    title: "Breakthrough Desk",
-    description: "A positive-score Desk with at least five pool games and a gain of 25 or more rating points.",
+    title: "Breakthrough Review",
+    description: "A positive-score Review with at least five pool games and a gain of 25 or more rating points.",
     emptyMessage: "No approved pool currently clears the breakthrough evidence rule.",
   },
   {
     id: "moment-of-the-week",
     title: "Moment of the Week",
-    description: "One deterministic positive event selected from the Desk's approved public facts.",
+    description: "One deterministic positive event selected from the Review's approved public facts.",
     emptyMessage: "No approved positive event currently clears the Moment rule.",
   },
 ] as const;
@@ -279,7 +279,7 @@ export function deriveMomentFact(participant: Omit<UniverseParticipant, "moment"
   const candidates: UniverseMomentFact[] = [];
   if ((participant.winningRun ?? 0) >= 3) {
     const run = participant.winningRun!;
-    candidates.push({ value: 100 + run, valueLabel: `${run} straight`, evidence: `${run} consecutive wins in the completed Desk.` });
+    candidates.push({ value: 100 + run, valueLabel: `${run} straight`, evidence: `${run} consecutive wins in the completed Review.` });
   }
   for (const pool of participant.pools) {
     const change = recordedChange(pool);
@@ -520,7 +520,7 @@ export function buildPlayerUniverseView(
   const boards = buildUniverseBoards(field);
   return {
     fieldLabel: "FOUNDING BETA FIELD",
-    fieldDescription: "Based on the approved BoardSignal Desks currently represented.",
+    fieldDescription: "Based on the approved BoardSignal Reviews currently represented.",
     participantId: current.id,
     groups: buildUniverseCategoryGroups(field),
     standings: standingsFor(boards, current.id),

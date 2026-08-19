@@ -49,7 +49,7 @@ export default function DeviceOfflineControl({ uid, onRefresh }: { uid: string; 
   }
 
   async function clear() {
-    if (!window.confirm("Clear BoardSignal offline data saved on this device? This does not delete your online account or Desks.")) return;
+    if (!window.confirm("Clear BoardSignal offline data saved on this device? This does not delete your online account or Reviews.")) return;
     setBusy("clear"); setMessage("");
     await clearBoardSignalOfflineDataOnDevice();
     setSavedAt(undefined); setPersisted(undefined); setMessage("BoardSignal offline data was cleared from this device."); setBusy("");

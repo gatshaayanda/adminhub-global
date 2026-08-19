@@ -68,7 +68,7 @@ export default function OfflinePlayerRoom({ uid: suppliedUid, initialSnapshot, e
   const pendingFactualReview = snapshot?.pendingFactualReview;
 
   if (!authReady) return <div className="container offline-player-room-loading"><span className="button-spinner"/> Opening your saved BoardSignal…</div>;
-  if (!uid) return <div id="main" className="container offline-player-room-empty"><WifiOff size={24}/><p className="kicker">BOARDSIGNAL OFFLINE</p><h1>Your saved My BoardSignal needs the same signed-in account.</h1><p>Signing in and Beta Access verification need a connection. Reconnect, sign in once, and BoardSignal can keep your own saved Reviews available on this device.</p></div>;
+  if (!uid) return <div id="main" className="container offline-player-room-empty"><WifiOff size={24}/><p className="kicker">BOARDSIGNAL OFFLINE</p><h1>Your saved My BoardSignal needs the same signed-in account.</h1><p>Signing in and access verification need a connection. Reconnect, sign in once, and BoardSignal can keep your own saved Reviews available on this device.</p></div>;
   if (!snapshot || snapshot.uid !== uid) return <div id="main" className="container offline-player-room-empty"><WifiOff size={24}/><p className="kicker">BOARDSIGNAL OFFLINE</p><h1>No BoardSignal has been saved for this account on this device yet.</h1><p>Reconnect and open My BoardSignal once. BoardSignal will save a bounded offline copy for this Firebase account.</p></div>;
 
   return <div id="main" className={`offline-player-room ${embedded ? "is-embedded" : ""}`}>

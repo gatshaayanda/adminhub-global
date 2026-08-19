@@ -4,6 +4,7 @@ import { coverageStories, leadStory } from "@/data/boardsignal";
 import { founderCoverageStory, foundingUniverseGroups } from "@/data/universeField";
 import { UniverseCategoryCards } from "@/components/UniverseRecognition";
 import { loadActiveUniverseState } from "@/lib/boardsignal/server/universePulse";
+import { boardSignalPresentationLabel } from "@/lib/boardsignal/presentationLanguage";
 
 export const metadata = { title: "Around BoardSignal" };
 export const runtime = "nodejs";
@@ -35,7 +36,7 @@ export default async function CoverageFeedPage() {
 
       {nowEvents.length ? <section className="container section-pad universe-now-section">
         <div className="universe-intro"><p className="kicker">AROUND BOARDSIGNAL · NOW</p><h2>What changed recently.</h2><p>Recent public-safe moments from players whose completed reviews support them.</p></div>
-        <div className="universe-now-grid">{nowEvents.map((event) => <article key={event.eventId}><div className="pulse-event-meta"><span>{event.eventType.replaceAll("_", " ")}</span><b>OFFICIAL</b></div><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{event.canonicalUsername} · {new Date(event.publishedAt).toLocaleDateString()}</small></article>)}</div>
+        <div className="universe-now-grid">{nowEvents.map((event) => <article key={event.eventId}><div className="pulse-event-meta"><span>{boardSignalPresentationLabel(event.eventType)}</span><b>OFFICIAL</b></div><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{event.canonicalUsername} · {new Date(event.publishedAt).toLocaleDateString()}</small></article>)}</div>
       </section> : null}
 
       <section className="container section-pad">

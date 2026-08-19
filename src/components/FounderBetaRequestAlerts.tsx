@@ -60,7 +60,7 @@ export default function FounderBetaRequestAlerts() {
   }
 
   return <section className="founder-beta-alerts bs-surface-paper">
-    {enabled ? <Bell size={18}/> : <BellOff size={18}/>}<div><span>FOUNDER BETA ALERTS</span><strong>{enabled ? "Enabled on this browser" : configured ? "Available" : "Configuration required"}</strong><p>New requests can alert this founder device and deep-link straight to the exact request. This never changes /admin authentication.</p>{error ? <p className="form-error" role="alert">{error}</p> : null}</div>
+    {enabled ? <Bell size={18}/> : <BellOff size={18}/>}<div><span>FOUNDER REQUEST ALERTS</span><strong>{enabled ? "Enabled on this browser" : configured ? "Available" : "Configuration required"}</strong><p>New requests can alert this founder device and deep-link straight to the exact request. This never changes /admin authentication.</p>{error ? <p className="form-error" role="alert">{error}</p> : null}</div>
     {permission === "denied" ? <span className="state-pill">BLOCKED BY BROWSER</span> : permission === "unsupported" ? <span className="state-pill">UNSUPPORTED</span> : enabled ? <button className="button button-quiet" type="button" disabled={busy} onClick={disable}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : null} Disable alerts</button> : <button className="button button-outline" type="button" disabled={busy || !configured} onClick={enable}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : <Bell size={14}/>} Enable founder request alerts</button>}
   </section>;
 }

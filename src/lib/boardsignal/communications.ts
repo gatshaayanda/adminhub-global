@@ -159,10 +159,10 @@ export function messageForAutomatedEvent(input: {
   if (input.eventType === "desk_ready") {
     return {
       type: "desk_ready",
-      title: "Your new BoardSignal Desk is ready",
-      body: "Your chess week has a story. Your completed Desk is waiting in My Player Room.",
+      title: "Your new BoardSignal Review is ready",
+      body: "Your chess week has a story. Your completed Review is waiting in My Player Room.",
       link: boardSignalMessageLink("desk_ready"),
-      actionLabel: "Open my Desk",
+      actionLabel: "Open my Review",
       allowReply: false,
     };
   }

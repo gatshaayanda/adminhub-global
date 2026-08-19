@@ -19,10 +19,10 @@ export type BetaAccessFailureCode = "BETA_ACCESS_INVALID" | "BETA_ACCESS_REVOKED
 function betaAccessError(code: BetaAccessFailureCode) {
   const status = code === "BETA_ACCESS_LOCKED" ? 429 : code === "BETA_ACCESS_REVOKED" ? 403 : 401;
   const message = code === "BETA_ACCESS_LOCKED"
-    ? "Founding Beta Access is temporarily locked after repeated unsuccessful attempts. Try again later or ask BoardSignal for a reset."
+    ? "Founding Access is temporarily locked after repeated unsuccessful attempts. Try again later or ask BoardSignal for a reset."
     : code === "BETA_ACCESS_REVOKED"
-      ? "This Founding Beta Access has been revoked. Ask BoardSignal for a new private access code."
-      : "The Chess.com username and private access code did not match an active Founding Beta account.";
+      ? "This Founding Access has been revoked. Ask BoardSignal for a new private access code."
+      : "The Chess.com username and private access code did not match an active Founding Access account.";
   return Object.assign(new Error(message), { status, code });
 }
 
@@ -105,7 +105,7 @@ export async function createFoundingBetaAccess(usernameInput: string) {
   const ref = getAdminDb().collection("betaAccess").doc(String(identity.playerId));
   const existing = await ref.get();
   if (existing.exists) {
-    throw Object.assign(new Error("Founding Beta Access already exists for this player. Use Reset Access to issue a new code."), { status: 409, code: "BETA_ACCESS_EXISTS" });
+    throw Object.assign(new Error("Founding Access already exists for this player. Use Reset Access to issue a new code."), { status: 409, code: "BETA_ACCESS_EXISTS" });
   }
   const credential = createBetaAccessCredential(identity);
   await ref.create(clean(credential.record));
@@ -118,11 +118,11 @@ export async function loadExistingFoundingBetaAccess(playerIdInput: unknown) {
   const accessRef = db.collection("betaAccess").doc(String(playerId));
   const accessSnapshot = await accessRef.get();
   if (!accessSnapshot.exists) {
-    throw Object.assign(new Error("No Founding Beta Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
+    throw Object.assign(new Error("No Founding Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
   }
   const record = accessSnapshot.data() as BetaAccessRecord;
   if (record.playerId !== playerId) {
-    throw Object.assign(new Error("The Founding Beta Access record does not match this stable player ID."), { status: 409, code: "BETA_ACCESS_IDENTITY_MISMATCH" });
+    throw Object.assign(new Error("The Founding Access record does not match this stable player ID."), { status: 409, code: "BETA_ACCESS_IDENTITY_MISMATCH" });
   }
 
   const mapSnapshot = await db.collection("chessPlayerAccounts").doc(String(playerId)).get();
@@ -130,7 +130,7 @@ export async function loadExistingFoundingBetaAccess(playerIdInput: unknown) {
   const accountSnapshot = await db.collection("users").doc(mappedUid).get();
   const account = accountSnapshot.data() as BoardSignalAccount | undefined;
   if (!account || account.uid !== mappedUid || account.chessCom?.playerId !== playerId) {
-    throw Object.assign(new Error("The existing Founding Beta account could not be loaded for this stable player ID."), { status: 409, code: "BETA_ACCOUNT_NOT_FOUND" });
+    throw Object.assign(new Error("The existing Founding Access account could not be loaded for this stable player ID."), { status: 409, code: "BETA_ACCOUNT_NOT_FOUND" });
   }
 
   // Compatibility path only: reading an existing Beta Access record must never
@@ -143,7 +143,7 @@ export async function resetFoundingBetaAccess(playerIdInput: unknown) {
   const db = getAdminDb();
   const ref = db.collection("betaAccess").doc(String(playerId));
   const snapshot = await ref.get();
-  if (!snapshot.exists) throw Object.assign(new Error("No Founding Beta Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
+  if (!snapshot.exists) throw Object.assign(new Error("No Founding Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
   const previous = snapshot.data() as BetaAccessRecord;
   const accountSnapshot = await db.collection("users").doc(`chesscom_${playerId}`).get();
   const account = accountSnapshot.data() as BoardSignalAccount | undefined;
@@ -158,7 +158,7 @@ export async function revokeFoundingBetaAccess(playerIdInput: unknown) {
   const playerId = validatePlayerId(playerIdInput);
   const ref = getAdminDb().collection("betaAccess").doc(String(playerId));
   const snapshot = await ref.get();
-  if (!snapshot.exists) throw Object.assign(new Error("No Founding Beta Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
+  if (!snapshot.exists) throw Object.assign(new Error("No Founding Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
   await ref.set({ status: "revoked", failedAttempts: 0, lockedUntil: null }, { merge: true });
   await revokeExistingFirebaseSession(`chesscom_${playerId}`);
   return { playerId, status: "revoked" as const };

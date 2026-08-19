@@ -9,9 +9,9 @@ export default function OfflinePage() {
       <div className="offline-newsroom-mark"><WifiOff size={22} /></div>
       <p className="kicker">BOARDSIGNAL OFFLINE</p>
       <h1>The newsroom lost its signal.</h1>
-      <p className="standfirst">Your saved Desks can still be here. New Chess.com games, Pulse movement, messages and account changes need a connection.</p>
+      <p className="standfirst">Your saved Reviews can still be here. New Chess.com games, Pulse movement, messages and account changes need a connection.</p>
       <div className="offline-newsroom-facts">
-        <div><BookOpenCheck size={18}/><p><strong>Saved Player Room</strong><span>Desk, Progress, last Pulse, safe Universe snapshot and viewed comparisons can remain readable on this device.</span></p></div>
+        <div><BookOpenCheck size={18}/><p><strong>Saved Player Room</strong><span>Review, Progress, last Pulse, safe Universe snapshot and viewed comparisons can remain readable on this device.</span></p></div>
         <div><WifiOff size={18}/><p><strong>No fake live data</strong><span>BoardSignal will always tell you when coverage is saved rather than current.</span></p></div>
       </div>
       <div className="interior-actions">

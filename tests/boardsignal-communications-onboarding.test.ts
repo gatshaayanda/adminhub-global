@@ -35,7 +35,7 @@ test("3. approval reuses stable identity instead of creating a duplicate player"
 test("4. first member Desk is published into the persistent owner account", () => {
   const room = read("src/components/BoardSignalPlayerRoom.tsx");
   const persistence = read("src/lib/boardsignal/server/persistence.ts");
-  assert.match(room, /DESK 1/);
+  assert.match(room, /REVIEW 1/);
   assert.match(room, /ownerToken=/);
   assert.match(room, /onDeskPublished=/);
   assert.match(persistence, /collection\("users"\)\.doc\(account\.uid\)\.collection\("desks"\)/);
@@ -46,8 +46,8 @@ test("5. required Universe participation is disclosed and cannot be falsely togg
   const gate = read("src/components/BetaAgreementGate.tsx");
   const profile = read("src/components/PlayerProfileNotifications.tsx");
   assert.match(form, /Included with Founding Beta/);
-  assert.match(gate, /Included with Founding Beta/);
-  assert.match(profile, /Founding Beta Universe participation = Included/);
+  assert.match(gate, /Included with Founding Access/);
+  assert.match(profile, /Founding Access Universe participation = Included/);
   assert.doesNotMatch(profile, /Allow safe positive Universe coverage/);
 });
 

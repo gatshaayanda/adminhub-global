@@ -649,7 +649,7 @@ export default function UniversalPlayerDesk({
 
         <section className="universal-cover">
           <div className="universal-cover-copy">
-            <span className="live-pill">{shown.source === "live" ? "This week's review" : "Historical founding-beta review"}</span>
+            <span className="live-pill">{shown.source === "live" ? "This week's review" : "Historical Review"}</span>
             <p className="kicker">WHAT HAPPENED · {shown.period.label} · {shown.games} games</p>
             <h2>{shown.headline}</h2>
             <p>{shown.summary}</p>
@@ -890,7 +890,7 @@ function DeskQualityHold({
             <div className="last-active-banner"><LoaderCircle size={18} /><div><strong>Your week is ready. Position review is finishing.</strong><p>{recoveryState === "auto-retrying" ? "Everything below is already confirmed from your games. BoardSignal is retrying the position check before adding final improvement guidance." : recoveryState === "checking" ? "Everything below is already confirmed from your games. BoardSignal is checking the selected positions before adding final improvement guidance." : recoveryState === "blocked" && diagnostic?.code === "ENGINE_UNSUPPORTED" ? "Everything below is already confirmed from your games. This browser cannot run the position check, so BoardSignal is keeping the factual review safe without adding unsupported guidance." : recoveryState === "blocked" && diagnostic?.code === "ENGINE_ASSET_404" ? "Everything below is already confirmed from your games. The position-review file is unavailable right now, so BoardSignal is keeping the factual review safe without pointlessly retrying it." : "Everything below is already confirmed from your games. Position-based guidance remains withheld until the existing evidence checks pass."}</p>{total ? <small>{reviewed} of {total} selected positions checked on this visit.</small> : null}</div></div>
             <p className="quality-reference">Position check: {codes.join(" · ")}</p>
             {durable ? <p className="quality-reference">Your review is saved. You may leave and return without losing this completed factual week.</p> : null}
-            {diagnostic ? <details className="quality-reference" data-engine-code={diagnostic.code}><summary>Beta engine diagnostics</summary><p>{diagnostic.code} · {diagnostic.stage} · attempt {diagnostic.attempt}</p><p>Worker {diagnostic.workerSupported ? "supported" : "unavailable"} · WebAssembly {diagnostic.webAssemblySupported ? "supported" : "unavailable"} · isolation {diagnostic.crossOriginIsolated ? "on" : "off"} · {diagnostic.userAgentCategory}</p>{diagnostic.detail || diagnostic.eventMessage ? <p>{diagnostic.detail ?? diagnostic.eventMessage}</p> : null}</details> : null}
+            {diagnostic ? <details className="quality-reference" data-engine-code={diagnostic.code}><summary>Review engine diagnostics</summary><p>{diagnostic.code} · {diagnostic.stage} · attempt {diagnostic.attempt}</p><p>Worker {diagnostic.workerSupported ? "supported" : "unavailable"} · WebAssembly {diagnostic.webAssemblySupported ? "supported" : "unavailable"} · isolation {diagnostic.crossOriginIsolated ? "on" : "off"} · {diagnostic.userAgentCategory}</p>{diagnostic.detail || diagnostic.eventMessage ? <p>{diagnostic.detail ?? diagnostic.eventMessage}</p> : null}</details> : null}
             {recoveryState === "manual" ? <div className="quality-actions"><button type="button" className="button button-lime" onClick={onRetry}>TRY POSITION CHECK AGAIN</button></div> : null}
           </section>
         </section>
@@ -903,7 +903,7 @@ function DeskQualityHold({
       <div className="processing-stages"><div className="done"><ShieldCheck /><p>Player, games, period and factual week completed</p></div><div className="active"><AlertTriangle /><p>Final evidence validation needs attention</p></div></div>
       <p className="quality-reference">Check: {codes.join(" · ")}</p>
       {diagnostic ? <details className="quality-reference" data-engine-code={diagnostic.code}>
-        <summary>Beta engine diagnostics</summary>
+        <summary>Review engine diagnostics</summary>
         <p>{diagnostic.code} · {diagnostic.stage} · attempt {diagnostic.attempt}</p>
         <p>Worker {diagnostic.workerSupported ? "supported" : "unavailable"} · WebAssembly {diagnostic.webAssemblySupported ? "supported" : "unavailable"} · isolation {diagnostic.crossOriginIsolated ? "on" : "off"} · {diagnostic.userAgentCategory}</p>
         {diagnostic.assetUrl ? <p>Asset: {diagnostic.assetUrl}</p> : null}

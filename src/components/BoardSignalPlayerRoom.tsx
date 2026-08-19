@@ -28,6 +28,7 @@ import { shouldMountAutomaticReviewGenerator } from "@/lib/boardsignal/firstRevi
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import type { CompletedReviewHistoryItem } from "@/lib/boardsignal/reviewHistory";
+import { boardSignalPresentationLabel } from "@/lib/boardsignal/presentationLanguage";
 import { auth } from "@/utils/firebaseConfig";
 import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 import { clearBoardSignalPrivateOfflineData } from "@/lib/boardsignal/offline/db";
@@ -248,7 +249,7 @@ export default function BoardSignalPlayerRoom() {
   }, [unreadCount, user?.uid]);
 
   async function acceptAgreement() {
-    if (!connectivity.online) throw new Error("Reconnect before accepting the Founding Beta Agreement.");
+    if (!connectivity.online) throw new Error("Reconnect before accepting the Founding Access Agreement.");
     const response = await fetch("/api/boardsignal/player-room", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -332,7 +333,7 @@ export default function BoardSignalPlayerRoom() {
   if (!user && connectivity.state === "offline") return (
     <div id="main" className="container player-room-entry bs-surface-paper">
       <p className="kicker">MY BOARDSIGNAL · OFFLINE</p><h1>Reconnect to sign in.</h1>
-      <p>BoardSignal never performs Beta Access verification or authentication offline. If this device already has a saved My BoardSignal, it becomes available only after Firebase recognizes that same signed-in account locally.</p>
+      <p>BoardSignal never performs access verification or authentication offline. If this device already has a saved My BoardSignal, it becomes available only after Firebase recognizes that same signed-in account locally.</p>
       <Link className="button button-dark" href="/offline/player-room">Open saved My BoardSignal</Link>
     </div>
   );
@@ -340,7 +341,7 @@ export default function BoardSignalPlayerRoom() {
     <div id="main" className="container player-room-entry">
       <p className="kicker">MY BOARDSIGNAL</p><h1>Your games, your review, your progress.</h1>
       <ChessComLoginPanel />
-      <div className="oauth-pending-divider"><span>Need Founding Beta access?</span></div>
+      <div className="oauth-pending-divider"><span>Need Founding Access?</span></div>
       <UsernameDeskForm />
     </div>
   );
@@ -353,7 +354,7 @@ export default function BoardSignalPlayerRoom() {
     return (
       <div id="main" className="player-room-authenticated">
         <RoomIdentity account={snapshot.account} />
-        <div className="container member-first-desk-note"><p className="kicker">DESK 1 · PERSISTENT ACCOUNT</p><h2>Your first review belongs here.</h2><p>{connectivity.online ? "BoardSignal is building the latest completed week for your Chess.com identity. When the evidence checks are complete, the review is saved here in My BoardSignal." : "You're offline. BoardSignal will not retrieve new Chess.com games or build a review until you reconnect."}</p><button className="button button-quiet" type="button" onClick={signOutPlayer}>Sign out</button></div>
+        <div className="container member-first-desk-note"><p className="kicker">REVIEW 1 · PERSISTENT ACCOUNT</p><h2>Your first review belongs here.</h2><p>{connectivity.online ? "BoardSignal is building the latest completed week for your Chess.com identity. When the evidence checks are complete, the review is saved here in My BoardSignal." : "You're offline. BoardSignal will not retrieve new Chess.com games or build a review until you reconnect."}</p><button className="button button-quiet" type="button" onClick={signOutPlayer}>Sign out</button></div>
         {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : <div className="container offline-network-action"><strong>Building a new review needs a connection.</strong><p>Your account is unchanged. Reconnect and BoardSignal will continue your review.</p></div>}
       </div>
     );
@@ -388,7 +389,7 @@ function OriginalBetaWelcome() {
 }
 
 function RoomIdentity({ account }: { account: BoardSignalAccount }) {
-  return <header className="container player-room-identity"><div className="universal-avatar">{account.chessCom.canonicalUsername.slice(0, 2).toUpperCase()}</div><div><span>MY BOARDSIGNAL</span><h1>{account.chessCom.canonicalUsername}</h1><p>Founding Beta · Private review</p></div></header>;
+  return <header className="container player-room-identity"><div className="universal-avatar">{account.chessCom.canonicalUsername.slice(0, 2).toUpperCase()}</div><div><span>MY BOARDSIGNAL</span><h1>{account.chessCom.canonicalUsername}</h1><p>Founding Access · Private Review</p></div></header>;
 }
 
 function RoomNav({ tab, setTab, unreadCount }: { tab: RoomTab; setTab: (tab: RoomTab) => void; unreadCount: number }) {
@@ -537,7 +538,7 @@ function PulseCards({ cards }: { cards: NonNullable<PlayerPulse["boardMoved"]> }
 
 function UniverseEventCards({ events, heading, account, socialPlayers, onSocialAction }: { events: PublicUniverseEvent[]; heading: string; account: BoardSignalAccount; socialPlayers: Record<string, SocialSummaryPlayer>; onSocialAction: (username: string) => Promise<void> }) {
   if (!events.length) return null;
-  return <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">{heading}</p></div><div className="pulse-event-grid">{events.map((event) => { const social = socialPlayers[event.canonicalUsername.toLowerCase()]; const canConnect = event.playerId !== String(account.chessCom.playerId); return <article key={event.eventId}><div className="pulse-event-meta"><span>{event.eventType.replaceAll("_", " ")}</span><b>OFFICIAL</b></div><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small>{canConnect ? <button type="button" className="text-link social-text-button" onClick={() => void onSocialAction(event.canonicalUsername)}>{social?.relationshipStatus === "friends" ? "Compare" : social ? "Open Friends" : "Add Friend"}</button> : null}</article>; })}</div></section>;
+  return <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">{heading}</p></div><div className="pulse-event-grid">{events.map((event) => { const social = socialPlayers[event.canonicalUsername.toLowerCase()]; const canConnect = event.playerId !== String(account.chessCom.playerId); return <article key={event.eventId}><div className="pulse-event-meta"><span>{boardSignalPresentationLabel(event.eventType)}</span><b>OFFICIAL</b></div><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small>{canConnect ? <button type="button" className="text-link social-text-button" onClick={() => void onSocialAction(event.canonicalUsername)}>{social?.relationshipStatus === "friends" ? "Compare" : social ? "Open Friends" : "Add Friend"}</button> : null}</article>; })}</div></section>;
 }
 
 function UniverseRoomPanel({ account, pulse, unavailable, socialPlayers, onSocialAction }: { account: BoardSignalAccount; pulse?: PlayerPulse; unavailable?: string; socialPlayers: Record<string, SocialSummaryPlayer>; onSocialAction: (username: string) => Promise<void> }) {
@@ -551,7 +552,7 @@ function UniverseRoomPanel({ account, pulse, unavailable, socialPlayers, onSocia
     {pulse?.provisional?.length ? <section className="pulse-universe-block"><p className="kicker">THIS WEEK · PRIVATE PROJECTION</p><PulseCards cards={pulse.provisional} /></section> : null}
     {pulse ? <UniverseEventCards events={pulse.fieldMoved} heading="AROUND BOARDSIGNAL" account={account} socialPlayers={socialPlayers} onSocialAction={onSocialAction} /> : null}
     {pulse ? <UniverseEventCards events={pulse.whatsHot} heading="WHAT'S HOT" account={account} socialPlayers={socialPlayers} onSocialAction={onSocialAction} /> : null}
-    <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">OFFICIAL STANDINGS</p>{pulse?.fieldLabels?.length ? <span>{pulse.fieldLabels.join(" · ")}</span> : null}</div>{standings.length ? <div className="universe-standing-grid">{standings.slice(0, 8).map((standing) => <article key={`${standing.categoryId}:${standing.scopeLabel ?? "all"}`}><span>{standing.categoryTitle}{standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}</span><strong>#{standing.rank} of {standing.denominator}</strong><p>{standing.label ?? standing.valueLabel}</p></article>)}</div> : <div className="inbox-empty"><Inbox size={20} /><div><strong>No active recognition yet.</strong><p>Your completed review has not yet met a current comparison category's minimum evidence.</p></div></div>}</section>
+    <section className="pulse-universe-block"><div className="pulse-block-heading"><p className="kicker">OFFICIAL STANDINGS</p>{pulse?.fieldLabels?.length ? <span>{pulse.fieldLabels.map(boardSignalPresentationLabel).join(" · ")}</span> : null}</div>{standings.length ? <div className="universe-standing-grid">{standings.slice(0, 8).map((standing) => <article key={`${standing.categoryId}:${standing.scopeLabel ?? "all"}`}><span>{standing.categoryTitle}{standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}</span><strong>#{standing.rank} of {standing.denominator}</strong><p>{standing.label ?? standing.valueLabel}</p></article>)}</div> : <div className="inbox-empty"><Inbox size={20} /><div><strong>No active recognition yet.</strong><p>Your completed review has not yet met a current comparison category's minimum evidence.</p></div></div>}</section>
     {learning.length ? <section className="pulse-universe-block"><p className="kicker">TOP PERFORMANCES TO LEARN FROM</p><div className="universe-learning-grid">{learning.map(({ group, board, entry }) => { const social = socialPlayers[entry.player.toLowerCase()]; const canConnect = entry.participantId.startsWith("live:"); return <article key={`${board.key}:${entry.player}`}><Link href={entry.coverageHref ?? `/player/${encodeURIComponent(entry.player)}`}><span>#1 {group.title}{board.scopeLabel ? ` · ${board.scopeLabel}` : ""}</span><h3>{entry.player}</h3><strong>{entry.valueLabel}</strong><p>{entry.coverageHeadline ?? entry.evidence}</p><small>Open highlight</small></Link>{canConnect ? <button type="button" className="text-link social-text-button" onClick={() => void onSocialAction(entry.player)}>{social?.relationshipStatus === "friends" ? "Compare" : social ? "Open Friends" : "Add Friend"}</button> : null}</article>; })}</div></section> : null}
     <Link href="/feed" className="text-link">Explore Around BoardSignal</Link>
   </section>;

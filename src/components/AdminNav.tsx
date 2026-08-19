@@ -4,7 +4,7 @@ const links = [
   { label: "Newsroom", href: "/admin" },
   { label: "Players", href: "/admin/players" },
   { label: "Communications", href: "/admin/communications" },
-  { label: "Desk pipeline", href: "/admin/desks" },
+  { label: "Review pipeline", href: "/admin/desks" },
   { label: "Coverage editor", href: "/admin/coverage" },
   { label: "Exceptions", href: "/admin/exceptions" },
 ];

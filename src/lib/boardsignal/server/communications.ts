@@ -362,7 +362,7 @@ export async function sendFounderCampaign(draft: CommunicationCampaignDraft) {
   const requestedAttachment = draft.attachment ? validateBoardSignalChatAttachment(draft.attachment) : undefined;
   requireChatMessageContent(body, requestedAttachment);
   const audience = await resolveFounderAudience(draft);
-  if (!audience.length) throw Object.assign(new Error("This audience currently contains no active Founding Beta players."), { status: 400 });
+  if (!audience.length) throw Object.assign(new Error("This audience currently contains no active Founding Access players."), { status: 400 });
   const db = getAdminDb();
   const campaignId = randomUUID();
   const createdAt = new Date().toISOString();

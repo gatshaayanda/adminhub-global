@@ -27,11 +27,11 @@ export default function PlayerPreferencesGate({
 
   async function save() {
     if (!contactValue.trim()) {
-      setError("Add one reachable contact for your Founding Beta account.");
+      setError("Add one reachable contact for your Founding Access account.");
       return;
     }
     if (!consent) {
-      setError("Confirm the Founding Beta contact consent to continue.");
+      setError("Confirm the Founding Access contact consent to continue.");
       return;
     }
     setBusy(true);
@@ -74,7 +74,7 @@ export default function PlayerPreferencesGate({
               maxLength={160}
             />
           </label>
-          <label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I agree BoardSignal may contact me about my Founding Beta account, review availability, important product updates and beta feedback.</span></label>
+          <label className="agreement-check"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I agree BoardSignal may contact me about my Founding Access account, Review availability, important product updates and BoardSignal feedback.</span></label>
         </div>
 
         <div className="preference-defaults-summary">
@@ -85,11 +85,11 @@ export default function PlayerPreferencesGate({
 
         <div className="agreement-universe-required compact">
           <span>AROUND BOARDSIGNAL</span>
-          <strong>Included with Founding Beta ✓</strong>
+          <strong>Included with Founding Access ✓</strong>
           <p>Your private improvement guidance, reviewed positions and progress stay private.</p>
         </div>
 
-        <p className="beta-access-safety"><ShieldCheck size={14} /> Your contact is for BoardSignal beta communication only. It is not your authentication identity.</p>
+        <p className="beta-access-safety"><ShieldCheck size={14} /> Your contact is for BoardSignal account communication only. It is not your authentication identity.</p>
         <button className="button button-lime" type="button" disabled={busy} onClick={save}>{busy ? <><LoaderCircle className="button-spinner" size={16} /> Saving</> : <>Enter My BoardSignal <ArrowRight size={16} /></>}</button>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
       </section>

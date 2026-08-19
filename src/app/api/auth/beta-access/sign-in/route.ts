@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     return response({
       ok: false,
       code,
-      error: error instanceof Error ? error.message : "Founding Beta Access could not be completed.",
+      error: error instanceof Error ? error.message : "Founding Access could not be completed.",
     }, status);
   }
 }

@@ -5,7 +5,7 @@ const footerLinks = [
   { label: "Get My BoardSignal", href: "/#get-my-boardsignal" },
   { label: "BoardSignal Universe", href: "/feed" },
   { label: "My Player Room", href: "/boardsignal/player-room" },
-  { label: "Beta terms", href: "/boardsignal/beta-terms" },
+  { label: "Founding Access terms", href: "/boardsignal/beta-terms" },
   { label: "Privacy", href: "/boardsignal/privacy" },
 ];
 

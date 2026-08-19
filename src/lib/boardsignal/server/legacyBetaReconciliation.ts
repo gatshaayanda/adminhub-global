@@ -715,7 +715,7 @@ async function compatibleMagicRequest(account: OriginalBetaAccountData, entry: O
   if (snapshot.exists) {
     const data = snapshot.data() as Record<string, any>;
     if (Number(data.chessPlayerId) !== account.chessCom.playerId) {
-      throw Object.assign(new Error("The existing Founding Beta request belongs to another stable player ID."), { status: 409, code: "ORIGINAL_BETA_REQUEST_CONFLICT" });
+      throw Object.assign(new Error("The existing Founding Access request belongs to another stable player ID."), { status: 409, code: "ORIGINAL_BETA_REQUEST_CONFLICT" });
     }
     if (data.identityReviewStatus === "rejected" || data.status === "rejected") {
       throw Object.assign(new Error("This original beta identity has a rejected/revoked request and requires Founder review."), { status: 409, code: "ORIGINAL_BETA_IDENTITY_REJECTED" });

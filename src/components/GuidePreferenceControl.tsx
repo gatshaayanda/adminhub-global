@@ -46,7 +46,7 @@ export default function GuidePreferenceControl({ token }: { token: string }) {
   return <div className="guide-preference-row">
     <p className="guide-preference-help">These are explicit communication preferences, not personality labels. Ask BoardSignal never stores psychological diagnoses or manipulation scores.</p>
     {profile ? <>
-      <label>Tone<select value={profile.preferredTone} onChange={(event) => setProfile((value) => value ? { ...value, preferredTone: event.target.value as GuideTone } : value)}>{tones.map((tone) => <option key={tone}>{tone}</option>)}</select></label>
+      <label>Tone<select value={profile.preferredTone} onChange={(event) => setProfile((value) => value ? { ...value, preferredTone: event.target.value as GuideTone } : value)}>{tones.map((tone) => <option key={tone} value={tone}>{tone === "Sports Desk" ? "Sports coverage" : tone}</option>)}</select></label>
       <label>Detail level<select value={profile.preferredDetailLevel} onChange={(event) => setProfile((value) => value ? { ...value, preferredDetailLevel: event.target.value as GuideDetailLevel } : value)}>{details.map((detail) => <option key={detail}>{detail}</option>)}</select></label>
       <label>How should I address you? <input value={profile.preferredAddress ?? ""} maxLength={60} placeholder="Optional" onChange={(event) => setProfile((value) => value ? { ...value, preferredAddress: event.target.value } : value)} /></label>
       <button type="button" className="button button-quiet" disabled={busy} onClick={() => void save()}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : <Save size={14}/>} Save Ask BoardSignal style</button>

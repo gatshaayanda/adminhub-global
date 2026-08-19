@@ -52,7 +52,7 @@ export const founderCoverageStory: CoverageStory = {
   id: "founder-eight-game-run",
   eyebrow: "Winning run",
   headline: "Four opening losses did not stop an eight-game winning run.",
-  summary: "The approved founding Desk recorded eight consecutive wins before the direction changed later in the episode.",
+  summary: "The approved founding Review recorded eight consecutive wins before the direction changed later in the episode.",
   stat: "8 straight",
   detail: "Longest winning run",
   tone: "blue",

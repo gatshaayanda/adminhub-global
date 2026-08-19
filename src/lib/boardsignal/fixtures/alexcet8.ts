@@ -17,7 +17,7 @@ export const alexcet8Fixture = {
     resultSequence: ["loss", "loss", "win", "win", "loss", "loss", "loss", "loss"],
   },
   invariants: [
-    "The final score is not a complete Desk.",
+    "The final score is not a complete Review.",
     "Queen-safety and playable-resignation claims require their linked reviewed positions.",
     "Daily sequence, rating movement and game links must remain present.",
   ],

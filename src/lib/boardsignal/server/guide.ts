@@ -309,7 +309,7 @@ export async function createGuideHandoff(token: DecodedIdToken, input: { confirm
   const contextLines = [
     `Player: ${account.chessCom.canonicalUsername}`,
     `Page: ${pathname}${activeTab ? ` / ${activeTab}` : ""}`,
-    `Latest completed Desk: ${latestDesk?.summary.periodLabel ?? "none"}`,
+    `Latest completed Review: ${latestDesk?.summary.periodLabel ?? "none"}`,
     `Current episode: ${account.currentEpisodeSummary?.status ?? "unknown"}${account.currentEpisodeSummary?.games !== undefined ? ` · ${account.currentEpisodeSummary.games} games` : ""}`,
     `Category: ${category}`,
     ...(errorCode ? [`Error code: ${errorCode}`] : []),

@@ -15,7 +15,7 @@ export default async function Image({ params }: { params: Promise<{ momentId: st
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "64px 72px", background: "#07152f", color: "#f7fbff", fontFamily: "Arial, sans-serif" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 6 }}>BOARD SIGNAL</div>
-        <div style={{ color: "#c9ff45", fontSize: 24, fontWeight: 800 }}>DESK MOMENT</div>
+        <div style={{ color: "#c9ff45", fontSize: 24, fontWeight: 800 }}>REVIEW MOMENT</div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ color: "#c9ff45", fontSize: 30, fontWeight: 800, textTransform: "uppercase" }}>{moment.canonicalUsername}</div>

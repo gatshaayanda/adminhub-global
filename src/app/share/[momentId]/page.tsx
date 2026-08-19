@@ -40,7 +40,7 @@ export default async function ShareMomentPage({ params }: { params: Promise<{ mo
   return (
     <main id="main" className="share-moment-page">
       <section className="container share-moment-public-card">
-        <div className="share-moment-brand"><span>BOARD SIGNAL</span><strong>DESK MOMENT</strong></div>
+        <div className="share-moment-brand"><span>BOARD SIGNAL</span><strong>REVIEW MOMENT</strong></div>
         <p className="kicker">{moment.canonicalUsername}</p>
         <h1>{moment.headline}</h1>
         <div className="share-moment-stat"><strong>{moment.statValue}</strong><span>{moment.statLabel}</span></div>

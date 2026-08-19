@@ -5,7 +5,7 @@ export const metadata = { title: "Membership" };
 
 const plans = [
   { name: "First Review", price: "Free", note: "one time", features: ["One completed weekly review", "What happened + What mattered + Focus next", "Private My BoardSignal access"], style: "" },
-  { name: "Founding Member", price: "$7.99", note: "per month", features: ["Up to four reviews per billing month", "My BoardSignal and moving review history", "Choose which positive moments to share", "Founding price while beta terms apply"], style: "lime" },
+  { name: "Founding Member", price: "$7.99", note: "per month", features: ["Up to four reviews per billing month", "My BoardSignal and moving review history", "Choose which positive moments to share", "Founding price while Founding Access terms apply"], style: "lime" },
   { name: "Human-reviewed Plus", price: "$19.99", note: "planned", features: ["Everything in membership", "Human review on selected weekly reviews", "Deeper clarification when the evidence is unusual"], style: "blue" },
 ];
 
@@ -25,7 +25,7 @@ export default function PricingPage() {
             </article>
           ))}
         </div>
-        <p className="helper-copy">Seeded beta pricing for product testing. Payment collection is not active in this shell.</p>
+        <p className="helper-copy">Seeded Founding Access pricing for product testing. Payment collection is not active in this shell.</p>
       </section>
     </div>
   );

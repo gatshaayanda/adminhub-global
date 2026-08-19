@@ -119,7 +119,7 @@ test('backup contact can be added or corrected after Preview without changing id
 
 test('recovery access and legacy compatibility remain intact', () => {
   // 27 magic access remains fallback
-  assert.ok(previewRoom.includes('Magic access and username + Beta code remain recovery paths'));
+  assert.ok(previewRoom.includes('Magic access and username + access code remain recovery paths'));
   // 28 legacy Beta Access hotfix remains intact
   assert.ok(approval.includes('loadExistingFoundingBetaAccess(request.chessPlayerId)'));
   // 29 existing Beta code is not reset

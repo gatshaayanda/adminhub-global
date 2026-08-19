@@ -53,6 +53,6 @@ export async function POST(request: Request) {
     }, result.existingState ? 200 : 201);
   } catch (error) {
     const status = Number((error as { status?: number }).status ?? 500);
-    return response({ ok: false, code: String((error as { code?: string }).code ?? "BETA_REQUEST_FAILED"), error: error instanceof Error ? error.message : "Founding Beta request could not be submitted." }, status);
+    return response({ ok: false, code: String((error as { code?: string }).code ?? "BETA_REQUEST_FAILED"), error: error instanceof Error ? error.message : "Founding Access request could not be submitted." }, status);
   }
 }

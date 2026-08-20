@@ -5,6 +5,7 @@ export const FOUNDING_BETA_AGREEMENT_VERSION = "founding-beta-2026-08-12";
 export type BoardSignalAccessTier = "founding_beta" | "paid";
 export type BoardSignalAccessStatus = "active" | "paused" | "deleted";
 export type BoardSignalContactMethod = "email" | "discord" | "telegram";
+export type BoardSignalFounderContactMethod = "email" | "discord" | "telegram" | "chesscom" | "other";
 export type BoardSignalIdentityStatus = "provisional" | "founder_reviewed" | "oauth_verified" | "revoked";
 export type BoardSignalIdentityReviewStatus = "pending" | "confirmed" | "rejected";
 export type BoardSignalPublicHighlightsStatus =
@@ -65,6 +66,11 @@ export type BoardSignalAccount = {
   notificationPreferences: BoardSignalNotificationPreferences;
   cadenceAnchor?: string;
   lastSeenAt?: string;
+  founderOps?: {
+    lastContactedAt?: string;
+    lastContactMethod?: BoardSignalFounderContactMethod;
+    followUpSnoozedUntil?: string;
+  };
   latestProgressCheckedAt?: string;
   nextDeskDueAt?: string;
   previousBlue?: { title: string; copy: string };

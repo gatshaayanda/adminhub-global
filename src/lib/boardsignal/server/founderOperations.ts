@@ -6,12 +6,13 @@ import { originalBetaSourceInventory } from "../../../data/originalBetaHistory";
 import {
   deriveFounderOperation,
   resolveOriginalBetaSourcePlayerKey,
-  summarizeValidationEvidence,
   type FounderOperationComparableRow,
   type ValidationEvidence,
   type ValidationIdentityAlias,
   type ValidationOriginalProvenance,
 } from "../founderOperationsLogic";
+import { storedReviewLifecycle, type ReviewHistoryBackfillState } from "../historyBackfill";
+import { summarizeOperationalRetention } from "../historyRetention";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { inspectSafePublicCoverageForAccount } from "./publicCoverageRepair";
 
@@ -21,12 +22,16 @@ type OriginalBetaMarker = { periodStart?: string; periodEnd?: string; retiredAt?
 type OperationsAccount = BoardSignalAccount & {
   originalBetaPlayer?: boolean;
   originalBetaHistoryPeriods?: Record<string, OriginalBetaMarker>;
+  reviewHistoryBackfill?: ReviewHistoryBackfillState;
 };
 
 type StoredReview = {
   deskKey?: string;
   periodEnd?: string;
   publishedAt?: string;
+  importedAt?: string;
+  reviewLifecycle?: "organic_live" | "historical_backfill" | "original_beta";
+  countsTowardRetention?: boolean;
   summary?: { deskKey?: string; periodStart?: string; periodEnd?: string; periodLabel?: string };
   desk?: { source?: string; provenance?: { verified?: boolean } };
   originalBeta?: { seedHandle?: string; history?: { periodStart?: string; periodEnd?: string; periodLabel?: string } };
@@ -44,6 +49,8 @@ type PendingRequest = {
 };
 
 type ExceptionRow = { id: string; uid?: string; username?: string; title?: string; message?: string; createdAt?: string; resolvedAt?: string };
+
+type ReviewPeriod = { periodStart: string; periodEnd: string; periodLabel?: string; source: "original" | "live" | "historical" };
 
 export type FounderOperationsRow = FounderOperationComparableRow & {
   playerId?: number;
@@ -69,12 +76,19 @@ function normalize(value?: string) {
   return String(value ?? "").trim().replace(/^@/, "").toLowerCase();
 }
 
-function validPeriod(data: StoredReview) {
+function validPeriod(data: StoredReview): ReviewPeriod | undefined {
   const history = data.originalBeta?.history;
   const start = history?.periodStart ?? data.summary?.periodStart;
   const end = history?.periodEnd ?? data.summary?.periodEnd ?? data.periodEnd;
   if (!start || !end) return undefined;
-  const source = history ? "original" as const : data.desk?.source === "live" && data.desk?.provenance?.verified ? "live" as const : undefined;
+  const lifecycle = storedReviewLifecycle(data);
+  const source = history
+    ? "original" as const
+    : lifecycle === "historical_backfill"
+      ? "historical" as const
+      : lifecycle === "organic_live"
+        ? "live" as const
+        : undefined;
   if (!source) return undefined;
   return { periodStart: start, periodEnd: end, periodLabel: history?.periodLabel ?? data.summary?.periodLabel, source };
 }
@@ -91,11 +105,12 @@ async function playerSnapshot(account: OperationsAccount) {
     inspectSafePublicCoverageForAccount(account).catch(() => undefined),
   ]);
   const documents = desks.docs.map((document) => ({ id: document.id, data: document.data() as StoredReview }));
-  const verifiedDocuments = documents.flatMap(({ data }) => {
+  const allVerifiedDocuments = documents.flatMap(({ data }) => {
     const period = validPeriod(data);
     return period ? [{ data, period }] : [];
   });
-  const verified = verifiedDocuments.map(({ period }) => period);
+  const verifiedDocuments = allVerifiedDocuments.filter(({ period }) => period.source !== "historical");
+  const verified = verifiedDocuments.map(({ period }) => ({ ...period, source: period.source as "original" | "live" }));
   const latestVerified = verifiedDocuments[0];
   const originalBetaProvenance: ValidationOriginalProvenance[] = verifiedDocuments.flatMap(({ data, period }) => data.originalBeta?.seedHandle ? [{
     uid: account.uid,
@@ -107,6 +122,7 @@ async function playerSnapshot(account: OperationsAccount) {
   return {
     account,
     verified,
+    historicalBackfills: allVerifiedDocuments.filter(({ period }) => period.source === "historical").length,
     originalBetaProvenance,
     latestReview: latestVerified ? {
       periodStart: latestVerified.period.periodStart,
@@ -267,10 +283,22 @@ export async function founderOperationsSnapshot(now = new Date()) {
     const playerKey = `id:${snapshot.account.chessCom.playerId}`;
     for (const review of snapshot.verified) evidence.push({ playerKey, periodStart: review.periodStart, periodEnd: review.periodEnd, source: review.source });
   }
-  const originalToLive = activeAccounts.filter((account) => account.originalBetaPlayer || Object.keys(account.originalBetaHistoryPeriods ?? {}).length > 0).map((account) => `id:${account.chessCom.playerId}`);
+
+  const originalToLive = snapshots.filter((snapshot) => {
+    const account = snapshot.account;
+    const hadOriginal = account.originalBetaPlayer || Object.keys(account.originalBetaHistoryPeriods ?? {}).length > 0;
+    return hadOriginal && snapshot.verified.some((review) => review.source === "live");
+  }).map((snapshot) => `id:${snapshot.account.chessCom.playerId}`);
+
+  const historicalActivationPlayers = activeAccounts.filter((account) => {
+    const hasBackfillActivation = account.reviewHistoryBackfill?.activationBaseline === true;
+    const hadOriginal = account.originalBetaPlayer || Object.keys(account.originalBetaHistoryPeriods ?? {}).length > 0;
+    return hasBackfillActivation && !hadOriginal;
+  }).map((account) => `id:${account.chessCom.playerId}`);
+
   const validation = {
-    ...summarizeValidationEvidence(evidence, originalToLive),
-    dataCompleteness: "Verified Reviews counts durable evidence currently reconstructable from active Review storage plus Original Beta source history. BoardSignal retains at most four active Review records per account, so older digital Reviews may have legitimately expired and are not fabricated into lifetime totals.",
+    ...summarizeOperationalRetention(evidence, originalToLive, historicalActivationPlayers),
+    dataCompleteness: "Verified Reviews and LIVE Reviews preserve the operational pre-H lifecycle: Original Beta plus organic LIVE Reviews. Historical onboarding contributes one activation baseline only for truly new no-cadence onboarding, never one return per reconstructed week. BoardSignal retains at most four active Review records per account, so older digital Reviews may have legitimately expired and are not fabricated into lifetime totals.",
   };
 
   const metrics = {

@@ -34,6 +34,13 @@ import {
   liveDeskToReviewHistory,
   type CompletedReviewHistoryItem,
 } from "../reviewHistory";
+import {
+  REVIEW_HISTORY_BACKFILL_VERSION,
+  fourPeriodWindow,
+  storedReviewLifecycle,
+  type ReviewHistoryBackfillState,
+  type ReviewLifecycle,
+} from "../historyBackfill";
 import type { PlayerPulse, SafeShareMoment } from "../pulse";
 import {
   buildPlayerPulse,
@@ -48,6 +55,8 @@ export type PublishedDeskBundle = {
   desk: BoardSignalDesk;
   engineResults: Record<string, DeskEngineResult>;
   summary: DeskSummary;
+  reviewLifecycle: ReviewLifecycle;
+  countsTowardRetention: boolean;
 };
 
 export type PlayerRoomSnapshot = {
@@ -72,6 +81,25 @@ type AuthTicket = {
   identity: StableChessComIdentity;
   expiresAt: number;
   consumedAt?: number;
+};
+
+type PublishOptions = {
+  reviewLifecycle?: ReviewLifecycle;
+  historyLeaseId?: string;
+};
+
+type AccountWithBackfill = BoardSignalAccount & { reviewHistoryBackfill?: ReviewHistoryBackfillState };
+
+type StoredDeskDocument = {
+  deskKey?: string;
+  periodEnd?: string;
+  summary?: DeskSummary;
+  desk?: BoardSignalDesk;
+  reviewLifecycle?: ReviewLifecycle;
+  countsTowardRetention?: boolean;
+  publishedAt?: string;
+  importedAt?: string;
+  originalBeta?: unknown;
 };
 
 function clean<T>(value: T): T {
@@ -285,23 +313,15 @@ export async function updatePlayerPreferences(
   };
   const values = [...Object.values(normalizedPrivacy), ...Object.values(normalizedNotifications)]
     .filter((value): value is boolean => typeof value === "boolean");
-  if (values.length < 2) {
-    throw Object.assign(new Error("Player Room preferences were invalid."), { status: 400 });
-  }
+  if (values.length < 2) throw Object.assign(new Error("Player Room preferences were invalid."), { status: 400 });
 
   let contactUpdate: Record<string, unknown> = {};
   if (contact) {
     const method = contact.preferredContactMethod;
     const value = contact.preferredContactValue?.trim();
-    if (!(["email", "discord", "telegram"] as string[]).includes(method) || value.length > 160) {
-      throw Object.assign(new Error("The Founding Access contact settings were invalid."), { status: 400 });
-    }
-    if (contact.betaContactConsent === true && !value) {
-      throw Object.assign(new Error("A reachable Founding Access contact is required while contact consent is enabled."), { status: 400 });
-    }
-    if (contact.betaContactConsent === true && method === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      throw Object.assign(new Error("Enter a valid email address."), { status: 400 });
-    }
+    if (!(["email", "discord", "telegram"] as string[]).includes(method) || value.length > 160) throw Object.assign(new Error("The Founding Access contact settings were invalid."), { status: 400 });
+    if (contact.betaContactConsent === true && !value) throw Object.assign(new Error("A reachable Founding Access contact is required while contact consent is enabled."), { status: 400 });
+    if (contact.betaContactConsent === true && method === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) throw Object.assign(new Error("Enter a valid email address."), { status: 400 });
     contactUpdate = {
       preferredContactMethod: method,
       preferredContactValue: value,
@@ -328,39 +348,22 @@ export async function updatePlayerPreferences(
       profileUrl: account.chessCom.profileUrl,
       pageEnabled: true,
     }), { merge: true });
-    const coverage = await db.collection("publicCoverage")
-      .where("chessPlayerId", "==", canonicalPlayerKey(account.chessCom))
-      .get();
-    await Promise.all(coverage.docs.map((document) => (
-      document.ref.set(clean({ visibility: { publicPlayerPage: true, universeCoverage: true } }), { merge: true })
-    )));
+    const coverage = await db.collection("publicCoverage").where("chessPlayerId", "==", canonicalPlayerKey(account.chessCom)).get();
+    await Promise.all(coverage.docs.map((document) => document.ref.set(clean({ visibility: { publicPlayerPage: true, universeCoverage: true } }), { merge: true })));
   }
-  const updatedAccount = {
-    ...account,
-    privacy: normalizedPrivacy,
-    notificationPreferences: normalizedNotifications,
-    preferencesConfirmedAt,
-    universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? preferencesConfirmedAt,
-    ...contactUpdate,
-  };
-  if (allowPublicIdentity) {
-    await recordNewPlayerUniverseIntro(updatedAccount).catch(async (error) => {
-      await recordUniversePulseException(updatedAccount, "universe_new_player_event", error);
-    });
-  }
-  return {
-    privacy: normalizedPrivacy,
-    notificationPreferences: normalizedNotifications,
-    preferencesConfirmedAt,
-    ...contactUpdate,
-  };
+  const updatedAccount = { ...account, privacy: normalizedPrivacy, notificationPreferences: normalizedNotifications, preferencesConfirmedAt, universeParticipationDisclosedAt: account.universeParticipationDisclosedAt ?? preferencesConfirmedAt, ...contactUpdate };
+  if (allowPublicIdentity) await recordNewPlayerUniverseIntro(updatedAccount).catch(async (error) => recordUniversePulseException(updatedAccount, "universe_new_player_event", error));
+  return { privacy: normalizedPrivacy, notificationPreferences: normalizedNotifications, preferencesConfirmedAt, ...contactUpdate };
 }
 
-export async function savePendingFactualReview(
-  token: DecodedIdToken,
-  desk: BoardSignalDesk,
-): Promise<FactualReviewDraft> {
+export async function savePendingFactualReview(token: DecodedIdToken, desk: BoardSignalDesk, options: PublishOptions = {}): Promise<FactualReviewDraft> {
   const account = await accountForToken(token);
+  if (options.reviewLifecycle === "historical_backfill") {
+    const state = (account as AccountWithBackfill).reviewHistoryBackfill;
+    if (!state?.lease || state.lease.periodStart !== desk.period.start || state.lease.leaseId !== options.historyLeaseId) {
+      throw Object.assign(new Error("Historical Review claim is no longer active."), { status: 409, code: "HISTORY_LEASE_MISMATCH" });
+    }
+  }
   const next = createFactualReviewDraft(account, desk);
   const ref = getAdminDb().collection("users").doc(account.uid).collection("factualReviews").doc(safeDocumentId(next.deskKey));
   return getAdminDb().runTransaction(async (transaction) => {
@@ -374,8 +377,7 @@ export async function savePendingFactualReview(
 
 export async function loadPendingFactualReviews(uid: string): Promise<FactualReviewDraft[]> {
   const snapshot = await getAdminDb().collection("users").doc(uid).collection("factualReviews").get();
-  return snapshot.docs
-    .map((document) => document.data() as FactualReviewDraft)
+  return snapshot.docs.map((document) => document.data() as FactualReviewDraft)
     .filter((draft) => draft.schemaVersion === "boardsignal-factual-review-v1" && draft.status === "engine_pending")
     .sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
 }
@@ -390,164 +392,158 @@ async function deleteDeskTree(uid: string, deskDocumentId: string) {
   await batch.commit();
 }
 
-export async function publishPrivateDesk(
-  token: DecodedIdToken,
-  desk: BoardSignalDesk,
-  engineResults: Record<string, DeskEngineResult>,
-) {
+export async function publishPrivateDesk(token: DecodedIdToken, desk: BoardSignalDesk, engineResults: Record<string, DeskEngineResult>, options: PublishOptions = {}) {
   const account = await accountForToken(token);
-  if (desk.source !== "live" || !desk.provenance.verified) {
-    throw Object.assign(new Error("Only a verified LIVE Review can enter a Player Room."), { status: 422 });
-  }
-  if (desk.player.playerId !== account.chessCom.playerId
-    || desk.player.username.toLowerCase() !== account.chessCom.canonicalUsername.toLowerCase()) {
-    throw Object.assign(new Error("This Review does not belong to the authenticated Chess.com player."), { status: 403 });
-  }
+  if (desk.source !== "live" || !desk.provenance.verified) throw Object.assign(new Error("Only a verified LIVE Review can enter a Player Room."), { status: 422 });
+  if (desk.player.playerId !== account.chessCom.playerId || desk.player.username.toLowerCase() !== account.chessCom.canonicalUsername.toLowerCase()) throw Object.assign(new Error("This Review does not belong to the authenticated Chess.com player."), { status: 403 });
   const quality = validateDeskForPublication(desk, engineResults);
-  if (quality.status !== "PASS") {
-    throw Object.assign(new Error(`The Review did not clear publication validation: ${quality.codes.join(" · ")}`), { status: 422 });
-  }
+  if (quality.status !== "PASS") throw Object.assign(new Error(`The Review did not clear publication validation: ${quality.codes.join(" · ")}`), { status: 422 });
 
   const db = getAdminDb();
-  const allowPublicIdentity = publicIdentityAllowed(account);
-  const beforeUniverseState = allowPublicIdentity ? await loadActiveUniverseState().catch(async (error) => {
-    await recordUniversePulseException(account, "universe_pre_publish_snapshot", error);
-    return undefined;
-  }) : undefined;
   const summary = toDeskSummary(desk);
   const deskDocumentId = safeDocumentId(summary.deskKey);
   const desksRef = db.collection("users").doc(account.uid).collection("desks");
   const deskRef = desksRef.doc(deskDocumentId);
   const factualReviewRef = db.collection("users").doc(account.uid).collection("factualReviews").doc(deskDocumentId);
   const previous = await desksRef.get();
-  const alreadyPublished = previous.docs.some((document) => document.id === deskDocumentId);
+  const existingDocument = previous.docs.find((document) => document.id === deskDocumentId);
+  if (existingDocument) {
+    await factualReviewRef.delete().catch(() => undefined);
+    return { deskKey: summary.deskKey, removedDeskKeys: [], alreadyPublished: true };
+  }
+
+  const initialHistorical = !account.cadenceAnchor && previous.empty;
+  const historical = options.reviewLifecycle === "historical_backfill" || initialHistorical;
+  const lifecycle: ReviewLifecycle = historical ? "historical_backfill" : "organic_live";
+  if (historical && !initialHistorical) {
+    const state = (account as AccountWithBackfill).reviewHistoryBackfill;
+    if (!state?.lease || state.lease.periodStart !== desk.period.start || state.lease.leaseId !== options.historyLeaseId) {
+      throw Object.assign(new Error("Historical Review claim is no longer active."), { status: 409, code: "HISTORY_LEASE_MISMATCH" });
+    }
+  }
+
+  const allowPublicIdentity = publicIdentityAllowed(account);
+  const beforeUniverseState = !historical && allowPublicIdentity ? await loadActiveUniverseState().catch(async (error) => {
+    await recordUniversePulseException(account, "universe_pre_publish_snapshot", error);
+    return undefined;
+  }) : undefined;
 
   const oldEvidence = await deskRef.collection("evidence").get();
   const batch = db.batch();
   oldEvidence.docs.forEach((document) => batch.delete(document.ref));
   const deskWithoutEvidence = { ...desk, candidates: [] };
+  const storedAt = new Date().toISOString();
   batch.set(deskRef, clean({
     deskKey: summary.deskKey,
     periodEnd: summary.periodEnd,
     summary,
     desk: deskWithoutEvidence,
-    publishedAt: new Date().toISOString(),
+    reviewLifecycle: lifecycle,
+    countsTowardRetention: !historical,
+    occurredAt: `${summary.periodEnd}T23:59:59.999Z`,
+    ...(historical ? { importedAt: storedAt } : { publishedAt: storedAt }),
   }));
   desk.candidates.forEach((candidate, positionOrder) => {
-    batch.set(deskRef.collection("evidence").doc(safeDocumentId(candidate.id)), clean({
-      positionOrder,
-      candidate,
-      engineResult: engineResults[candidate.id],
-    }));
+    batch.set(deskRef.collection("evidence").doc(safeDocumentId(candidate.id)), clean({ positionOrder, candidate, engineResult: engineResults[candidate.id] }));
   });
-  // A factual review is retired only in the same successful private-Desk write.
+  if (initialHistorical) {
+    batch.set(db.collection("users").doc(account.uid), clean({
+      cadenceAnchor: desk.period.start,
+      nextDeskDueAt: desk.cadence?.nextAvailableOn,
+      reviewHistoryBackfill: {
+        version: REVIEW_HISTORY_BACKFILL_VERSION,
+        status: "pending",
+        targetPeriods: fourPeriodWindow(desk.period.start),
+        evaluated: { [desk.period.start]: { status: "published", evaluatedAt: storedAt } },
+        activationBaseline: true,
+        establishedAt: storedAt,
+      } satisfies ReviewHistoryBackfillState,
+    }), { merge: true });
+  }
   batch.delete(factualReviewRef);
   await batch.commit();
 
   const entries = [
-    ...previous.docs.filter((document) => document.id !== deskDocumentId).map((document) => ({
-      deskKey: String(document.data().deskKey),
-      periodEnd: String(document.data().periodEnd ?? document.data().summary?.periodEnd),
-      documentId: document.id,
-    })),
+    ...previous.docs.map((document) => ({ deskKey: String(document.data().deskKey), periodEnd: String(document.data().periodEnd ?? document.data().summary?.periodEnd), documentId: document.id })),
     { deskKey: summary.deskKey, periodEnd: summary.periodEnd, documentId: deskDocumentId },
   ];
   const retention = retainLatestFour(entries);
-  for (const removed of retention.removed) await deleteDeskTree(account.uid, removed.documentId);
-
-  const currentRecords = (await db.collection("users").doc(account.uid).get()).data()?.personalRecords as PersonalRecords | undefined;
-  const updatedRecords = alreadyPublished ? currentRecords : updatePersonalRecords(currentRecords, summary);
-  const personalRecords: PersonalRecords = {
-    ...(updatedRecords ?? { personalBestWinRun: summary.longestWinRun, largestPoolSpecificRatingClimb: {} }),
-    desksCompleted: retention.retained.length,
-  };
-  await db.collection("users").doc(account.uid).set(clean({
-    cadenceAnchor: account.cadenceAnchor ?? desk.cadence?.anchorStart ?? desk.period.start,
-    nextDeskDueAt: desk.cadence?.nextAvailableOn,
-    previousBlue: summary.previousBlue,
-    previousAmber: summary.previousAmber,
-    personalRecords,
-    lastSeenAt: new Date().toISOString(),
-  }), { merge: true });
-
-  const publicCoverage = allowPublicIdentity ? buildSafePublicCoverage(
-    desk,
-    true,
-    { publicPlayerPage: true, universeCoverage: true },
-  ) : undefined;
-  if (publicCoverage) {
-    const publicId = safeDocumentId(`${account.chessCom.playerId}:${summary.deskKey}`);
-    await db.collection("publicCoverage").doc(publicId).set(clean(publicCoverage));
+  for (const removed of retention.removed) {
+    const removedPrevious = previous.docs.find((document) => document.id === removed.documentId)?.data() as StoredDeskDocument | undefined;
+    if (historical && removedPrevious?.originalBeta) continue;
+    await deleteDeskTree(account.uid, removed.documentId);
   }
-  if (allowPublicIdentity && !alreadyPublished && beforeUniverseState) {
-    await recordCompletedDeskUniverseArtifacts({
-      account,
-      desk,
-      deskKey: summary.deskKey,
-      beforeState: beforeUniverseState,
-      deskCountAfter: retention.retained.length,
-    }).catch(async (error) => {
-      await recordUniversePulseException(account, "universe_completed_desk_artifacts", error);
-    });
-  } else if (allowPublicIdentity && alreadyPublished) {
-    await ensureShareMomentsForActiveDesks(account, [{ desk, summary }], beforeUniverseState).catch(async (error) => {
-      await recordUniversePulseException(account, "universe_share_backfill", error);
-    });
+
+  const accountUpdate: Record<string, unknown> = {};
+  if (!historical) {
+    const currentRecords = (await db.collection("users").doc(account.uid).get()).data()?.personalRecords as PersonalRecords | undefined;
+    const updatedRecords = updatePersonalRecords(currentRecords, summary);
+    accountUpdate.cadenceAnchor = account.cadenceAnchor ?? desk.cadence?.anchorStart ?? desk.period.start;
+    accountUpdate.nextDeskDueAt = desk.cadence?.nextAvailableOn;
+    accountUpdate.previousBlue = summary.previousBlue;
+    accountUpdate.previousAmber = summary.previousAmber;
+    accountUpdate.personalRecords = {
+      ...(updatedRecords ?? { personalBestWinRun: summary.longestWinRun, largestPoolSpecificRatingClimb: {} }),
+      desksCompleted: retention.retained.length,
+    } satisfies PersonalRecords;
+    accountUpdate.lastSeenAt = storedAt;
   }
-  return { deskKey: summary.deskKey, removedDeskKeys: retention.removed.map((item) => item.deskKey) };
+  if (Object.keys(accountUpdate).length) await db.collection("users").doc(account.uid).set(clean(accountUpdate), { merge: true });
+
+  if (!historical) {
+    const publicCoverage = allowPublicIdentity ? buildSafePublicCoverage(desk, true, { publicPlayerPage: true, universeCoverage: true }) : undefined;
+    if (publicCoverage) {
+      const publicId = safeDocumentId(`${account.chessCom.playerId}:${summary.deskKey}`);
+      await db.collection("publicCoverage").doc(publicId).set(clean(publicCoverage));
+    }
+    if (allowPublicIdentity && beforeUniverseState) {
+      await recordCompletedDeskUniverseArtifacts({ account, desk, deskKey: summary.deskKey, beforeState: beforeUniverseState, deskCountAfter: retention.retained.length }).catch(async (error) => {
+        await recordUniversePulseException(account, "universe_completed_desk_artifacts", error);
+      });
+    }
+  }
+  return { deskKey: summary.deskKey, removedDeskKeys: retention.removed.map((item) => item.deskKey), reviewLifecycle: lifecycle };
 }
 
 export async function loadPublishedDesks(uid: string): Promise<PublishedDeskBundle[]> {
   const db = getAdminDb();
-  const deskSnapshots = await db.collection("users").doc(uid).collection("desks")
-    .orderBy("periodEnd", "desc")
-    .limit(4)
-    .get();
+  const deskSnapshots = await db.collection("users").doc(uid).collection("desks").orderBy("periodEnd", "desc").limit(4).get();
   const liveDocuments = deskSnapshots.docs.filter((document) => {
-    const data = document.data() as { desk?: BoardSignalDesk; summary?: DeskSummary };
+    const data = document.data() as StoredDeskDocument;
     return Boolean(data.desk && data.summary && data.desk.source === "live" && data.desk.provenance.verified);
   });
   return Promise.all(liveDocuments.map(async (document) => {
-    const data = document.data() as { desk: BoardSignalDesk; summary: DeskSummary };
+    const data = document.data() as StoredDeskDocument & { desk: BoardSignalDesk; summary: DeskSummary };
     const evidence = await document.ref.collection("evidence").orderBy("positionOrder", "asc").get();
     const candidates: BoardSignalDesk["candidates"] = [];
     const engineResults: Record<string, DeskEngineResult> = {};
     for (const evidenceDocument of evidence.docs) {
-      const item = evidenceDocument.data() as {
-        candidate: BoardSignalDesk["candidates"][number];
-        engineResult?: DeskEngineResult;
-      };
+      const item = evidenceDocument.data() as { candidate: BoardSignalDesk["candidates"][number]; engineResult?: DeskEngineResult };
       candidates.push(item.candidate);
       if (item.engineResult) engineResults[item.candidate.id] = item.engineResult;
     }
-    return { desk: { ...data.desk, candidates }, engineResults, summary: data.summary };
+    const lifecycle = storedReviewLifecycle(data) ?? "organic_live";
+    return {
+      desk: { ...data.desk, candidates },
+      engineResults,
+      summary: data.summary,
+      reviewLifecycle: lifecycle,
+      countsTowardRetention: lifecycle !== "historical_backfill" && data.countsTowardRetention !== false,
+    };
   }));
 }
 
 export async function loadCompletedReviewHistory(uid: string): Promise<CompletedReviewHistoryItem[]> {
-  const snapshot = await getAdminDb().collection("users").doc(uid).collection("desks")
-    .orderBy("periodEnd", "desc")
-    .limit(4)
-    .get();
+  const snapshot = await getAdminDb().collection("users").doc(uid).collection("desks").orderBy("periodEnd", "desc").limit(4).get();
   return snapshot.docs.flatMap((document) => {
-    const data = document.data() as {
-      desk?: BoardSignalDesk;
-      summary?: DeskSummary;
-      originalBeta?: { history?: CompletedReviewHistoryItem };
-    };
+    const data = document.data() as { desk?: BoardSignalDesk; summary?: DeskSummary; originalBeta?: { history?: CompletedReviewHistoryItem } };
     if (data.originalBeta?.history) return [{ ...data.originalBeta.history, reviewKey: String(data.originalBeta.history.reviewKey ?? document.id) }];
-    if (data.desk?.source === "live" && data.desk.provenance.verified && data.summary) {
-      return [liveDeskToReviewHistory(data.desk, data.summary)];
-    }
+    if (data.desk?.source === "live" && data.desk.provenance.verified && data.summary) return [liveDeskToReviewHistory(data.desk, data.summary)];
     return [];
   }).sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
 }
 
-export async function buildPlayerRoomSnapshot(
-  token: DecodedIdToken,
-  currentEpisode?: CurrentEpisodeSummary,
-  progressUnavailable?: string,
-): Promise<PlayerRoomSnapshot> {
+export async function buildPlayerRoomSnapshot(token: DecodedIdToken, currentEpisode?: CurrentEpisodeSummary, progressUnavailable?: string): Promise<PlayerRoomSnapshot> {
   const account = await accountForToken(token);
   await getAdminDb().collection("users").doc(account.uid).set(clean({
     lastSeenAt: new Date().toISOString(),
@@ -563,32 +559,16 @@ export async function buildPlayerRoomSnapshot(
   const obsoleteFactualReviews = factualReviews.filter((draft) => publishedKeys.has(draft.deskKey));
   if (obsoleteFactualReviews.length) {
     const cleanup = getAdminDb().batch();
-    obsoleteFactualReviews.forEach((draft) => cleanup.delete(
-      getAdminDb().collection("users").doc(account.uid).collection("factualReviews").doc(safeDocumentId(draft.deskKey)),
-    ));
+    obsoleteFactualReviews.forEach((draft) => cleanup.delete(getAdminDb().collection("users").doc(account.uid).collection("factualReviews").doc(safeDocumentId(draft.deskKey))));
     await cleanup.commit();
   }
   const latest = desks[0]?.desk;
-  const pendingFactualReview = factualReviews.find((draft) => (
-    !publishedKeys.has(draft.deskKey)
-    && (!latest || draft.periodEnd > latest.period.end)
-  ));
-  const generationRequired = pendingFactualReview ? false : !latest || Boolean(
-    latest.cadence?.nextAvailableOn
-    && latest.cadence.nextAvailableOn <= new Date().toISOString().slice(0, 10),
-  );
+  const pendingFactualReview = factualReviews.find((draft) => !publishedKeys.has(draft.deskKey) && (!latest || draft.periodEnd > latest.period.end));
+  const generationRequired = pendingFactualReview ? false : !latest || Boolean(latest.cadence?.nextAvailableOn && latest.cadence.nextAvailableOn <= new Date().toISOString().slice(0, 10));
   const accountSnapshot = (await getAdminDb().collection("users").doc(account.uid).get()).data() as BoardSignalAccount & { personalRecords?: PersonalRecords; originalBetaPlayer?: boolean };
-  const storedRecords = accountSnapshot.personalRecords ?? {
-    desksCompleted: 0,
-    personalBestWinRun: 0,
-    largestPoolSpecificRatingClimb: {},
-  };
+  const storedRecords = accountSnapshot.personalRecords ?? { desksCompleted: 0, personalBestWinRun: 0, largestPoolSpecificRatingClimb: {} };
   const knownHistoricalRuns = reviewHistory.flatMap((review) => review.longestWinRun === undefined ? [] : [review.longestWinRun]);
-  const personalRecords: PersonalRecords = {
-    ...storedRecords,
-    desksCompleted: reviewHistory.length,
-    personalBestWinRun: Math.max(storedRecords.personalBestWinRun, ...knownHistoricalRuns, 0),
-  };
+  const personalRecords: PersonalRecords = { ...storedRecords, desksCompleted: reviewHistory.length, personalBestWinRun: Math.max(storedRecords.personalBestWinRun, ...knownHistoricalRuns, 0) };
   let pulse: PlayerPulse | undefined;
   let pulseUnavailable: string | undefined;
   try {
@@ -597,12 +577,12 @@ export async function buildPlayerRoomSnapshot(
     pulseUnavailable = "Universe Pulse is temporarily unavailable. Your saved Reviews are unchanged.";
     await recordUniversePulseException(accountSnapshot, "universe_player_room_pulse", error);
   }
-  if (desks.length && publicIdentityAllowed(accountSnapshot)) {
-    await ensureShareMomentsForActiveDesks(accountSnapshot, desks).catch(async (error) => {
-      await recordUniversePulseException(accountSnapshot, "universe_share_backfill", error);
-    });
+  const organicDesks = desks.filter((item) => item.reviewLifecycle !== "historical_backfill");
+  if (organicDesks.length && publicIdentityAllowed(accountSnapshot)) {
+    await ensureShareMomentsForActiveDesks(accountSnapshot, organicDesks).catch(async (error) => recordUniversePulseException(accountSnapshot, "universe_share_backfill", error));
   }
-  const shareMoments = publicIdentityAllowed(accountSnapshot) ? await listPlayerShareMoments(account.chessCom.playerId, summaries.map((summary) => summary.deskKey)).catch(async (error) => {
+  const organicSummaries = organicDesks.map((item) => item.summary);
+  const shareMoments = publicIdentityAllowed(accountSnapshot) ? await listPlayerShareMoments(account.chessCom.playerId, organicSummaries.map((summary) => summary.deskKey)).catch(async (error) => {
     await recordUniversePulseException(accountSnapshot, "universe_share_load", error);
     return [] as Array<SafeShareMoment & { activeDesk?: boolean }>;
   }) : [];

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { parseHistoricalRequestAnchor } from "@/lib/boardsignal/historyBackfill";
 import { buildLiveDesk } from "@/lib/boardsignal/processor";
 import type { DeskApiResponse } from "@/lib/boardsignal/types";
 
@@ -9,8 +10,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
   const { username } = await params;
 
   try {
-    const anchorStart = new URL(request.url).searchParams.get("anchorStart") ?? undefined;
-    const desk = await buildLiveDesk(decodeURIComponent(username), { anchorStart });
+    const requestedAnchor = new URL(request.url).searchParams.get("anchorStart") ?? undefined;
+    const historical = parseHistoricalRequestAnchor(requestedAnchor);
+    const desk = await buildLiveDesk(decodeURIComponent(username), {
+      anchorStart: historical.cadenceAnchor,
+      historicalPeriodStart: historical.periodStart,
+    });
     return NextResponse.json<DeskApiResponse>({ ok: true, desk }, {
       headers: { "Cache-Control": "no-store, private", "X-Robots-Tag": "noindex, nofollow" },
     });
@@ -24,4 +29,3 @@ export async function GET(request: Request, { params }: { params: Promise<{ user
     });
   }
 }
-

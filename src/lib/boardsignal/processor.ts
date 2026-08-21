@@ -99,6 +99,11 @@ export function latestCompletedAlignedWeek(anchorStart: string, reference = new 
   return { start, end: new Date(start.getTime() + 6 * DAY_MS) };
 }
 
+export function initialActivityAnchoredWeek(timestampSeconds: number) {
+  const end = atUtcMidnight(new Date(timestampSeconds * 1000));
+  return { start: new Date(end.getTime() - 6 * DAY_MS), end };
+}
+
 function mondayFor(timestampSeconds: number) {
   const date = atUtcMidnight(new Date(timestampSeconds * 1000));
   const day = date.getUTCDay();
@@ -542,29 +547,27 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
   if (!archives.length) throw new Error("This Chess.com account has no public game archives yet.");
 
   const referenceDate = options.referenceDate ?? new Date();
-  const latest = options.anchorStart
-    ? latestCompletedAlignedWeek(options.anchorStart, referenceDate)
-    : latestCompletedWeek(referenceDate);
-  const latestCompletedLabel = formatPeriod(latest.start, latest.end);
-  const latestEndSeconds = Math.floor((latest.end.getTime() + DAY_MS - 1) / 1000);
+  let latest: { start: Date; end: Date };
   let mostRecentCompletedGame: ChessComGame | undefined;
 
-  for (const archive of [...archives].reverse().slice(0, 24)) {
-    const games = await getArchiveGames(archive);
-    mostRecentCompletedGame = games
-      .filter((game) => game.end_time <= latestEndSeconds && (!game.rules || game.rules === "chess"))
-      .sort((a, b) => b.end_time - a.end_time)[0];
-    if (mostRecentCompletedGame) break;
+  if (options.anchorStart) {
+    latest = latestCompletedAlignedWeek(options.anchorStart, referenceDate);
+  } else {
+    const latestEligibleEndSeconds = Math.floor(atUtcMidnight(referenceDate).getTime() / 1000) - 1;
+    for (const archive of [...archives].reverse().slice(0, 24)) {
+      const games = await getArchiveGames(archive);
+      mostRecentCompletedGame = games
+        .filter((game) => game.end_time <= latestEligibleEndSeconds && (!game.rules || game.rules === "chess"))
+        .sort((a, b) => b.end_time - a.end_time)[0];
+      if (mostRecentCompletedGame) break;
+    }
+    if (!mostRecentCompletedGame) throw new Error("No eligible completed standard game was found before today.");
+    latest = initialActivityAnchoredWeek(mostRecentCompletedGame.end_time);
   }
 
-  if (!mostRecentCompletedGame && !options.anchorStart) throw new Error("No completed standard game was found before the latest closed week.");
-
-  const selectedStart = options.anchorStart
-    ? latest.start
-    : mostRecentCompletedGame!.end_time * 1000 >= latest.start.getTime()
-      ? latest.start
-      : mondayFor(mostRecentCompletedGame!.end_time);
-  const selectedEnd = new Date(selectedStart.getTime() + 6 * DAY_MS);
+  const latestCompletedLabel = formatPeriod(latest.start, latest.end);
+  const selectedStart = latest.start;
+  const selectedEnd = latest.end;
   const keys = new Set([monthKey(selectedStart), monthKey(selectedEnd)]);
   const archiveMap = new Map(archives.map((url) => [archiveKey(url), url]));
   const selectedArchives = [...keys].map((key) => archiveMap.get(key)).filter((url): url is string => Boolean(url));
@@ -757,7 +760,7 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
   const reconstructedGames = selectedGames.filter((game) => Boolean(finalFen(game.pgn))).length;
 
   const headline = buildHeadline({ games: selectedGames.length, score, winStreak: bestWin, timeoutLosses, losses, checkmateWins });
-  const isLastActive = selectedStart.getTime() !== latest.start.getTime();
+  const isLastActive = false;
 
   return {
     source: "live",
@@ -792,9 +795,7 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
       nextEnd: isoDay(new Date(selectedStart.getTime() + 13 * DAY_MS)),
       nextAvailableOn: isoDay(new Date(selectedStart.getTime() + 14 * DAY_MS)),
     },
-    summary: isLastActive
-      ? `The latest completed week had no games, so BoardSignal found ${canonical}'s most recent active Monday–Sunday chapter. It does not treat older games as current form.`
-      : `${canonical}'s latest completed week is ready. Start with the Replay, then carry the clearest signal into the next game.`,
+    summary: `${canonical}'s latest completed Review period is ready. Start with the Replay, then carry the clearest signal into the next game.`,
     longestWinStreak: bestWin,
     longestLossStreak: bestLoss,
     sessions,
@@ -859,7 +860,6 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
     caveats: [
       "Ratings are separated by Chess.com time class; first and last values are recorded game boundaries, not an invented pre-game rating.",
       "Position claims are shown only where the available game evidence supports them.",
-      ...(isLastActive ? ["This is an older last-active period. Current form cannot be inferred from it."] : []),
     ],
   };
 }

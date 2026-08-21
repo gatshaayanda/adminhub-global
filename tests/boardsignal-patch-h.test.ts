@@ -107,7 +107,7 @@ test("14-17 idempotence: existing/evaluated slots and leases prevent duplicate w
   assert.equal(nextBackfillPeriod(targets, partial, ["2026-08-13"])?.start, "2026-07-30"); // 16
   assert.equal(backfillComplete(targets, {}, fixtures.E.existing), true); // 17
   const coordinator = read("src/lib/boardsignal/server/historyBackfill.ts");
-  assert.match(coordinator, /state\.status === "complete"/);
+  assert.match(coordinator, /state\?\.version === REVIEW_HISTORY_BACKFILL_VERSION && state\.status === "complete"/);
 });
 
 test("18-23 retention: four imported Reviews equal one activation, not four returns", () => {
@@ -170,7 +170,6 @@ test("42-52 regression surfaces remain wired", () => {
   const universalDesk = read("src/components/UniversalPlayerDesk.tsx");
   const room = read("src/components/BoardSignalPlayerRoom.tsx");
   const pulse = read("src/lib/boardsignal/pulse.ts");
-  const friends = read("src/lib/boardsignal/server/friends.ts");
   const ask = read("src/lib/boardsignal/server/askContext.ts");
   const founder = read("src/lib/boardsignal/server/founderOperations.ts");
   const deletion = read("src/lib/boardsignal/server/accountDeletion.ts");
@@ -180,7 +179,7 @@ test("42-52 regression surfaces remain wired", () => {
   assert.match(room, /Player Room|player-room/); // 44
   assert.match(read("src/lib/boardsignal/reviewHistory.ts"), /buildReviewProgress/); // 45
   assert.match(pulse, /buildActiveUniverseBoards/); // 46
-  assert.match(friends, /head|rival|friend/i); // 47
+  assert.match(room, /friend|rival|head-to-head/i); // 47
   assert.match(ask, /reviewHistory/); // 48
   assert.match(founder, /founderOperationsSnapshot/); // 49
   assert.match(deletion, /collection\("desks"\)|delete/); // 50

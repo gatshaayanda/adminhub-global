@@ -26,6 +26,8 @@ export type FounderOperationInput = {
 
 export type FounderOperationDerived = {
   currentState: "EXCEPTION" | "IDENTITY CONFLICT" | "UNREAD REPLY" | "NEW REQUEST" | "REVIEW READY · NOT SEEN" | "REVIEW CHECK REQUIRED" | "FORMING" | "NOT SEEN RECENTLY" | "ACTIVE";
+  forming: boolean;
+  reviewDateLabel: "NEXT REVIEW" | "EXPECTED REVIEW";
   readyNotSeen: boolean;
   notSeenRecently: boolean;
   reviewCheckRequired: boolean;
@@ -34,6 +36,21 @@ export type FounderOperationDerived = {
   attentionReasons: FounderAttentionReason[];
   attentionRank: number;
   oldestActionAt?: string;
+};
+
+export type FounderHistoryVisibilityInput = {
+  status?: "pending" | "retryable" | "complete";
+  targetPeriods?: Array<{ start: string; end: string }>;
+  evaluated?: Record<string, { status?: "existing" | "published" | "no_activity" }>;
+};
+
+export type FounderHistoryVisibility = {
+  evaluatedSlots: number;
+  totalSlots: number;
+  reviewSlots: number;
+  noActivitySlots: number;
+  pendingSlots: number;
+  status: "not_started" | "pending" | "retryable" | "complete";
 };
 
 function parsed(value?: string) {
@@ -52,6 +69,60 @@ function iso(time?: number) {
   return time === undefined ? undefined : new Date(time).toISOString();
 }
 
+export function effectiveFounderForming(storedForming: boolean | undefined, nextDeskDueAt?: string, nowInput: Date | string = new Date()) {
+  if (!storedForming) return false;
+  const nextDue = dueAnchor(nextDeskDueAt);
+  if (nextDue === undefined) return true;
+  const now = nowInput instanceof Date ? nowInput.getTime() : Date.parse(nowInput);
+  return now <= nextDue + REVIEW_DUE_GRACE_MS;
+}
+
+export function summarizeFounderHistoryVisibility(
+  state: FounderHistoryVisibilityInput | undefined,
+  existingReviewStarts: Iterable<string> = [],
+): FounderHistoryVisibility {
+  const targets = state?.targetPeriods ?? [];
+  if (!targets.length) {
+    return { evaluatedSlots: 0, totalSlots: 0, reviewSlots: 0, noActivitySlots: 0, pendingSlots: 0, status: "not_started" };
+  }
+
+  const targetStarts = new Set(targets.map((period) => period.start));
+  const existing = new Set([...existingReviewStarts].filter((periodStart) => targetStarts.has(periodStart)));
+  const evaluated = state?.evaluated ?? {};
+  const evaluatedStarts = new Set(existing);
+  const reviewStarts = new Set(existing);
+  const noActivityStarts = new Set<string>();
+
+  for (const period of targets) {
+    const result = evaluated[period.start];
+    if (result) {
+      evaluatedStarts.add(period.start);
+      if (result.status === "published" || result.status === "existing") reviewStarts.add(period.start);
+      if (result.status === "no_activity") noActivityStarts.add(period.start);
+      continue;
+    }
+
+    // Patch H may complete a target because a Review already occupied that slot
+    // without persisting evaluated[periodStart] = existing. Once complete, that
+    // historical fact must not regress merely because the old Review later rotates
+    // out of the active recent Review window. Pending/retryable states do not infer.
+    if (state?.status === "complete" && !existing.has(period.start)) {
+      evaluatedStarts.add(period.start);
+      reviewStarts.add(period.start);
+    }
+  }
+
+  const evaluatedSlots = evaluatedStarts.size;
+  return {
+    evaluatedSlots,
+    totalSlots: targets.length,
+    reviewSlots: reviewStarts.size,
+    noActivitySlots: noActivityStarts.size,
+    pendingSlots: Math.max(0, targets.length - evaluatedSlots),
+    status: state?.status ?? "pending",
+  };
+}
+
 export function attentionPriority(reason: FounderAttentionReason) {
   return ({ EXCEPTION: 1, IDENTITY: 2, UNREAD_REPLY: 3, NEW_REQUEST: 4, REVIEW_READY: 5, FOLLOW_UP_DUE: 6, NOT_SEEN: 7 } as const)[reason];
 }
@@ -63,13 +134,15 @@ export function deriveFounderOperation(input: FounderOperationInput, nowInput: D
   const lastContacted = parsed(input.founderOps?.lastContactedAt);
   const snoozedUntil = parsed(input.founderOps?.followUpSnoozedUntil);
   const nextDue = dueAnchor(input.nextDeskDueAt);
+  const forming = effectiveFounderForming(input.forming, input.nextDeskDueAt, nowInput);
+  const reviewDateLabel: FounderOperationDerived["reviewDateLabel"] = nextDue !== undefined && now > nextDue ? "EXPECTED REVIEW" : "NEXT REVIEW";
   const readyNotSeen = Boolean(published !== undefined && (lastSeen === undefined || lastSeen < published));
   const notSeenRecently = lastSeen === undefined || lastSeen <= now - 7 * FOUNDER_OPS_DAY_MS;
   const reviewCheckRequired = Boolean(
     nextDue !== undefined
     && now > nextDue + REVIEW_DUE_GRACE_MS
     && !readyNotSeen
-    && !input.forming,
+    && !forming,
   );
 
   let followUpDueAt: number | undefined;
@@ -100,7 +173,7 @@ export function deriveFounderOperation(input: FounderOperationInput, nowInput: D
         : (input.unreadReplies ?? 0) > 0 ? "UNREAD REPLY"
           : input.pendingRequest ? "NEW REQUEST"
             : readyNotSeen ? "REVIEW READY · NOT SEEN"
-              : input.forming ? "FORMING"
+              : forming ? "FORMING"
                 : notSeenRecently ? "NOT SEEN RECENTLY"
                   : "ACTIVE";
 
@@ -116,6 +189,8 @@ export function deriveFounderOperation(input: FounderOperationInput, nowInput: D
 
   return {
     currentState,
+    forming,
+    reviewDateLabel,
     readyNotSeen,
     notSeenRecently,
     reviewCheckRequired,

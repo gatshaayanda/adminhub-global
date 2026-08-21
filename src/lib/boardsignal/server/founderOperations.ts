@@ -6,6 +6,8 @@ import { originalBetaSourceInventory } from "../../../data/originalBetaHistory";
 import {
   deriveFounderOperation,
   resolveOriginalBetaSourcePlayerKey,
+  summarizeFounderHistoryVisibility,
+  type FounderHistoryVisibility,
   type FounderOperationComparableRow,
   type ValidationEvidence,
   type ValidationIdentityAlias,
@@ -64,6 +66,7 @@ export type FounderOperationsRow = FounderOperationComparableRow & {
   preferredContactValue?: string;
   latestReview?: { periodStart?: string; periodEnd?: string; periodLabel?: string; publishedAt?: string };
   reviewPeriods: Array<{ periodStart: string; periodEnd: string; periodLabel?: string; source: "original" | "live" }>;
+  history: FounderHistoryVisibility;
   lastContactedAt?: string;
   lastContactMethod?: BoardSignalFounderContactMethod;
   followUpSnoozedUntil?: string;
@@ -119,10 +122,15 @@ async function playerSnapshot(account: OperationsAccount) {
     periodStart: period.periodStart,
     periodEnd: period.periodEnd,
   }] : []);
+  const history = summarizeFounderHistoryVisibility(
+    account.reviewHistoryBackfill,
+    allVerifiedDocuments.map(({ period }) => period.periodStart),
+  );
   return {
     account,
     verified,
     historicalBackfills: allVerifiedDocuments.filter(({ period }) => period.source === "historical").length,
+    history,
     originalBetaProvenance,
     latestReview: latestVerified ? {
       periodStart: latestVerified.period.periodStart,
@@ -217,6 +225,7 @@ export async function founderOperationsSnapshot(now = new Date()) {
       avatar: account.chessCom.avatar,
       reviewCount: snapshot.verified.length,
       reviewPeriods: snapshot.verified,
+      history: snapshot.history,
       latestReview: snapshot.latestReview,
       nextDeskDueAt: account.nextDeskDueAt ?? account.currentEpisodeSummary?.nextDeskDueAt,
       lastSeenAt: account.lastSeenAt,
@@ -226,7 +235,7 @@ export async function founderOperationsSnapshot(now = new Date()) {
       identityConflict: identityConflict(account),
       pendingRequest: Boolean(pending),
       pendingRequestId: pending?.id,
-      forming: account.currentEpisodeSummary?.status === "forming",
+      forming: derived.forming,
       preferredContactMethod: account.preferredContactMethod,
       preferredContactValue: account.preferredContactValue,
       accountStatus: account.accessStatus,
@@ -257,13 +266,14 @@ export async function founderOperationsSnapshot(now = new Date()) {
       profileUrl: request.profileUrl ?? (request.canonicalUsername ? `https://www.chess.com/member/${encodeURIComponent(request.canonicalUsername)}` : undefined),
       reviewCount: 0,
       reviewPeriods: [],
+      history: summarizeFounderHistoryVisibility(undefined),
       unreadReplies: 0,
       exceptionCount: 0,
       exceptionTitles: [],
       identityConflict: false,
       pendingRequest: true,
       pendingRequestId: request.id,
-      forming: false,
+      forming: derived.forming,
       preferredContactMethod: request.preferredContactMethod,
       preferredContactValue: request.preferredContactValue,
     });

@@ -5,6 +5,7 @@ import "./boardsignal-foundation.css";
 import "./boardsignal-accessibility.css";
 import "./boardsignal-motion.css";
 import "./boardsignal-player-room-g3.css";
+import "./boardsignal-h1-hotfix.css";
 import "./boardsignal-f2-readability.css";
 
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";

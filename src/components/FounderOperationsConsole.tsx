@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, LoaderCircle, RefreshCcw, Sear
 import {
   filterFounderOperationRows,
   sortFounderOperationRows,
+  type FounderHistoryVisibility,
   type FounderOperationComparableRow,
   type FounderOperationFilter,
   type FounderOperationSort,
@@ -24,6 +25,7 @@ type OperationsRow = FounderOperationComparableRow & {
   preferredContactValue?: string;
   latestReview?: { periodStart?: string; periodEnd?: string; periodLabel?: string; publishedAt?: string };
   reviewPeriods: Array<{ periodStart: string; periodEnd: string; periodLabel?: string; source: "original" | "live" }>;
+  history: FounderHistoryVisibility;
   lastContactedAt?: string;
   lastContactMethod?: FounderOpsContactMethod;
   followUpSnoozedUntil?: string;
@@ -45,7 +47,7 @@ const FILTERS: Array<[FounderOperationFilter, string]> = [
   ["all", "ALL"], ["attention", "ATTENTION"], ["new_requests", "NEW REQUESTS"], ["follow_up_due", "FOLLOW-UP DUE"], ["reviews_ready", "REVIEWS READY"],
   ["reviews_forming", "REVIEWS FORMING"], ["unread_replies", "UNREAD REPLIES"], ["not_seen", "NOT SEEN 7D+"], ["identity", "IDENTITY"], ["exceptions", "EXCEPTIONS"],
 ];
-const SORTS: Array<[FounderOperationSort, string]> = [["attention", "ATTENTION"], ["next_review", "NEXT REVIEW"], ["last_seen", "LAST SEEN"], ["review_count", "REVIEW COUNT"], ["username", "USERNAME"]];
+const SORTS: Array<[FounderOperationSort, string]> = [["attention", "ATTENTION"], ["next_review", "REVIEW DATE"], ["last_seen", "LAST SEEN"], ["review_count", "REVIEW COUNT"], ["username", "USERNAME"]];
 const CONTACT_METHODS: Array<[FounderOpsContactMethod, string]> = [["email", "EMAIL"], ["discord", "DISCORD"], ["telegram", "TELEGRAM"], ["chesscom", "CHESS.COM"], ["other", "OTHER"]];
 
 function displayDate(value?: string, empty = "—") {
@@ -78,6 +80,14 @@ function defaultContactMethod(row: OperationsRow): FounderOpsContactMethod {
   if (row.lastContactMethod) return row.lastContactMethod;
   if (row.preferredContactMethod === "email" || row.preferredContactMethod === "discord" || row.preferredContactMethod === "telegram") return row.preferredContactMethod;
   return row.profileUrl ? "chesscom" : "other";
+}
+function historyDetail(history: FounderHistoryVisibility) {
+  if (!history.totalSlots) return { primary: "Not started", secondary: "Historical onboarding has not established a target window yet." };
+  const state = history.status === "retryable" ? " · retryable" : history.status === "complete" ? " · complete" : " · pending";
+  return {
+    primary: `${history.evaluatedSlots} / ${history.totalSlots} evaluated`,
+    secondary: `${history.reviewSlots} Review${history.reviewSlots === 1 ? "" : "s"} · ${history.noActivitySlots} no-activity${state}`,
+  };
 }
 
 export default function FounderOperationsConsole() {
@@ -154,20 +164,23 @@ export default function FounderOperationsConsole() {
       </div>
       <div className="founder-filter-strip" aria-label="Player operation filters">{FILTERS.map(([value, label]) => <button type="button" key={value} className={filter === value ? "active" : ""} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div>
       {shown.length ? <div className="founder-ops-table" role="table" aria-label="Live player operations">
-        <div className="founder-ops-table-head" role="row"><span>PLAYER</span><span>REVIEWS</span><span>CURRENT STATE</span><span>LAST SEEN</span><span>NEXT REVIEW</span><span>FOLLOW-UP</span><span>CONTACT</span><span>ACTION</span></div>
-        {shown.map((row) => <article className="founder-ops-row" role="row" key={row.uid}>
+        <div className="founder-ops-table-head" role="row"><span>PLAYER</span><span>REVIEWS</span><span>HISTORY</span><span>CURRENT STATE</span><span>LAST SEEN</span><span>REVIEW DATE</span><span>FOLLOW-UP</span><span>CONTACT</span><span>ACTION</span></div>
+        {shown.map((row) => {
+          const history = historyDetail(row.history);
+          return <article className="founder-ops-row" role="row" key={row.uid}>
           <div className="founder-ops-main-row">
             <div data-label="PLAYER"><strong>{row.username}</strong>{row.playerId ? <small>Chess.com ID {row.playerId}</small> : <small>Pending request</small>}</div>
-            <div data-label="REVIEWS"><strong>{row.reviewCount} / 4</strong></div>
+            <div data-label="REVIEWS"><strong>{row.reviewCount} qualifying</strong></div>
+            <div data-label="HISTORY" className="founder-history-cell"><strong>{history.primary}</strong><small>{history.secondary}</small></div>
             <div data-label="CURRENT STATE"><span className={`state-pill ${stateTone(row)}`}>{row.currentState}</span></div>
             <div data-label="LAST SEEN"><strong>{relativeSeen(row.lastSeenAt)}</strong></div>
-            <div data-label="NEXT REVIEW"><strong>{displayDate(row.nextDeskDueAt)}</strong></div>
+            <div data-label={row.reviewDateLabel}><small className="founder-review-date-label">{row.reviewDateLabel}</small><strong>{displayDate(row.nextDeskDueAt)}</strong></div>
             <div data-label="FOLLOW-UP"><strong>{followUpLabel(row)}</strong></div>
             <div data-label="CONTACT"><strong>{row.preferredContactMethod ? row.preferredContactMethod.toUpperCase() : row.profileUrl ? "CHESS.COM" : "—"}</strong><small>{row.preferredContactValue ?? (row.profileUrl ? "Profile available" : "Not confirmed")}</small></div>
             <div data-label="ACTION"><Link className="button button-quiet" href={row.pendingRequestId ? `/admin/players?request=${encodeURIComponent(row.pendingRequestId)}` : `/admin/players?player=${encodeURIComponent(String(row.playerId ?? row.username))}`}>MANAGE</Link></div>
           </div>
           <details className="founder-ops-details"><summary>Details</summary><div className="founder-ops-detail-grid">
-            <dl><div><dt>Stable Chess.com ID</dt><dd>{row.playerId ?? "Not yet recorded"}</dd></div><div><dt>Identity</dt><dd>{row.identityStatus ?? "Not recorded"}{row.identityReviewStatus ? ` · ${row.identityReviewStatus}` : ""}</dd></div><div><dt>Account</dt><dd>{row.accountStatus ?? "Pending request"}</dd></div><div><dt>Public highlights</dt><dd>{row.publicHighlightsStatus ?? "Not available yet"}</dd></div><div><dt>Preferred contact</dt><dd>{row.preferredContactMethod && row.preferredContactValue ? `${row.preferredContactMethod}: ${row.preferredContactValue}` : "Not confirmed"}</dd></div><div><dt>Latest Review</dt><dd>{row.latestReview?.periodLabel ?? "No completed Review"}</dd></div><div><dt>Current forming</dt><dd>{row.forming ? "Yes" : "No"}</dd></div><div><dt>nextDeskDueAt</dt><dd>{row.nextDeskDueAt ?? "Not recorded"}</dd></div><div><dt>Unread replies</dt><dd>{row.unreadReplies}</dd></div><div><dt>Last Founder contact</dt><dd>{row.lastContactedAt ? `${new Date(row.lastContactedAt).toLocaleString()}${row.lastContactMethod ? ` · ${row.lastContactMethod}` : ""}` : "Not recorded"}</dd></div><div><dt>Follow-up reason</dt><dd>{row.attentionReasons.join(" · ") || "No operational attention"}</dd></div><div><dt>Access status</dt><dd>{row.accessStatus ?? "Request pending"}</dd></div></dl>
+            <dl><div><dt>Stable Chess.com ID</dt><dd>{row.playerId ?? "Not yet recorded"}</dd></div><div><dt>Identity</dt><dd>{row.identityStatus ?? "Not recorded"}{row.identityReviewStatus ? ` · ${row.identityReviewStatus}` : ""}</dd></div><div><dt>Account</dt><dd>{row.accountStatus ?? "Pending request"}</dd></div><div><dt>Public highlights</dt><dd>{row.publicHighlightsStatus ?? "Not available yet"}</dd></div><div><dt>Preferred contact</dt><dd>{row.preferredContactMethod && row.preferredContactValue ? `${row.preferredContactMethod}: ${row.preferredContactValue}` : "Not confirmed"}</dd></div><div><dt>Latest qualifying Review</dt><dd>{row.latestReview?.periodLabel ?? "No qualifying Review"}</dd></div><div><dt>Current forming</dt><dd>{row.forming ? "Yes" : "No"}</dd></div><div><dt>{row.reviewDateLabel}</dt><dd>{row.nextDeskDueAt ?? "Not recorded"}</dd></div><div><dt>History coverage</dt><dd>{history.primary} · {history.secondary}</dd></div><div><dt>Unread replies</dt><dd>{row.unreadReplies}</dd></div><div><dt>Last Founder contact</dt><dd>{row.lastContactedAt ? `${new Date(row.lastContactedAt).toLocaleString()}${row.lastContactMethod ? ` · ${row.lastContactMethod}` : ""}` : "Not recorded"}</dd></div><div><dt>Follow-up reason</dt><dd>{row.attentionReasons.join(" · ") || "No operational attention"}</dd></div><div><dt>Access status</dt><dd>{row.accessStatus ?? "Request pending"}</dd></div></dl>
             <div className="founder-review-periods"><span>LATEST VERIFIED REVIEW PERIODS</span>{row.reviewPeriods.length ? <ol>{row.reviewPeriods.map((review) => <li key={`${review.periodStart}:${review.periodEnd}`}><strong>{review.periodLabel ?? `${review.periodStart} → ${review.periodEnd}`}</strong><small>{review.source === "original" ? "Original Beta provenance" : "Live digital Review"}</small></li>)}</ol> : <p>No verified completed Review periods stored.</p>}{row.exceptionTitles.length ? <div className="founder-ops-exceptions"><strong>Operational exceptions</strong>{row.exceptionTitles.map((title) => <p key={title}>{title}</p>)}</div> : null}</div>
           </div>
           <div className="founder-followup-actions">
@@ -175,7 +188,7 @@ export default function FounderOperationsConsole() {
             <div><span>Snooze normal follow-up</span><div>{[1,3,7].map((days) => <button className="button button-outline" type="button" key={days} disabled={row.uid.startsWith("request:") || busy !== null} onClick={() => void mutate(row, "snooze", { days })}>{days} DAY{days === 1 ? "" : "S"}</button>)}{row.followUpSnoozedUntil ? <button className="button button-quiet" type="button" disabled={busy !== null} onClick={() => void mutate(row, "clearSnooze")}>CLEAR SNOOZE</button> : null}</div><small>Snooze never hides unread replies, identity conflicts or system exceptions.</small></div>
             {row.profileUrl ? <a className="text-link" href={row.profileUrl} target="_blank" rel="noreferrer">Open Chess.com profile <ExternalLink size={14}/></a> : null}
           </div></details>
-        </article>)}
+        </article>;})}
       </div> : <div className="universe-empty"><p>No players match this operational view.</p></div>}
       <nav className="founder-pagination" aria-label="Player operations pages"><button type="button" className="button button-quiet" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={15}/> Previous</button><span>Page {Math.min(page, pages)} of {pages}</span><button type="button" className="button button-quiet" disabled={page >= pages} onClick={() => setPage((value) => Math.min(pages, value + 1))}>Next <ChevronRight size={15}/></button></nav>
     </section>

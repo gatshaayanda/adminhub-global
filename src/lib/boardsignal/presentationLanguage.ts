@@ -9,6 +9,7 @@ const PRESENTATION_LABELS: Record<string, string> = {
   beta_cost: "Founding Access cost",
   beta_request: "Founding Access request",
   founder_beta_request: "Founding Access request",
+  "FOUNDING BETA FIELD": "FOUNDING ACCESS FIELD",
 };
 
 export function boardSignalPresentationLabel(value: string) {

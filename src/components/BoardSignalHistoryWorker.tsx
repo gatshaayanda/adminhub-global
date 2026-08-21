@@ -12,6 +12,7 @@ type ClaimResponse = { ok: boolean; username?: string; work?: HistoricalBackfill
 
 export default function BoardSignalHistoryWorker() {
   const [user, setUser] = useState<User | null>(null);
+  const [ownerToken, setOwnerToken] = useState("");
   const [username, setUsername] = useState("");
   const [work, setWork] = useState<HistoricalBackfillWork | undefined>();
   const [processing, setProcessing] = useState(false);
@@ -32,13 +33,19 @@ export default function BoardSignalHistoryWorker() {
     busyRef.current = true;
     try {
       const token = await activeUser.getIdToken();
+      setOwnerToken(token);
       const response = await fetch("/api/boardsignal/history-backfill", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
       const body = await response.json() as ClaimResponse;
-      if (!response.ok || !body.ok) return;
+      if (!response.ok || !body.ok) {
+        busyRef.current = false;
+        timerRef.current = setTimeout(() => void advance(activeUser), 60_000);
+        return;
+      }
       setUsername(body.username ?? "");
       if (!body.work || !body.username) {
         setWork(undefined);
-        timerRef.current = setTimeout(() => { busyRef.current = false; void advance(activeUser); }, 25_000);
+        busyRef.current = false;
+        timerRef.current = setTimeout(() => void advance(activeUser), 25_000);
         return;
       }
 
@@ -54,16 +61,17 @@ export default function BoardSignalHistoryWorker() {
           return;
         }
         await postState(activeUser, claimed, "retryable", !deskBody.ok ? deskBody.error : "Historical Review request failed.").catch(() => undefined);
-        timerRef.current = setTimeout(() => { busyRef.current = false; void advance(activeUser); }, 60_000);
+        busyRef.current = false;
+        timerRef.current = setTimeout(() => void advance(activeUser), 60_000);
         return;
       }
       setWork(claimed);
       setProcessing(true);
-      // UniversalPlayerDesk reuses the exact same deterministic Review and
-      // on-device Stockfish path. The server archive cache makes this preflight
-      // + engine mount a single archive acquisition in normal operation.
+      // UniversalPlayerDesk reuses the same deterministic Review and on-device
+      // Stockfish flow. No Review engine or worker architecture is duplicated.
     } catch {
-      timerRef.current = setTimeout(() => { busyRef.current = false; void advance(activeUser); }, 60_000);
+      busyRef.current = false;
+      timerRef.current = setTimeout(() => void advance(activeUser), 60_000);
       return;
     }
     busyRef.current = false;
@@ -73,7 +81,7 @@ export default function BoardSignalHistoryWorker() {
     setUser(activeUser);
     if (timerRef.current) clearTimeout(timerRef.current);
     if (activeUser) void advance(activeUser);
-    else { setWork(undefined); setUsername(""); setProcessing(false); busyRef.current = false; }
+    else { setWork(undefined); setUsername(""); setOwnerToken(""); setProcessing(false); busyRef.current = false; }
   }), [advance]);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
@@ -107,7 +115,7 @@ export default function BoardSignalHistoryWorker() {
     timerRef.current = setTimeout(() => { busyRef.current = false; void advance(user); }, 900);
   }, [advance, postState, user, work]);
 
-  if (!user || !work || !username) return null;
+  if (!user || !work || !username || !ownerToken) return null;
   const requestAnchor = historicalRequestAnchor(work.requestCadenceAnchor, work.periodStart);
   return <>
     <div className="container founding-field-note" role="status" aria-live="polite">
@@ -117,7 +125,7 @@ export default function BoardSignalHistoryWorker() {
       <UniversalPlayerDesk
         key={`${work.periodStart}:${work.leaseId}`}
         requestedUsername={username}
-        ownerToken={undefined}
+        ownerToken={ownerToken}
         cadenceAnchor={requestAnchor}
         onFactualReviewReady={saveFactual}
         onDeskPublished={publishHistorical}

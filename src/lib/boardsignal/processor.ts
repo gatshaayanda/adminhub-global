@@ -59,6 +59,10 @@ const DRAW_RESULTS = new Set([
 ]);
 
 const DAY_MS = 86_400_000;
+const ARCHIVE_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+type ArchiveCacheEntry = { expiresAt: number; games: ChessComGame[] };
+const archiveGameCache = new Map<string, ArchiveCacheEntry>();
+const archiveGameInflight = new Map<string, Promise<ChessComGame[]>>();
 
 function isoDay(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -144,8 +148,30 @@ function monthKey(date: Date) {
 }
 
 async function fetchGames(url: string): Promise<ChessComGame[]> {
-  const payload = await chessComJson<{ games?: ChessComGame[] }>(url);
-  return payload.games ?? [];
+  const cached = archiveGameCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) return cached.games;
+  const pending = archiveGameInflight.get(url);
+  if (pending) return pending;
+  const request = chessComJson<{ games?: ChessComGame[] }>(url)
+    .then((payload) => {
+      const games = payload.games ?? [];
+      archiveGameCache.set(url, { games, expiresAt: Date.now() + ARCHIVE_CACHE_TTL_MS });
+      return games;
+    })
+    .finally(() => archiveGameInflight.delete(url));
+  archiveGameInflight.set(url, request);
+  return request;
+}
+
+async function fetchGamesSerial(urls: string[]) {
+  const games: ChessComGame[] = [];
+  for (const url of urls) games.push(...await fetchGames(url));
+  return games;
+}
+
+export function clearChessComArchiveCacheForTests() {
+  archiveGameCache.clear();
+  archiveGameInflight.clear();
 }
 
 function resultFor(game: ChessComGame, username: string) {
@@ -542,7 +568,8 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
   const keys = new Set([monthKey(selectedStart), monthKey(selectedEnd)]);
   const archiveMap = new Map(archives.map((url) => [archiveKey(url), url]));
   const selectedArchives = [...keys].map((key) => archiveMap.get(key)).filter((url): url is string => Boolean(url));
-  const retrievedGames = (await Promise.all(selectedArchives.map(getArchiveGames))).flat();
+  const retrievedGames: ChessComGame[] = [];
+  for (const archive of selectedArchives) retrievedGames.push(...await getArchiveGames(archive));
   const inPeriodGames = retrievedGames.filter((game) => {
       const time = game.end_time * 1000;
       return time >= selectedStart.getTime()
@@ -871,7 +898,7 @@ export async function buildCurrentEpisodeSummary(
   const archiveMap = new Map((archivesPayload.archives ?? []).map((url) => [archiveKey(url), url]));
   const keys = new Set([monthKey(start), monthKey(end)]);
   const urls = [...keys].map((key) => archiveMap.get(key)).filter((url): url is string => Boolean(url));
-  const retrieved = (await Promise.all(urls.map(fetchGames))).flat();
+  const retrieved = await fetchGamesSerial(urls);
   const seen = new Set<string>();
   const games = retrieved
     .filter((game) => {
@@ -968,7 +995,6 @@ export async function buildCurrentEpisodeSummary(
       currentLossRunFacts,
     });
   } catch {
-    // Guidance is enrichment. The factual forming-week state must still render.
     nextGameGuidance = unavailableActiveWeekGuidance(games.length);
   }
 

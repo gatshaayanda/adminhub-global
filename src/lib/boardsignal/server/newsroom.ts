@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { BoardSignalAccount } from "../account";
+import { storedReviewLifecycle } from "../historyBackfill";
 import { rankWhatsHot, type PublicUniverseEvent, type SafeShareMoment } from "../pulse";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { founderGuideSummary } from "./guide";
@@ -20,8 +21,9 @@ export async function founderNewsroomSummary() {
   const accounts = users.docs.map((document) => document.data() as BoardSignalAccount)
     .filter((account) => account.role === "player" && account.accessTier === "founding_beta" && account.accessStatus === "active");
   const latestCompletedDesks = (await Promise.all(accounts.map(async (account) => {
-    const snapshot = await db.collection("users").doc(account.uid).collection("desks").orderBy("periodEnd", "desc").limit(1).get();
-    const data = snapshot.docs[0]?.data() as { deskKey?: string; summary?: { periodLabel?: string; periodEnd?: string }; periodEnd?: string; publishedAt?: string } | undefined;
+    const snapshot = await db.collection("users").doc(account.uid).collection("desks").orderBy("periodEnd", "desc").limit(4).get();
+    const document = snapshot.docs.find((item) => storedReviewLifecycle(item.data()) !== "historical_backfill");
+    const data = document?.data() as { deskKey?: string; summary?: { periodLabel?: string; periodEnd?: string }; periodEnd?: string; publishedAt?: string } | undefined;
     return data ? { username: account.chessCom.canonicalUsername, deskKey: data.deskKey, periodLabel: data.summary?.periodLabel, periodEnd: data.summary?.periodEnd ?? data.periodEnd, publishedAt: data.publishedAt } : undefined;
   }))).filter((item): item is NonNullable<typeof item> => Boolean(item)).sort((a, b) => String(b.periodEnd ?? "").localeCompare(String(a.periodEnd ?? ""))).slice(0, 8);
   const events = universeEvents.docs.map((document) => document.data() as PublicUniverseEvent).filter((event) => event.safePublic === true);

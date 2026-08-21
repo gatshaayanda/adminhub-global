@@ -3,6 +3,7 @@ import { hasAcceptedCurrentBetaAgreement } from "@/lib/boardsignal/account";
 import { withPreviousReviewGuidance } from "@/lib/boardsignal/activeWeekGuidance";
 import { buildCurrentEpisodeSummary } from "@/lib/boardsignal/processor";
 import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
+import type { ReviewLifecycle } from "@/lib/boardsignal/historyBackfill";
 import {
   acceptFoundingBetaAgreement,
   accountForToken,
@@ -43,11 +44,7 @@ export async function GET(request: Request) {
           originalBetaReturn: Boolean((account as typeof account & { originalBetaPlayer?: boolean }).originalBetaPlayer),
           progress: [],
           recurringPatterns: [],
-          personalRecords: {
-            desksCompleted: 0,
-            personalBestWinRun: 0,
-            largestPoolSpecificRatingClimb: {},
-          },
+          personalRecords: { desksCompleted: 0, personalBestWinRun: 0, largestPoolSpecificRatingClimb: {} },
           generationRequired: false,
         },
       });
@@ -55,16 +52,10 @@ export async function GET(request: Request) {
     let currentEpisode: Awaited<ReturnType<typeof buildCurrentEpisodeSummary>> | undefined;
     let progressUnavailable;
     try {
-      currentEpisode = await buildCurrentEpisodeSummary(account.chessCom.canonicalUsername, {
-        anchorStart: account.cadenceAnchor,
-        playerKey: account.uid,
-      });
+      currentEpisode = await buildCurrentEpisodeSummary(account.chessCom.canonicalUsername, { anchorStart: account.cadenceAnchor, playerKey: account.uid });
     } catch (error) {
       progressUnavailable = error instanceof Error ? error.message : "Current episode progress is temporarily unavailable.";
     }
-    // Keep B.1/F.4 temporary coaching enrichment out of the durable user-root
-    // episode checkpoint. Guidance/latest-game context are recomputed from the
-    // same live current-week game set and attached only to this private response.
     const factualCurrentEpisode = currentEpisode ? factualEpisodeCheckpoint(currentEpisode) : undefined;
     const snapshot = await buildPlayerRoomSnapshot(token, factualCurrentEpisode, progressUnavailable);
     if (snapshot.currentEpisode && currentEpisode) {
@@ -78,8 +69,6 @@ export async function GET(request: Request) {
           sourcePeriod: previous.periodLabel,
         } : undefined),
       };
-      // B.1 continuity is a response-time enrichment. The existing persistence
-      // layer stays untouched and the current-week game set remains authoritative.
       snapshot.currentEpisode = currentEpisode;
     }
     await recordGuidePlayerRoomSnapshot(account, {
@@ -102,6 +91,8 @@ export async function POST(request: Request) {
       action?: "acceptAgreement" | "saveFactualReview" | "publishDesk" | "updatePreferences";
       desk?: BoardSignalDesk;
       engineResults?: Record<string, DeskEngineResult>;
+      reviewLifecycle?: ReviewLifecycle;
+      historyLeaseId?: string;
       privacy?: import("@/lib/boardsignal/account").BoardSignalPrivacySettings;
       notificationPreferences?: import("@/lib/boardsignal/account").BoardSignalNotificationPreferences;
       contact?: {
@@ -110,18 +101,10 @@ export async function POST(request: Request) {
         betaContactConsent: boolean;
       };
     };
-    if (body.action === "acceptAgreement") {
-      return response({ ok: true, account: await acceptFoundingBetaAgreement(token) });
-    }
-    if (body.action === "saveFactualReview" && body.desk) {
-      return response({ ok: true, factualReview: await savePendingFactualReview(token, body.desk) });
-    }
-    if (body.action === "publishDesk" && body.desk && body.engineResults) {
-      return response({ ok: true, publication: await publishPrivateDesk(token, body.desk, body.engineResults) });
-    }
-    if (body.action === "updatePreferences" && body.privacy && body.notificationPreferences) {
-      return response({ ok: true, preferences: await updatePlayerPreferences(token, body.privacy, body.notificationPreferences, body.contact) });
-    }
+    if (body.action === "acceptAgreement") return response({ ok: true, account: await acceptFoundingBetaAgreement(token) });
+    if (body.action === "saveFactualReview" && body.desk) return response({ ok: true, factualReview: await savePendingFactualReview(token, body.desk, { reviewLifecycle: body.reviewLifecycle, historyLeaseId: body.historyLeaseId }) });
+    if (body.action === "publishDesk" && body.desk && body.engineResults) return response({ ok: true, publication: await publishPrivateDesk(token, body.desk, body.engineResults, { reviewLifecycle: body.reviewLifecycle, historyLeaseId: body.historyLeaseId }) });
+    if (body.action === "updatePreferences" && body.privacy && body.notificationPreferences) return response({ ok: true, preferences: await updatePlayerPreferences(token, body.privacy, body.notificationPreferences, body.contact) });
     return response({ ok: false, error: "Unknown Player Room action." }, 400);
   } catch (error) {
     return response({ ok: false, error: error instanceof Error ? error.message : "Player Room update failed." }, Number((error as { status?: number }).status ?? 500));

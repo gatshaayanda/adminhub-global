@@ -19,6 +19,7 @@ import { foundingBetaField } from "@/data/universeField";
 import { applyEngineInterpretation, finalizeEngineResult } from "@/lib/boardsignal/interpretation";
 import { factualReviewToRetryDesk, type FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import { validateDeskForPublication } from "@/lib/boardsignal/quality";
+import { groupReviewEvidence, type EvidenceSupport } from "@/lib/boardsignal/playerRoomPresentation";
 import { buildDeskReturnLoop, buildPlayerUniverseView } from "@/lib/boardsignal/universe";
 import { buildLiveDeskRequestPath, resolveEffectiveCadenceAnchor } from "@/lib/boardsignal/firstReviewGeneration.mjs";
 import type {
@@ -86,6 +87,8 @@ type UniversalPlayerDeskProps = {
   pendingFactualReview?: FactualReviewDraft;
   publishedDesk?: BoardSignalDesk;
   publishedEngineResults?: Record<string, DeskEngineResult>;
+  presentationMode?: "full" | "player-room";
+  embedded?: boolean;
 };
 
 export default function UniversalPlayerDesk({
@@ -98,6 +101,8 @@ export default function UniversalPlayerDesk({
   pendingFactualReview,
   publishedDesk,
   publishedEngineResults = EMPTY_ENGINE_RESULTS,
+  presentationMode = "full",
+  embedded = false,
 }: UniversalPlayerDeskProps) {
   const isPublishedView = Boolean(publishedDesk);
   const isPendingFactualView = Boolean(pendingFactualReview) && !isPublishedView;
@@ -581,9 +586,9 @@ export default function UniversalPlayerDesk({
     }
   }, [desk, engineResults, isPublishedView, onDeskPublished, ownerToken]);
 
-  if (loading) return <DeskLoading username={requestedUsername} />;
-  if (noActivity && !desk) return <DeskNoActivity username={requestedUsername} message={noActivity} previousDesk={storedDesks[0]} />;
-  if (error || !desk) return <DeskError username={requestedUsername} error={error} />;
+  if (loading) return <DeskLoading username={requestedUsername} embedded={embedded} />;
+  if (noActivity && !desk) return <DeskNoActivity username={requestedUsername} message={noActivity} previousDesk={storedDesks[0]} embedded={embedded} />;
+  if (error || !desk) return <DeskError username={requestedUsername} error={error} embedded={embedded} />;
 
   const retryAnalysis = () => {
     const retryableIds = desk.candidates
@@ -611,20 +616,20 @@ export default function UniversalPlayerDesk({
   };
 
   if (isPendingFactualView && !analysisEnabled) {
-    return <DeskQualityHold desk={desk} codes={["ENGINE_REVIEW_INCOMPLETE"]} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={Object.keys(engineResults).length} total={desk.candidates.length} />;
+    return <DeskQualityHold desk={desk} codes={["ENGINE_REVIEW_INCOMPLETE"]} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={Object.keys(engineResults).length} total={desk.candidates.length} embedded={embedded} />;
   }
 
   const interpretation = desk.source === "live" && !isPublishedView ? applyEngineInterpretation(desk, engineResults) : { desk, complete: true, reviewed: desk.candidates.length, total: desk.candidates.length };
   const shown = interpretation.desk;
   if (desk.source === "live" && !isPublishedView && desk.candidates.length && !interpretation.complete) {
     if (ownerToken && onFactualReviewReady) {
-      return <DeskQualityHold desk={desk} codes={["ENGINE_REVIEW_INCOMPLETE"]} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={interpretation.reviewed} total={interpretation.total} />;
+      return <DeskQualityHold desk={desk} codes={["ENGINE_REVIEW_INCOMPLETE"]} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={interpretation.reviewed} total={interpretation.total} embedded={embedded} />;
     }
-    return <DeskAnalysisProgress username={desk.player.username} reviewed={interpretation.reviewed} total={interpretation.total} />;
+    return <DeskAnalysisProgress username={desk.player.username} reviewed={interpretation.reviewed} total={interpretation.total} embedded={embedded} />;
   }
   const quality = validateDeskForPublication(shown, engineResults);
   if (quality.status === "FAIL") {
-    return <DeskQualityHold desk={shown} codes={quality.codes} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={interpretation.reviewed} total={interpretation.total} />;
+    return <DeskQualityHold desk={shown} codes={quality.codes} diagnostic={engineDiagnostic} onRetry={retryAnalysis} persistenceNotice={persistenceError} durable={factualReviewDurable} recoveryState={recoveryState} reviewed={interpretation.reviewed} total={interpretation.total} embedded={embedded} />;
   }
   const hasPositions = shown.candidates.some((candidate) => candidate.fen || candidate.gameUrl);
   const universeView = shown.source === "live" ? buildPlayerUniverseView(foundingBetaField, shown) : undefined;
@@ -632,8 +637,12 @@ export default function UniversalPlayerDesk({
   const matteredSignal = isSupported(shown.signals.red) ? shown.signals.red : isSupported(shown.signals.amber) ? shown.signals.amber : shown.signals.green;
   const focusSignal = shown.signals.blue;
 
+  if (presentationMode === "player-room") {
+    return <PlayerRoomPublishedDesk desk={shown} engineResults={engineResults} universeView={universeView} noActivity={noActivity} persistenceError={persistenceError} embedded={embedded} />;
+  }
+
   return (
-    <div id="main" className="universal-desk-page">
+    <div id={embedded ? undefined : "main"} className="universal-desk-page">
       <section className="container universal-desk-shell">
         <header className="universal-player-bar">
           <div className="universal-avatar">{shown.player.username.slice(0, 2).toUpperCase()}</div>
@@ -769,9 +778,111 @@ export default function UniversalPlayerDesk({
   );
 }
 
-function DeskLoading({ username }: { username: string }) {
+
+function PlayerRoomPublishedDesk({
+  desk,
+  engineResults,
+  universeView,
+  noActivity,
+  persistenceError,
+  embedded,
+}: {
+  desk: BoardSignalDesk;
+  engineResults: Record<string, DeskEngineResult>;
+  universeView?: ReturnType<typeof buildPlayerUniverseView>;
+  noActivity?: string;
+  persistenceError?: string;
+  embedded: boolean;
+}) {
+  const grouped = groupReviewEvidence(desk);
+  const signalOrder = ["green", "red", "amber", "blue"];
+  const signals = [...grouped.signals].sort((a, b) => signalOrder.indexOf(a.signal) - signalOrder.indexOf(b.signal));
+
   return (
-    <div id="main" className="desk-processing-page"><section className="container desk-processing-card">
+    <div id={embedded ? undefined : "main"} className="universal-desk-page g3-player-room-desk">
+      <section className="container universal-desk-shell g3-player-room-desk-shell">
+        {desk.period.isLastActive ? <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>This is your latest active week—not current form.</strong><p>The latest completed week was {desk.period.latestCompletedLabel}; BoardSignal looked back to the most recent week with games.</p></div></div> : null}
+        {noActivity ? <div className="last-active-banner"><ShieldCheck size={18} /><div><strong>No new Review was created.</strong><p>{noActivity} Your previous Review remains available.</p></div></div> : null}
+        {persistenceError ? <div className="last-active-banner"><AlertTriangle size={18} /><div><strong>Your Review is complete on this device.</strong><p>{persistenceError} Reopen My BoardSignal to retry saving the same completed week.</p></div></div> : null}
+
+        <section className="g3-review-proof" id="evidence" aria-labelledby="g3-proof-title">
+          <div className="g3-layer-heading">
+            <p className="kicker">COMPLETED REVIEW · OFFICIAL</p>
+            <h2 id="g3-proof-title">THE PROOF</h2>
+            <p>These are the completed-Review signals and positions that support the summary above.</p>
+          </div>
+
+          <div className="g3-proof-signal-grid">
+            {signals.map((signal) => {
+              const first = signal.evidenceIds[0];
+              return <article className={`g3-proof-signal g3-proof-${signal.signal}`} key={signal.signal}>
+                <span>{signal.label}</span>
+                <h3>{signal.title}</h3>
+                <p>{signal.copy}</p>
+                {first ? <a className="text-link g3-proof-link" href={`#review-evidence-${first}`}>VIEW {signal.evidenceIds.length} SUPPORTING POSITION{signal.evidenceIds.length === 1 ? "" : "S"}</a> : <small>No linked position ID is stored for this supported conclusion.</small>}
+              </article>;
+            })}
+          </div>
+
+          {grouped.linked.length ? <div className="g3-linked-evidence">
+            <div className="g3-proof-subheading"><h3>Supporting positions</h3><p>Each position is labelled with the completed-Review conclusion it supports.</p></div>
+            <div className="universal-evidence-list g3-evidence-list">
+              {grouped.linked.map(({ candidate, supports }) => <EvidenceCard key={candidate.id} candidate={candidate} engine={engineResults[candidate.id]} supports={supports} />)}
+            </div>
+          </div> : <div className="section-empty"><strong>No linked position cards are stored for these supported conclusions.</strong><p>The Review conclusions remain exactly as published; BoardSignal will not invent evidence links.</p></div>}
+
+          {grouped.otherReviewed.length ? <details className="g3-disclosure g3-other-evidence">
+            <summary>OTHER REVIEWED POSITIONS <span>{grouped.otherReviewed.length}</span></summary>
+            <div className="g3-disclosure-body">
+              <p>Reviewed as part of the completed evidence check but not used as the main support for the summary above.</p>
+              <div className="universal-evidence-list g3-evidence-list">{grouped.otherReviewed.map((candidate) => <EvidenceCard key={candidate.id} candidate={candidate} engine={engineResults[candidate.id]} />)}</div>
+            </div>
+          </details> : null}
+        </section>
+
+        <section className="g3-deeper-review" aria-labelledby="g3-deeper-review-title">
+          <div className="g3-layer-heading"><p className="kicker">COMPLETED REVIEW · DETAIL</p><h2 id="g3-deeper-review-title">DEEPER REVIEW</h2><p>The full Review is still here when you want the chronology, pool detail, guidance and notes.</p></div>
+
+          <details className="g3-disclosure" id="replay">
+            <summary>HOW THE WEEK UNFOLDED</summary>
+            <div className="g3-disclosure-body">
+              {desk.replay ? <div className="replay-narrative"><span>{desk.replay.shape.replaceAll("_", " ")}</span><h3>{desk.replay.title}</h3><p>{desk.replay.narrative}</p></div> : null}
+              {desk.days.length ? <div className="universal-timeline">{desk.days.map((day) => <article className={day.wins > day.losses ? "positive" : day.losses > day.wins ? "negative" : "neutral"} key={day.date}><span>{day.label}</span><strong>{day.wins}W · {day.draws}D · {day.losses}L</strong>{day.ratingChange !== undefined ? <small>{desk.primaryPool} {day.ratingChange >= 0 ? "+" : ""}{day.ratingChange}</small> : null}</article>)}</div> : <div className="section-empty"><strong>Your week in one view</strong><p>{desk.summary}</p></div>}
+              <div className="replay-callouts"><div><Sparkles /><span>Positive run</span><strong>{desk.longestWinStreak || "See what went well"}</strong><p>{desk.longestWinStreak ? "consecutive wins" : desk.signals.green.title}</p></div><div><BarChart3 /><span>Watch run</span><strong>{desk.longestLossStreak || "See what to watch"}</strong><p>{desk.longestLossStreak ? "consecutive losses" : desk.signals.amber.title}</p></div></div>
+              {desk.turningPoint ? <section className="g3-inline-review-section" id="turning-point"><p className="kicker">TURNING POINT</p><h3>{desk.turningPoint.title}</h3><p>{desk.turningPoint.copy}</p></section> : null}
+            </div>
+          </details>
+
+          <details className="g3-disclosure" id="pools">
+            <summary>RATINGS &amp; POOLS {desk.pools[0] ? <span>{desk.pools[0].pool} · {desk.pools[0].games} games</span> : null}</summary>
+            <div className="g3-disclosure-body">
+              <section className="universal-metrics" aria-label="Review facts"><div><span>Games</span><strong>{desk.games}</strong></div><div><span>Sessions</span><strong>{desk.sessions ?? "—"}</strong></div><div><span>Checkmate wins</span><strong>{desk.checkmateWins ?? "—"}</strong></div><div><span>Primary pool</span><strong>{desk.primaryPool}</strong></div></section>
+              <div className="pool-table">{desk.pools.map((pool) => <article key={pool.pool}><div><span>Pool</span><strong>{pool.pool}</strong></div><div><span>Games</span><strong>{pool.games}</strong></div><div><span>Record</span><strong>{pool.record}</strong></div><div><span>Recorded rating</span><strong>{pool.firstRecordedRating !== undefined ? `${pool.firstRecordedRating} → ${pool.lastRecordedRating} (${(pool.change ?? pool.lastRecordedRating! - pool.firstRecordedRating) >= 0 ? "+" : ""}${pool.change ?? pool.lastRecordedRating! - pool.firstRecordedRating})` : "Not available"}</strong><small>{pool.peak !== undefined ? `High ${pool.peak} · Low ${pool.low}` : ""}</small></div></article>)}</div>
+              <div className="desk-fact-grid">{desk.colorRecords ? <article><span>By colour</span><strong>White {desk.colorRecords.white.record}</strong><p>Black {desk.colorRecords.black.record}</p></article> : null}{desk.gameLength ? <article><span>Game length</span><strong>Median {desk.gameLength.medianMoves} moves</strong><p>Average {desk.gameLength.averageMoves} · Range {desk.gameLength.shortestMoves}–{desk.gameLength.longestMoves}</p></article> : null}{desk.sessionDetails ? <article><span>Sessions</span><strong>{desk.sessionDetails.length} identified</strong><p>30-minute gap rule · best session included {Math.max(0, ...desk.sessionDetails.map((session) => session.wins))} wins</p></article> : null}{desk.clockEvidence ? <article><span>Clock evidence</span><strong>{desk.clockEvidence.gamesWithClockData} of {desk.clockEvidence.totalGames} games</strong><p>Only usable clock tags can support time guidance.</p></article> : null}</div>
+              {desk.terminations?.length || desk.openings.length ? <details className="g3-nested-disclosure"><summary>MORE RATING &amp; GAME DETAIL</summary><div className="desk-detail-columns"><div><span>Terminations</span>{desk.terminations?.slice(0, 6).map((item) => <p key={item.type}><strong>{item.games}</strong> {item.type}</p>)}</div><div><span>Most played openings</span>{desk.openings.slice(0, 5).map((item) => <p key={item.name}><strong>{item.games}</strong> {item.name}</p>)}</div></div></details> : null}
+            </div>
+          </details>
+
+          <details className="g3-disclosure" id="signals">
+            <summary>DETAILED GUIDANCE</summary>
+            <div className="g3-disclosure-body"><div className="universal-signal-grid"><SignalCard tone="green" signal={desk.signals.green} /><SignalCard tone="amber" signal={desk.signals.amber} /><SignalCard tone="red" signal={desk.signals.red} /><SignalCard tone="blue" signal={desk.signals.blue} /></div>{desk.pocketCard ? <section className="universal-section pocket-card"><p className="kicker">TAKE THIS INTO YOUR NEXT GAMES</p><h2>{desk.pocketCard}</h2></section> : null}</div>
+          </details>
+
+          <details className="g3-disclosure g3-review-notes">
+            <summary>REVIEW NOTES</summary>
+            <div className="g3-disclosure-body"><div className="desk-caveats"><ShieldCheck size={20} /><div><strong>Accuracy and data notes</strong><ul>{desk.caveats.map((caveat) => <li key={caveat}>{caveat}</li>)}</ul></div></div></div>
+          </details>
+
+          {universeView ? <details className="g3-disclosure g3-around-review"><summary>AROUND THIS REVIEW</summary><div className="g3-disclosure-body"><PrivateUniverseSections view={universeView} /></div></details> : null}
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function DeskLoading({ username, embedded = false }: { username: string; embedded?: boolean }) {
+  return (
+    <div id={embedded ? undefined : "main"} className="desk-processing-page"><section className="container desk-processing-card">
       <div className="processing-orb"><LoaderCircle /></div><p className="kicker">BUILDING YOUR REVIEW</p><h1>{username}</h1><p>Keep this tab open while BoardSignal retrieves the public games and establishes the fixed seven-day period.</p>
       <div className="processing-stages" aria-live="polite">
         <div className="active"><LoaderCircle className="spin" /><p>Getting games and confirming the seven-day period</p></div>
@@ -784,22 +895,22 @@ function DeskLoading({ username }: { username: string }) {
   );
 }
 
-function DeskError({ username, error }: { username: string; error: string }) {
+function DeskError({ username, error, embedded = false }: { username: string; error: string; embedded?: boolean }) {
   return (
-    <div id="main" className="desk-processing-page"><section className="container desk-processing-card error-card">
+    <div id={embedded ? undefined : "main"} className="desk-processing-page"><section className="container desk-processing-card error-card">
       <AlertTriangle /><p className="kicker">Review could not be built</p><h1>{username}</h1><p>{error}</p><div className="gateway-search"><UsernameDeskForm compact /></div><Link href="/" className="text-link">Return to BoardSignal</Link>
     </section></div>
   );
 }
 
-function DeskNoActivity({ username, message, previousDesk }: { username: string; message: string; previousDesk?: BoardSignalDesk }) {
+function DeskNoActivity({ username, message, previousDesk, embedded = false }: { username: string; message: string; previousDesk?: BoardSignalDesk; embedded?: boolean }) {
   const universeView = previousDesk ? buildPlayerUniverseView(foundingBetaField, previousDesk) : undefined;
   const returnLoop = previousDesk ? buildDeskReturnLoop(previousDesk, universeView?.standings) : undefined;
   const dueLabel = returnLoop?.nextDeskDueAt
     ? new Date(`${returnLoop.nextDeskDueAt}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })
     : undefined;
   return (
-    <div id="main" className="desk-processing-page"><section className="container desk-processing-card">
+    <div id={embedded ? undefined : "main"} className="desk-processing-page"><section className="container desk-processing-card">
       <ShieldCheck /><p className="kicker">BETWEEN REVIEWS</p><h1>{username}</h1><p>{message}</p><p>BoardSignal did not invent a review where there were no games to support one.</p>
       {returnLoop ? <div className="return-loop-grid">
         {returnLoop.previousBlue ? <article className="return-loop-blue"><span>Carry with you</span><h2>{returnLoop.previousBlue.title}</h2><p>{returnLoop.previousBlue.copy}</p><small>From your last completed review · Not graded</small></article> : null}
@@ -811,9 +922,9 @@ function DeskNoActivity({ username, message, previousDesk }: { username: string;
   );
 }
 
-function DeskAnalysisProgress({ username, reviewed, total }: { username: string; reviewed: number; total: number }) {
+function DeskAnalysisProgress({ username, reviewed, total, embedded = false }: { username: string; reviewed: number; total: number; embedded?: boolean }) {
   return (
-    <div id="main" className="desk-processing-page"><section className="container desk-processing-card">
+    <div id={embedded ? undefined : "main"} className="desk-processing-page"><section className="container desk-processing-card">
       <div className="processing-orb"><LoaderCircle /></div><p className="kicker">Covering your week</p><h1>{username}</h1><p>Keep this tab open. The on-device engine has reviewed {reviewed} of {total} selected positions.</p>
       <div className="processing-stages" aria-live="polite">
         <div className="done"><ShieldCheck /><p>Player, games and period confirmed</p></div>
@@ -836,6 +947,7 @@ function DeskQualityHold({
   recoveryState = "manual",
   reviewed = 0,
   total = 0,
+  embedded = false,
 }: {
   desk: BoardSignalDesk;
   codes: string[];
@@ -846,17 +958,18 @@ function DeskQualityHold({
   recoveryState?: EngineRecoveryState;
   reviewed?: number;
   total?: number;
+  embedded?: boolean;
 }) {
   const engineUnavailable = codes.includes("ENGINE_REVIEW_UNAVAILABLE") || codes.includes("ENGINE_REVIEW_INCOMPLETE");
   if (engineUnavailable) {
     return (
-      <div id="main" className="universal-desk-page">
+      <div id={embedded ? undefined : "main"} className="universal-desk-page">
         <section className="container universal-desk-shell">
-          <header className="universal-player-bar">
+          {!embedded ? <header className="universal-player-bar">
             <div className="universal-avatar">{desk.player.username.slice(0, 2).toUpperCase()}</div>
             <div><span>MY BOARD SIGNAL</span><h1>{desk.player.username}</h1><p>{desk.primaryPool} · {desk.period.label}</p></div>
             <div className="private-access"><LockKeyhole size={16} /> Private factual review</div>
-          </header>
+          </header> : null}
 
           <section className="universal-cover">
             <div className="universal-cover-copy">
@@ -898,7 +1011,7 @@ function DeskQualityHold({
     );
   }
   return (
-    <div id="main" className="desk-processing-page"><section className="container desk-processing-card error-card">
+    <div id={embedded ? undefined : "main"} className="desk-processing-page"><section className="container desk-processing-card error-card">
       <ShieldCheck /><p className="kicker">We could not finish this review</p><h1>{desk.player.username}</h1><p>This review did not clear BoardSignal's evidence checks, so no unsupported guidance has been published.</p>
       <div className="processing-stages"><div className="done"><ShieldCheck /><p>Player, games, period and factual week completed</p></div><div className="active"><AlertTriangle /><p>Final evidence validation needs attention</p></div></div>
       <p className="quality-reference">Check: {codes.join(" · ")}</p>
@@ -920,7 +1033,7 @@ function SignalCard({ tone, signal }: { tone: "green" | "amber" | "red" | "blue"
   return <article className={`universal-signal signal-${tone} ${signal.status === "withheld" ? "signal-withheld" : ""}`}><span>{label}</span><h3>{signal.title}</h3><p>{signal.copy}</p><small>{signal.status === "withheld" ? "Not enough evidence yet" : signal.evidenceIds?.length ? `${signal.evidenceIds.length} linked evidence position${signal.evidenceIds.length === 1 ? "" : "s"}` : "Supported by the completed review"}</small></article>;
 }
 
-function EvidenceCard({ candidate, engine }: { candidate: DeskCandidate; engine?: DeskEngineResult }) {
+function EvidenceCard({ candidate, engine, supports = [] }: { candidate: DeskCandidate; engine?: DeskEngineResult; supports?: EvidenceSupport[] }) {
   const gameLabel = /^G\d+$/i.test(candidate.id)
     ? `Game ${Number(candidate.id.slice(1))}`
     : /^P\d+$/i.test(candidate.id)
@@ -932,5 +1045,10 @@ function EvidenceCard({ candidate, engine }: { candidate: DeskCandidate; engine?
   const swing = engine?.status === "failed" ? engine.failureReason ?? "Position review failed" : engine?.evaluationLossCp !== undefined && engine.evaluationLossCp >= 100
     ? `${(engine.evaluationLossCp / 100).toFixed(2)} evaluation swing`
     : engine?.bestMoveSan ? `Stronger: ${engine.bestMoveSan}` : "Reviewed position";
-  return <article><div className="evidence-eval"><span>{gameLabel}</span><strong>{value}</strong></div><div><p>{candidate.reason} · {candidate.playerColor}</p>{candidate.opponent ? <h3>vs {candidate.opponent}</h3> : null}<p>{swing}</p></div><a href={candidate.gameUrl} target="_blank" rel="noreferrer" className="button button-outline">Open game <ExternalLink size={15} /></a></article>;
+  return <article id={supports.length ? `review-evidence-${candidate.id}` : undefined} className={supports.length ? "g3-linked-evidence-card" : undefined}>
+    {supports.length ? <div className="g3-evidence-supports" aria-label="Supported Review conclusions">{supports.map((support) => <span key={support.signal}>SUPPORTS · {support.label}</span>)}</div> : null}
+    <div className="evidence-eval"><span>{gameLabel}</span><strong>{value}</strong></div>
+    <div><p>{candidate.reason} · {candidate.playerColor}</p>{candidate.opponent ? <h3>vs {candidate.opponent}</h3> : null}<p>{swing}</p></div>
+    <a href={candidate.gameUrl} target="_blank" rel="noreferrer" className="button button-outline">Open game <ExternalLink size={15} /></a>
+  </article>;
 }

@@ -10,6 +10,7 @@ import PlayerInbox from "@/components/PlayerInbox";
 import PlayerFriends from "@/components/PlayerFriends";
 import PlayerPreferencesGate from "@/components/PlayerPreferencesGate";
 import PlayerProfileNotifications from "@/components/PlayerProfileNotifications";
+import PlayerRoomQuickRead from "@/components/PlayerRoomQuickRead";
 import UniversalPlayerDesk from "@/components/UniversalPlayerDesk";
 import ShareMomentActions from "@/components/ShareMomentActions";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
@@ -29,6 +30,7 @@ import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types"
 import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import type { CompletedReviewHistoryItem } from "@/lib/boardsignal/reviewHistory";
 import { boardSignalPresentationLabel } from "@/lib/boardsignal/presentationLanguage";
+import { buildPlayerRoomQuickRead } from "@/lib/boardsignal/playerRoomPresentation";
 import { auth } from "@/utils/firebaseConfig";
 import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
 import { clearBoardSignalPrivateOfflineData } from "@/lib/boardsignal/offline/db";
@@ -320,6 +322,7 @@ export default function BoardSignalPlayerRoom() {
   }, [connectivity.online, token, user?.uid]);
 
   const latest = snapshot?.desks[0];
+  const quickRead = latest && snapshot ? buildPlayerRoomQuickRead({ latest: latest.desk, recurringPatterns: snapshot.recurringPatterns, currentEpisode: snapshot.currentEpisode }) : undefined;
   const reviewHistory = snapshot?.reviewHistory ?? [];
   const hasOriginalHistory = reviewHistory.some((review) => review.source === "original_beta");
   const originalCadenceAnchor = snapshot?.account.cadenceAnchor;
@@ -355,7 +358,7 @@ export default function BoardSignalPlayerRoom() {
       <div id="main" className="player-room-authenticated">
         <RoomIdentity account={snapshot.account} />
         <div className="container member-first-desk-note"><p className="kicker">REVIEW 1 · PERSISTENT ACCOUNT</p><h2>Your first review belongs here.</h2><p>{connectivity.online ? "BoardSignal is building the latest completed week for your Chess.com identity. When the evidence checks are complete, the review is saved here in My BoardSignal." : "You're offline. BoardSignal will not retrieve new Chess.com games or build a review until you reconnect."}</p><button className="button button-quiet" type="button" onClick={signOutPlayer}>Sign out</button></div>
-        {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : <div className="container offline-network-action"><strong>Building a new review needs a connection.</strong><p>Your account is unchanged. Reconnect and BoardSignal will continue your review.</p></div>}
+        {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : <div className="container offline-network-action"><strong>Building a new review needs a connection.</strong><p>Your account is unchanged. Reconnect and BoardSignal will continue your review.</p></div>}
       </div>
     );
   }
@@ -366,20 +369,19 @@ export default function BoardSignalPlayerRoom() {
       <RoomNav tab={tab} setTab={setTab} unreadCount={unreadCount} />
       {offlineReadyNotice ? <div className="container offline-ready-note" role="status">Your latest BoardSignal is available offline on this device.</div> : null}
 
-      {tab === "desk" ? <>
-        <div className="container player-room-memory">
+      {tab === "desk" ? <section id="player-room-panel-desk" role="tabpanel" aria-labelledby="player-room-tab-desk" className="g3-room-panel g3-review-tab">
+        <div className="container player-room-memory g3-review-flow">
+          {quickRead ? <PlayerRoomQuickRead quickRead={quickRead} /> : null}
           {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} uid={user.uid} online={connectivity.online} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}
-          {latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}
-          <ReviewHistorySection history={reviewHistory} />
         </div>
-        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} /><div className="container"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : automaticGenerationRequired && hasOriginalHistory ? <div className="container player-room-memory"><div className="founding-field-note"><CalendarDays size={18}/><div><strong>Your original Review is already here.</strong><p>{connectivity.online ? "BoardSignal is building the next eligible LIVE Review from your preserved seven-day cadence." : "Reconnect before BoardSignal retrieves new Chess.com games for your next Review."}</p></div></div>{connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={originalCadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} /> : null}</div> : null}
-      </> : null}
+        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : latest ? <><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} presentationMode="player-room" embedded /><div className="container player-room-memory g3-post-review">{latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}<DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : automaticGenerationRequired && hasOriginalHistory ? <div className="container player-room-memory"><div className="founding-field-note"><CalendarDays size={18}/><div><strong>Your original Review is already here.</strong><p>{connectivity.online ? "BoardSignal is building the next eligible LIVE Review from your preserved seven-day cadence." : "Reconnect before BoardSignal retrieves new Chess.com games for your next Review."}</p></div></div>{connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={originalCadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : null}</div> : null}
+      </section> : null}
 
-      {tab === "progress" ? <div className="container player-room-memory"><ProgressSection history={reviewHistory} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div> : null}
-      {tab === "universe" ? <div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div> : null}
-      {tab === "friends" ? <div className="container player-room-memory"><PlayerFriends uid={user.uid} token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div> : null}
-      {tab === "inbox" ? <div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div> : null}
-      {tab === "profile" ? <div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} uid={user.uid} token={token} onSaved={async () => { if (user) await loadRoom(user, true); }} onSignOut={signOutPlayer} /></div> : null}
+      {tab === "progress" ? <section id="player-room-panel-progress" role="tabpanel" aria-labelledby="player-room-tab-progress" className="g3-room-panel"><div className="container player-room-memory"><ProgressSection history={reviewHistory} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div></section> : null}
+      {tab === "universe" ? <section id="player-room-panel-universe" role="tabpanel" aria-labelledby="player-room-tab-universe" className="g3-room-panel"><div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div></section> : null}
+      {tab === "friends" ? <section id="player-room-panel-friends" role="tabpanel" aria-labelledby="player-room-tab-friends" className="g3-room-panel"><div className="container player-room-memory"><PlayerFriends uid={user.uid} token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div></section> : null}
+      {tab === "inbox" ? <section id="player-room-panel-inbox" role="tabpanel" aria-labelledby="player-room-tab-inbox" className="g3-room-panel"><div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div></section> : null}
+      {tab === "profile" ? <section id="player-room-panel-profile" role="tabpanel" aria-labelledby="player-room-tab-profile" className="g3-room-panel"><div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} uid={user.uid} token={token} onSaved={async () => { if (user) await loadRoom(user, true); }} onSignOut={signOutPlayer} /></div></section> : null}
     </div>
   );
 }
@@ -401,7 +403,32 @@ function RoomNav({ tab, setTab, unreadCount }: { tab: RoomTab; setTab: (tab: Roo
     { id: "inbox", label: "Inbox" },
     { id: "profile", label: "Profile" },
   ];
-  return <nav className="container room-tab-nav" aria-label="My BoardSignal"><div>{items.map((item) => <button type="button" key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)} aria-current={tab === item.id ? "page" : undefined}>{item.label}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge">{unreadCount}</span> : null}</button>)}</div></nav>;
+  const activate = (nextTab: RoomTab) => {
+    setTab(nextTab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", nextTab);
+      window.history.replaceState({}, "", url);
+    }
+  };
+  const focusTab = (index: number) => {
+    const next = items[index];
+    if (!next) return;
+    activate(next.id);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => document.getElementById(`player-room-tab-${next.id}`)?.focus());
+    }
+  };
+  return <nav className="container room-tab-nav" aria-label="My BoardSignal sections"><div role="tablist" aria-label="My BoardSignal">{items.map((item, index) => <button type="button" role="tab" id={`player-room-tab-${item.id}`} aria-controls={`player-room-panel-${item.id}`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} data-nav-group={index < 4 ? "primary" : "utility"} key={item.id} className={tab === item.id ? "active" : ""} onClick={() => activate(item.id)} onKeyDown={(event) => {
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % items.length;
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + items.length) % items.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = items.length - 1;
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    focusTab(nextIndex);
+  }}>{item.label}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span> : null}</button>)}</div></nav>;
 }
 
 function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeWithNextGameGuidance; uid: string; online: boolean }) {
@@ -447,7 +474,7 @@ function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeW
     : undefined;
   const guidanceSource = guidance.source === "previous_review"
     ? `FROM YOUR LAST REVIEW${guidance.previousReviewPeriod ? ` · ${guidance.previousReviewPeriod}` : ""}`
-    : undefined;
+    : isCurrentGuidance ? "THIS WEEK · PROVISIONAL" : undefined;
   // B.1 rendered `Based on ${guidance.gamesConsidered}` before F.4 introduced evidence-aware counts.
   const noGuidanceCopy = guidance.reason === "no_games"
     ? "Play the first game of this week and BoardSignal will look for one safe thing to carry into the next one."
@@ -468,53 +495,38 @@ function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeW
         : "BoardSignal saw this game. Nothing in the current week has crossed the evidence threshold for a specific next-game cue yet."
       : undefined);
 
-  return <section className="current-episode-card">
-    <div className="current-episode-heading"><div><p className="kicker">THIS WEEK</p><h2>Your week is taking shape.</h2><p>{episode.games ? `${episode.games} games so far. Here's what BoardSignal can already see.` : "Your review will start taking shape as new Chess.com games arrive."}</p></div><small>{episode.periodLabel}</small></div>
-    <p className="kicker">WHAT'S HAPPENED SO FAR?</p><div className="current-episode-stats" aria-label="What's happened so far"><div><span>Games so far</span><strong>{episode.games}</strong></div><div><span>Record so far</span><strong>{episode.wins}W · {episode.draws}D · {episode.losses}L</strong></div><div><span>Sessions</span><strong>{episode.sessions}</strong></div><div><span>Week progress</span><strong>{episode.daysComplete} of 7 days</strong></div></div>
-    {episode.pools.length ? <div className="forming-pools">{episode.pools.map((pool) => <article key={pool.pool}><span>{pool.pool}</span><strong>{pool.games} games</strong><p>{pool.wins}W · {pool.draws}D · {pool.losses}L{pool.ratingDelta !== undefined ? ` · ${pool.ratingDelta >= 0 ? "+" : ""}${pool.ratingDelta}` : ""}</p></article>)}</div> : null}
-    <div className="return-loop-grid">
-      <article className="return-loop-blue">
-        {liveStatus ? <div className={`corner-live-status ${liveStatus === "new" ? "is-new" : "is-updated"}`} role="status" aria-live="polite"><i className="corner-live-dot" aria-hidden="true" />{liveStatus === "new" ? "NEW GAME SEEN" : "UPDATED AFTER YOUR LAST GAME"}</div> : null}
-        <span>BEFORE YOUR NEXT GAME</span>
-        {guidance.cornerFraming ? <p className="corner-framing">{guidance.cornerFraming}</p> : null}
-        {hasGuidance ? <>
-          <h3>{guidance.title}</h3>
-          <p>{guidance.copy}</p>
-          {guidanceSource ? <small>{guidanceSource}</small> : null}
-          {evidenceLabel ? <small className="corner-evidence-count">{evidenceLabel}</small> : null}
-        </> : <><h3>Nothing specific yet.</h3><p>{noGuidanceCopy}</p><small>{guidance.gamesConsidered ? `${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} checked this week.` : "No current-week evidence yet."}</small></>}
-
-        {latest ? <div className="corner-latest-game">
-          <span>YOUR LAST GAME</span>
-          <strong>{resultLabel} vs {latest.opponent} · {poolLabel}</strong>
-          {formatWhen(latest.occurredAt) ? <small>{formatWhen(latest.occurredAt)}</small> : null}
-          {latestNote ? <p>{latestNote}</p> : null}
-          {latest.supportsSelectedGuidance && latest.supportingSummary ? <p className="corner-supported-summary">{latest.supportingSummary}</p> : null}
-        </div> : null}
-
-        {mostRecentExample ? <div className="corner-recent-example">
-          <span>MOST RECENT EXAMPLE</span>
-          {mostRecentExample.opponent ? <strong>vs {mostRecentExample.opponent}</strong> : null}
-          {(mostRecentExample.pool || mostRecentExample.occurredAt) ? <small>{[mostRecentExample.pool, formatWhen(mostRecentExample.occurredAt)].filter(Boolean).join(" · ")}</small> : null}
-          {mostRecentExample.movePlayed && mostRecentExample.opponentReply ? <b>{mostRecentExample.movePlayed} → {mostRecentExample.opponentReply}</b> : null}
-          <p>{mostRecentExample.summary}</p>
-          {mostRecentExample.gameUrl ? <a className="text-link" href={mostRecentExample.gameUrl} target="_blank" rel="noreferrer">Open game</a> : null}
-        </div> : null}
-
-        {guidance.reinforcement ? <div className="corner-reinforcement"><span>{guidance.reinforcement.label}</span><p>{guidance.reinforcement.copy}</p></div> : null}
-      </article>
-      <article className="return-loop-amber"><span>WHAT'S STARTING TO STAND OUT?</span><h3>So far, this is factual.</h3><p>{factualStandout}</p><small>This describes the forming week; it is not the final diagnosis.</small></article>
-      <article className="return-loop-next"><span>WHAT BOARDSIGNAL IS WATCHING</span><h3>What the next games add.</h3><p>BoardSignal is watching whether the current factual events repeat, strengthen or give way to something else as this fixed week continues.</p><small>Position-based conclusions still wait for the completed Review.</small></article>
-    </div>
-    <p className="forming-note"><ShieldCheck size={15} /> Your next-game cue is deliberately narrow. The completed Review remains the authority for durable Signals and position conclusions.</p>
-    <p className="helper-copy"><strong>When the review will be ready:</strong> {episode.nextDeskDueAt} · {episode.daysRemaining} day{episode.daysRemaining === 1 ? "" : "s"} remaining in this fixed week.</p>
+  return <section className="current-episode-card g3-current-week" aria-labelledby="g3-current-week-title">
+    <div className="current-episode-heading"><div><p className="kicker">CURRENT WEEK · PROVISIONAL</p><h2 id="g3-current-week-title">THIS WEEK</h2><p>{episode.games ? `${episode.games} games so far. This is the forming week, not the completed Review.` : "Your current week will start taking shape as new Chess.com games arrive."}</p></div><small>{episode.periodLabel}</small></div>
+    <div className="current-episode-stats g3-current-week-stats" aria-label="Current week facts"><div><span>Games so far</span><strong>{episode.games}</strong></div><div><span>Record so far</span><strong>{episode.wins}W · {episode.draws}D · {episode.losses}L</strong></div><div><span>Week progress</span><strong>{episode.daysComplete} of 7 days</strong></div></div>
+    <article className="g3-before-next-game">
+      {liveStatus ? <div className={`corner-live-status ${liveStatus === "new" ? "is-new" : "is-updated"}`} role="status" aria-live="polite"><i className="corner-live-dot" aria-hidden="true" />{liveStatus === "new" ? "NEW GAME SEEN" : "UPDATED AFTER YOUR LAST GAME"}</div> : null}
+      <span>BEFORE YOUR NEXT GAME</span>
+      {guidance.cornerFraming ? <p className="corner-framing">{guidance.cornerFraming}</p> : null}
+      {hasGuidance ? <><h3>{guidance.title}</h3><p>{guidance.copy}</p>{guidanceSource ? <small>{guidanceSource}</small> : null}{evidenceLabel ? <small className="corner-evidence-count">{evidenceLabel}</small> : null}</> : <><h3>Nothing specific yet.</h3><p>{noGuidanceCopy}</p><small>{guidance.gamesConsidered ? `${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} checked this week.` : "No current-week evidence yet."}</small></>}
+    </article>
+    <p className="g3-review-due"><strong>When the Review is due:</strong> {episode.nextDeskDueAt} · {episode.daysRemaining} day{episode.daysRemaining === 1 ? "" : "s"} remaining in this fixed week.</p>
+    <details className="g3-disclosure g3-current-week-details">
+      <summary>CURRENT WEEK DETAILS</summary>
+      <div className="g3-disclosure-body">
+        <div className="current-episode-stats g3-current-detail-stats"><div><span>Sessions</span><strong>{episode.sessions}</strong></div><div><span>Current win run</span><strong>{episode.currentWinRun}</strong></div><div><span>Current loss run</span><strong>{episode.currentLossRun}</strong></div></div>
+        {episode.pools.length ? <div className="forming-pools">{episode.pools.map((pool) => <article key={pool.pool}><span>{pool.pool}</span><strong>{pool.games} games</strong><p>{pool.wins}W · {pool.draws}D · {pool.losses}L{pool.ratingDelta !== undefined ? ` · ${pool.ratingDelta >= 0 ? "+" : ""}${pool.ratingDelta}` : ""}</p></article>)}</div> : null}
+        <div className="g3-current-detail-grid">
+          {latest ? <article className="corner-latest-game"><span>YOUR LAST GAME</span><strong>{resultLabel} vs {latest.opponent} · {poolLabel}</strong>{formatWhen(latest.occurredAt) ? <small>{formatWhen(latest.occurredAt)}</small> : null}{latestNote ? <p>{latestNote}</p> : null}{latest.supportsSelectedGuidance && latest.supportingSummary ? <p className="corner-supported-summary">{latest.supportingSummary}</p> : null}</article> : null}
+          {mostRecentExample ? <article className="corner-recent-example"><span>MOST RECENT SUPPORTING EXAMPLE</span>{mostRecentExample.opponent ? <strong>vs {mostRecentExample.opponent}</strong> : null}{(mostRecentExample.pool || mostRecentExample.occurredAt) ? <small>{[mostRecentExample.pool, formatWhen(mostRecentExample.occurredAt)].filter(Boolean).join(" · ")}</small> : null}{mostRecentExample.movePlayed && mostRecentExample.opponentReply ? <b>{mostRecentExample.movePlayed} → {mostRecentExample.opponentReply}</b> : null}<p>{mostRecentExample.summary}</p>{mostRecentExample.gameUrl ? <a className="text-link" href={mostRecentExample.gameUrl} target="_blank" rel="noreferrer">Open game</a> : null}</article> : null}
+          {guidance.reinforcement ? <article className="corner-reinforcement"><span>{guidance.reinforcement.label}</span><p>{guidance.reinforcement.copy}</p></article> : null}
+          <article><span>WHAT'S STARTING TO STAND OUT?</span><h3>So far, this is factual.</h3><p>{factualStandout}</p><small>This describes the forming week; it is not the final diagnosis.</small></article>
+          <article><span>WHAT BOARDSIGNAL IS WATCHING</span><h3>What the next games add.</h3><p>BoardSignal is watching whether the current factual events repeat, strengthen or give way to something else as this fixed week continues.</p><small>Position-based conclusions still wait for the completed Review.</small></article>
+        </div>
+        <p className="forming-note"><ShieldCheck size={15} /> Your next-game cue is deliberately narrow. The completed Review remains the authority for durable Signals and position conclusions.</p>
+      </div>
+    </details>
   </section>;
 }
 
-function ReviewHistorySection({ history }: { history: CompletedReviewHistoryItem[] }) {
+function ReviewHistorySection({ history, embedded = false }: { history: CompletedReviewHistoryItem[]; embedded?: boolean }) {
   if (!history.length) return null;
   const ordered = [...history].sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
-  return <section className="my-progress-section"><div className="universal-section-heading"><span><CalendarDays size={16}/></span><div><p className="kicker">REVIEW HISTORY</p><h2>Your completed BoardSignal history.</h2><p>Original beta Reviews and later LIVE Reviews share the same four-Review memory without inventing missing historical detail.</p></div></div><div className="desk-sequence">{ordered.map((review, index) => <article key={review.reviewKey}><span>REVIEW {index + 1}{review.source === "original_beta" ? " · ORIGINAL BETA" : " · LIVE"}</span><strong>{review.periodLabel}</strong><p>{review.games} games · {review.wins}W · {review.draws}D · {review.losses}L · {review.scorePct.toFixed(1)}%</p><p>{review.headline}</p>{review.source === "original_beta" ? <><small>{review.sourceRichness} · {review.provenanceLabel}</small>{review.green ? <p><b>Green:</b> {review.green.title}</p> : null}{review.red ? <p><b>Red:</b> {review.red.title}</p> : null}{review.blue ? <p><b>Blue:</b> {review.blue.copy || review.blue.title}</p> : null}{review.publicCoverageHref ? <Link className="text-link" href={review.publicCoverageHref}>Open historical public story</Link> : null}</> : null}</article>)}</div></section>;
+  return <section className={embedded ? "g3-review-history-section" : "my-progress-section"}><div className="universal-section-heading"><span><CalendarDays size={16}/></span><div><p className="kicker">REVIEW HISTORY</p><h2>Your completed BoardSignal history.</h2><p>Original beta Reviews and later LIVE Reviews share the same four-Review memory without inventing missing historical detail.</p></div></div><div className="desk-sequence">{ordered.map((review, index) => <article key={review.reviewKey}><span>REVIEW {index + 1}{review.source === "original_beta" ? " · ORIGINAL BETA" : " · LIVE"}</span><strong>{review.periodLabel}</strong><p>{review.games} games · {review.wins}W · {review.draws}D · {review.losses}L · {review.scorePct.toFixed(1)}%</p><p>{review.headline}</p>{review.source === "original_beta" ? <><small>{review.sourceRichness} · {review.provenanceLabel}</small>{review.green ? <p><b>Green:</b> {review.green.title}</p> : null}{review.red ? <p><b>Red:</b> {review.red.title}</p> : null}{review.blue ? <p><b>Blue:</b> {review.blue.copy || review.blue.title}</p> : null}{review.publicCoverageHref ? <Link className="text-link" href={review.publicCoverageHref}>Open historical public story</Link> : null}</> : null}</article>)}</div></section>;
 }
 
 function ProgressSection({ history, progress, patterns, records }: { history: CompletedReviewHistoryItem[]; progress: ProgressSeries[]; patterns: RecurringPattern[]; records: PersonalRecords }) {
@@ -523,7 +535,13 @@ function ProgressSection({ history, progress, patterns, records }: { history: Co
     const present = values.filter((value): value is number => value !== undefined);
     return present.length >= 2 ? <article><span>{label}</span><strong>{present.map((value) => `${value}${suffix}`).join(" → ")}</strong></article> : null;
   };
-  return <section className="my-progress-section"><div className="universal-section-heading"><span><TrendingUp size={16} /></span><div><p className="kicker">MY PROGRESS</p><h2>Your latest four completed reviews.</h2><p>Pool ratings stay separate. Missing historical fields stay out of trend claims.</p></div></div><div className="desk-sequence">{chronological.map((review, index) => <article key={review.reviewKey}><span>REVIEW {index + 1}</span><strong>{review.periodLabel}</strong><p>{review.games} games · {review.scorePct.toFixed(1)}%</p></article>)}</div>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((review) => review.longestWinRun))}{metric("Median game length", chronological.map((review) => review.medianGameLength))}{metric("Black score", chronological.map((review) => review.blackScorePct), "%")}</div><div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Reviews completed</span><strong>{records.desksCompleted}</strong></div></div>{patterns.length ? <div className="recurring-patterns"><p className="kicker">RECURRING PATTERNS</p>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed reviews with compatible signal families are needed before BoardSignal can name a recurring pattern.</p></div>}</section>;
+  return <section className="my-progress-section g3-progress-section">
+    <div className="universal-section-heading"><span><TrendingUp size={16} /></span><div><p className="kicker">PROGRESS AT A GLANCE</p><h2>Your latest four completed Reviews.</h2><p>Pool ratings stay separate. Missing historical fields stay out of trend claims.</p></div></div>
+    <div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Reviews completed</span><strong>{records.desksCompleted}</strong></div></div>
+    {patterns.length ? <div className="recurring-patterns"><p className="kicker">RECURRING PATTERNS</p>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed Reviews with compatible signal families are needed before BoardSignal can name a recurring pattern.</p></div>}
+    <div className="g3-progress-trends"><p className="kicker">COMPATIBLE TRENDS</p>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((review) => review.longestWinRun))}{metric("Median game length", chronological.map((review) => review.medianGameLength))}{metric("Black score", chronological.map((review) => review.blackScorePct), "%")}</div></div>
+    <details className="g3-disclosure g3-review-history-disclosure"><summary>REVIEW HISTORY</summary><div className="g3-disclosure-body"><ReviewHistorySection history={history} embedded /></div></details>
+  </section>;
 }
 
 function ShareMomentsSection({ moments }: { moments: SafeShareMoment[] }) {

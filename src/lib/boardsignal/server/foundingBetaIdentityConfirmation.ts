@@ -42,7 +42,7 @@ export async function deliverFoundingBetaIdentityConfirmation(input: {
   requestId: string;
   playerAlreadyInside: boolean;
   magicLink?: string;
-}) {
+}): Promise<DeliveryRecord> {
   const db = getAdminDb();
   const ref = db.collection("betaRequests").doc(input.requestId);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.adminhub-global.com";
@@ -68,8 +68,10 @@ export async function deliverFoundingBetaIdentityConfirmation(input: {
     return { kind: "claimed" as const, request: { ...request, identityConfirmationDelivery: undefined }, attempting };
   });
 
-  if (claim.kind === "missing") return { channel: "none" as const, status: "not_eligible" as const, reason: "request_missing" };
-  if (claim.kind === "done" || claim.kind === "in_flight") return claim.delivery;
+  if (claim.kind === "missing") return { channel: "none", status: "not_eligible", reason: "request_missing" };
+  if (claim.kind === "done" || claim.kind === "in_flight") {
+    return claim.delivery ?? { channel: "none", status: "failed", reason: "delivery_state_missing" };
+  }
 
   const delivery = await executeFoundingBetaIdentityConfirmationDelivery({
     request: claim.request,

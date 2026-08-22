@@ -215,6 +215,7 @@ function ranked(entries: MetricCandidate[]): UniverseEntry[] {
   );
   return sorted.map((item, index) => ({
     participantId: item.participantId,
+    stablePlayerId: item.stablePlayerId,
     player: item.player,
     rank: index + 1,
     value: item.value,

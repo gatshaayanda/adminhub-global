@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import type { BoardSignalAccount } from "../account";
 import type { CurrentEpisodeSummary } from "../memory";
 import type { BoardSignalDesk } from "../types";
+import { storedReviewLifecycle, type ReviewLifecycle } from "../historyBackfill";
 import {
   PULSE_EVENT_RETENTION_MS,
   buildActiveUniverseBoards,
@@ -13,7 +14,8 @@ import {
   deriveCurrentEpisodeDelta,
   deriveProvisionalCards,
   deriveProximityCards,
-  deskParticipantId,
+  deriveReviewMovement,
+  latestUniverseParticipants,
   nominateShareMoments,
   publicArtifactHasPrivateFields,
   rankWhatsHot,
@@ -33,6 +35,7 @@ import { getAdminDb } from "../../../utils/firebaseAdmin";
 function clean<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function hashId(value: string) { return createHash("sha256").update(value).digest("hex"); }
 function nowIso(now = new Date()) { return now.toISOString(); }
+function stableLiveParticipantId(playerId: number | string) { return `live:${String(playerId)}`; }
 
 export type ActiveUniverseState = {
   liveParticipants: UniverseParticipant[];
@@ -40,13 +43,17 @@ export type ActiveUniverseState = {
   groups: ReturnType<typeof buildPulseUniverseGroups>;
   recentEvents: PublicUniverseEvent[];
   whatsHot: PublicUniverseEvent[];
+  officialPlayerCount: number;
 };
 
 type ActiveDeskRecord = {
   uid: string;
   account: BoardSignalAccount;
   deskKey: string;
+  periodEnd: string;
+  reviewLifecycle: ReviewLifecycle;
   publishedAt?: string;
+  importedAt?: string;
   desk?: BoardSignalDesk;
   originalBetaParticipant?: UniverseParticipant;
 };
@@ -67,8 +74,11 @@ async function activeLiveDeskRecords(): Promise<ActiveDeskRecord[]> {
     for (const document of desks.docs) {
       const data = document.data() as {
         deskKey?: string;
+        periodEnd?: string;
         desk?: BoardSignalDesk;
+        reviewLifecycle?: ReviewLifecycle;
         publishedAt?: string;
+        importedAt?: string;
         originalBeta?: { universeParticipant?: UniverseParticipant };
       };
       if (data.desk?.source === "live" && data.desk.provenance.verified) {
@@ -76,7 +86,10 @@ async function activeLiveDeskRecords(): Promise<ActiveDeskRecord[]> {
           uid: account.uid,
           account,
           deskKey: String(data.deskKey ?? document.id),
+          periodEnd: String(data.periodEnd ?? data.desk.period.end),
+          reviewLifecycle: storedReviewLifecycle(data) ?? "organic_live",
           publishedAt: data.publishedAt,
+          importedAt: data.importedAt,
           desk: data.desk,
         });
         continue;
@@ -87,9 +100,11 @@ async function activeLiveDeskRecords(): Promise<ActiveDeskRecord[]> {
         uid: account.uid,
         account,
         deskKey: String(data.deskKey ?? document.id),
+        periodEnd: historical.periodEnd,
+        reviewLifecycle: "original_beta",
         originalBetaParticipant: {
           ...historical,
-          id: `live:${account.chessCom.canonicalUsername.toLowerCase()}`,
+          id: stableLiveParticipantId(account.chessCom.playerId),
           stablePlayerId: String(account.chessCom.playerId),
           aliases: [...new Set([...(historical.aliases ?? []), historical.player])],
           player: account.chessCom.canonicalUsername,
@@ -107,12 +122,19 @@ function participantFromRecord(record: ActiveDeskRecord): UniverseParticipant | 
   if (!record.desk) return undefined;
   const participant = deskToUniverseParticipant(record.desk);
   if (!participant || participant.source !== "live") return undefined;
-  return {
+  const base: UniverseParticipant = {
     ...participant,
-    id: `live:${record.account.chessCom.canonicalUsername.toLowerCase()}`,
+    id: stableLiveParticipantId(record.account.chessCom.playerId),
     stablePlayerId: String(record.account.chessCom.playerId),
-    aliases: [...new Set([...(participant.aliases ?? []), ...record.account.eligibleCoverageKeys.filter((key) => !/^\d+$/.test(key))])],
+    aliases: [...new Set([...(participant.aliases ?? []), participant.player, ...record.account.eligibleCoverageKeys.filter((key) => !/^\d+$/.test(key))])],
     player: record.account.chessCom.canonicalUsername,
+  };
+  if (record.reviewLifecycle === "historical_backfill") {
+    const { coverage: _coverage, ...withoutCoverage } = base;
+    return withoutCoverage;
+  }
+  return {
+    ...base,
     coverage: {
       href: `/player/${encodeURIComponent(record.account.chessCom.canonicalUsername)}`,
       headline: record.desk.headline || record.desk.summary,
@@ -120,11 +142,62 @@ function participantFromRecord(record: ActiveDeskRecord): UniverseParticipant | 
   };
 }
 
+function seedsAsOf(cutoff: string) {
+  return foundingBetaField.filter((participant) => participant.periodEnd <= cutoff);
+}
+
+function recordsAsOf(records: ActiveDeskRecord[], cutoff: string) {
+  return records.filter((record) => record.periodEnd <= cutoff);
+}
+
+function canReconstructFieldAsOf(records: ActiveDeskRecord[], cutoff: string) {
+  const byPlayer = new Map<string, ActiveDeskRecord[]>();
+  for (const record of records) {
+    const key = String(record.account.chessCom.playerId);
+    byPlayer.set(key, [...(byPlayer.get(key) ?? []), record]);
+  }
+  for (const playerRecords of byPlayer.values()) {
+    if (playerRecords.some((record) => record.periodEnd <= cutoff)) continue;
+    const account = playerRecords[0]?.account;
+    const disclosedDay = account?.universeParticipationDisclosedAt?.slice(0, 10);
+    if (disclosedDay && disclosedDay > cutoff) continue;
+    return false;
+  }
+  return true;
+}
+
+function boardsFromRecordsAsOf(records: ActiveDeskRecord[], cutoff: string) {
+  if (!canReconstructFieldAsOf(records, cutoff)) return undefined;
+  const participants = recordsAsOf(records, cutoff).flatMap((record) => {
+    const participant = participantFromRecord(record);
+    return participant ? [participant] : [];
+  });
+  const latest = latestUniverseParticipants(participants);
+  return buildActiveUniverseBoards(latest, seedsAsOf(cutoff), latest);
+}
+
+function activeStateFromRecords(records: ActiveDeskRecord[], recentEvents: PublicUniverseEvent[], now: Date): ActiveUniverseState {
+  const participants = records.flatMap((record) => {
+    const participant = participantFromRecord(record);
+    return participant ? [participant] : [];
+  });
+  const liveParticipants = latestUniverseParticipants(participants);
+  const boards = buildActiveUniverseBoards(liveParticipants, foundingBetaField, liveParticipants);
+  return {
+    liveParticipants,
+    boards,
+    groups: buildPulseUniverseGroups(boards),
+    recentEvents,
+    whatsHot: rankWhatsHot(recentEvents, now),
+    officialPlayerCount: liveParticipants.length,
+  };
+}
+
 export async function listRecentUniverseEvents(limit = 80): Promise<PublicUniverseEvent[]> {
   const snapshot = await getAdminDb().collection("publicUniverseEvents").orderBy("publishedAt", "desc").limit(limit).get().catch(() => ({ docs: [] }));
   return snapshot.docs
     .map((document) => document.data() as PublicUniverseEvent)
-    .filter((event) => event.safePublic === true && event.hidden !== true && !publicArtifactHasPrivateFields(event));
+    .filter((event) => event.safePublic === true && event.hidden !== true && event.finality === "official" && !publicArtifactHasPrivateFields(event));
 }
 
 export async function loadUniverseHomepageLead(): Promise<PublicUniverseEvent | undefined> {
@@ -138,20 +211,8 @@ export async function loadUniverseHomepageLead(): Promise<PublicUniverseEvent | 
 }
 
 export async function loadActiveUniverseState(now = new Date()): Promise<ActiveUniverseState> {
-  const records = await activeLiveDeskRecords();
-  const liveParticipants = records.flatMap((record) => {
-    const participant = participantFromRecord(record);
-    return participant ? [participant] : [];
-  });
-  const boards = buildActiveUniverseBoards(liveParticipants, foundingBetaField);
-  const recentEvents = await listRecentUniverseEvents();
-  return {
-    liveParticipants,
-    boards,
-    groups: buildPulseUniverseGroups(boards),
-    recentEvents,
-    whatsHot: rankWhatsHot(recentEvents, now),
-  };
+  const [records, recentEvents] = await Promise.all([activeLiveDeskRecords(), listRecentUniverseEvents()]);
+  return activeStateFromRecords(records, recentEvents, now);
 }
 
 export async function writePublicUniverseEvent(event: PublicUniverseEvent) {
@@ -240,12 +301,15 @@ export async function recordCompletedDeskUniverseArtifacts(input: {
   deskKey: string;
   beforeState: ActiveUniverseState;
   deskCountAfter: number;
+  reviewLifecycle?: ReviewLifecycle;
   now?: Date;
 }) {
   const now = input.now ?? new Date();
   const afterState = await loadActiveUniverseState(now);
-  const participantId = deskParticipantId(input.desk);
-  if (!participantId) return { events: [] as PublicUniverseEvent[], shareMoments: [] as SafeShareMoment[], afterState };
+  if (input.reviewLifecycle === "historical_backfill") {
+    return { events: [] as PublicUniverseEvent[], shareMoments: [] as SafeShareMoment[], afterState };
+  }
+  const participantId = stableLiveParticipantId(input.account.chessCom.playerId);
 
   const deskParticipant = deskToUniverseParticipant(input.desk);
   const deskBoards = deskParticipant ? buildUniverseBoards([deskParticipant]) : [];
@@ -256,8 +320,6 @@ export async function recordCompletedDeskUniverseArtifacts(input: {
     const after = boardEntry(afterBoard, participantId);
     if (!after) continue;
     const deskEntry = deskBoards.find((board) => board.key === afterBoard.key)?.entries[0];
-    // Only attribute a board movement to this newly published Desk if its value
-    // is the value now representing the player on that board.
     if (!deskEntry || Math.abs(deskEntry.value - after.value) > 0.0001) continue;
     const before = boardEntry(beforeByKey.get(afterBoard.key), participantId);
     if (before?.rank === after.rank && before?.value === after.value) continue;
@@ -365,8 +427,8 @@ export async function recordCompletedDeskUniverseArtifacts(input: {
 export async function ensureShareMomentsForActiveDesks(account: BoardSignalAccount, desks: Array<{ desk: BoardSignalDesk; summary: { deskKey: string } }>, state?: ActiveUniverseState) {
   if (!desks.length) return [];
   const active = state ?? await loadActiveUniverseState();
-  const participantId = deskParticipantId(desks[0].desk);
-  const standings = participantId ? standingsFromActiveBoards(active.boards, participantId) : [];
+  const participantId = stableLiveParticipantId(account.chessCom.playerId);
+  const standings = standingsFromActiveBoards(active.boards, participantId);
   const moments = desks.flatMap((bundle, index) => nominateShareMoments(bundle.desk, index === 0 ? standings : [], new Date())
     .map((moment) => ({ ...moment, deskKey: bundle.summary.deskKey })));
   await upsertShareMoments(moments);
@@ -392,6 +454,23 @@ export async function loadPublicShareMoment(momentId: string): Promise<SafeShare
   return moment;
 }
 
+function reviewMovementForPlayer(records: ActiveDeskRecord[], state: ActiveUniverseState, account: BoardSignalAccount, latestDesk?: BoardSignalDesk) {
+  if (!latestDesk) return [];
+  const playerId = String(account.chessCom.playerId);
+  const playerRecords = records
+    .filter((record) => String(record.account.chessCom.playerId) === playerId)
+    .sort((a, b) => b.periodEnd.localeCompare(a.periodEnd) || a.deskKey.localeCompare(b.deskKey));
+  const currentRecord = playerRecords[0];
+  const previousRecord = playerRecords[1];
+  if (!currentRecord || !previousRecord || currentRecord.periodEnd !== latestDesk.period.end) return [];
+  const previousBoards = boardsFromRecordsAsOf(records, previousRecord.periodEnd);
+  if (!previousBoards) return [];
+  const participantId = stableLiveParticipantId(playerId);
+  const previousStandings = standingSnapshots(previousBoards, participantId);
+  const currentStandings = standingSnapshots(state.boards, participantId);
+  return deriveReviewMovement(previousStandings, currentStandings);
+}
+
 export async function buildPlayerPulse(input: {
   account: BoardSignalAccount;
   latestDesk?: BoardSignalDesk;
@@ -399,18 +478,20 @@ export async function buildPlayerPulse(input: {
   now?: Date;
 }) : Promise<PlayerPulse | undefined> {
   const now = input.now ?? new Date();
-  const state = await loadActiveUniverseState(now);
-  const participantId = input.latestDesk
-    ? deskParticipantId(input.latestDesk) ?? `live:${input.account.chessCom.canonicalUsername.toLowerCase()}`
-    : `live:${input.account.chessCom.canonicalUsername.toLowerCase()}`;
+  const [records, recentEvents] = await Promise.all([activeLiveDeskRecords(), listRecentUniverseEvents()]);
+  const state = activeStateFromRecords(records, recentEvents, now);
+  const participantId = stableLiveParticipantId(input.account.chessCom.playerId);
   const standings = standingsFromActiveBoards(state.boards, participantId);
   const currentStandings = standingSnapshots(state.boards, participantId);
+  const reviewMovement = reviewMovementForPlayer(records, state, input.account, input.latestDesk);
 
   const pulseRef = getAdminDb().collection("users").doc(input.account.uid).collection("pulse").doc("current");
   const previousDoc = await pulseRef.get();
   const previous = previousDoc.exists ? previousDoc.data() as PlayerPulseSnapshot : undefined;
   const sinceAway = deriveCurrentEpisodeDelta(previous?.currentEpisode, input.currentEpisode);
-  const boardMoved = previous ? deriveBoardMovement(previous.standings ?? [], currentStandings) : [];
+  const latestReviewPeriodEnd = input.latestDesk?.period.end;
+  const sameReviewAsLastVisit = Boolean(previous && previous.latestReviewPeriodEnd === latestReviewPeriodEnd);
+  const boardMoved = sameReviewAsLastVisit ? deriveBoardMovement(previous?.standings ?? [], currentStandings) : [];
   const proximity = deriveProximityCards(state.boards, participantId);
 
   let provisional: ReturnType<typeof deriveProvisionalCards> = [];
@@ -420,9 +501,10 @@ export async function buildPlayerPulse(input: {
       String(input.account.chessCom.playerId),
       input.currentEpisode,
     );
-    const withoutSelf = state.liveParticipants.filter((participant) => normalizePlayer(participant.player) !== normalizePlayer(input.account.chessCom.canonicalUsername));
+    const withoutSelf = state.liveParticipants.filter((participant) => participant.stablePlayerId !== String(input.account.chessCom.playerId));
+    const projectedParticipants = [...withoutSelf, provisionalParticipant];
     const projectedBoards = buildActiveUniverseBoards(
-      [...withoutSelf, provisionalParticipant],
+      projectedParticipants,
       foundingBetaField,
       state.liveParticipants,
     );
@@ -430,12 +512,13 @@ export async function buildPlayerPulse(input: {
   }
 
   const previousSeenAt = previous?.viewedAt ? Date.parse(previous.viewedAt) : NaN;
-  const fieldMoved = Number.isFinite(previousSeenAt)
+  const fieldMoved = sameReviewAsLastVisit && Number.isFinite(previousSeenAt)
     ? state.recentEvents.filter((event) => event.playerId !== String(input.account.chessCom.playerId) && Date.parse(event.publishedAt) > previousSeenAt).slice(0, 5)
     : [];
 
   const snapshot: PlayerPulseSnapshot = {
     viewedAt: nowIso(now),
+    latestReviewPeriodEnd,
     currentEpisode: input.currentEpisode,
     standings: currentStandings,
   };
@@ -445,14 +528,15 @@ export async function buildPlayerPulse(input: {
     checkedAt: nowIso(now),
     sinceAway,
     boardMoved,
+    reviewMovement,
     proximity,
     provisional,
     fieldMoved,
+    justIn: state.recentEvents.slice(0, 8),
     whatsHot: state.whatsHot,
     groups: state.groups,
     standings,
     fieldLabels: [...new Set(state.boards.map((board) => board.fieldLabel))],
+    officialPlayerCount: state.officialPlayerCount,
   };
 }
-
-function normalizePlayer(value: string) { return value.trim().toLowerCase(); }

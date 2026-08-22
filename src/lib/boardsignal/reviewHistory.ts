@@ -6,6 +6,7 @@ import type {
   DeskSummary,
 } from "./memory";
 import type { BoardSignalDesk } from "./types";
+import type { ReviewLifecycle } from "./historyBackfill";
 
 export type ReviewHistoryPool = {
   pool: string;
@@ -32,6 +33,7 @@ export type CompletedReviewHistoryItem = {
   periodEnd: string;
   periodLabel: string;
   source: "live" | "original_beta";
+  reviewLifecycle?: ReviewLifecycle;
   sourceRichness: "LIVE_DESK" | "FULL_DESK" | "STRUCTURED_REVIEW" | "NARROW_SEED";
   provenanceLabel: string;
   games: number;
@@ -58,13 +60,18 @@ function supported(signal: BoardSignalDesk["signals"]["blue"]) {
   return signal.status !== "withheld" && Boolean(signal.title.trim());
 }
 
-export function liveDeskToReviewHistory(desk: BoardSignalDesk, summary: DeskSummary): CompletedReviewHistoryItem {
+export function liveDeskToReviewHistory(
+  desk: BoardSignalDesk,
+  summary: DeskSummary,
+  reviewLifecycle: ReviewLifecycle = "organic_live",
+): CompletedReviewHistoryItem {
   return {
     reviewKey: summary.deskKey,
     periodStart: summary.periodStart,
     periodEnd: summary.periodEnd,
     periodLabel: summary.periodLabel,
     source: "live",
+    reviewLifecycle,
     sourceRichness: "LIVE_DESK",
     provenanceLabel: desk.provenance.sourceLabel,
     games: summary.games,
@@ -85,6 +92,13 @@ export function liveDeskToReviewHistory(desk: BoardSignalDesk, summary: DeskSumm
     red: supported(desk.signals.red) ? { title: desk.signals.red.title, copy: desk.signals.red.copy } : undefined,
     blue: supported(desk.signals.blue) ? { title: desk.signals.blue.title, copy: desk.signals.blue.copy } : undefined,
   };
+}
+
+export function reviewHistoryLifecycleLabel(review: CompletedReviewHistoryItem) {
+  const lifecycle = review.reviewLifecycle ?? (review.source === "original_beta" ? "original_beta" : "organic_live");
+  if (lifecycle === "historical_backfill") return "HISTORICAL REVIEW";
+  if (lifecycle === "original_beta") return "ORIGINAL REVIEW";
+  return "COMPLETED REVIEW";
 }
 
 export function buildReviewProgress(history: CompletedReviewHistoryItem[], minimumGames = 3): ProgressSeries[] {

@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { createContext, useContext, type ReactNode } from "react";
 import { boardSignalPresentationLabel } from "@/lib/boardsignal/presentationLanguage";
+import type { PlayerPulse } from "@/lib/boardsignal/pulse";
 import { ArrowRight, Radio, Target, TrendingUp } from "lucide-react";
 import {
   publicTopThree,
@@ -7,13 +11,28 @@ import {
   type UniverseCategoryGroup,
 } from "@/lib/boardsignal/universe";
 
+type AuthenticatedUniverseContextValue = {
+  pulse?: PlayerPulse;
+  unavailable?: string;
+};
+
+const AuthenticatedUniverseContext = createContext<AuthenticatedUniverseContextValue | null>(null);
+
+export function AuthenticatedUniverseProvider({
+  pulse,
+  unavailable,
+  children,
+}: AuthenticatedUniverseContextValue & { children: ReactNode }) {
+  return <AuthenticatedUniverseContext.Provider value={{ pulse, unavailable }}>{children}</AuthenticatedUniverseContext.Provider>;
+}
+
 export function UniverseCategoryCards({ groups }: { groups: UniverseCategoryGroup[] }) {
   return (
     <div className="universe-category-grid">
       {groups.map((group) => (
         <article className="universe-category-card" id={`universe-${group.id}`} key={group.id}>
           <div className="universe-category-heading">
-            <span>THIS WEEK&apos;S LEADERS</span>
+            <span>CURRENT OFFICIAL LEADERS</span>
             <h2>{group.title}</h2>
             <p>{group.description}</p>
           </div>
@@ -39,7 +58,24 @@ export function UniverseCategoryCards({ groups }: { groups: UniverseCategoryGrou
   );
 }
 
+function AuthenticatedReviewUniverse({ pulse, unavailable }: AuthenticatedUniverseContextValue) {
+  if (!pulse) {
+    return <section className="universal-section private-universe-section g4-around-review g4-universe-unavailable" id="standing"><div className="universal-section-heading"><span>U</span><div><p className="kicker">AROUND THIS REVIEW</p><h2>Around this Review is temporarily unavailable.</h2><p>{unavailable ?? "Your completed Review remains unchanged. BoardSignal is not substituting an older static field."}</p></div></div></section>;
+  }
+
+  const strongest = [...pulse.standings].sort((a, b) => a.rank - b.rank || b.denominator - a.denominator).slice(0, 3);
+  return <section className="universal-section private-universe-section g4-around-review" id="standing">
+    <div className="universal-section-heading"><span>U</span><div><p className="kicker">AROUND THIS REVIEW · OFFICIAL</p><h2>Where this completed Review stands now.</h2><p>Uses the same official field as Around BoardSignal. Current-week comparisons remain private and provisional until the Review closes.</p></div></div>
+    <div className="founding-field-note g4-live-field-note"><TrendingUp size={18} /><div><strong>LIVE FIELD</strong><p>{pulse.officialPlayerCount} player{pulse.officialPlayerCount === 1 ? "" : "s"} represented by their latest eligible completed Review.</p></div></div>
+    {strongest.length ? <div className="private-standing-list g4-official-position-grid">{strongest.map((standing) => <article key={`${standing.categoryId}:${standing.scopeLabel ?? "all"}`}><div><span>{standing.categoryTitle}{standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}</span><strong>#{standing.rank} of {standing.denominator}</strong><p>{standing.valueLabel}</p></div><b>OFFICIAL</b>{standing.nearestAbove ? <small>In reach: {standing.nearestAbove.player} · {standing.nearestAbove.valueLabel}</small> : <small>{standing.rank === 1 ? "Leading this current official board." : "Based on completed Review evidence."}</small>}</article>)}</div> : <div className="universe-empty"><p>No official board position yet. This Review has not met a current comparison category&apos;s minimum evidence.</p></div>}
+    {pulse.reviewMovement.length ? <div className="g4-around-review-movement"><p className="kicker">PREVIOUS REVIEW → CURRENT REVIEW</p>{pulse.reviewMovement.slice(0, 3).map((card) => <article key={card.id}><strong>{card.title}</strong><p>{card.body}</p></article>)}</div> : null}
+  </section>;
+}
+
 export function PrivateUniverseSections({ view }: { view: PlayerUniverseView }) {
+  const authenticated = useContext(AuthenticatedUniverseContext);
+  if (authenticated) return <AuthenticatedReviewUniverse pulse={authenticated.pulse} unavailable={authenticated.unavailable} />;
+
   return (
     <>
       <section className="universal-section private-universe-section" id="standing">

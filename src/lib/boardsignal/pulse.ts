@@ -95,10 +95,15 @@ export type PulseStandingSnapshot = {
   valueLabel: string;
 };
 
-export type PlayerPulseSnapshot = { viewedAt: string; currentEpisode?: CurrentEpisodeSummary; standings: PulseStandingSnapshot[] };
+export type PlayerPulseSnapshot = {
+  viewedAt: string;
+  latestReviewPeriodEnd?: string;
+  currentEpisode?: CurrentEpisodeSummary;
+  standings: PulseStandingSnapshot[];
+};
 export type PlayerPulseCard = {
   id: string;
-  kind: "since-away" | "board-moved" | "in-reach" | "on-radar" | "field-moved" | "provisional";
+  kind: "since-away" | "board-moved" | "review-moved" | "in-reach" | "on-radar" | "field-moved" | "provisional";
   eyebrow: string;
   title: string;
   body: string;
@@ -111,13 +116,16 @@ export type PlayerPulse = {
   checkedAt: string;
   sinceAway?: PlayerPulseCard;
   boardMoved: PlayerPulseCard[];
+  reviewMovement: PlayerPulseCard[];
   proximity: PlayerPulseCard[];
   provisional: PlayerPulseCard[];
   fieldMoved: PublicUniverseEvent[];
+  justIn: PublicUniverseEvent[];
   whatsHot: PublicUniverseEvent[];
   groups: PulseUniverseGroup[];
   standings: DeskUniverseStanding[];
   fieldLabels: UniverseFieldLabel[];
+  officialPlayerCount: number;
 };
 
 function normalizeUsername(value: string) { return value.trim().toLowerCase(); }
@@ -158,8 +166,22 @@ export function buildActiveUniverseBoards(
 ): PulseUniverseBoard[] {
   const live = liveParticipants.filter((participant) => participant.source === "live" && participant.verified);
   const transitionLive = transitionLiveParticipants.filter((participant) => participant.source === "live" && participant.verified);
-  const liveNames = new Set(latestUniverseParticipants(live).flatMap((participant) => [participant.player, ...(participant.aliases ?? [])]).map(normalizeUsername));
-  const seeds = seedParticipants.filter((participant) => participant.source === "seed" && participant.verified && !liveNames.has(normalizeUsername(participant.player)));
+  const latestLive = latestUniverseParticipants(live);
+  const liveStableIds = new Set(latestLive.flatMap((participant) => participant.stablePlayerId ? [participant.stablePlayerId] : []));
+  const liveNamesWithoutStableId = new Set(latestLive
+    .filter((participant) => !participant.stablePlayerId)
+    .flatMap((participant) => [participant.player, ...(participant.aliases ?? [])])
+    .map(normalizeUsername));
+  const liveAliasesByStablePlayer = new Set(latestLive
+    .filter((participant) => Boolean(participant.stablePlayerId))
+    .flatMap((participant) => [participant.player, ...(participant.aliases ?? [])])
+    .map(normalizeUsername));
+  const seeds = seedParticipants.filter((participant) => {
+    if (participant.source !== "seed" || !participant.verified) return false;
+    if (participant.stablePlayerId) return !liveStableIds.has(participant.stablePlayerId);
+    const aliases = [participant.player, ...(participant.aliases ?? [])].map(normalizeUsername);
+    return !aliases.some((alias) => liveNamesWithoutStableId.has(alias) || liveAliasesByStablePlayer.has(alias));
+  });
 
   const liveByBoard = boardMap(live);
   const transitionByBoard = boardMap(transitionLive);
@@ -264,18 +286,40 @@ export function deriveBoardMovement(previous: PulseStandingSnapshot[], current: 
   return current.flatMap((standing) => {
     const old = before.get(standing.key);
     if (!old || old.rank === standing.rank) return [];
-    const improved = standing.rank < old.rank;
-    const podium = standing.rank <= 3 && old.rank > 3;
     return [{
       id: `board-moved:${standing.key}:${old.rank}:${standing.rank}`,
       kind: "board-moved",
-      eyebrow: "YOUR BOARD MOVED",
+      eyebrow: "SINCE YOUR LAST VISIT",
       title: `${standing.categoryTitle}${standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}`,
-      body: podium ? `#${old.rank} → #${standing.rank}. You entered the podium.` : `#${old.rank} → #${standing.rank}. ${improved ? "You moved up the official field." : "A newer completed Review changed the official field around you."}`,
+      body: `#${old.rank} → #${standing.rank}. A newer completed Review changed the official field around you.`,
       categoryId: standing.categoryId,
       pool: standing.scopeLabel,
       finality: "official",
     } satisfies PlayerPulseCard];
+  });
+}
+
+export function deriveReviewMovement(previous: PulseStandingSnapshot[], current: PulseStandingSnapshot[]): PlayerPulseCard[] {
+  const before = new Map(previous.map((standing) => [standing.key, standing]));
+  return current.map((standing) => {
+    const old = before.get(standing.key);
+    const scope = `${standing.categoryTitle}${standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}`;
+    let body: string;
+    if (!old) body = `Entered #${standing.rank} of ${standing.denominator}.`;
+    else if (standing.rank === 1 && old.rank !== 1) body = `#${old.rank} → #1. NEW LEADER.`;
+    else if (standing.rank < old.rank) body = `#${old.rank} → #${standing.rank}. UP ${old.rank - standing.rank}.`;
+    else if (standing.rank > old.rank) body = `#${old.rank} → #${standing.rank}. DOWN ${standing.rank - old.rank}.`;
+    else body = `Held #${standing.rank} of ${standing.denominator}.`;
+    return {
+      id: `review-moved:${standing.key}:${old?.rank ?? "entered"}:${standing.rank}`,
+      kind: "review-moved",
+      eyebrow: "PREVIOUS REVIEW → CURRENT REVIEW",
+      title: scope,
+      body,
+      categoryId: standing.categoryId,
+      pool: standing.scopeLabel,
+      finality: "official",
+    } satisfies PlayerPulseCard;
   });
 }
 

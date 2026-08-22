@@ -536,9 +536,16 @@ export async function loadPublishedDesks(uid: string): Promise<PublishedDeskBund
 export async function loadCompletedReviewHistory(uid: string): Promise<CompletedReviewHistoryItem[]> {
   const snapshot = await getAdminDb().collection("users").doc(uid).collection("desks").orderBy("periodEnd", "desc").limit(4).get();
   return snapshot.docs.flatMap((document) => {
-    const data = document.data() as { desk?: BoardSignalDesk; summary?: DeskSummary; originalBeta?: { history?: CompletedReviewHistoryItem } };
-    if (data.originalBeta?.history) return [{ ...data.originalBeta.history, reviewKey: String(data.originalBeta.history.reviewKey ?? document.id) }];
-    if (data.desk?.source === "live" && data.desk.provenance.verified && data.summary) return [liveDeskToReviewHistory(data.desk, data.summary)];
+    const data = document.data() as StoredDeskDocument & { originalBeta?: { history?: CompletedReviewHistoryItem } };
+    const lifecycle = storedReviewLifecycle(data);
+    if (data.originalBeta?.history) return [{
+      ...data.originalBeta.history,
+      reviewKey: String(data.originalBeta.history.reviewKey ?? document.id),
+      reviewLifecycle: "original_beta" as const,
+    }];
+    if (data.desk?.source === "live" && data.desk.provenance.verified && data.summary) {
+      return [liveDeskToReviewHistory(data.desk, data.summary, lifecycle ?? "organic_live")];
+    }
     return [];
   }).sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
 }

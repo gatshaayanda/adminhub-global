@@ -77,7 +77,7 @@ export async function loadRecentReportPeriodTruth(account: AccountWithBackfill, 
       outcome: "review",
       reviewKey: review.reviewKey,
       reviewLifecycle: review.reviewLifecycle,
-      evaluatedAt: review.publishedAt || now.toISOString(),
+      evaluatedAt: now.toISOString(),
     });
   }
   for (const result of reconstructedBackfillResults(account, targets, now)) {

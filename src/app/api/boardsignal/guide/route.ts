@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requirePlayerToken } from "@/lib/boardsignal/server/persistence";
 import { contextualGuideFeedbackFollowup, contextualGuideResponse, guideContextObservation } from "@/lib/boardsignal/server/askContext";
 import { createGuideHandoff, getGuideProfileState, guideResponse, recordGuideFeedback, saveGuidePreference, updateGuideState } from "@/lib/boardsignal/server/guide";
+import { weeklyHistoryGuideResponse } from "@/lib/boardsignal/server/weeklyGuide";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +64,8 @@ export async function POST(request: Request) {
       if (body.mode === "beta_preview") {
         return response({ ok: true, response: await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation, mode: "beta_preview", previewRequestId: body.previewRequestId, previewStatusToken: body.previewStatusToken }) });
       }
+      const weeklyHistory = await weeklyHistoryGuideResponse(token, body.message);
+      if (weeklyHistory) return response({ ok: true, response: weeklyHistory });
       const contextual = await contextualGuideResponse({
         token,
         message: body.message,

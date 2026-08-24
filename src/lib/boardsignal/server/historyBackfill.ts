@@ -5,24 +5,23 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 import {
   REVIEW_HISTORY_BACKFILL_VERSION,
   REVIEW_HISTORY_LEASE_MS,
-  addReviewDays,
   backfillComplete,
   evaluatedBackfillSlots,
-  fourPeriodWindow,
   leaseIsActive,
   nextBackfillPeriod,
   type HistoricalBackfillWork,
   type HistoricalReviewEvaluation,
+  type HistoricalReviewPeriod,
   type ReviewHistoryBackfillState,
 } from "../historyBackfill";
 import { hasAcceptedCurrentBetaAgreement, type BoardSignalAccount } from "../account";
+import { latestCompletedReviewPeriods, mergeReviewPeriodResult, reportPeriodLabel, type ReviewPeriodResult } from "../reviewPeriods";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { accountForToken, loadCompletedReviewHistory } from "./persistence";
+import { loadRecentReportPeriodTruth } from "./reviewPeriods";
 
 function clean<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function isoNow(now = new Date()) { return now.toISOString(); }
-function todayIso(now = new Date()) { return now.toISOString().slice(0, 10); }
-
 type AccountWithBackfill = BoardSignalAccount & { reviewHistoryBackfill?: ReviewHistoryBackfillState };
 
 function eligibleForBackfill(account: BoardSignalAccount) {
@@ -31,61 +30,70 @@ function eligibleForBackfill(account: BoardSignalAccount) {
     && account.accessStatus === "active"
     && account.role === "player";
 }
-
-function initialState(latestPeriodStart: string, now = new Date()): ReviewHistoryBackfillState {
+function targetsFor(account: BoardSignalAccount, now: Date): HistoricalReviewPeriod[] {
+  if (!account.cadenceAnchor) return [];
+  return latestCompletedReviewPeriods(account.cadenceAnchor, now).map(period => ({ start: period.periodStart, end: period.periodEnd }));
+}
+function sameTargets(a: HistoricalReviewPeriod[] = [], b: HistoricalReviewPeriod[] = []) {
+  return a.length === b.length && a.every((period, index) => period.start === b[index]?.start && period.end === b[index]?.end);
+}
+function stateForTargets(previous: ReviewHistoryBackfillState | undefined, targets: HistoricalReviewPeriod[], now: Date) : ReviewHistoryBackfillState {
+  const allowed = new Set(targets.map(period => period.start));
+  const evaluated = Object.fromEntries(Object.entries(previous?.evaluated ?? {}).filter(([start]) => allowed.has(start)));
+  const keepLease = previous?.lease && allowed.has(previous.lease.periodStart) && leaseIsActive(previous.lease, now) ? previous.lease : undefined;
   return {
     version: REVIEW_HISTORY_BACKFILL_VERSION,
     status: "pending",
-    targetPeriods: fourPeriodWindow(latestPeriodStart),
-    evaluated: {},
-    activationBaseline: false,
-    establishedAt: isoNow(now),
+    targetPeriods: targets,
+    evaluated,
+    lease: keepLease,
+    activationBaseline: previous?.activationBaseline ?? false,
+    establishedAt: previous?.establishedAt ?? isoNow(now),
+    lastAttemptAt: previous?.lastAttemptAt,
+    lastError: previous?.lastError,
   };
 }
 
 export async function claimHistoricalBackfillWork(token: DecodedIdToken, now = new Date()): Promise<HistoricalBackfillWork | undefined> {
-  const account = await accountForToken(token);
-  if (!eligibleForBackfill(account)) return undefined;
-  const history = await loadCompletedReviewHistory(account.uid);
-  if (!history.length || !account.cadenceAnchor) return undefined;
+  const account = await accountForToken(token) as AccountWithBackfill;
+  if (!eligibleForBackfill(account) || !account.cadenceAnchor) return undefined;
+  const targets = targetsFor(account, now);
+  if (!targets.length) return undefined;
+  // Preserve Patch H onboarding ownership: the ordinary first Review establishes the account
+  // before background chronology catch-up is allowed to fill surrounding completed periods.
+  const establishedHistory = await loadCompletedReviewHistory(account.uid);
+  if (!establishedHistory.length) return undefined;
 
-  const latestPeriodStart = [...history].sort((a, b) => b.periodEnd.localeCompare(a.periodEnd))[0].periodStart;
-  // Persisted Review chronology is authoritative. If the next ordinary Review
-  // could already be complete, organic generation wins and historical work
-  // waits. Player Room's mutable forming-week checkpoint cannot mask this.
-  if (addReviewDays(latestPeriodStart, 14) <= todayIso(now)) return undefined;
+  // Read/reconstruct durable period truth before the lease transaction. No Chess.com/Stockfish work occurs here.
+  const truth = await loadRecentReportPeriodTruth(account, now);
+  const evaluatedFromLedger: Record<string, HistoricalReviewEvaluation> = Object.fromEntries(truth.periods.flatMap(period => period.outcome ? [[period.periodStart, {
+    status: period.outcome === "review" ? "existing" : "no_activity",
+    evaluatedAt: period.evaluatedAt ?? isoNow(now),
+  } satisfies HistoricalReviewEvaluation]] : []));
+  const existingStarts = truth.periods.filter(period => period.outcome === "review").map(period => period.periodStart);
 
-  const existingStarts = history.map((review) => review.periodStart);
   const db = getAdminDb();
   const accountRef = db.collection("users").doc(account.uid);
-
-  return db.runTransaction(async (transaction) => {
+  return db.runTransaction(async transaction => {
     const snapshot = await transaction.get(accountRef);
     if (!snapshot.exists) return undefined;
     const fresh = snapshot.data() as AccountWithBackfill;
     let state = fresh.reviewHistoryBackfill;
-    if (state?.version === REVIEW_HISTORY_BACKFILL_VERSION && state.status === "complete") return undefined;
-    if (!state || state.version !== REVIEW_HISTORY_BACKFILL_VERSION || !state.targetPeriods?.length) {
-      state = initialState(latestPeriodStart, now);
-    } else if (state.targetPeriods[0]?.start !== latestPeriodStart && !leaseIsActive(state.lease, now)) {
-      const nextTargets = fourPeriodWindow(latestPeriodStart);
-      const allowed = new Set(nextTargets.map((period) => period.start));
-      state = {
-        ...state,
-        targetPeriods: nextTargets,
-        evaluated: Object.fromEntries(Object.entries(state.evaluated ?? {}).filter(([periodStart]) => allowed.has(periodStart))),
-        lease: undefined,
-      };
+    if (!state || state.version !== REVIEW_HISTORY_BACKFILL_VERSION || !sameTargets(state.targetPeriods, targets)) {
+      state = stateForTargets(state, targets, now);
+    } else if (!leaseIsActive(state.lease, now)) {
+      state = { ...state, lease: undefined };
     }
+    state = { ...state, evaluated: { ...(state.evaluated ?? {}), ...evaluatedFromLedger } };
 
-    if (backfillComplete(state.targetPeriods, state.evaluated, existingStarts)) {
-      state = { ...state, status: "complete", lease: undefined, completedAt: isoNow(now), lastError: undefined };
-      transaction.set(accountRef, clean({ reviewHistoryBackfill: state }), { merge: true });
+    if (backfillComplete(targets, state.evaluated, existingStarts)) {
+      const complete = { ...state, status: "complete" as const, lease: undefined, completedAt: isoNow(now), lastError: undefined };
+      transaction.set(accountRef, clean({ reviewHistoryBackfill: complete }), { merge: true });
       return undefined;
     }
-
     if (leaseIsActive(state.lease, now)) return undefined;
-    const target = nextBackfillPeriod(state.targetPeriods, state.evaluated, existingStarts);
+    // targetPeriods are oldest -> newest, so the first gap is always caught up first.
+    const target = nextBackfillPeriod(targets, state.evaluated, existingStarts);
     if (!target) return undefined;
     const leaseId = randomBytes(16).toString("hex");
     const claimedAt = isoNow(now);
@@ -94,6 +102,7 @@ export async function claimHistoricalBackfillWork(token: DecodedIdToken, now = n
       ...state,
       status: "pending",
       lease: { periodStart: target.start, leaseId, claimedAt, leaseUntil },
+      completedAt: undefined,
       lastAttemptAt: claimedAt,
       lastError: undefined,
     };
@@ -103,8 +112,8 @@ export async function claimHistoricalBackfillWork(token: DecodedIdToken, now = n
       periodEnd: target.end,
       requestCadenceAnchor: account.cadenceAnchor!,
       leaseId,
-      completedSlots: evaluatedBackfillSlots(state.targetPeriods, state.evaluated, existingStarts),
-      totalSlots: state.targetPeriods.length,
+      completedSlots: evaluatedBackfillSlots(targets, state.evaluated, existingStarts),
+      totalSlots: targets.length,
     };
   });
 }
@@ -114,36 +123,56 @@ export async function markHistoricalBackfillSlot(
   input: { leaseId: string; periodStart: string; status: "no_activity" | "published" },
   now = new Date(),
 ) {
-  const account = await accountForToken(token);
+  const account = await accountForToken(token) as AccountWithBackfill;
   const db = getAdminDb();
   const accountRef = db.collection("users").doc(account.uid);
-  const history = await loadCompletedReviewHistory(account.uid);
-  const existingStarts = history.map((review) => review.periodStart);
-
-  return db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(accountRef);
+  const periodRef = db.collection("users").doc(account.uid).collection("reviewPeriods").doc(input.periodStart);
+  const targets = targetsFor(account, now);
+  return db.runTransaction(async transaction => {
+    const [snapshot, periodSnapshot] = await Promise.all([transaction.get(accountRef), transaction.get(periodRef)]);
     if (!snapshot.exists) throw Object.assign(new Error("BoardSignal account not found."), { status: 404 });
     const fresh = snapshot.data() as AccountWithBackfill;
-    const state = fresh.reviewHistoryBackfill;
+    let state = fresh.reviewHistoryBackfill;
     if (!state || state.version !== REVIEW_HISTORY_BACKFILL_VERSION) throw Object.assign(new Error("Historical Review state is not active."), { status: 409 });
     if (!state.lease || state.lease.leaseId !== input.leaseId || state.lease.periodStart !== input.periodStart) {
       throw Object.assign(new Error("Historical Review claim is no longer active."), { status: 409, code: "HISTORY_LEASE_MISMATCH" });
     }
+    const target = targets.find(period => period.start === input.periodStart) ?? state.targetPeriods.find(period => period.start === input.periodStart);
+    if (!target) throw Object.assign(new Error("Historical Review period is no longer in the recent cadence window."), { status: 409 });
+    const outcome = input.status === "published" ? "review" : "no_activity";
+    const result: ReviewPeriodResult = {
+      periodStart: target.start,
+      periodEnd: target.end,
+      periodLabel: reportPeriodLabel(target.start, target.end),
+      outcome,
+      reviewLifecycle: outcome === "review" ? "historical_backfill" : undefined,
+      evaluatedAt: isoNow(now),
+    };
+    const existingData = periodSnapshot.data() as (Partial<ReviewPeriodResult> & Record<string, unknown>) | undefined;
+    if (!(existingData?.outcome === "review" && outcome === "no_activity")) {
+      // publishDesk writes the authoritative Review ledger record first. Settling the
+      // historical lease uses the same monotonic merge so reviewKey/lifecycle/richer
+      // metadata can never be replaced by the poorer settlement record.
+      transaction.set(periodRef, clean(mergeReviewPeriodResult(existingData, result)), { merge: false });
+    }
+
     const evaluated: Record<string, HistoricalReviewEvaluation> = {
       ...(state.evaluated ?? {}),
       [input.periodStart]: { status: input.status, evaluatedAt: isoNow(now) },
     };
-    const complete = backfillComplete(state.targetPeriods, evaluated, existingStarts);
-    const next: ReviewHistoryBackfillState = {
+    const nextTargets = targets.length ? targets : state.targetPeriods;
+    const complete = backfillComplete(nextTargets, evaluated);
+    state = {
       ...state,
+      targetPeriods: nextTargets,
       evaluated,
       lease: undefined,
       status: complete ? "complete" : "pending",
-      ...(complete ? { completedAt: isoNow(now) } : {}),
+      ...(complete ? { completedAt: isoNow(now) } : { completedAt: undefined }),
       lastError: undefined,
     };
-    transaction.set(accountRef, clean({ reviewHistoryBackfill: next }), { merge: true });
-    return next;
+    transaction.set(accountRef, clean({ reviewHistoryBackfill: state }), { merge: true });
+    return state;
   });
 }
 
@@ -154,7 +183,7 @@ export async function markHistoricalBackfillRetryable(
 ) {
   const account = await accountForToken(token);
   const ref = getAdminDb().collection("users").doc(account.uid);
-  return getAdminDb().runTransaction(async (transaction) => {
+  return getAdminDb().runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     const state = snapshot.data()?.reviewHistoryBackfill as ReviewHistoryBackfillState | undefined;
     if (!state || !state.lease || state.lease.leaseId !== input.leaseId || state.lease.periodStart !== input.periodStart) return state;

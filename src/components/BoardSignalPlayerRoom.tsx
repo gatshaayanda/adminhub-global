@@ -30,6 +30,7 @@ import { shouldMountAutomaticReviewGenerator } from "@/lib/boardsignal/firstRevi
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import { reviewHistoryLifecycleLabel, type CompletedReviewHistoryItem } from "@/lib/boardsignal/reviewHistory";
+import { NO_ACTIVITY_COPY, type CanonicalReportPeriod, type ReviewHistoryCoverage } from "@/lib/boardsignal/reviewPeriods";
 import { boardSignalPresentationLabel } from "@/lib/boardsignal/presentationLanguage";
 import { buildPlayerRoomQuickRead } from "@/lib/boardsignal/playerRoomPresentation";
 import { auth } from "@/utils/firebaseConfig";
@@ -47,6 +48,8 @@ type Snapshot = {
   account: BoardSignalAccount;
   desks: DeskBundle[];
   reviewHistory?: CompletedReviewHistoryItem[];
+  reportPeriods?: CanonicalReportPeriod[];
+  historyCoverage?: ReviewHistoryCoverage;
   originalBetaReturn?: boolean;
   progress: ProgressSeries[];
   recurringPatterns: RecurringPattern[];
@@ -81,6 +84,8 @@ export default function BoardSignalPlayerRoom() {
   const activeUidRef = useRef<string | undefined>(undefined);
   const reconnectRefreshRef = useRef(false);
   const focusRefreshRef = useRef(false);
+  const historyRefreshRef = useRef(false);
+  const historyRefreshQueuedRef = useRef(false);
   const lastFocusRefreshAtRef = useRef(0);
   const publishedDeskKeyThisSessionRef = useRef<string | undefined>(undefined);
 
@@ -155,6 +160,12 @@ export default function BoardSignalPlayerRoom() {
     window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: { activeTab: tab } }));
   }, [tab]);
 
+  const flushQueuedHistoryRefresh = useCallback(() => {
+    if (!historyRefreshQueuedRef.current || typeof window === "undefined") return;
+    historyRefreshQueuedRef.current = false;
+    window.queueMicrotask(() => window.dispatchEvent(new CustomEvent("boardsignal:history-updated")));
+  }, []);
+
   useEffect(() => {
     const reconnected = () => {
       if (!user || reconnectRefreshRef.current || focusRefreshRef.current) return;
@@ -163,11 +174,11 @@ export default function BoardSignalPlayerRoom() {
       void loadRoom(user, true)
         .then((refreshed) => { if (refreshed) window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete")); })
         .catch(() => undefined)
-        .finally(() => { reconnectRefreshRef.current = false; });
+        .finally(() => { reconnectRefreshRef.current = false; flushQueuedHistoryRefresh(); });
     };
     window.addEventListener("boardsignal:reconnected", reconnected);
     return () => window.removeEventListener("boardsignal:reconnected", reconnected);
-  }, [loadRoom, user]);
+  }, [flushQueuedHistoryRefresh, loadRoom, user]);
 
   useEffect(() => {
     if (!user || !connectivity.online) return;
@@ -182,7 +193,7 @@ export default function BoardSignalPlayerRoom() {
       focusRefreshRef.current = true;
       void loadRoom(user, true)
         .catch(() => undefined)
-        .finally(() => { focusRefreshRef.current = false; });
+        .finally(() => { focusRefreshRef.current = false; flushQueuedHistoryRefresh(); });
     };
 
     const onVisibilityChange = () => {
@@ -195,7 +206,26 @@ export default function BoardSignalPlayerRoom() {
       window.removeEventListener("focus", refreshAfterReturn);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [connectivity.online, loadRoom, user]);
+  }, [connectivity.online, flushQueuedHistoryRefresh, loadRoom, user]);
+
+  useEffect(() => {
+    const historyUpdated = () => {
+      if (!user || !connectivity.online) return;
+      if (historyRefreshRef.current || reconnectRefreshRef.current || focusRefreshRef.current) {
+        historyRefreshQueuedRef.current = true;
+        return;
+      }
+      historyRefreshRef.current = true;
+      void loadRoom(user, true)
+        .catch(() => undefined)
+        .finally(() => {
+          historyRefreshRef.current = false;
+          flushQueuedHistoryRefresh();
+        });
+    };
+    window.addEventListener("boardsignal:history-updated", historyUpdated);
+    return () => window.removeEventListener("boardsignal:history-updated", historyUpdated);
+  }, [connectivity.online, flushQueuedHistoryRefresh, loadRoom, user]);
 
   // If a live Player Room loses reachability after it has already rendered,
   // swap to the same UID-scoped saved shell instead of leaving live-only controls active.
@@ -308,6 +338,9 @@ export default function BoardSignalPlayerRoom() {
     const body = await response.json() as { ok: boolean; error?: string };
     if (!response.ok || !body.ok) throw new Error(body.error ?? "The completed review could not be saved.");
     publishedDeskKeyThisSessionRef.current = deskKeyFor(desk);
+    window.dispatchEvent(new CustomEvent("boardsignal:review-published", {
+      detail: { periodStart: desk.period.start, periodEnd: desk.period.end },
+    }));
     if (user) await loadRoom(user);
   }, [connectivity.online, loadRoom, token, user]);
 
@@ -324,6 +357,7 @@ export default function BoardSignalPlayerRoom() {
   const latest = snapshot?.desks[0];
   const quickRead = latest && snapshot ? buildPlayerRoomQuickRead({ latest: latest.desk, recurringPatterns: snapshot.recurringPatterns, currentEpisode: snapshot.currentEpisode }) : undefined;
   const reviewHistory = snapshot?.reviewHistory ?? [];
+  const reportPeriods = snapshot?.reportPeriods ?? [];
   const hasOriginalHistory = reviewHistory.some((review) => review.source === "original_beta");
   const originalCadenceAnchor = snapshot?.account.cadenceAnchor;
   const automaticGenerationRequired = snapshot ? shouldMountAutomaticReviewGenerator({
@@ -377,7 +411,7 @@ export default function BoardSignalPlayerRoom() {
         {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : latest ? <><AuthenticatedUniverseProvider pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable}><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} presentationMode="player-room" embedded /></AuthenticatedUniverseProvider><div className="container player-room-memory g3-post-review">{latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}<DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : automaticGenerationRequired && hasOriginalHistory ? <div className="container player-room-memory"><div className="founding-field-note"><CalendarDays size={18}/><div><strong>Your original Review is already here.</strong><p>{connectivity.online ? "BoardSignal is building the next eligible LIVE Review from your preserved seven-day cadence." : "Reconnect before BoardSignal retrieves new Chess.com games for your next Review."}</p></div></div>{connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={originalCadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : null}</div> : null}
       </section> : null}
 
-      {tab === "progress" ? <section id="player-room-panel-progress" role="tabpanel" aria-labelledby="player-room-tab-progress" className="g3-room-panel"><div className="container player-room-memory"><ProgressSection history={reviewHistory} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div></section> : null}
+      {tab === "progress" ? <section id="player-room-panel-progress" role="tabpanel" aria-labelledby="player-room-tab-progress" className="g3-room-panel"><div className="container player-room-memory"><ProgressSection history={reviewHistory} reportPeriods={reportPeriods} coverage={snapshot.historyCoverage} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} /></div></section> : null}
       {tab === "universe" ? <section id="player-room-panel-universe" role="tabpanel" aria-labelledby="player-room-tab-universe" className="g3-room-panel"><div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div></section> : null}
       {tab === "friends" ? <section id="player-room-panel-friends" role="tabpanel" aria-labelledby="player-room-tab-friends" className="g3-room-panel"><div className="container player-room-memory"><PlayerFriends uid={user.uid} token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div></section> : null}
       {tab === "inbox" ? <section id="player-room-panel-inbox" role="tabpanel" aria-labelledby="player-room-tab-inbox" className="g3-room-panel"><div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div></section> : null}
@@ -523,24 +557,34 @@ function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeW
   </section>;
 }
 
-function ReviewHistorySection({ history, embedded = false }: { history: CompletedReviewHistoryItem[]; embedded?: boolean }) {
-  if (!history.length) return null;
-  const ordered = [...history].sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
-  return <section className={embedded ? "g3-review-history-section" : "my-progress-section"}><div className="universal-section-heading"><span><CalendarDays size={16}/></span><div><p className="kicker">REVIEW HISTORY</p><h2>Your completed BoardSignal history.</h2><p>Completed, historical and original Reviews share the same four-Review memory without inventing missing historical detail.</p></div></div><div className="desk-sequence">{ordered.map((review, index) => <article key={review.reviewKey}><span>REVIEW {index + 1} · {reviewHistoryLifecycleLabel(review)}</span><strong>{review.periodLabel}</strong><p>{review.games} games · {review.wins}W · {review.draws}D · {review.losses}L · {review.scorePct.toFixed(1)}%</p><p>{review.headline}</p>{review.source === "original_beta" ? <><small>{review.sourceRichness} · {review.provenanceLabel}</small>{review.green ? <p><b>Green:</b> {review.green.title}</p> : null}{review.red ? <p><b>Red:</b> {review.red.title}</p> : null}{review.blue ? <p><b>Blue:</b> {review.blue.copy || review.blue.title}</p> : null}{review.publicCoverageHref ? <Link className="text-link" href={review.publicCoverageHref}>Open historical public story</Link> : null}</> : null}</article>)}</div></section>;
+function ReviewHistorySection({ history, reportPeriods, embedded = false }: { history: CompletedReviewHistoryItem[]; reportPeriods: CanonicalReportPeriod[]; embedded?: boolean }) {
+  if (!reportPeriods.length) return null;
+  const byStart = new Map(history.map((review) => [review.periodStart, review]));
+  const ordered = [...reportPeriods].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
+  return <section className={embedded ? "g3-review-history-section g41-report-history" : "my-progress-section g41-report-history"}><div className="universal-section-heading"><span><CalendarDays size={16}/></span><div><p className="kicker">REPORT-PERIOD HISTORY</p><h2>Your latest completed seven-day periods.</h2><p>Every closed week stays in the chronology. Only weeks with real games become chess-performance evidence.</p></div></div><div className="desk-sequence g41-report-period-sequence">{ordered.map((period, index) => {
+    const review = period.outcome === "review" ? byStart.get(period.periodStart) : undefined;
+    if (period.outcome === "no_activity") return <article key={period.periodStart} className="g41-no-activity-card"><span>WEEK {index + 1} · NO ACTIVITY</span><strong>{period.periodLabel}</strong><p>{NO_ACTIVITY_COPY}</p><small>This week remains part of your history and contributes zero chess-performance evidence.</small></article>;
+    if (!period.outcome) return <article key={period.periodStart} className="g41-syncing-card"><span>WEEK {index + 1} · SYNCHRONIZING</span><strong>{period.periodLabel}</strong><p>BoardSignal is checking this completed report period now.</p><small>No performance conclusion is made until the period result is known.</small></article>;
+    if (!review) return <article key={period.periodStart} className="g41-review-card"><span>WEEK {index + 1} · REVIEW</span><strong>{period.periodLabel}</strong><p>This completed week contains real games and is part of the performance record.</p><small>The retained Review detail is synchronizing.</small></article>;
+    return <article key={review.reviewKey} className="g41-review-card"><span>WEEK {index + 1} · REVIEW · {reviewHistoryLifecycleLabel(review)}</span><strong>{review.periodLabel}</strong><p>{review.games} games · {review.wins}W · {review.draws}D · {review.losses}L · {review.scorePct.toFixed(1)}%</p><p>{review.headline}</p>{review.source === "original_beta" ? <><small>{review.sourceRichness} · {review.provenanceLabel}</small>{review.green ? <p><b>Green:</b> {review.green.title}</p> : null}{review.red ? <p><b>Red:</b> {review.red.title}</p> : null}{review.blue ? <p><b>Blue:</b> {review.blue.copy || review.blue.title}</p> : null}{review.publicCoverageHref ? <Link className="text-link" href={review.publicCoverageHref}>Open historical public story</Link> : null}</> : null}</article>;
+  })}</div></section>;
 }
 
-function ProgressSection({ history, progress, patterns, records }: { history: CompletedReviewHistoryItem[]; progress: ProgressSeries[]; patterns: RecurringPattern[]; records: PersonalRecords }) {
+function ProgressSection({ history, reportPeriods, coverage, progress, patterns, records }: { history: CompletedReviewHistoryItem[]; reportPeriods: CanonicalReportPeriod[]; coverage?: ReviewHistoryCoverage; progress: ProgressSeries[]; patterns: RecurringPattern[]; records: PersonalRecords }) {
   const chronological = [...history].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
   const metric = (label: string, values: Array<number | undefined>, suffix = "") => {
     const present = values.filter((value): value is number => value !== undefined);
     return present.length >= 2 ? <article><span>{label}</span><strong>{present.map((value) => `${value}${suffix}`).join(" → ")}</strong></article> : null;
   };
-  return <section className="my-progress-section g3-progress-section">
-    <div className="universal-section-heading"><span><TrendingUp size={16} /></span><div><p className="kicker">PROGRESS AT A GLANCE</p><h2>Your latest four completed Reviews.</h2><p>Pool ratings stay separate. Missing historical fields stay out of trend claims.</p></div></div>
-    <div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Reviews completed</span><strong>{records.desksCompleted}</strong></div></div>
-    {patterns.length ? <div className="recurring-patterns"><p className="kicker">RECURRING PATTERNS</p>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed Reviews with compatible signal families are needed before BoardSignal can name a recurring pattern.</p></div>}
-    <div className="g3-progress-trends"><p className="kicker">COMPATIBLE TRENDS</p>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((review) => review.longestWinRun))}{metric("Median game length", chronological.map((review) => review.medianGameLength))}{metric("Black score", chronological.map((review) => review.blackScorePct), "%")}</div></div>
-    <details className="g3-disclosure g3-review-history-disclosure"><summary>REVIEW HISTORY</summary><div className="g3-disclosure-body"><ReviewHistorySection history={history} embedded /></div></details>
+  const totalCount = coverage?.totalCount ?? reportPeriods.length;
+  const evaluatedCount = coverage?.evaluatedCount ?? reportPeriods.filter((period) => Boolean(period.outcome)).length;
+  return <section className="my-progress-section g3-progress-section g41-progress-section">
+    <div className="universal-section-heading"><span><TrendingUp size={16} /></span><div><p className="kicker">PROGRESS AT A GLANCE</p><h2>Your latest four completed report periods.</h2><p>Every completed seven-day period stays in sequence. Only REVIEW weeks with real games contribute trends, recurring patterns, records and advice.</p></div></div>
+    <div className="g41-history-coverage" role="status"><CalendarDays size={17}/><div><span>HISTORY COVERAGE</span><strong>{evaluatedCount}/{totalCount} completed periods evaluated</strong></div></div>
+    <div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Game-bearing Reviews completed</span><strong>{records.desksCompleted}</strong></div></div>
+    {patterns.length ? <div className="recurring-patterns"><p className="kicker">RECURRING PATTERNS · GAME-BEARING REVIEWS ONLY</p>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed Reviews with real games and compatible signal families are needed before BoardSignal can name a recurring pattern. NO ACTIVITY weeks do not count against you.</p></div>}
+    <div className="g3-progress-trends"><p className="kicker">COMPATIBLE TRENDS · GAME-BEARING REVIEWS ONLY</p>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((review) => review.longestWinRun))}{metric("Median game length", chronological.map((review) => review.medianGameLength))}{metric("Black score", chronological.map((review) => review.blackScorePct), "%")}</div></div>
+    <details className="g3-disclosure g3-review-history-disclosure" open><summary>WEEKLY REPORT HISTORY</summary><div className="g3-disclosure-body"><ReviewHistorySection history={history} reportPeriods={reportPeriods} embedded /></div></details>
   </section>;
 }
 

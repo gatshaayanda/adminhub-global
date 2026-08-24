@@ -1,0 +1,365 @@
+/* ==========================================================
+   Patch G.4.1 — weekly report truth + authenticated dark integrity.
+   Uses the existing G.1 semantic system only. F.2 remains final.
+   ========================================================== */
+
+.player-room-authenticated,
+.founder-ops-page,
+.founder-ops-console {
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated :where(
+  .player-room-memory,
+  .my-progress-section,
+  .current-episode-card,
+  .share-moments-section,
+  .share-moment-card,
+  .player-profile-section,
+  .profile-settings-card,
+  .friends-surface,
+  .social-panel,
+  .friend-card,
+  .head-to-head,
+  .comparison-grid > article,
+  .comparison-universe > article,
+  .player-inbox-section,
+  .inbox-list-item,
+  .player-message-reader,
+  .conversation-thread,
+  .conversation-message,
+  .g41-history-coverage,
+  .g41-report-period-sequence > article
+) {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated :where(
+  .share-moment-card,
+  .profile-settings-card,
+  .social-panel,
+  .friend-card,
+  .head-to-head,
+  .comparison-grid > article,
+  .comparison-universe > article,
+  .inbox-list-item,
+  .player-message-reader,
+  .conversation-thread,
+  .conversation-message,
+  .g41-report-period-sequence > article
+) {
+  background: var(--bs-surface-elevated);
+}
+
+.player-room-authenticated :where(
+  .my-progress-section,
+  .current-episode-card,
+  .share-moments-section,
+  .player-profile-section,
+  .profile-settings-card,
+  .friends-surface,
+  .social-panel,
+  .friend-card,
+  .head-to-head,
+  .player-inbox-section,
+  .player-message-reader,
+  .g41-report-period-sequence > article
+) :where(h1, h2, h3, h4, strong, label, dt, dd) {
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated :where(
+  .my-progress-section,
+  .current-episode-card,
+  .share-moments-section,
+  .player-profile-section,
+  .profile-settings-card,
+  .friends-surface,
+  .social-panel,
+  .friend-card,
+  .head-to-head,
+  .player-inbox-section,
+  .player-message-reader,
+  .g41-report-period-sequence > article
+) :where(p, small) {
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated :where(input, textarea, select) {
+  border-color: var(--bs-ui-border);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated :where(input, textarea)::placeholder {
+  color: var(--bs-text-muted);
+}
+
+.player-room-authenticated .g41-history-coverage {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  margin-top: 1rem;
+  padding: .8rem 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: .8rem;
+}
+
+.player-room-authenticated .g41-history-coverage span,
+.player-room-authenticated .g41-report-period-sequence > article > span {
+  color: var(--bs-blue-readable);
+  font-size: .75rem;
+  font-weight: 850;
+  letter-spacing: .055em;
+}
+
+.player-room-authenticated .g41-no-activity-card {
+  border-style: dashed;
+  background: var(--bs-bg-subtle);
+}
+
+.player-room-authenticated .g41-no-activity-card > span {
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated .g41-syncing-card {
+  border-style: dashed;
+  background: var(--bs-warning-surface);
+}
+
+.player-room-authenticated .g41-syncing-card > span {
+  color: var(--bs-warning);
+}
+
+.player-room-authenticated .g41-report-period-sequence {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .75rem;
+}
+
+.player-room-authenticated .g41-report-period-sequence > article {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: .8rem;
+}
+
+
+html[data-bs-theme="dark"] .founder-ops-console :where(
+  .founder-attention-section,
+  .founder-live-metrics,
+  .founder-validation-section,
+  .founder-live-directory,
+  .founder-ops-row,
+  .founder-ops-details,
+  .founder-review-periods
+) {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .founder-ops-console :where(h1, h2, h3, h4, strong, dt, dd, label) {
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .founder-ops-console :where(p, small) {
+  color: var(--bs-text-secondary);
+}
+
+/* Authenticated Ask BoardSignal surfaces: real production classes only.
+   The header/launcher keep the existing semantic inverse contract. */
+html[data-bs-theme="dark"] :where(
+  .ask-bs-context-prompt,
+  .ask-bs-panel,
+  .ask-bs-messages,
+  .ask-bs-welcome,
+  .ask-bs-message.from-guide,
+  .ask-bs-suggestions,
+  .ask-bs-composer,
+  .ask-bs-thinking,
+  .ask-bs-failure
+) {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .ask-bs-message.from-player {
+  border-color: var(--bs-border-strong);
+  background: var(--bs-blue-soft);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] :where(
+  .ask-bs-welcome,
+  .ask-bs-message,
+  .ask-bs-thinking,
+  .ask-bs-failure
+) :where(p, small, span) {
+  color: var(--bs-text-secondary);
+}
+
+html[data-bs-theme="dark"] :where(
+  .ask-bs-actions button,
+  .ask-bs-feedback button,
+  .ask-bs-suggestions button,
+  .ask-bs-composer input
+) {
+  border-color: var(--bs-ui-border);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .ask-bs-composer input::placeholder {
+  color: var(--bs-text-muted);
+}
+
+html[data-bs-theme="dark"] :where(.ask-bs-header, .ask-bs-launcher) {
+  background: var(--bs-surface-inverse);
+  color: var(--bs-text-on-inverse);
+}
+
+.player-room-authenticated :where(a, button, summary, input, textarea, select, [tabindex]):focus-visible,
+.founder-ops-page :where(a, button, summary, input, textarea, select, [tabindex]):focus-visible,
+.founder-ops-console :where(a, button, summary, input, textarea, select, [tabindex]):focus-visible {
+  outline: 3px solid var(--bs-focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px var(--bs-focus-gap);
+}
+
+@media (max-width: 1024px) {
+  .player-room-authenticated .g41-report-period-sequence { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .player-room-authenticated .g41-report-period-sequence { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 390px) {
+  .player-room-authenticated .g41-history-coverage { align-items: flex-start; padding: .75rem; }
+}
+@media (max-width: 360px) {
+  .player-room-authenticated .g41-report-period-sequence > article { padding: .8rem; }
+}
+@media (max-width: 320px) {
+  .player-room-authenticated .g41-history-coverage { gap: .5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-room-authenticated .g41-progress-section *,
+  .player-room-authenticated .g41-report-history * {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Independent-review dark integrity: explicit legacy authenticated surfaces that
+   predate G.4/G.4.1 and still carry pale backgrounds in the legacy cascade. */
+html[data-bs-theme="dark"] .player-room-authenticated :where(
+  .private-universe-section,
+  .universe-category-card,
+  .universe-board,
+  .universe-board li,
+  .universe-empty,
+  .pulse-universe-block,
+  .pulse-card-grid > article,
+  .pulse-event-grid > article,
+  .personal-record-strip,
+  .pool-progress,
+  .pool-progress article,
+  .recurring-patterns,
+  .recurring-patterns article,
+  .desk-sequence > article,
+  .forming-pools article
+) {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .player-room-authenticated :where(
+  .private-standing-list article,
+  .universe-board li,
+  .pulse-card-grid > article,
+  .pulse-event-grid > article,
+  .personal-record-strip,
+  .pool-progress article,
+  .recurring-patterns article,
+  .desk-sequence > article,
+  .forming-pools article
+) {
+  background: var(--bs-surface-elevated);
+}
+
+html[data-bs-theme="dark"] .player-room-authenticated :where(
+  .private-universe-section,
+  .private-standing-list article,
+  .universe-category-card,
+  .universe-board li,
+  .universe-empty,
+  .pulse-universe-block,
+  .pulse-card-grid > article,
+  .pulse-event-grid > article,
+  .personal-record-strip,
+  .pool-progress article,
+  .recurring-patterns article
+) :where(h2, h3, strong, b, span) {
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .player-room-authenticated :where(
+  .private-universe-section,
+  .private-standing-list article,
+  .universe-category-card,
+  .universe-board li,
+  .universe-empty,
+  .pulse-universe-block,
+  .pulse-card-grid > article,
+  .pulse-event-grid > article,
+  .personal-record-strip,
+  .pool-progress article,
+  .recurring-patterns article
+) :where(p, small) {
+  color: var(--bs-text-secondary);
+}
+
+html[data-bs-theme="dark"] .player-room-authenticated .universe-board li > a {
+  border-color: var(--bs-ui-border);
+  background: var(--bs-surface);
+  color: var(--bs-blue-readable);
+}
+
+html[data-bs-theme="dark"] .player-room-authenticated :where(
+  .universe-field-note,
+  .universe-scope,
+  .universe-field-label,
+  .pulse-card-label,
+  .pulse-event-meta
+) {
+  color: var(--bs-text-muted);
+}
+
+/* Final child-level dark contracts. These must remain after the broad legacy
+   descendant overrides above so badges/rank circles keep their own readable pairs. */
+html[data-bs-theme="dark"] .player-room-authenticated .private-standing-list article > b {
+  background: var(--bs-lime);
+  color: var(--bs-on-lime);
+}
+
+html[data-bs-theme="dark"] .player-room-authenticated :where(.pulse-event-meta b, .pulse-card-label b) {
+  background: var(--bs-bg-subtle);
+  color: var(--bs-text-secondary);
+}
+
+html[data-bs-theme="dark"] .player-room-authenticated :where(.pulse-card ul, .pulse-card li) {
+  color: var(--bs-text-secondary);
+}
+
+html[data-bs-theme="dark"] .player-room-authenticated .universe-board li > span {
+  background: var(--bs-surface-inverse);
+  color: var(--bs-text-on-inverse);
+}

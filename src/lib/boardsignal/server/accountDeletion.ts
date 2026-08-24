@@ -22,6 +22,7 @@ const PRIVATE_PLAYER_SUBCOLLECTIONS = [
   "automationEvents",
   "guide",
   "guideFeedback",
+  "reviewPeriods",
 ] as const;
 
 type DeletionStage =

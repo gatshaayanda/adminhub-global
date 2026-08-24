@@ -7,6 +7,7 @@ import "./boardsignal-motion.css";
 import "./boardsignal-player-room-g3.css";
 import "./boardsignal-h1-hotfix.css";
 import "./boardsignal-g4-universe.css";
+import "./boardsignal-g41-weekly-truth.css";
 import "./boardsignal-f2-readability.css";
 
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";

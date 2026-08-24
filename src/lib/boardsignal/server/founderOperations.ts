@@ -17,6 +17,8 @@ import { storedReviewLifecycle, type ReviewHistoryBackfillState } from "../histo
 import { summarizeOperationalRetention } from "../historyRetention";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { inspectSafePublicCoverageForAccount } from "./publicCoverageRepair";
+import { loadRecentReportPeriodTruth } from "./reviewPeriods";
+import { latestOfficialChessStatePeriod, type ReviewHistoryCoverage, type CanonicalReportPeriod } from "../reviewPeriods";
 
 const MAX_ACTIVE_REVIEWS = 4;
 
@@ -65,6 +67,10 @@ export type FounderOperationsRow = FounderOperationComparableRow & {
   preferredContactMethod?: string;
   preferredContactValue?: string;
   latestReview?: { periodStart?: string; periodEnd?: string; periodLabel?: string; publishedAt?: string };
+  latestReportPeriod?: CanonicalReportPeriod;
+  recentReportPeriods?: CanonicalReportPeriod[];
+  historyCoverage?: ReviewHistoryCoverage;
+  officialChessStatePeriod?: { periodStart?: string; periodEnd?: string; periodLabel?: string };
   reviewPeriods: Array<{ periodStart: string; periodEnd: string; periodLabel?: string; source: "original" | "live" }>;
   history: FounderHistoryVisibility;
   lastContactedAt?: string;
@@ -102,10 +108,11 @@ function identityConflict(account: OperationsAccount) {
 
 async function playerSnapshot(account: OperationsAccount) {
   const db = getAdminDb();
-  const [desks, unread, publicHighlights] = await Promise.all([
+  const [desks, unread, publicHighlights, reportTruth] = await Promise.all([
     db.collection("users").doc(account.uid).collection("desks").orderBy("periodEnd", "desc").limit(MAX_ACTIVE_REVIEWS).get(),
     db.collection("users").doc(account.uid).collection("conversations").where("unreadForFounder", "==", true).get().catch(() => ({ size: 0 })),
     inspectSafePublicCoverageForAccount(account).catch(() => undefined),
+    loadRecentReportPeriodTruth(account, new Date(), false).catch(() => ({ periods: [], coverage: { evaluatedCount: 0, totalCount: 0 } })),
   ]);
   const documents = desks.docs.map((document) => ({ id: document.id, data: document.data() as StoredReview }));
   const allVerifiedDocuments = documents.flatMap(({ data }) => {
@@ -115,6 +122,7 @@ async function playerSnapshot(account: OperationsAccount) {
   const verifiedDocuments = allVerifiedDocuments.filter(({ period }) => period.source !== "historical");
   const verified = verifiedDocuments.map(({ period }) => ({ ...period, source: period.source as "original" | "live" }));
   const latestVerified = verifiedDocuments[0];
+  const officialChessStatePeriod = latestOfficialChessStatePeriod(allVerifiedDocuments.map(({ period }) => period));
   const originalBetaProvenance: ValidationOriginalProvenance[] = verifiedDocuments.flatMap(({ data, period }) => data.originalBeta?.seedHandle ? [{
     uid: account.uid,
     playerId: account.chessCom.playerId,
@@ -138,9 +146,11 @@ async function playerSnapshot(account: OperationsAccount) {
       periodLabel: latestVerified.period.periodLabel,
       publishedAt: latestVerified.data.publishedAt,
     } : undefined,
+    officialChessStatePeriod,
     unreadReplies: Number((unread as { size?: number }).size ?? 0),
     unreadReplyAt: ((unread as { docs?: Array<{ data(): { updatedAt?: string } }> }).docs ?? []).map((document) => document.data().updatedAt).filter((value): value is string => Boolean(value)).sort()[0],
     publicHighlights,
+    reportTruth,
   };
 }
 
@@ -227,6 +237,10 @@ export async function founderOperationsSnapshot(now = new Date()) {
       reviewPeriods: snapshot.verified,
       history: snapshot.history,
       latestReview: snapshot.latestReview,
+      latestReportPeriod: snapshot.reportTruth.periods.at(-1),
+      recentReportPeriods: snapshot.reportTruth.periods,
+      historyCoverage: snapshot.reportTruth.coverage,
+      officialChessStatePeriod: snapshot.officialChessStatePeriod ? { periodStart: snapshot.officialChessStatePeriod.periodStart, periodEnd: snapshot.officialChessStatePeriod.periodEnd, periodLabel: snapshot.officialChessStatePeriod.periodLabel } : undefined,
       nextDeskDueAt: account.nextDeskDueAt ?? account.currentEpisodeSummary?.nextDeskDueAt,
       lastSeenAt: account.lastSeenAt,
       unreadReplies: snapshot.unreadReplies,

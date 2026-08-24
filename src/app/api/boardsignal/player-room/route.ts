@@ -4,6 +4,8 @@ import { withPreviousReviewGuidance } from "@/lib/boardsignal/activeWeekGuidance
 import { buildCurrentEpisodeSummary } from "@/lib/boardsignal/processor";
 import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
 import type { ReviewLifecycle } from "@/lib/boardsignal/historyBackfill";
+import { canonicalGenerationRequired, performanceEvidencePeriods } from "@/lib/boardsignal/reviewPeriods";
+import { buildReviewProgress, deriveRecurringPatternsFromReviewHistory } from "@/lib/boardsignal/reviewHistory";
 import {
   acceptFoundingBetaAgreement,
   accountForToken,
@@ -13,6 +15,7 @@ import {
   requirePlayerToken,
   updatePlayerPreferences,
 } from "@/lib/boardsignal/server/persistence";
+import { loadRecentReportPeriodTruth, recordReviewPeriodResult } from "@/lib/boardsignal/server/reviewPeriods";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 import { recordGuidePlayerRoomSnapshot } from "@/lib/boardsignal/server/guide";
 
@@ -41,6 +44,8 @@ export async function GET(request: Request) {
           account,
           desks: [],
           reviewHistory: [],
+          reportPeriods: [],
+          historyCoverage: { evaluatedCount: 0, totalCount: 0 },
           originalBetaReturn: Boolean((account as typeof account & { originalBetaPlayer?: boolean }).originalBetaPlayer),
           progress: [],
           recurringPatterns: [],
@@ -64,7 +69,24 @@ export async function GET(request: Request) {
       progressUnavailable = error instanceof Error ? error.message : "Current episode progress is temporarily unavailable.";
     }
     const factualCurrentEpisode = currentEpisode ? factualEpisodeCheckpoint(currentEpisode) : undefined;
-    const snapshot = await buildPlayerRoomSnapshot(token, factualCurrentEpisode, progressUnavailable);
+    const [snapshot, reportTruth] = await Promise.all([
+      buildPlayerRoomSnapshot(token, factualCurrentEpisode, progressUnavailable),
+      loadRecentReportPeriodTruth(account),
+    ]);
+    // Progress/advice evidence comes only from real game-bearing Reviews inside the same
+    // canonical four-period timeline. A quiet week stays visible but contributes zero evidence.
+    snapshot.reviewHistory = performanceEvidencePeriods(reportTruth.periods, snapshot.reviewHistory);
+    snapshot.progress = buildReviewProgress(snapshot.reviewHistory);
+    snapshot.recurringPatterns = deriveRecurringPatternsFromReviewHistory(snapshot.reviewHistory);
+    snapshot.personalRecords = {
+      ...snapshot.personalRecords,
+      desksCompleted: snapshot.reviewHistory.length,
+    };
+    // Canonical weekly truth owns generation state. A settled newest period suppresses
+    // duplicate ordinary generation; an unresolved newest period preserves the live path.
+    snapshot.generationRequired = canonicalGenerationRequired(snapshot.generationRequired, reportTruth.periods);
+    Object.assign(snapshot, { reportPeriods: reportTruth.periods, historyCoverage: reportTruth.coverage });
+
     if (snapshot.currentEpisode && currentEpisode) {
       const previous = snapshot.reviewHistory[0];
       currentEpisode = {
@@ -115,7 +137,18 @@ export async function POST(request: Request) {
       return response({ ok: true, factualReview: await savePendingFactualReview(token, body.desk, { reviewLifecycle: body.reviewLifecycle, historyLeaseId: body.historyLeaseId }) });
     }
     if (body.action === "publishDesk" && body.desk && body.engineResults) {
-      return response({ ok: true, publication: await publishPrivateDesk(token, body.desk, body.engineResults, { reviewLifecycle: body.reviewLifecycle, historyLeaseId: body.historyLeaseId }) });
+      const publication = await publishPrivateDesk(token, body.desk, body.engineResults, { reviewLifecycle: body.reviewLifecycle, historyLeaseId: body.historyLeaseId });
+      const account = await accountForToken(token);
+      await recordReviewPeriodResult(account.uid, {
+        periodStart: body.desk.period.start,
+        periodEnd: body.desk.period.end,
+        periodLabel: body.desk.period.label,
+        outcome: "review",
+        reviewKey: body.desk.episodeKey,
+        reviewLifecycle: body.reviewLifecycle ?? "organic_live",
+        evaluatedAt: new Date().toISOString(),
+      });
+      return response({ ok: true, publication });
     }
     if (body.action === "updatePreferences" && body.privacy && body.notificationPreferences) {
       return response({ ok: true, preferences: await updatePlayerPreferences(token, body.privacy, body.notificationPreferences, body.contact) });

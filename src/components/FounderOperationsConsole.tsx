@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, LoaderCircle, RefreshCcw, Search } from "lucide-react";
+import type { CanonicalReportPeriod, ReviewHistoryCoverage } from "@/lib/boardsignal/reviewPeriods";
 import {
   filterFounderOperationRows,
   sortFounderOperationRows,

@@ -330,19 +330,24 @@ test('61 historical artifact writer is defense-in-depth suppressed', () => {
   assert.match(src, /if \(input\.reviewLifecycle === "historical_backfill"\)[\s\S]*events: \[\][\s\S]*shareMoments: \[\]/);
 });
 
-test('62 as-of reconstruction filters Review records by completed periodEnd cutoff', () => {
+test('62 Review movement uses stored publication standing snapshots rather than reconstructing the population', () => {
   const src = read('src/lib/boardsignal/server/universePulse.ts');
-  assert.match(src, /record\.periodEnd <= cutoff/);
+  assert.match(src, /currentReviewStanding\?: PulseStandingSnapshot\[\]/);
+  assert.match(src, /previousReviewStanding\?: PulseStandingSnapshot\[\]/);
+  assert.match(src, /deriveReviewMovement\(input\.previousReviewStanding, input\.currentReviewStanding\)/);
 });
 
-test('63 as-of reconstruction reuses buildActiveUniverseBoards instead of a second ranker', () => {
-  const src = read('src/lib/boardsignal/server/universePulse.ts');
-  assert.match(src, /boardsFromRecordsAsOf[\s\S]*buildActiveUniverseBoards/);
+test('63 persistence stores official Universe standing snapshots at Review publication', () => {
+  const src = read('src/lib/boardsignal/server/persistence.ts');
+  assert.match(src, /universeStandingAtPublication\?: PulseStandingSnapshot\[\]/);
+  assert.match(src, /universeStandingAtPublication: artifacts\.officialStandingSnapshots/);
+  assert.match(src, /currentReviewStanding: latestBundle\?\.universeStandingAtPublication/);
+  assert.match(src, /previousReviewStanding: previousBundle\?\.universeStandingAtPublication/);
 });
 
-test('64 unprovable historical field suppresses Review movement', () => {
+test('64 materialized Pulse does not rebuild historical population fields on ordinary reads', () => {
   const src = read('src/lib/boardsignal/server/universePulse.ts');
-  assert.match(src, /if \(!canReconstructFieldAsOf[\s\S]*return \[\]/);
+  assert.doesNotMatch(src, /canReconstructFieldAsOf|boardsFromRecordsAsOf|recordsAsOf|seedsAsOf/);
 });
 
 test('65 since-last-visit field movement only compares snapshots when latest Review period is unchanged', () => {
@@ -355,8 +360,8 @@ test('65 since-last-visit field movement only compares snapshots when latest Rev
 
 test('66 provisional projection removes official self and cannot trigger live-field transition', () => {
   const src = read('src/lib/boardsignal/server/universePulse.ts');
-  assert.match(src, /participant\.stablePlayerId !== String\(input\.account\.chessCom\.playerId\)/);
-  assert.match(src, /buildActiveUniverseBoards\(\s*projectedParticipants,\s*foundingBetaField,\s*state\.liveParticipants,/s);
+  assert.match(src, /const withoutSelf = state\.liveParticipants\.filter\(\(participant\) => participant\.stablePlayerId !== String\(input\.account\.chessCom\.playerId\)\)/);
+  assert.match(src, /buildActiveUniverseBoards\(\[\.\.\.withoutSelf, provisionalParticipant\], foundingBetaField, state\.liveParticipants\)/);
 });
 
 test('67 active official state exposes truthful official player count', () => {

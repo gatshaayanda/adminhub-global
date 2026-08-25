@@ -132,6 +132,7 @@ function participantFromRecord(record: ActiveDeskRecord): UniverseParticipant | 
   };
 }
 
+
 function safePublicEvent(event: PublicUniverseEvent) {
   return event.safePublic === true
     && event.hidden !== true

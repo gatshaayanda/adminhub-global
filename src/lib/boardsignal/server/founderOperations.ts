@@ -49,6 +49,10 @@ type ReviewPeriod = { periodStart: string; periodEnd: string; periodLabel?: stri
 function clean<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function normalize(value?: string) { return String(value ?? "").trim().replace(/^@/, "").toLowerCase(); }
 function identityConflict(account: OperationsAccount) { return account.identityStatus === "revoked" || account.identityReviewStatus === "rejected"; }
+function cadenceWeekForming(account: OperationsAccount) { return account.accessStatus === "active" && Boolean(account.cadenceAnchor); }
+function historicalPublishedPeriods(account: OperationsAccount) {
+  return Object.values(account.reviewHistoryBackfill?.evaluated ?? {}).filter((evaluation) => evaluation?.status === "published").length;
+}
 function validPeriod(data: StoredReview): ReviewPeriod | undefined {
   const history = data.originalBeta?.history;
   const start = history?.periodStart ?? data.summary?.periodStart;
@@ -98,7 +102,7 @@ async function sourcePlayerSummary(account: OperationsAccount, now = new Date())
     preferredContactValue: account.preferredContactValue,
     lastSeenAt: account.lastSeenAt,
     nextDeskDueAt: account.nextDeskDueAt ?? account.currentEpisodeSummary?.nextDeskDueAt,
-    forming: account.currentEpisodeSummary?.status === "forming",
+    forming: cadenceWeekForming(account),
     latestReview,
     unreadReplies,
     unreadReplyAt: (unread as { docs?: Array<{ data(): { updatedAt?: string } }> }).docs?.map((document) => document.data().updatedAt).filter((value): value is string => Boolean(value)).sort()[0],
@@ -144,7 +148,7 @@ async function sourcePlayerSummary(account: OperationsAccount, now = new Date())
   };
   const originalReviews = nonHistorical.filter((period) => period.source === "original").length;
   const liveReviews = nonHistorical.filter((period) => period.source === "live").length;
-  return founderSummaryFromRow({ playerId: account.chessCom.playerId, uid: account.uid, row, originalReviews, liveReviews, activationBaseline: account.reviewHistoryBackfill?.activationBaseline === true, updatedAt: now.toISOString() });
+  return founderSummaryFromRow({ playerId: account.chessCom.playerId, uid: account.uid, row, originalReviews, liveReviews, historicalPeriods: historicalPublishedPeriods(account), activationBaseline: account.reviewHistoryBackfill?.activationBaseline === true, updatedAt: now.toISOString() });
 }
 
 export async function refreshFounderPlayerSummary(account: OperationsAccount, now = new Date()) {

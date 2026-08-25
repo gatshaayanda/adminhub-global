@@ -428,7 +428,7 @@ export async function buildPlayerRoomSnapshot(token: DecodedIdToken, currentEpis
   const accountUpdate = { lastSeenAt: checkedAt, latestProgressCheckedAt: currentEpisode?.checkedAt, currentEpisodeSummary: currentEpisode, nextDeskDueAt: currentEpisode?.nextDeskDueAt ?? account.nextDeskDueAt };
   await getAdminDb().collection("users").doc(account.uid).set(clean(accountUpdate), { merge: true });
   const accountSnapshot = { ...account, ...accountUpdate } as AccountWithBackfill;
-  await import("./founderMaterialized").then(({ updateFounderPlayerActivity }) => updateFounderPlayerActivity({ playerId: account.chessCom.playerId, uid: account.uid, lastSeenAt: checkedAt, nextDeskDueAt: accountUpdate.nextDeskDueAt, forming: currentEpisode?.status === "forming" })).catch(() => undefined);
+  await import("./founderMaterialized").then(({ updateFounderPlayerActivity }) => updateFounderPlayerActivity({ playerId: account.chessCom.playerId, uid: account.uid, lastSeenAt: checkedAt, nextDeskDueAt: accountUpdate.nextDeskDueAt, forming: account.accessStatus === "active" && Boolean(account.cadenceAnchor) })).catch(() => undefined);
 
   // One retained-Review query is reused for published Reviews AND completed Review history.
   const retained = await retainedDeskSnapshots(account.uid);

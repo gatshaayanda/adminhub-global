@@ -85,12 +85,22 @@ test('40 catch-up no longer keys its window to latest Review period', () => asse
 test('41 completed state can reopen when rolling targets change', () => assert.match(backfill, /!sameTargets\(state\.targetPeriods, targets\)/));
 test('42 expired leases are cleared/reclaimable', () => assert.match(backfill, /!leaseIsActive\(state\.lease, now\)/));
 test('43 a live lease blocks duplicate claims', () => assert.match(backfill, /if \(leaseIsActive\(state\.lease, now\)\) return undefined/));
-test('44 target list is consumed oldest-first', () => assert.match(backfill, /targetPeriods are oldest -> newest/));
+test('44 target list is consumed oldest-first', () => {
+  assert.match(backfill, /nextBackfillPeriod\(targets, state\.evaluated, existingStarts\)/);
+});
 test('45 claim does not perform external Review generation', () => { assert.doesNotMatch(backfill, /buildLiveDeskRequestPath/); assert.doesNotMatch(backfill, /fetch\(/); });
 test('46 worker performs external Review generation after claim', () => assert.match(worker, /buildLiveDeskRequestPath/));
-test('47 worker settles NO_ACTIVITY without fake Review publication', () => assert.match(worker, /postState\(activeUser, claimed, "noActivity"\)/));
-test('48 worker advances after each settled quiet slot', () => assert.match(worker, /setTimeout\(\(\) => void advance\(activeUser\), 250\)/));
-test('49 worker advances after each published historical Review', () => assert.match(worker, /setTimeout\(\(\) => void advance\(user\), 900\)/));
+test('47 worker settles NO_ACTIVITY without fake Review publication', () => {
+  assert.match(worker, /postState\(activeUser,\s*claimed,\s*"noActivity"\)/);
+});
+test('48 worker coalesces settled quiet slots within one bounded wake', () => {
+  assert.match(worker, /for\(let slot=0;slot<4/);
+  assert.match(worker, /settledThisWake=true;continue/);
+  assert.doesNotMatch(worker, /setTimeout\(\(\)\s*=>\s*void advance\(activeUser\),\s*250\)/);
+});
+test('49 worker advances after each published historical Review', () => {
+  assert.match(worker, /setTimeout\(\(\)\s*=>\s*void advance\(user\),\s*900\)/);
+});
 test('50 ordinary Review publication explicitly wakes catch-up', () => { assert.match(worker, /addEventListener\("boardsignal:review-published"/); assert.doesNotMatch(worker, /addEventListener\("boardsignal:offline-saved"/); });
 test('51 slot settlement announces history-updated', () => assert.match(worker, /boardsignal:history-updated/));
 test('52 quiet settlement uses history-updated without location reload', () => { assert.match(room,/addEventListener\("boardsignal:history-updated"/); assert.doesNotMatch(worker,/location\.reload|window\.location/); });
@@ -124,7 +134,7 @@ test('75 weekly guide makes no blanket decline inference from a quiet week', () 
 
 // 76-83 Founder + Universe safety.
 test('76 Founder Operations consumes canonical period truth', () => assert.match(founderServer, /loadRecentReportPeriodTruth/));
-test('77 Founder bulk view disables compatibility writes', () => assert.match(founderServer, /loadRecentReportPeriodTruth\(account, new Date\(\), false\)/));
+test('77 Founder bulk view disables compatibility writes', () => assert.match(founderServer, /loadRecentReportPeriodTruth\(account,\s*now,\s*false,\s*completedHistory\)/));
 test('78 Founder row exposes latest report period separately', () => assert.match(founderServer, /latestReportPeriod/));
 test('79 Founder row exposes official chess state period separately', () => assert.match(founderServer, /officialChessStatePeriod/));
 test('80 Founder UI integrates latest report outcome under HISTORY', () => { assert.match(founderUi, /LATEST REPORT/); assert.doesNotMatch(founderUi, /data-label="LATEST PERIOD"/); });
@@ -149,7 +159,7 @@ test('96 G.4 remains before G.4.1 and H.1 remains before G.4', () => assert.ok(l
 
 // 97-100 release-hardening contracts discovered during implementation QA.
 test('97 background catch-up never owns the first real Review', () => assert.match(backfill, /if \(!establishedHistory\.length\) return undefined/));
-test('98 newest game-bearing completed period yields to ordinary live Review generation', () => { assert.match(worker, /latestCompletedReviewPeriods\(claimed\.requestCadenceAnchor\)\.at\(-1\)/); assert.match(worker, /\w+\?\.periodStart === claimed\.periodStart/); assert.match(worker, /Ordinary live Review generation has priority/); });
+test('98 newest game-bearing completed period yields to ordinary live Review generation', () => { assert.match(worker, /latestCompletedReviewPeriods\(claimed\.requestCadenceAnchor\)\.at\(-1\)/); assert.match(worker, /latestCompleted\?\.periodStart\s*===\s*claimed\.periodStart/); assert.match(worker, /Ordinary live Review generation has priority/); });
 test('99 dark integrity targets real Friends Inbox and Profile classes', () => { assert.match(css, /\.friends-surface/); assert.match(css, /\.player-inbox-section/); assert.match(css, /\.profile-settings-card/); });
 test('100 Founder dark integrity targets the actual founder console root', () => assert.match(css, /\.founder-ops-console/));
 
@@ -199,7 +209,7 @@ test('111 displayed game-bearing Review count is recomputed after canonical filt
 test('112 Player Room generation state is derived from canonical truth helper', () => assert.match(roomRoute,/canonicalGenerationRequired\(snapshot\.generationRequired, reportTruth\.periods\)/));
 test('113 successful ordinary publication emits explicit review-published event', () => assert.match(room,/dispatchEvent\(new CustomEvent\("boardsignal:review-published"/));
 test('114 HistoryWorker listens to explicit review-published and not IndexedDB save', () => { assert.match(worker,/addEventListener\("boardsignal:review-published"/); assert.doesNotMatch(worker,/addEventListener\("boardsignal:offline-saved"/); });
-test('115 active historical work queues unrelated wake instead of being cleared', () => { assert.match(worker,/busyRef\.current \|\| workRef\.current/); assert.match(worker,/wakeQueuedRef\.current = true/); assert.doesNotMatch(worker,/if \(!body\.work \|\| !body\.username\) \{\s*setWork\(undefined\)/s); });
+test('115 active historical work queues unrelated wake instead of being cleared', () => { assert.match(worker,/busyRef\.current\s*\|\|\s*workRef\.current/); assert.match(worker,/wakeQueuedRef\.current\s*=\s*true/); assert.doesNotMatch(worker,/if \(!body\.work \|\| !body\.username\) \{\s*setWork\(undefined\)/s); });
 test('116 quiet history settlement has a dedicated Player Room refresh event', () => { assert.match(worker,/dispatchEvent\(new CustomEvent\("boardsignal:history-updated"/); assert.match(room,/addEventListener\("boardsignal:history-updated"/); });
 test('117 history refresh queues a trailing pass while any quiet refresh is active', () => { assert.match(room,/historyRefreshQueuedRef\.current = true/); assert.match(room,/flushQueuedHistoryRefresh/); assert.match(room,/queueMicrotask/); });
 test('118 dark mode explicitly covers private universe legacy surface', () => assert.match(css,/private-universe-section/));
@@ -277,8 +287,8 @@ test('139 historical-only verified Review can establish official chess state whi
   const historical=[{periodStart:'2026-08-01',periodEnd:'2026-08-07',periodLabel:'1–7 Aug 2026',source:'historical'}];
   assert.equal(periods.latestOfficialChessStatePeriod(historical).periodStart,'2026-08-01');
   assert.equal(historical.filter(item=>item.source!=='historical').length,0);
-  assert.match(founderServer,/verifiedDocuments = allVerifiedDocuments\.filter\(\(\{ period \}\) => period\.source !== "historical"\)/);
-  assert.match(founderServer,/latestOfficialChessStatePeriod\(allVerifiedDocuments\.map\(\(\{ period \}\) => period\)\)/);
+  assert.match(founderServer,/const nonHistorical = periods\.filter\(\(period\) => period\.source !== "historical"\)/);
+  assert.match(founderServer,/const officialChessState = latestOfficialChessStatePeriod\(periods\)/);
 });
 test('140 newer NO ACTIVITY advances latest report without replacing official chess state and qualifying count remains unchanged', () => {
   const reviews=[
@@ -293,7 +303,7 @@ test('140 newer NO ACTIVITY advances latest report without replacing official ch
   assert.equal(reportTruth.at(-1).periodStart,'2026-08-08');
   assert.equal(official.periodStart,'2026-08-01');
   assert.equal(reviews.filter(item=>item.source!=='historical').length,1);
-  assert.match(founderServer,/latestReportPeriod:\s*snapshot\.reportTruth\.periods\.at\(-1\)/);
-  assert.match(founderServer,/officialChessStatePeriod:\s*snapshot\.officialChessStatePeriod/);
+  assert.match(founderServer,/latestReportPeriod:\s*reportTruth\.periods\.at\(-1\)/);
+  assert.match(founderServer,/officialChessStatePeriod:\s*officialChessState\s*\?/);
   assert.doesNotMatch(founderServer,/officialChessStatePeriod:\s*snapshot\.latestReview/);
 });

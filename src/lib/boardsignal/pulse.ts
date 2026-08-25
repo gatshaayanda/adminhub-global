@@ -481,12 +481,35 @@ export function shareMomentUrl(origin: string, momentId: string) { return `${ori
 
 const PRIVATE_PUBLIC_KEYS = new Set([
   "uid", "firebaseUid", "preferredContactMethod", "preferredContactValue", "email", "discord", "telegram", "accessCode", "betaAccessCode",
-  "red", "amber", "blue", "evidence", "engineResults", "recurrence", "privateProgress", "privateNotes",
+  "red", "amber", "blue", "engineResults", "recurrence", "privateProgress", "privateNotes",
 ]);
+
+function isSafeUniverseEvidence(container: Record<string, unknown>, evidence: unknown) {
+  if (typeof evidence !== "string" || !evidence.trim() || evidence.length > 600) return false;
+
+  const universeEntry =
+    typeof container.participantId === "string"
+    && typeof container.player === "string"
+    && typeof container.rank === "number"
+    && typeof container.value === "number"
+    && typeof container.valueLabel === "string";
+
+  const universeMoment =
+    typeof container.value === "number"
+    && typeof container.valueLabel === "string"
+    && Object.keys(container).every((key) => ["value", "valueLabel", "evidence"].includes(key));
+
+  return universeEntry || universeMoment;
+}
 
 export function publicArtifactHasPrivateFields(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
-  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+  const container = value as Record<string, unknown>;
+  for (const [key, nested] of Object.entries(container)) {
+    if (key === "evidence") {
+      if (!isSafeUniverseEvidence(container, nested)) return true;
+      continue;
+    }
     if (PRIVATE_PUBLIC_KEYS.has(key)) return true;
     if (publicArtifactHasPrivateFields(nested)) return true;
   }

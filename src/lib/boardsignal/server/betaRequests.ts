@@ -15,7 +15,7 @@ import {
   notifyFounderOfBetaRequest,
   verifyBetaPreviewStatusCredential,
 } from "./activation";
-import { createFoundingBetaAccess, loadExistingFoundingBetaAccess } from "./betaAccess";
+import { createFoundingBetaAccessForIdentity, loadExistingFoundingBetaAccess } from "./betaAccess";
 import { ensureStablePlayerAccount } from "./persistence";
 import { ensureSafePublicCoverageForAccount } from "./publicCoverageRepair";
 import { deliverFoundingBetaIdentityConfirmation } from "./foundingBetaIdentityConfirmation";
@@ -357,7 +357,7 @@ export async function approveFoundingBetaRequest(requestId: string) {
 
   let result: { account?: BoardSignalAccount; accessCode?: string };
   try {
-    result = await createFoundingBetaAccess(request.canonicalUsername);
+    result = await createFoundingBetaAccessForIdentity(identity);
   } catch (error) {
     if (String((error as { code?: string }).code) !== "BETA_ACCESS_EXISTS") throw error;
     // Legacy compatibility: an existing fallback credential is already valid.

@@ -80,8 +80,15 @@ export async function authenticateFoundingBetaAccess(usernameInput: string, acce
   return { account, identity };
 }
 
-export async function createFoundingBetaAccess(usernameInput: string) {
-  const identity = stableIdentityFromResolved(await resolveChessComPlayer(normalizeUsername(usernameInput)));
+export async function createFoundingBetaAccessForIdentity(identityInput: StableChessComIdentity) {
+  const playerId = validatePlayerId(identityInput.playerId);
+  const canonicalUsername = normalizeUsername(identityInput.canonicalUsername);
+  const identity: StableChessComIdentity = {
+    playerId,
+    canonicalUsername,
+    avatar: identityInput.avatar,
+    profileUrl: identityInput.profileUrl,
+  };
   const account = await ensureStablePlayerAccount(identity);
   const ref = getAdminDb().collection("betaAccess").doc(String(identity.playerId));
   const existing = await ref.get();
@@ -89,6 +96,11 @@ export async function createFoundingBetaAccess(usernameInput: string) {
   const credential = createBetaAccessCredential(identity);
   await ref.create(clean(credential.record));
   return { account, accessCode: credential.accessCode };
+}
+
+export async function createFoundingBetaAccess(usernameInput: string) {
+  const identity = stableIdentityFromResolved(await resolveChessComPlayer(normalizeUsername(usernameInput)));
+  return createFoundingBetaAccessForIdentity(identity);
 }
 
 export async function loadExistingFoundingBetaAccess(playerIdInput: unknown) {

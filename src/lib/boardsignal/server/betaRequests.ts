@@ -132,7 +132,10 @@ async function generateAndStorePreview(ref: DocumentReference, identity: StableC
     return { preview };
   } catch (error) {
     const previewError = error instanceof Error ? error.message : "Chess.com did not return the preview yet.";
-    await ref.set({ previewError, previewGeneratedAt: new Date().toISOString() }, { merge: true });
+    // The core betaRequest may already be safely stored. Preview bookkeeping is
+    // optional enrichment and must not make the API claim that the request failed.
+    await ref.set({ previewError, previewGeneratedAt: new Date().toISOString() }, { merge: true })
+      .catch(() => undefined);
     return { previewError };
   }
 }

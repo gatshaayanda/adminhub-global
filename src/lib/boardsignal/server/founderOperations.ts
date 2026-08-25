@@ -2,25 +2,29 @@ import "server-only";
 
 import { FieldValue } from "firebase-admin/firestore";
 import type { BoardSignalAccount, BoardSignalFounderContactMethod } from "../account";
-import { originalBetaSourceInventory } from "../../../data/originalBetaHistory";
 import {
   deriveFounderOperation,
-  resolveOriginalBetaSourcePlayerKey,
   summarizeFounderHistoryVisibility,
-  type FounderHistoryVisibility,
-  type FounderOperationComparableRow,
-  type ValidationEvidence,
-  type ValidationIdentityAlias,
-  type ValidationOriginalProvenance,
 } from "../founderOperationsLogic";
 import { storedReviewLifecycle, type ReviewHistoryBackfillState } from "../historyBackfill";
-import { summarizeOperationalRetention } from "../historyRetention";
+import { latestOfficialChessStatePeriod, type CanonicalReportPeriod } from "../reviewPeriods";
+import type { CompletedReviewHistoryItem } from "../reviewHistory";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
-import { inspectSafePublicCoverageForAccount } from "./publicCoverageRepair";
 import { loadRecentReportPeriodTruth } from "./reviewPeriods";
-import { latestOfficialChessStatePeriod, type ReviewHistoryCoverage, type CanonicalReportPeriod } from "../reviewPeriods";
+import {
+  FOUNDER_MATERIALIZED_VERSION,
+  founderPendingSummaryFromInput,
+  founderSummaryFromRow,
+  loadFounderOperationRows,
+  loadFounderOperationsAggregate,
+  rebuildFounderAggregateFromSummaries,
+  upsertFounderPendingRequestSummary,
+  upsertFounderPlayerSummary,
+  type FounderOperationsRow,
+} from "./founderMaterialized";
 
 const MAX_ACTIVE_REVIEWS = 4;
+const FOUNDER_BOOTSTRAP_LEASE_MS = 60_000;
 
 type OriginalBetaMarker = { periodStart?: string; periodEnd?: string; retiredAt?: string };
 type OperationsAccount = BoardSignalAccount & {
@@ -28,7 +32,6 @@ type OperationsAccount = BoardSignalAccount & {
   originalBetaHistoryPeriods?: Record<string, OriginalBetaMarker>;
   reviewHistoryBackfill?: ReviewHistoryBackfillState;
 };
-
 type StoredReview = {
   deskKey?: string;
   periodEnd?: string;
@@ -38,309 +41,165 @@ type StoredReview = {
   countsTowardRetention?: boolean;
   summary?: { deskKey?: string; periodStart?: string; periodEnd?: string; periodLabel?: string };
   desk?: { source?: string; provenance?: { verified?: boolean } };
-  originalBeta?: { seedHandle?: string; history?: { periodStart?: string; periodEnd?: string; periodLabel?: string } };
+  originalBeta?: { seedHandle?: string; history?: CompletedReviewHistoryItem };
 };
-
-type PendingRequest = {
-  id: string;
-  chessPlayerId?: number;
-  canonicalUsername?: string;
-  preferredContactMethod?: string;
-  preferredContactValue?: string;
-  requestedAt?: string;
-  status?: string;
-  profileUrl?: string;
-};
-
-type ExceptionRow = { id: string; uid?: string; username?: string; title?: string; message?: string; createdAt?: string; resolvedAt?: string };
-
+type PendingRequest = { id: string; chessPlayerId?: number; canonicalUsername?: string; preferredContactMethod?: string; preferredContactValue?: string; requestedAt?: string; status?: string; profileUrl?: string };
 type ReviewPeriod = { periodStart: string; periodEnd: string; periodLabel?: string; source: "original" | "live" | "historical" };
 
-export type FounderOperationsRow = FounderOperationComparableRow & {
-  playerId?: number;
-  profileUrl?: string;
-  avatar?: string;
-  accountStatus?: string;
-  identityStatus?: string;
-  identityReviewStatus?: string;
-  publicHighlightsStatus?: string;
-  preferredContactMethod?: string;
-  preferredContactValue?: string;
-  latestReview?: { periodStart?: string; periodEnd?: string; periodLabel?: string; publishedAt?: string };
-  latestReportPeriod?: CanonicalReportPeriod;
-  recentReportPeriods?: CanonicalReportPeriod[];
-  historyCoverage?: ReviewHistoryCoverage;
-  officialChessStatePeriod?: { periodStart?: string; periodEnd?: string; periodLabel?: string };
-  reviewPeriods: Array<{ periodStart: string; periodEnd: string; periodLabel?: string; source: "original" | "live" }>;
-  history: FounderHistoryVisibility;
-  lastContactedAt?: string;
-  lastContactMethod?: BoardSignalFounderContactMethod;
-  followUpSnoozedUntil?: string;
-  pendingRequestId?: string;
-  exceptionTitles: string[];
-  accessStatus?: string;
-};
-
-function normalize(value?: string) {
-  return String(value ?? "").trim().replace(/^@/, "").toLowerCase();
-}
-
+function clean<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
+function normalize(value?: string) { return String(value ?? "").trim().replace(/^@/, "").toLowerCase(); }
+function identityConflict(account: OperationsAccount) { return account.identityStatus === "revoked" || account.identityReviewStatus === "rejected"; }
 function validPeriod(data: StoredReview): ReviewPeriod | undefined {
   const history = data.originalBeta?.history;
   const start = history?.periodStart ?? data.summary?.periodStart;
   const end = history?.periodEnd ?? data.summary?.periodEnd ?? data.periodEnd;
   if (!start || !end) return undefined;
   const lifecycle = storedReviewLifecycle(data);
-  const source = history
-    ? "original" as const
-    : lifecycle === "historical_backfill"
-      ? "historical" as const
-      : lifecycle === "organic_live"
-        ? "live" as const
-        : undefined;
-  if (!source) return undefined;
-  return { periodStart: start, periodEnd: end, periodLabel: history?.periodLabel ?? data.summary?.periodLabel, source };
+  const source = history ? "original" as const : lifecycle === "historical_backfill" ? "historical" as const : lifecycle === "organic_live" ? "live" as const : undefined;
+  return source ? { periodStart: start, periodEnd: end, periodLabel: history?.periodLabel ?? data.summary?.periodLabel, source } : undefined;
 }
 
-function identityConflict(account: OperationsAccount) {
-  return account.identityStatus === "revoked" || account.identityReviewStatus === "rejected";
+function historyItemFromStored(documentId: string, data: StoredReview): CompletedReviewHistoryItem | undefined {
+  if (data.originalBeta?.history) return { ...data.originalBeta.history, reviewKey: String(data.originalBeta.history.reviewKey ?? documentId), reviewLifecycle: "original_beta" };
+  return undefined;
 }
 
-async function playerSnapshot(account: OperationsAccount) {
+async function sourcePlayerSummary(account: OperationsAccount, now = new Date()) {
   const db = getAdminDb();
-  const [desks, unread, publicHighlights, reportTruth] = await Promise.all([
-    db.collection("users").doc(account.uid).collection("desks").orderBy("periodEnd", "desc").limit(MAX_ACTIVE_REVIEWS).get(),
-    db.collection("users").doc(account.uid).collection("conversations").where("unreadForFounder", "==", true).get().catch(() => ({ size: 0 })),
-    inspectSafePublicCoverageForAccount(account).catch(() => undefined),
-    loadRecentReportPeriodTruth(account, new Date(), false).catch(() => ({ periods: [], coverage: { evaluatedCount: 0, totalCount: 0 } })),
-  ]);
-  const documents = desks.docs.map((document) => ({ id: document.id, data: document.data() as StoredReview }));
-  const allVerifiedDocuments = documents.flatMap(({ data }) => {
+  const desksSnapshot = await db.collection("users").doc(account.uid).collection("desks").orderBy("periodEnd", "desc").limit(MAX_ACTIVE_REVIEWS).get();
+  const documents = desksSnapshot.docs.map((document) => ({ id: document.id, data: document.data() as StoredReview }));
+  const periods = documents.flatMap(({ data }) => { const period = validPeriod(data); return period ? [period] : []; });
+  const nonHistorical = periods.filter((period) => period.source !== "historical").map((period) => ({ ...period, source: period.source as "original" | "live" }));
+  const latestNonHistorical = documents.flatMap(({ data }) => {
     const period = validPeriod(data);
-    return period ? [{ data, period }] : [];
+    return period && period.source !== "historical" ? [{ data, period }] : [];
+  })[0];
+  const originalHistory = documents.flatMap(({ id, data }) => { const item = historyItemFromStored(id, data); return item ? [item] : []; });
+  const liveHistory = documents.flatMap(({ id, data }) => {
+    const period = validPeriod(data);
+    if (!period || period.source === "historical" || data.originalBeta?.history) return [];
+    return [{ reviewKey: String(data.deskKey ?? id), periodStart: period.periodStart, periodEnd: period.periodEnd, periodLabel: period.periodLabel ?? `${period.periodStart} → ${period.periodEnd}`, reviewLifecycle: "organic_live" as const, source: "live" as const } as CompletedReviewHistoryItem];
   });
-  const verifiedDocuments = allVerifiedDocuments.filter(({ period }) => period.source !== "historical");
-  const verified = verifiedDocuments.map(({ period }) => ({ ...period, source: period.source as "original" | "live" }));
-  const latestVerified = verifiedDocuments[0];
-  const officialChessStatePeriod = latestOfficialChessStatePeriod(allVerifiedDocuments.map(({ period }) => period));
-  const originalBetaProvenance: ValidationOriginalProvenance[] = verifiedDocuments.flatMap(({ data, period }) => data.originalBeta?.seedHandle ? [{
+  const completedHistory = [...originalHistory, ...liveHistory].sort((a, b) => b.periodEnd.localeCompare(a.periodEnd));
+
+  const [unread, coverage, reportTruth, exceptions] = await Promise.all([
+    db.collection("users").doc(account.uid).collection("conversations").where("unreadForFounder", "==", true).get().catch(() => ({ size: 0, docs: [] })),
+    db.collection("publicCoverage").where("chessPlayerId", "==", String(account.chessCom.playerId)).get().catch(() => ({ size: 0 })),
+    loadRecentReportPeriodTruth(account, now, false, completedHistory).catch(() => ({ periods: [] as CanonicalReportPeriod[], coverage: { evaluatedCount: 0, totalCount: 0 } })),
+    db.collection("exceptions").where("uid", "==", account.uid).limit(20).get().catch(() => ({ docs: [] })),
+  ]);
+  const activeExceptions = (exceptions as { docs: Array<{ data(): { title?: string; message?: string; resolvedAt?: string; createdAt?: string } }> }).docs.map((document) => document.data()).filter((item) => !item.resolvedAt);
+  const latestReview = latestNonHistorical ? { deskKey: latestNonHistorical.data.deskKey, periodStart: latestNonHistorical.period.periodStart, periodEnd: latestNonHistorical.period.periodEnd, periodLabel: latestNonHistorical.period.periodLabel, publishedAt: latestNonHistorical.data.publishedAt } : undefined;
+  const unreadReplies = Number((unread as { size?: number }).size ?? 0);
+  const publicHighlightsStatus = account.identityStatus === "provisional" ? "waiting_identity_review" : periods.length === 0 ? "no_completed_review" : Number((coverage as { size?: number }).size ?? 0) > 0 ? "live" : "repair_needed";
+  const derived = deriveFounderOperation({
     uid: account.uid,
+    username: account.chessCom.canonicalUsername,
+    preferredContactValue: account.preferredContactValue,
+    lastSeenAt: account.lastSeenAt,
+    nextDeskDueAt: account.nextDeskDueAt ?? account.currentEpisodeSummary?.nextDeskDueAt,
+    forming: account.currentEpisodeSummary?.status === "forming",
+    latestReview,
+    unreadReplies,
+    unreadReplyAt: (unread as { docs?: Array<{ data(): { updatedAt?: string } }> }).docs?.map((document) => document.data().updatedAt).filter((value): value is string => Boolean(value)).sort()[0],
+    exceptionAt: activeExceptions.map((item) => item.createdAt).filter((value): value is string => Boolean(value)).sort()[0],
+    exceptionCount: activeExceptions.length,
+    identityConflict: identityConflict(account),
+    founderOps: account.founderOps,
+  }, now);
+  const officialChessState = latestOfficialChessStatePeriod(periods);
+  const row: FounderOperationsRow = {
+    ...derived,
+    uid: account.uid,
+    username: account.chessCom.canonicalUsername,
     playerId: account.chessCom.playerId,
-    seedHandle: data.originalBeta.seedHandle,
-    periodStart: period.periodStart,
-    periodEnd: period.periodEnd,
-  }] : []);
-  const history = summarizeFounderHistoryVisibility(
-    account.reviewHistoryBackfill,
-    allVerifiedDocuments.map(({ period }) => period.periodStart),
-  );
-  return {
-    account,
-    verified,
-    historicalBackfills: allVerifiedDocuments.filter(({ period }) => period.source === "historical").length,
-    history,
-    originalBetaProvenance,
-    latestReview: latestVerified ? {
-      periodStart: latestVerified.period.periodStart,
-      periodEnd: latestVerified.period.periodEnd,
-      periodLabel: latestVerified.period.periodLabel,
-      publishedAt: latestVerified.data.publishedAt,
-    } : undefined,
-    officialChessStatePeriod,
-    unreadReplies: Number((unread as { size?: number }).size ?? 0),
-    unreadReplyAt: ((unread as { docs?: Array<{ data(): { updatedAt?: string } }> }).docs ?? []).map((document) => document.data().updatedAt).filter((value): value is string => Boolean(value)).sort()[0],
-    publicHighlights,
-    reportTruth,
+    profileUrl: account.chessCom.profileUrl || `https://www.chess.com/member/${encodeURIComponent(account.chessCom.canonicalUsername)}`,
+    avatar: account.chessCom.avatar,
+    reviewCount: nonHistorical.length,
+    reviewPeriods: nonHistorical,
+    history: summarizeFounderHistoryVisibility(account.reviewHistoryBackfill, periods.map((period) => period.periodStart)),
+    latestReview,
+    latestReportPeriod: reportTruth.periods.at(-1),
+    recentReportPeriods: reportTruth.periods,
+    historyCoverage: reportTruth.coverage,
+    officialChessStatePeriod: officialChessState ? { periodStart: officialChessState.periodStart, periodEnd: officialChessState.periodEnd, periodLabel: officialChessState.periodLabel } : undefined,
+    nextDeskDueAt: account.nextDeskDueAt ?? account.currentEpisodeSummary?.nextDeskDueAt,
+    lastSeenAt: account.lastSeenAt,
+    unreadReplies,
+    exceptionCount: activeExceptions.length,
+    exceptionTitles: activeExceptions.map((item) => item.title ?? item.message ?? "BoardSignal exception"),
+    identityConflict: identityConflict(account),
+    pendingRequest: false,
+    forming: derived.forming,
+    preferredContactMethod: account.preferredContactMethod,
+    preferredContactValue: account.preferredContactValue,
+    accountStatus: account.accessStatus,
+    accessStatus: account.accessStatus,
+    identityStatus: account.identityStatus,
+    identityReviewStatus: account.identityReviewStatus,
+    publicHighlightsStatus,
+    lastContactedAt: account.founderOps?.lastContactedAt,
+    lastContactMethod: account.founderOps?.lastContactMethod,
+    followUpSnoozedUntil: account.founderOps?.followUpSnoozedUntil,
   };
+  const originalReviews = nonHistorical.filter((period) => period.source === "original").length;
+  const liveReviews = nonHistorical.filter((period) => period.source === "live").length;
+  return founderSummaryFromRow({ playerId: account.chessCom.playerId, uid: account.uid, row, originalReviews, liveReviews, activationBaseline: account.reviewHistoryBackfill?.activationBaseline === true, updatedAt: now.toISOString() });
 }
 
-export async function founderOperationsSnapshot(now = new Date()) {
+export async function refreshFounderPlayerSummary(account: OperationsAccount, now = new Date()) {
+  if (account.role !== "player") return;
+  const summary = await sourcePlayerSummary(account, now);
+  await upsertFounderPlayerSummary(summary, now);
+  return summary;
+}
+
+export async function refreshFounderPlayerSummaryByUid(uid: string, now = new Date()) {
+  const snapshot = await getAdminDb().collection("users").doc(uid).get();
+  if (!snapshot.exists) return;
+  return refreshFounderPlayerSummary(snapshot.data() as OperationsAccount, now);
+}
+
+function bootstrapLeaseRef() { return getAdminDb().collection("founderOperationsState").doc("bootstrapLease"); }
+async function acquireBootstrapLease(now = new Date()) {
   const db = getAdminDb();
-  const originalSources = originalBetaSourceInventory();
-  const aliasLookups = Promise.all(originalSources.map(async (entry): Promise<ValidationIdentityAlias | undefined> => {
-    const snapshot = await db.collection("playerIdentityAliases").doc(entry.normalizedHandle).get();
-    if (!snapshot.exists) return undefined;
-    const data = snapshot.data();
-    const playerId = Number(data?.playerId);
-    return {
-      normalizedHandle: entry.normalizedHandle,
-      uid: typeof data?.uid === "string" ? data.uid : undefined,
-      playerId: Number.isSafeInteger(playerId) && playerId > 0 ? playerId : undefined,
-    };
-  }));
-  const [users, requestSnapshot, exceptionSnapshot, aliasResults] = await Promise.all([
-    db.collection("users").get(),
-    db.collection("betaRequests").get(),
-    db.collection("exceptions").orderBy("createdAt", "desc").limit(100).get().catch(() => ({ docs: [] })),
-    aliasLookups,
-  ]);
-  const identityAliases = aliasResults.filter((alias): alias is ValidationIdentityAlias => Boolean(alias));
-  const accounts = users.docs.map((document) => document.data() as OperationsAccount).filter((account) => account.role === "player");
-  const activeAccounts = accounts.filter((account) => account.accessTier === "founding_beta" && account.accessStatus === "active");
-  const pendingRequests = requestSnapshot.docs
-    .map((document) => ({ id: document.id, ...document.data() } as PendingRequest))
-    .filter((request) => request.status === "pending")
-    .sort((a, b) => String(b.requestedAt ?? "").localeCompare(String(a.requestedAt ?? "")));
-  const exceptions = exceptionSnapshot.docs
-    .map((document) => ({ id: document.id, ...document.data() } as ExceptionRow))
-    .filter((item) => !item.resolvedAt);
-
-  const snapshots = await Promise.all(accounts.map((account) => playerSnapshot(account)));
-  const activeIds = new Set(activeAccounts.map((account) => account.uid));
-  const pendingByPlayer = new Map<string, PendingRequest>();
-  for (const request of pendingRequests) {
-    if (request.chessPlayerId) pendingByPlayer.set(`id:${request.chessPlayerId}`, request);
-    if (request.canonicalUsername) pendingByPlayer.set(`name:${normalize(request.canonicalUsername)}`, request);
-  }
-  const exceptionsByUid = new Map<string, ExceptionRow[]>();
-  const exceptionsByName = new Map<string, ExceptionRow[]>();
-  for (const item of exceptions) {
-    if (item.uid) exceptionsByUid.set(item.uid, [...(exceptionsByUid.get(item.uid) ?? []), item]);
-    if (item.username) {
-      const key = normalize(item.username);
-      exceptionsByName.set(key, [...(exceptionsByName.get(key) ?? []), item]);
-    }
-  }
-
-  const rows: FounderOperationsRow[] = snapshots.filter((snapshot) => activeIds.has(snapshot.account.uid)).map((snapshot) => {
-    const account = snapshot.account;
-    const pending = pendingByPlayer.get(`id:${account.chessCom.playerId}`) ?? pendingByPlayer.get(`name:${normalize(account.chessCom.canonicalUsername)}`);
-    const playerExceptions = [
-      ...(exceptionsByUid.get(account.uid) ?? []),
-      ...(exceptionsByName.get(normalize(account.chessCom.canonicalUsername)) ?? []),
-    ].filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index);
-    const derived = deriveFounderOperation({
-      uid: account.uid,
-      username: account.chessCom.canonicalUsername,
-      preferredContactValue: account.preferredContactValue,
-      lastSeenAt: account.lastSeenAt,
-      nextDeskDueAt: account.nextDeskDueAt ?? account.currentEpisodeSummary?.nextDeskDueAt,
-      forming: account.currentEpisodeSummary?.status === "forming",
-      latestReview: snapshot.latestReview,
-      unreadReplies: snapshot.unreadReplies,
-      unreadReplyAt: snapshot.unreadReplyAt,
-      pendingRequest: Boolean(pending),
-      pendingRequestAt: pending?.requestedAt,
-      exceptionAt: playerExceptions.map((item) => item.createdAt).filter((value): value is string => Boolean(value)).sort()[0],
-      exceptionCount: playerExceptions.length,
-      identityConflict: identityConflict(account),
-      founderOps: account.founderOps,
-    }, now);
-    return {
-      ...derived,
-      uid: account.uid,
-      username: account.chessCom.canonicalUsername,
-      playerId: account.chessCom.playerId,
-      profileUrl: account.chessCom.profileUrl || `https://www.chess.com/member/${encodeURIComponent(account.chessCom.canonicalUsername)}`,
-      avatar: account.chessCom.avatar,
-      reviewCount: snapshot.verified.length,
-      reviewPeriods: snapshot.verified,
-      history: snapshot.history,
-      latestReview: snapshot.latestReview,
-      latestReportPeriod: snapshot.reportTruth.periods.at(-1),
-      recentReportPeriods: snapshot.reportTruth.periods,
-      historyCoverage: snapshot.reportTruth.coverage,
-      officialChessStatePeriod: snapshot.officialChessStatePeriod ? { periodStart: snapshot.officialChessStatePeriod.periodStart, periodEnd: snapshot.officialChessStatePeriod.periodEnd, periodLabel: snapshot.officialChessStatePeriod.periodLabel } : undefined,
-      nextDeskDueAt: account.nextDeskDueAt ?? account.currentEpisodeSummary?.nextDeskDueAt,
-      lastSeenAt: account.lastSeenAt,
-      unreadReplies: snapshot.unreadReplies,
-      exceptionCount: playerExceptions.length,
-      exceptionTitles: playerExceptions.map((item) => item.title ?? item.message ?? "BoardSignal exception"),
-      identityConflict: identityConflict(account),
-      pendingRequest: Boolean(pending),
-      pendingRequestId: pending?.id,
-      forming: derived.forming,
-      preferredContactMethod: account.preferredContactMethod,
-      preferredContactValue: account.preferredContactValue,
-      accountStatus: account.accessStatus,
-      accessStatus: account.accessStatus,
-      identityStatus: account.identityStatus,
-      identityReviewStatus: account.identityReviewStatus,
-      publicHighlightsStatus: snapshot.publicHighlights?.status ?? (snapshot.verified.length ? "status unavailable" : "no_completed_review"),
-      lastContactedAt: account.founderOps?.lastContactedAt,
-      lastContactMethod: account.founderOps?.lastContactMethod,
-      followUpSnoozedUntil: account.founderOps?.followUpSnoozedUntil,
-    };
+  return db.runTransaction(async (transaction) => {
+    const [current, lease] = await Promise.all([transaction.get(db.collection("founderOperationsState").doc("current")), transaction.get(bootstrapLeaseRef())]);
+    if (current.exists && current.data()?.version === FOUNDER_MATERIALIZED_VERSION && current.data()?.bootstrapComplete === true) return false;
+    const data = lease.data() as { leaseUntil?: string } | undefined;
+    if (data?.leaseUntil && data.leaseUntil > now.toISOString()) return false;
+    transaction.set(bootstrapLeaseRef(), { leaseUntil: new Date(now.getTime() + FOUNDER_BOOTSTRAP_LEASE_MS).toISOString(), startedAt: now.toISOString() }, { merge: false });
+    return true;
   });
+}
 
-  const representedPending = new Set(rows.flatMap((row) => row.pendingRequestId ? [row.pendingRequestId] : []));
-  for (const request of pendingRequests.filter((item) => !representedPending.has(item.id))) {
-    const derived = deriveFounderOperation({
-      uid: `request:${request.id}`,
-      username: request.canonicalUsername ?? "Pending player",
-      preferredContactValue: request.preferredContactValue,
-      pendingRequest: true,
-      pendingRequestAt: request.requestedAt,
-    }, now);
-    rows.push({
-      ...derived,
-      uid: `request:${request.id}`,
-      username: request.canonicalUsername ?? "Pending player",
-      playerId: request.chessPlayerId,
-      profileUrl: request.profileUrl ?? (request.canonicalUsername ? `https://www.chess.com/member/${encodeURIComponent(request.canonicalUsername)}` : undefined),
-      reviewCount: 0,
-      reviewPeriods: [],
-      history: summarizeFounderHistoryVisibility(undefined),
-      unreadReplies: 0,
-      exceptionCount: 0,
-      exceptionTitles: [],
-      identityConflict: false,
-      pendingRequest: true,
-      pendingRequestId: request.id,
-      forming: derived.forming,
-      preferredContactMethod: request.preferredContactMethod,
-      preferredContactValue: request.preferredContactValue,
-    });
+async function bootstrapFounderMaterialization(now = new Date()) {
+  if (!await acquireBootstrapLease(now)) return undefined;
+  try {
+    const db = getAdminDb();
+    const [users, requests] = await Promise.all([db.collection("users").get(), db.collection("betaRequests").get()]);
+    const accounts = users.docs.map((document) => document.data() as OperationsAccount).filter((account) => account.role === "player");
+    for (const account of accounts) await refreshFounderPlayerSummary(account, now);
+    for (const document of requests.docs) {
+      const request = { id: document.id, ...document.data() } as PendingRequest;
+      if (request.status === "pending") await upsertFounderPendingRequestSummary(founderPendingSummaryFromInput(request, now), now);
+    }
+    const aggregate = await rebuildFounderAggregateFromSummaries(now);
+    await bootstrapLeaseRef().delete().catch(() => undefined);
+    return aggregate;
+  } catch (error) {
+    await bootstrapLeaseRef().delete().catch(() => undefined);
+    throw error;
   }
+}
 
-  const evidence: ValidationEvidence[] = [];
-  const reconciledOriginalProvenance = snapshots.flatMap((snapshot) => snapshot.originalBetaProvenance);
-  for (const entry of originalSources) {
-    evidence.push({
-      playerKey: resolveOriginalBetaSourcePlayerKey(entry, accounts, identityAliases, reconciledOriginalProvenance),
-      periodStart: entry.periodStart,
-      periodEnd: entry.periodEnd,
-      source: "original",
-    });
+export async function founderOperationsSnapshot(now = new Date(), includeRows = false) {
+  let aggregate = await loadFounderOperationsAggregate(now);
+  if (!aggregate) {
+    aggregate = await bootstrapFounderMaterialization(now);
+    if (!aggregate) throw Object.assign(new Error("Founder operations are being prepared. Try again shortly."), { status: 503, code: "FOUNDER_OPERATIONS_BOOTSTRAPPING", retryAfterSeconds: 5 });
   }
-  for (const snapshot of snapshots) {
-    const playerKey = `id:${snapshot.account.chessCom.playerId}`;
-    for (const review of snapshot.verified) evidence.push({ playerKey, periodStart: review.periodStart, periodEnd: review.periodEnd, source: review.source });
-  }
-
-  const originalToLive = snapshots.filter((snapshot) => {
-    const account = snapshot.account;
-    const hadOriginal = account.originalBetaPlayer || Object.keys(account.originalBetaHistoryPeriods ?? {}).length > 0;
-    return hadOriginal && snapshot.verified.some((review) => review.source === "live");
-  }).map((snapshot) => `id:${snapshot.account.chessCom.playerId}`);
-
-  const historicalActivationPlayers = activeAccounts.filter((account) => {
-    const hasBackfillActivation = account.reviewHistoryBackfill?.activationBaseline === true;
-    const hadOriginal = account.originalBetaPlayer || Object.keys(account.originalBetaHistoryPeriods ?? {}).length > 0;
-    return hasBackfillActivation && !hadOriginal;
-  }).map((account) => `id:${account.chessCom.playerId}`);
-
-  const validation = {
-    ...summarizeOperationalRetention(evidence, originalToLive, historicalActivationPlayers),
-    dataCompleteness: "Verified Reviews and LIVE Reviews preserve the operational pre-H lifecycle: Original Beta plus organic LIVE Reviews. Historical onboarding contributes one activation baseline only for truly new no-cadence onboarding, never one return per reconstructed week. BoardSignal retains at most four active Review records per account, so older digital Reviews may have legitimately expired and are not fabricated into lifetime totals.",
-  };
-
-  const metrics = {
-    activePlayers: activeAccounts.length,
-    reviewsForming: rows.filter((row) => row.forming).length,
-    reviewsReady: rows.filter((row) => row.readyNotSeen).length,
-    followUpsDue: rows.filter((row) => row.followUpStatus === "due").length,
-    notSeenRecently: rows.filter((row) => row.notSeenRecently && !row.uid.startsWith("request:")).length,
-    unreadReplies: rows.reduce((sum, row) => sum + row.unreadReplies, 0),
-  };
-  const attention = {
-    newRequests: pendingRequests.length,
-    followUpsDue: metrics.followUpsDue,
-    unreadReplies: metrics.unreadReplies,
-    exceptions: rows.filter((row) => row.exceptionCount > 0 || row.reviewCheckRequired).length,
-    identityConflicts: rows.filter((row) => row.identityConflict).length,
-  };
-  return { generatedAt: now.toISOString(), attention, metrics, validation, rows };
+  return { ...aggregate, rows: includeRows ? await loadFounderOperationRows() : [] };
 }
 
 async function accountForFounderOps(uidInput: unknown) {
@@ -360,6 +219,7 @@ export async function markFounderContacted(uidInput: unknown, methodInput: unkno
   const { ref, account } = await accountForFounderOps(uidInput);
   const founderOps = { ...(account.founderOps ?? {}), lastContactedAt: now.toISOString(), lastContactMethod: method };
   await ref.set({ founderOps }, { merge: true });
+  await refreshFounderPlayerSummary({ ...account, founderOps }, now);
   return founderOps;
 }
 
@@ -369,11 +229,17 @@ export async function snoozeFounderFollowUp(uidInput: unknown, daysInput: unknow
   const { ref, account } = await accountForFounderOps(uidInput);
   const founderOps = { ...(account.founderOps ?? {}), followUpSnoozedUntil: new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString() };
   await ref.set({ founderOps }, { merge: true });
+  await refreshFounderPlayerSummary({ ...account, founderOps }, now);
   return founderOps;
 }
 
-export async function clearFounderFollowUpSnooze(uidInput: unknown) {
-  const { ref } = await accountForFounderOps(uidInput);
+export async function clearFounderFollowUpSnooze(uidInput: unknown, now = new Date()) {
+  const { ref, account } = await accountForFounderOps(uidInput);
   await ref.update({ "founderOps.followUpSnoozedUntil": FieldValue.delete() });
+  const founderOps = { ...(account.founderOps ?? {}) };
+  delete founderOps.followUpSnoozedUntil;
+  await refreshFounderPlayerSummary({ ...account, founderOps }, now);
   return { cleared: true };
 }
+
+export function normalizeFounderUsername(value?: string) { return normalize(value); }

@@ -42,6 +42,8 @@ import { markBoardSignalPwaEngaged } from "@/lib/boardsignal/offline/install";
 import { clearBoardSignalAppBadge, syncBoardSignalAppBadge } from "@/lib/boardsignal/offline/badge";
 import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
 import DeskReturnChannelPrompt from "@/components/DeskReturnChannelPrompt";
+import LiveDataUnavailablePlayerRoom from "@/components/LiveDataUnavailablePlayerRoom";
+import { PlayerRoomRefreshGate, isLiveDataUnavailableResponse } from "@/lib/boardsignal/client/playerRoomRefreshGate";
 
 type DeskBundle = { desk: BoardSignalDesk; engineResults: Record<string, DeskEngineResult>; summary: DeskSummary };
 type Snapshot = {
@@ -80,6 +82,8 @@ export default function BoardSignalPlayerRoom() {
   const [socialPlayers, setSocialPlayers] = useState<Record<string, SocialSummaryPlayer>>({});
   const [friendCompareTarget, setFriendCompareTarget] = useState<number | undefined>();
   const [offlineSnapshot, setOfflineSnapshot] = useState<OfflinePlayerRoomSnapshot | null>(null);
+  // null = normal live/offline routing; undefined = live service unavailable with no saved snapshot.
+  const [liveDataUnavailableSnapshot, setLiveDataUnavailableSnapshot] = useState<OfflinePlayerRoomSnapshot | undefined | null>(null);
   const [offlineReadyNotice, setOfflineReadyNotice] = useState(false);
   const activeUidRef = useRef<string | undefined>(undefined);
   const reconnectRefreshRef = useRef(false);
@@ -88,42 +92,59 @@ export default function BoardSignalPlayerRoom() {
   const historyRefreshQueuedRef = useRef(false);
   const lastFocusRefreshAtRef = useRef(0);
   const publishedDeskKeyThisSessionRef = useRef<string | undefined>(undefined);
+  const refreshGateRef = useRef(new PlayerRoomRefreshGate());
 
   const loadRoom = useCallback(async (activeUser: User, quiet = false) => {
-    if (!quiet) setLoading(true);
-    setError("");
-    try {
-      const idToken = await activeUser.getIdToken();
-      setToken(idToken);
-      const response = await fetch("/api/boardsignal/player-room", { headers: { Authorization: `Bearer ${idToken}` }, cache: "no-store" });
-      const body = await response.json() as { ok: boolean; snapshot?: Snapshot; error?: string };
-      if (!response.ok || !body.ok || !body.snapshot) throw new Error(body.error ?? "My BoardSignal could not be loaded.");
-      setSnapshot(body.snapshot);
-      setOfflineSnapshot(null);
-      void savePlayerRoomOfflineSnapshot(activeUser.uid, body.snapshot).then(({ firstReady }) => {
-        window.dispatchEvent(new CustomEvent("boardsignal:offline-saved"));
-        if (body.snapshot?.desks?.length) markBoardSignalPwaEngaged();
-        if (firstReady) { setOfflineReadyNotice(true); window.setTimeout(() => setOfflineReadyNotice(false), 4200); void requestPersistentStorageBestEffort(activeUser.uid); }
-      }).catch(() => undefined);
+    return refreshGateRef.current.run(async () => {
+      if (!quiet) setLoading(true);
+      setError("");
       try {
-        if (window.sessionStorage.getItem("boardsignal:pwa-recovery-refresh") === "1") {
-          window.sessionStorage.removeItem("boardsignal:pwa-recovery-refresh");
-          window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete"));
+        const idToken = await activeUser.getIdToken();
+        setToken(idToken);
+        const response = await fetch("/api/boardsignal/player-room", { headers: { Authorization: `Bearer ${idToken}` }, cache: "no-store" });
+        const body = await response.json() as { ok: boolean; snapshot?: Snapshot; error?: string; code?: string };
+        if (!response.ok || !body.ok || !body.snapshot) {
+          if (typeof navigator !== "undefined" && navigator.onLine && isLiveDataUnavailableResponse(response.status, body.code)) {
+            const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
+            setLiveDataUnavailableSnapshot(saved);
+            setOfflineSnapshot(null);
+            setError("");
+            return false;
+          }
+          throw new Error(body.error ?? "My BoardSignal could not be loaded.");
         }
-      } catch { /* recovery acknowledgement is optional */ }
-      return true;
-    } catch (reason) {
-      const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
-      if (saved) {
-        setOfflineSnapshot(saved);
-        setError("");
-        return false;
+        setSnapshot(body.snapshot);
+        setOfflineSnapshot(null);
+        setLiveDataUnavailableSnapshot(null);
+        void savePlayerRoomOfflineSnapshot(activeUser.uid, body.snapshot).then(({ firstReady }) => {
+          window.dispatchEvent(new CustomEvent("boardsignal:offline-saved"));
+          if (body.snapshot?.desks?.length) markBoardSignalPwaEngaged();
+          if (firstReady) { setOfflineReadyNotice(true); window.setTimeout(() => setOfflineReadyNotice(false), 4200); void requestPersistentStorageBestEffort(activeUser.uid); }
+        }).catch(() => undefined);
+        try {
+          if (window.sessionStorage.getItem("boardsignal:pwa-recovery-refresh") === "1") {
+            window.sessionStorage.removeItem("boardsignal:pwa-recovery-refresh");
+            window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete"));
+          }
+        } catch { /* recovery acknowledgement is optional */ }
+        return true;
+      } catch (reason) {
+        // Saved/offline routing is only truthful when the browser itself is offline.
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
+          if (saved) {
+            setOfflineSnapshot(saved);
+            setLiveDataUnavailableSnapshot(null);
+            setError("");
+            return false;
+          }
+        }
+        setError(reason instanceof Error ? reason.message : "My BoardSignal could not be loaded.");
+        throw reason;
+      } finally {
+        if (!quiet) setLoading(false);
       }
-      setError(reason instanceof Error ? reason.message : "My BoardSignal could not be loaded.");
-      throw reason;
-    } finally {
-      if (!quiet) setLoading(false);
-    }
+    }, { quiet });
   }, []);
 
   useEffect(() => onAuthStateChanged(auth, (activeUser) => {
@@ -134,6 +155,7 @@ export default function BoardSignalPlayerRoom() {
       // Invalidate Player A immediately before any Player B read begins. The async purge is defense-in-depth.
       setSnapshot(null);
       setOfflineSnapshot(null);
+      setLiveDataUnavailableSnapshot(null);
       setToken("");
       setSocialPlayers({});
       setUnreadCount(0);
@@ -144,7 +166,7 @@ export default function BoardSignalPlayerRoom() {
     setUser(activeUser);
     setAuthReady(true);
     if (activeUser) void loadRoom(activeUser).catch((reason) => { setError(reason instanceof Error ? reason.message : "My BoardSignal could not be loaded."); setLoading(false); });
-    else { setSnapshot(null); setOfflineSnapshot(null); setToken(""); setLoading(false); }
+    else { setSnapshot(null); setOfflineSnapshot(null); setLiveDataUnavailableSnapshot(null); setToken(""); setLoading(false); }
   }), [loadRoom]);
 
   useEffect(() => {
@@ -382,6 +404,7 @@ export default function BoardSignalPlayerRoom() {
       <UsernameDeskForm />
     </div>
   );
+  if (liveDataUnavailableSnapshot !== null && user) return <LiveDataUnavailablePlayerRoom initialSnapshot={liveDataUnavailableSnapshot} onRetry={() => loadRoom(user, false)} />;
   if (offlineSnapshot && user) return <OfflinePlayerRoom uid={user.uid} initialSnapshot={offlineSnapshot} embedded />;
   if (error || !snapshot) return <RoomError error={error || "My BoardSignal could not be loaded."} />;
   if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;

@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
 import { clearFounderFollowUpSnooze, founderOperationsSnapshot, markFounderContacted, snoozeFounderFollowUp } from "@/lib/boardsignal/server/founderOperations";
+import { classifyBoardSignalHttpError } from "@/lib/boardsignal/server/firestoreService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const headers = { "Cache-Control": "no-store, private", "X-Robots-Tag": "noindex, nofollow" };
-function response(body: unknown, status = 200) { return NextResponse.json(body, { status, headers }); }
+const baseHeaders = { "Cache-Control": "no-store, private", "X-Robots-Tag": "noindex, nofollow" };
+function response(body: unknown, status = 200, retryAfterSeconds?: number) {
+  return NextResponse.json(body, { status, headers: { ...baseHeaders, ...(retryAfterSeconds ? { "Retry-After": String(retryAfterSeconds) } : {}) } });
+}
 
-export async function GET() {
-  try { return response({ ok: true, operations: await founderOperationsSnapshot() }); }
-  catch (error) { return response({ ok: false, error: error instanceof Error ? error.message : "Founder operations could not be loaded." }, 500); }
+export async function GET(request: Request) {
+  try {
+    const url = new URL(request.url);
+    // Amendment G.4.2: normal Founder landing/refresh is aggregate-only O(1).
+    // Individual summaries are read only when the cohort/detail view explicitly asks for rows.
+    const includeRows = url.searchParams.get("view") === "rows";
+    return response({ ok: true, operations: await founderOperationsSnapshot(new Date(), includeRows) });
+  } catch (error) {
+    const classified = classifyBoardSignalHttpError(error);
+    return response({ ok: false, code: classified.code, error: classified.message }, classified.status, classified.retryAfterSeconds);
+  }
 }
 
 export async function POST(request: Request) {
@@ -20,7 +31,7 @@ export async function POST(request: Request) {
     if (body.action === "clearSnooze") return response({ ok: true, result: await clearFounderFollowUpSnooze(body.uid) });
     return response({ ok: false, error: "Choose Mark Contacted, Snooze, or Clear Snooze." }, 400);
   } catch (error) {
-    const status = Number((error as { status?: number })?.status ?? 500);
-    return response({ ok: false, error: error instanceof Error ? error.message : "Founder operations could not be updated." }, status);
+    const classified = classifyBoardSignalHttpError(error);
+    return response({ ok: false, code: classified.code, error: classified.message }, classified.status, classified.retryAfterSeconds);
   }
 }

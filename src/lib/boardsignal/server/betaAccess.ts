@@ -10,7 +10,8 @@ import {
 import { resolveChessComPlayer } from "../processor";
 import { getAdminAuth, getAdminDb } from "../../../utils/firebaseAdmin";
 import { ensureStablePlayerAccount } from "./persistence";
-import { inspectSafePublicCoverageForAccount } from "./publicCoverageRepair";
+import { loadFounderOperationRows } from "./founderMaterialized";
+import { logReadBudget } from "./firestoreService";
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]{2,50}$/;
 
@@ -28,23 +29,17 @@ function betaAccessError(code: BetaAccessFailureCode) {
 
 function normalizeUsername(value: string) {
   const username = value.trim().replace(/^@/, "");
-  if (!USERNAME_PATTERN.test(username)) {
-    throw Object.assign(new Error("Enter a valid Chess.com username."), { status: 400, code: "INVALID_USERNAME" });
-  }
+  if (!USERNAME_PATTERN.test(username)) throw Object.assign(new Error("Enter a valid Chess.com username."), { status: 400, code: "INVALID_USERNAME" });
   return username;
 }
 
 function validatePlayerId(value: unknown) {
   const playerId = Number(value);
-  if (!Number.isSafeInteger(playerId) || playerId <= 0) {
-    throw Object.assign(new Error("A stable Chess.com player ID is required."), { status: 400, code: "INVALID_PLAYER_ID" });
-  }
+  if (!Number.isSafeInteger(playerId) || playerId <= 0) throw Object.assign(new Error("A stable Chess.com player ID is required."), { status: 400, code: "INVALID_PLAYER_ID" });
   return playerId;
 }
 
-function clean<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
+function clean<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 
 async function revokeExistingFirebaseSession(uid: string) {
   const auth = getAdminAuth();
@@ -60,21 +55,14 @@ function stableIdentityFromResolved(resolved: Awaited<ReturnType<typeof resolveC
   if (!Number.isSafeInteger(resolved.playerId) || !resolved.playerId) {
     throw Object.assign(new Error("Chess.com did not return the stable player ID BoardSignal requires."), { status: 422, code: "STABLE_PLAYER_ID_MISSING" });
   }
-  return {
-    playerId: resolved.playerId,
-    canonicalUsername: resolved.username,
-    avatar: resolved.avatar,
-    profileUrl: resolved.profileUrl,
-  };
+  return { playerId: resolved.playerId, canonicalUsername: resolved.username, avatar: resolved.avatar, profileUrl: resolved.profileUrl };
 }
 
 export async function authenticateFoundingBetaAccess(usernameInput: string, accessCodeInput: string) {
   const username = normalizeUsername(usernameInput);
   const accessCode = accessCodeInput.trim();
   if (!isValidBetaAccessCode(accessCode)) throw betaAccessError("BETA_ACCESS_INVALID");
-
-  const resolved = await resolveChessComPlayer(username);
-  const identity = stableIdentityFromResolved(resolved);
+  const identity = stableIdentityFromResolved(await resolveChessComPlayer(username));
   const db = getAdminDb();
   const accessRef = db.collection("betaAccess").doc(String(identity.playerId));
   const attempt = await db.runTransaction(async (transaction) => {
@@ -83,30 +71,21 @@ export async function authenticateFoundingBetaAccess(usernameInput: string, acce
     const record = snapshot.data() as BetaAccessRecord;
     if (record.playerId !== identity.playerId) return { ok: false, code: "BETA_ACCESS_INVALID" as const };
     const result = evaluateBetaAccessAttempt(record, accessCode);
-    if (result.patch) {
-      transaction.set(accessRef, clean({ ...result.patch, canonicalUsername: identity.canonicalUsername }), { merge: true });
-    }
+    if (result.patch) transaction.set(accessRef, clean({ ...result.patch, canonicalUsername: identity.canonicalUsername }), { merge: true });
     return result;
   });
-
   if (!attempt.ok) throw betaAccessError(attempt.code);
   const account = await ensureStablePlayerAccount(identity);
-  if (account.accessStatus !== "active") {
-    throw Object.assign(new Error("This BoardSignal account is not active."), { status: 403, code: "ACCOUNT_NOT_ACTIVE" });
-  }
+  if (account.accessStatus !== "active") throw Object.assign(new Error("This BoardSignal account is not active."), { status: 403, code: "ACCOUNT_NOT_ACTIVE" });
   return { account, identity };
 }
 
 export async function createFoundingBetaAccess(usernameInput: string) {
-  const username = normalizeUsername(usernameInput);
-  const resolved = await resolveChessComPlayer(username);
-  const identity = stableIdentityFromResolved(resolved);
+  const identity = stableIdentityFromResolved(await resolveChessComPlayer(normalizeUsername(usernameInput)));
   const account = await ensureStablePlayerAccount(identity);
   const ref = getAdminDb().collection("betaAccess").doc(String(identity.playerId));
   const existing = await ref.get();
-  if (existing.exists) {
-    throw Object.assign(new Error("Founding Access already exists for this player. Use Reset Access to issue a new code."), { status: 409, code: "BETA_ACCESS_EXISTS" });
-  }
+  if (existing.exists) throw Object.assign(new Error("Founding Access already exists for this player. Use Reset Access to issue a new code."), { status: 409, code: "BETA_ACCESS_EXISTS" });
   const credential = createBetaAccessCredential(identity);
   await ref.create(clean(credential.record));
   return { account, accessCode: credential.accessCode };
@@ -117,24 +96,14 @@ export async function loadExistingFoundingBetaAccess(playerIdInput: unknown) {
   const db = getAdminDb();
   const accessRef = db.collection("betaAccess").doc(String(playerId));
   const accessSnapshot = await accessRef.get();
-  if (!accessSnapshot.exists) {
-    throw Object.assign(new Error("No Founding Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
-  }
+  if (!accessSnapshot.exists) throw Object.assign(new Error("No Founding Access record exists for this player."), { status: 404, code: "BETA_ACCESS_NOT_FOUND" });
   const record = accessSnapshot.data() as BetaAccessRecord;
-  if (record.playerId !== playerId) {
-    throw Object.assign(new Error("The Founding Access record does not match this stable player ID."), { status: 409, code: "BETA_ACCESS_IDENTITY_MISMATCH" });
-  }
-
+  if (record.playerId !== playerId) throw Object.assign(new Error("The Founding Access record does not match this stable player ID."), { status: 409, code: "BETA_ACCESS_IDENTITY_MISMATCH" });
   const mapSnapshot = await db.collection("chessPlayerAccounts").doc(String(playerId)).get();
   const mappedUid = typeof mapSnapshot.data()?.uid === "string" ? String(mapSnapshot.data()!.uid) : `chesscom_${playerId}`;
   const accountSnapshot = await db.collection("users").doc(mappedUid).get();
   const account = accountSnapshot.data() as BoardSignalAccount | undefined;
-  if (!account || account.uid !== mappedUid || account.chessCom?.playerId !== playerId) {
-    throw Object.assign(new Error("The existing Founding Access account could not be loaded for this stable player ID."), { status: 409, code: "BETA_ACCOUNT_NOT_FOUND" });
-  }
-
-  // Compatibility path only: reading an existing Beta Access record must never
-  // rotate its hash/salt or revoke the player's already-valid Firebase session.
+  if (!account || account.uid !== mappedUid || account.chessCom?.playerId !== playerId) throw Object.assign(new Error("The existing Founding Access account could not be loaded for this stable player ID."), { status: 409, code: "BETA_ACCOUNT_NOT_FOUND" });
   return { account, record };
 }
 
@@ -165,43 +134,50 @@ export async function revokeFoundingBetaAccess(playerIdInput: unknown) {
 }
 
 export async function listFounderPlayerIdentities(): Promise<FounderPlayerIdentityRow[]> {
+  const started = Date.now();
   const db = getAdminDb();
-  const [users, access] = await Promise.all([
-    db.collection("users").get(),
+  // The beta directory is an explicit cohort/detail view. Ensure the one-time
+  // private summary bootstrap has completed, then read summaries in bulk.
+  await import("./founderOperations").then(({ founderOperationsSnapshot }) => founderOperationsSnapshot(new Date(), false));
+  const [rows, access] = await Promise.all([
+    loadFounderOperationRows(),
     db.collection("betaAccess").get(),
   ]);
   const accessByPlayer = new Map(access.docs.map((document) => [document.id, document.data() as BetaAccessRecord]));
-  const accounts = users.docs
-    .map((document) => document.data() as BoardSignalAccount)
-    .filter((account) => account.role === "player" && Number.isSafeInteger(account.chessCom?.playerId));
-
-  return Promise.all(accounts.map(async (account) => {
-    const publicHighlights = await inspectSafePublicCoverageForAccount(account);
-    const betaAccess = accessByPlayer.get(String(account.chessCom.playerId));
-    const betaAccessStatus: FounderPlayerIdentityRow["betaAccessStatus"] = betaAccess?.status ?? "not_created";
+  const players = rows.filter((row) => !row.uid.startsWith("request:") && Number.isSafeInteger(row.playerId));
+  const identities: FounderPlayerIdentityRow[] = players.map((row) => {
+    const betaAccess = accessByPlayer.get(String(row.playerId));
+    const retainedReviews = row.reviewPeriods.length;
+    const liveCoverage = row.publicHighlightsStatus === "live" ? retainedReviews : 0;
     return {
-      uid: account.uid,
-      username: account.chessCom.canonicalUsername,
-      playerId: account.chessCom.playerId,
-      avatar: account.chessCom.avatar,
-      profileUrl: account.chessCom.profileUrl,
-      betaAccessStatus,
-      accountStatus: account.accessStatus,
-      desksStored: publicHighlights.retainedReviews,
-      latestDesk: publicHighlights.latestReview,
+      uid: row.uid,
+      username: row.username,
+      playerId: row.playerId!,
+      avatar: row.avatar,
+      profileUrl: row.profileUrl,
+      betaAccessStatus: betaAccess?.status ?? "not_created",
+      accountStatus: (row.accessStatus === "paused" || row.accessStatus === "deleted") ? row.accessStatus : "active",
+      desksStored: retainedReviews,
+      latestDesk: row.latestReview?.periodEnd ? {
+        deskKey: row.latestReview.deskKey ?? `${row.playerId}:${row.latestReview.periodStart ?? row.latestReview.periodEnd}`,
+        periodLabel: row.latestReview.periodLabel ?? `${row.latestReview.periodStart ?? ""} → ${row.latestReview.periodEnd}`,
+        periodEnd: row.latestReview.periodEnd,
+      } : undefined,
       publicHighlights: {
-        status: publicHighlights.status,
-        retainedReviews: publicHighlights.retainedReviews,
-        expectedCoverage: publicHighlights.expectedCoverage,
-        liveCoverage: publicHighlights.liveCoverage,
-        repairAvailable: publicHighlights.repairAvailable,
+        status: (row.publicHighlightsStatus ?? "no_completed_review") as FounderPlayerIdentityRow["publicHighlights"]["status"],
+        retainedReviews,
+        expectedCoverage: retainedReviews,
+        liveCoverage,
+        repairAvailable: row.publicHighlightsStatus === "repair_needed",
       },
-      lastSeen: account.lastSeenAt,
-      oauthLinked: Boolean(account.chessComOAuthLinkedAt),
-      preferredContactMethod: account.betaContactConsent === true ? account.preferredContactMethod : undefined,
-      preferredContactValue: account.betaContactConsent === true ? account.preferredContactValue : undefined,
-      betaContactConsent: account.betaContactConsent,
-      identityStatus: account.identityStatus ?? (account.chessComOAuthLinkedAt ? "oauth_verified" : undefined),
+      lastSeen: row.lastSeenAt,
+      oauthLinked: row.identityStatus === "oauth_verified",
+      preferredContactMethod: row.preferredContactMethod as FounderPlayerIdentityRow["preferredContactMethod"],
+      preferredContactValue: row.preferredContactValue,
+      betaContactConsent: Boolean(row.preferredContactValue),
+      identityStatus: row.identityStatus as FounderPlayerIdentityRow["identityStatus"],
     };
-  })).then((rows) => rows.sort((a, b) => a.username.localeCompare(b.username)));
+  });
+  logReadBudget({ operation: "founder_beta_directory", durationMs: Date.now() - started, querySizes: { summaries: players.length, betaAccess: access.size }, approximateReads: players.length + access.size });
+  return identities.sort((a, b) => a.username.localeCompare(b.username));
 }

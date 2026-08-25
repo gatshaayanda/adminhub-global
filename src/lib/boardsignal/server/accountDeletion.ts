@@ -6,6 +6,8 @@ import type { DocumentSnapshot, Query, QueryDocumentSnapshot } from "firebase-ad
 import { UTApi } from "uploadthing/server";
 import { firebaseUidForChessPlayer, type BoardSignalAccount } from "../account";
 import { getAdminAuth, getAdminDb } from "../../../utils/firebaseAdmin";
+import { clearFounderPendingRequestSummary, removeFounderPlayerSummary } from "./founderMaterialized";
+import { removeMaterializedUniverseParticipant } from "./universePulse";
 
 // Patch E.3 immutable baseline:
 // ce270724126aa827bb8e02ec324bc6ee1a20b7de — Clarify player access and repair public highlights
@@ -34,6 +36,7 @@ type DeletionStage =
   | "private_player_tree"
   | "social_references"
   | "public_references"
+  | "derived_state"
   | "temporary_credentials"
   | "firebase_auth"
   | "identity_mappings"
@@ -1060,6 +1063,14 @@ export async function deleteBoardSignalAccount(input: { playerId: unknown; confi
 
     stage = "public_references";
     const publicReferencesDeleted = await deletePublicReferences(playerId);
+
+    stage = "derived_state";
+    // G.4.2 derived records are deletion-owned lifecycle state. Removing the
+    // Universe participant also rebuilds current materialized public state without
+    // this player or their bounded recent cached events.
+    await removeMaterializedUniverseParticipant(playerId);
+    await removeFounderPlayerSummary(playerId);
+    await clearFounderPendingRequestSummary(stablePlayerKey);
 
     stage = "temporary_credentials";
     const temporaryCredentialsDeleted = await deleteTemporaryCredentials(uid, playerId);

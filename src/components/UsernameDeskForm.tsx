@@ -8,6 +8,15 @@ import type { BetaPreviewStatus } from "@/lib/boardsignal/activation";
 
 type UsernameDeskFormProps = { compact?: boolean };
 
+const BETA_REQUEST_TIMEOUT_MS = 8_000;
+
+function openDirectReview(username: string) {
+  try {
+    window.sessionStorage.setItem("boardsignal:degraded-review:v1", JSON.stringify({ username, startedAt: new Date().toISOString() }));
+  } catch { /* best-effort continuity marker only */ }
+  window.location.assign(`/boardsignal/build/${encodeURIComponent(username)}?degraded=1`);
+}
+
 export default function UsernameDeskForm({ compact = false }: UsernameDeskFormProps) {
   const [username, setUsername] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,12 +63,22 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
     if (!cleanUsername) { setError("Enter your Chess.com username."); return; }
     setBusy(true); setError(""); setExistingActive(null); setExistingRequest(null);
     if (shareMomentId) void trackShareAttribution("beta_request_started");
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), BETA_REQUEST_TIMEOUT_MS);
+    let serviceFailure = false;
+
     try {
       const response = await fetch("/api/boardsignal/beta-request", {
-        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+        method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", signal: controller.signal,
         body: JSON.stringify({ username: cleanUsername, source: shareMomentId ? "boardSignalShare" : undefined, shareMomentId: shareMomentId || undefined }),
       });
-      const body = await response.json() as { ok?: boolean; error?: string; existingState?: "active_account" | "pending" | "approved_unclaimed"; statusToken?: string; request?: { id?: string; canonicalUsername?: string; requestedAt?: string } };
+      window.clearTimeout(timeout);
+      const body = await response.json().catch(() => ({})) as { ok?: boolean; error?: string; existingState?: "active_account" | "pending" | "approved_unclaimed"; statusToken?: string; request?: { id?: string; canonicalUsername?: string; requestedAt?: string } };
+      if (response.status >= 500) {
+        serviceFailure = true;
+        throw new Error(body.error ?? "BoardSignal's saved access service is temporarily unavailable.");
+      }
       if (!response.ok || !body.ok) throw new Error(body.error ?? "BoardSignal could not start this Preview.");
       if (shareMomentId) void trackShareAttribution("beta_request_submitted");
       if (body.existingState === "active_account") { setExistingActive({ username: body.request?.canonicalUsername ?? cleanUsername }); return; }
@@ -74,8 +93,17 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
       if (!requestId || !statusToken) throw new Error("BoardSignal saved the request but could not open its Preview Room. Try again.");
       saveBetaPreviewReturn({ requestId, canonicalUsername: body.request?.canonicalUsername ?? cleanUsername, statusCredential: statusToken, createdAt: body.request?.requestedAt });
       window.location.assign(`/boardsignal/preview/${encodeURIComponent(requestId)}#status=${encodeURIComponent(statusToken)}`);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "BoardSignal could not start this Preview."); }
-    finally { setBusy(false); }
+    } catch (reason) {
+      window.clearTimeout(timeout);
+      const aborted = reason instanceof DOMException && reason.name === "AbortError";
+      const transportFailure = reason instanceof TypeError;
+      if (navigator.onLine && (serviceFailure || aborted || transportFailure)) {
+        setError("Saved Player Room access is temporarily unavailable. Opening your live Review directly from Chess.com instead…");
+        window.setTimeout(() => openDirectReview(cleanUsername), 350);
+        return;
+      }
+      setError(reason instanceof Error ? reason.message : "BoardSignal could not start this Preview.");
+    } finally { setBusy(false); }
   }
 
   const publishGuideContext = (active: boolean) => window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: active ? { activeTab: "beta-request" } : {} }));

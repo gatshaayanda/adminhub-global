@@ -34,6 +34,11 @@ export async function POST(request: Request) {
         : await requirePlayerToken(request);
 
     if (action === "observe") {
+      // Server-side protection also covers old cached clients: authenticated
+      // ambient observation is ignored unless the Ask panel is explicitly open.
+      if (body.mode !== "beta_preview" && body.panelOpen !== true) {
+        return response({ ok: true, observation: undefined });
+      }
       return response({
         ok: true,
         observation: await guideContextObservation({

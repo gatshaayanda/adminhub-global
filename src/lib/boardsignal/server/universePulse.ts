@@ -295,6 +295,53 @@ async function bootstrapMaterializedUniverse(now = new Date()): Promise<ActiveUn
   }
 }
 
+async function repairMaterializedUniverseState(now = new Date()): Promise<ActiveUniverseState | undefined> {
+  assertFirestoreCircuitClosed("universe_materialized_repair");
+  const lease = await acquireBootstrapLease(now);
+  if (lease.existing) return lease.existing;
+  if (!lease.owner) return undefined;
+
+  const started = Date.now();
+  try {
+    const snapshot = await getAdminDb()
+      .collection("publicUniverseParticipants")
+      .limit(MATERIALIZED_PARTICIPANT_LIMIT + 1)
+      .get();
+
+    if (snapshot.size > MATERIALIZED_PARTICIPANT_LIMIT) {
+      throw Object.assign(new Error("The materialized BoardSignal field exceeds the safe in-document participant limit."), {
+        status: 503,
+        code: "BOARDSIGNAL_UNIVERSE_MATERIALIZED_LIMIT",
+        retryAfterSeconds: 30,
+      });
+    }
+
+    const participants = snapshot.docs
+      .map((document) => document.data() as MaterializedUniverseParticipant)
+      .filter((document) => document.version === MATERIALIZED_UNIVERSE_VERSION && document.participant?.verified === true && !publicArtifactHasPrivateFields(document))
+      .map((document) => document.participant);
+
+    // A missing current-state document can be repaired entirely from the
+    // already-public materialized participant summaries. No users, Reviews,
+    // evidence or historical collections are touched.
+    const state = materializedStateFromParticipants(participants, [], now, 1, true);
+    await stateRef().set(clean(state), { merge: false });
+    await bootstrapLeaseRef().delete().catch(() => undefined);
+    logFirestoreReadBudget({
+      operation: "universe_materialized_repair",
+      durationMs: Date.now() - started,
+      materialized: "rebuild",
+      resultSize: participants.length,
+      approxDocumentReads: snapshot.size + 2,
+    });
+    return state;
+  } catch (error) {
+    noteFirestoreServiceFailure(error);
+    await bootstrapLeaseRef().delete().catch(() => undefined);
+    throw error;
+  }
+}
+
 export async function loadActiveUniverseState(now = new Date()): Promise<ActiveUniverseState> {
   assertFirestoreCircuitClosed("materialized_universe_read");
   const started = Date.now();
@@ -306,13 +353,19 @@ export async function loadActiveUniverseState(now = new Date()): Promise<ActiveU
       return state;
     }
 
-    // G.4.2.1 safety lock: an ordinary read must never fan out across the player
-    // population. Missing materialized state is a bounded degraded condition.
+    // G.4.2.2: one lease-protected repair may read only the bounded public
+    // participant summaries. Concurrent ordinary requests never fan out.
+    const repaired = await repairMaterializedUniverseState(now);
+    if (repaired) {
+      logFirestoreReadBudget({ operation: "materialized_universe_read", durationMs: Date.now() - started, materialized: "rebuild", resultSize: repaired.officialPlayerCount, approxDocumentReads: 1 });
+      return repaired;
+    }
+
     logFirestoreReadBudget({ operation: "materialized_universe_read", durationMs: Date.now() - started, materialized: "miss", approxDocumentReads: 1 });
-    throw Object.assign(new Error("The live BoardSignal field is temporarily unavailable while its materialized state is repaired."), {
+    throw Object.assign(new Error("The live BoardSignal field is being repaired. Try again shortly."), {
       status: 503,
       code: "BOARDSIGNAL_UNIVERSE_STATE_UNAVAILABLE",
-      retryAfterSeconds: 30,
+      retryAfterSeconds: 2,
     });
   } catch (error) {
     const failure = classifyFirestoreServiceError(error);
@@ -330,16 +383,23 @@ export async function rebuildMaterializedUniverseState(now = new Date(), exclude
   try {
     const db = getAdminDb();
     const [participantsSnapshot, previousSnapshot] = await Promise.all([
-      db.collection("publicUniverseParticipants").limit(MATERIALIZED_PARTICIPANT_LIMIT).get(),
+      db.collection("publicUniverseParticipants").limit(MATERIALIZED_PARTICIPANT_LIMIT + 1).get(),
       stateRef().get(),
     ]);
+    if (participantsSnapshot.size > MATERIALIZED_PARTICIPANT_LIMIT) {
+      throw Object.assign(new Error("The materialized BoardSignal field exceeds the safe in-document participant limit."), {
+        status: 503,
+        code: "BOARDSIGNAL_UNIVERSE_MATERIALIZED_LIMIT",
+        retryAfterSeconds: 30,
+      });
+    }
     const participantDocs = participantsSnapshot.docs
       .map((document) => document.data() as MaterializedUniverseParticipant)
       .filter((document) => document.version === MATERIALIZED_UNIVERSE_VERSION && document.participant?.verified === true && !publicArtifactHasPrivateFields(document));
     const participants = participantDocs.map((document) => document.participant);
     const previous = previousSnapshot.exists ? validateMaterializedState(previousSnapshot.data()) : undefined;
     const previousEvents = (previous?.recentEvents ?? []).filter((event) => !excludePlayerId || event.playerId !== excludePlayerId);
-    const state = materializedStateFromParticipants(participants, previousEvents, now, (previous?.revision ?? 0) + 1, previous?.bootstrapComplete === true);
+    const state = materializedStateFromParticipants(participants, previousEvents, now, (previous?.revision ?? 0) + 1, true);
     await stateRef().set(clean(state), { merge: false });
     logFirestoreReadBudget({ operation: "universe_rebuild", durationMs: Date.now() - started, materialized: "rebuild", resultSize: participants.length, approxDocumentReads: participants.length + 1 });
     return state;

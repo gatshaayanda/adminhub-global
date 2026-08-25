@@ -25,6 +25,7 @@ const STORAGE_PREFIX = "boardsignal-guide-continuity-v2";
 const PROMPT_MEMORY_PREFIX = "boardsignal-guide-context-prompts-v1";
 const ELIGIBLE = ["/", "/boardsignal", "/offline", "/app", "/feed", "/player", "/share", "/join", "/how-it-works", "/pricing"];
 const MAX_CONTEXT_PROMPT_KEYS = 12;
+const OBSERVATION_COOLDOWN_MS = 30_000;
 let activeContinuityGeneration = "guest";
 
 function eligiblePath(pathname: string) {
@@ -133,6 +134,7 @@ export default function AskBoardSignal() {
   const messagesRef = useRef<ChatMessage[]>([]);
   const restoredDraftRef = useRef<string | undefined>(undefined);
   const feedbackHandledRef = useRef(new Set<string>());
+  const observationGateRef = useRef<{ key: string; at: number } | null>(null);
 
   useEffect(() => onAuthStateChanged(auth, (activeUser) => {
     activeContinuityGeneration = generationForUser(activeUser);
@@ -260,6 +262,18 @@ export default function AskBoardSignal() {
     const previewMode = Boolean(previewAccess && !user && pathname.includes("/boardsignal/preview/"));
     const playerRoomMode = Boolean(user && pathname.includes("boardsignal/player-room"));
     if (!previewMode && !playerRoomMode) { setObservation(undefined); return; }
+
+    // G.4.2.2: authenticated Player Room browsing must not create hidden
+    // Firestore context reads. Observe only when the player explicitly opens
+    // Ask BoardSignal, then coalesce equivalent context for a short window.
+    if (playerRoomMode && !open) return;
+    const observationKey = (previewMode ? "preview" : "player") + ":" + pathname + ":" + (activeTab ?? "") + ":" + (visibleEntityId ?? "");
+    if (playerRoomMode) {
+      const now = Date.now();
+      const previous = observationGateRef.current;
+      if (previous?.key === observationKey && now - previous.at < OBSERVATION_COOLDOWN_MS) return;
+      observationGateRef.current = { key: observationKey, at: now };
+    }
     try {
       const token = user ? await user.getIdToken() : "";
       const response = await fetch("/api/boardsignal/guide", {
@@ -270,6 +284,7 @@ export default function AskBoardSignal() {
           pathname,
           activeTab,
           visibleEntityId,
+          panelOpen: playerRoomMode ? open : undefined,
           ...(previewMode && previewAccess ? { mode: "beta_preview", previewRequestId: previewAccess.requestId, previewStatusToken: previewAccess.statusToken } : {}),
         }),
       });
@@ -280,7 +295,7 @@ export default function AskBoardSignal() {
       // Ambient context failure never becomes a BoardSignal failure state.
       setObservation(undefined);
     }
-  }, [activeTab, connectivity.online, pathname, previewAccess, user, visibleEntityId]);
+  }, [activeTab, connectivity.online, open, pathname, previewAccess, user, visibleEntityId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void refreshObservation(); }, 120);

@@ -12,6 +12,7 @@ import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { logFirestoreReadBudget, noteFirestoreServiceFailure } from "./firestoreService";
 
 export const FOUNDER_MATERIALIZED_VERSION = "boardsignal-founder-operations-v1" as const;
+const FOUNDER_PENDING_RECONCILE_LIMIT = 200;
 
 export type FounderOperationsRow = FounderOperationComparableRow & {
   playerId?: number;
@@ -178,6 +179,88 @@ function aggregateRef() { return getAdminDb().collection("founderOperationsState
 function summaryRef(playerId: number | string) { return getAdminDb().collection("founderPlayerSummaries").doc(String(playerId)); }
 function pendingRef(requestId: string) { return getAdminDb().collection("founderPendingRequestSummaries").doc(requestId); }
 
+type PendingSourceRequest = {
+  id: string;
+  chessPlayerId?: number;
+  canonicalUsername?: string;
+  preferredContactMethod?: string;
+  preferredContactValue?: string;
+  requestedAt?: string;
+  status?: string;
+  profileUrl?: string;
+};
+
+export async function reconcileFounderPendingRequestState(now = new Date()): Promise<FounderOperationsAggregate | undefined> {
+  const db = getAdminDb();
+  const started = Date.now();
+  const [aggregateSnapshot, sourcePending, materializedPending] = await Promise.all([
+    aggregateRef().get(),
+    db.collection("betaRequests").where("status", "==", "pending").limit(FOUNDER_PENDING_RECONCILE_LIMIT + 1).get(),
+    db.collection("founderPendingRequestSummaries").where("active", "==", true).limit(FOUNDER_PENDING_RECONCILE_LIMIT + 1).get(),
+  ]);
+
+  if (sourcePending.size > FOUNDER_PENDING_RECONCILE_LIMIT || materializedPending.size > FOUNDER_PENDING_RECONCILE_LIMIT) {
+    throw Object.assign(new Error("Founder pending-request reconciliation exceeded its bounded safety limit."), {
+      status: 503,
+      code: "FOUNDER_PENDING_RECONCILE_LIMIT",
+      retryAfterSeconds: 30,
+    });
+  }
+
+  const aggregate = aggregateSnapshot.exists ? aggregateSnapshot.data() as FounderOperationsAggregate : undefined;
+  if (!aggregate || aggregate.version !== FOUNDER_MATERIALIZED_VERSION || aggregate.bootstrapComplete !== true) return undefined;
+
+  const actual = new Map(sourcePending.docs.map((document) => {
+    const request = { id: document.id, ...document.data() } as PendingSourceRequest;
+    return [request.id, request] as const;
+  }));
+  const materialized = new Map(materializedPending.docs.map((document) => [document.id, document.data() as FounderPendingRequestSummary] as const));
+
+  const batch = db.batch();
+  let writes = 0;
+
+  for (const [requestId, request] of actual) {
+    const expected = founderPendingSummaryFromInput(request, now);
+    const existing = materialized.get(requestId);
+    if (!existing || JSON.stringify(clean(existing.row)) !== JSON.stringify(clean(expected.row)) || existing.active !== true || existing.version !== FOUNDER_MATERIALIZED_VERSION) {
+      batch.set(pendingRef(requestId), clean(expected), { merge: false });
+      writes += 1;
+    }
+  }
+
+  for (const requestId of materialized.keys()) {
+    if (!actual.has(requestId)) {
+      batch.delete(pendingRef(requestId));
+      writes += 1;
+    }
+  }
+
+  let next = aggregate;
+  if (aggregate.attention.newRequests !== actual.size) {
+    next = {
+      ...aggregate,
+      revision: aggregate.revision + 1,
+      generatedAt: now.toISOString(),
+      attention: { ...aggregate.attention, newRequests: actual.size },
+    };
+    batch.set(aggregateRef(), clean(next), { merge: false });
+    writes += 1;
+  }
+
+  if (writes > 0) await batch.commit();
+
+  logFirestoreReadBudget({
+    operation: "founder_pending_reconcile",
+    durationMs: Date.now() - started,
+    materialized: writes > 0 ? "rebuild" : "hit",
+    resultSize: actual.size,
+    approxDocumentReads: 1 + sourcePending.size + materializedPending.size,
+    querySizes: { sourcePending: sourcePending.size, materializedPending: materializedPending.size },
+  });
+
+  return next;
+}
+
 export async function upsertFounderPlayerSummary(summary: FounderPlayerSummary, now = new Date()) {
   const db = getAdminDb();
   await db.runTransaction(async (transaction) => {
@@ -267,14 +350,38 @@ export async function clearFounderPendingRequestSummary(requestId: string, now =
     const nextCount = nonnegative(aggregate.attention.newRequests - (previous.active ? 1 : 0));
     transaction.set(aggregateRef(), clean({ ...aggregate, revision: aggregate.revision + 1, generatedAt: now.toISOString(), attention: { ...aggregate.attention, newRequests: nextCount } }), { merge: false });
   });
+
+  // Core request approval/rejection is authoritative. Reconcile the cheap
+  // materialized pending view immediately so a missed best-effort summary
+  // write/delete cannot leave Founder Newsroom lying about New Requests.
+  return reconcileFounderPendingRequestState(now);
 }
 
 export async function loadFounderOperationsAggregate(now = new Date()): Promise<FounderOperationsAggregate | undefined> {
   const started = Date.now();
   try {
     const snapshot = await aggregateRef().get();
-    const aggregate = snapshot.exists ? snapshot.data() as FounderOperationsAggregate : undefined;
-    logFirestoreReadBudget({ operation: "founder_operations_aggregate", durationMs: Date.now() - started, materialized: aggregate ? "hit" : "miss", resultSize: aggregate?.metrics.activePlayers ?? 0, approxDocumentReads: 1 });
+    let aggregate = snapshot.exists ? snapshot.data() as FounderOperationsAggregate : undefined;
+
+    // Normal Founder landing remains one aggregate-document read. Only when
+    // that aggregate itself claims there are pending requests do we verify
+    // the small pending-request materialization and repair stale truth.
+    if (
+      aggregate?.version === FOUNDER_MATERIALIZED_VERSION
+      && aggregate.bootstrapComplete === true
+      && aggregate.attention.newRequests > 0
+    ) {
+      aggregate = await reconcileFounderPendingRequestState(now) ?? aggregate;
+    }
+
+    logFirestoreReadBudget({
+      operation: "founder_operations_aggregate",
+      durationMs: Date.now() - started,
+      materialized: aggregate ? "hit" : "miss",
+      resultSize: aggregate?.metrics.activePlayers ?? 0,
+      approxDocumentReads: 1,
+    });
+
     return aggregate?.version === FOUNDER_MATERIALIZED_VERSION && aggregate.bootstrapComplete === true ? aggregate : undefined;
   } catch (error) {
     const failure = noteFirestoreServiceFailure(error);

@@ -78,6 +78,7 @@ export type BoardSignalAccount = {
   currentEpisodeSummary?: import("./memory").CurrentEpisodeSummary;
   lastNotificationAt?: string;
   eligibleCoverageKeys: string[];
+  reviewProduction?: import("./reviewProduction").ReviewProductionStats;
 };
 
 export type ChessComOAuthStatus = {

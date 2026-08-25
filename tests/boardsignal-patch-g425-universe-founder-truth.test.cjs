@@ -34,14 +34,16 @@ test("3. Reviews Forming derives from cadence truth, including Player Room activ
   assert.match(ui, /cadence-aligned current week/);
 });
 
-test("4. historical onboarding is visible separately and does not inflate retentionDepth", () => {
+test("4. historical onboarding counts as Review output but does not inflate retentionDepth", () => {
   assert.match(ops, /historicalPublishedPeriods\(account\)/);
   assert.match(mat, /historicalPeriods/);
-  assert.match(ui, /HISTORICAL PERIODS/);
+  assert.match(ui, /HISTORICAL ONBOARDING/);
+  assert.match(ui, /TOTAL REVIEWS/);
   const start = mat.indexOf("export function founderSummaryFromRow");
   const end = mat.indexOf("export function founderPendingSummaryFromInput", start);
   const summary = mat.slice(start, end);
-  assert.match(summary, /const retentionDepth = verifiedReviews/);
+  assert.match(summary, /const totalReviewsProduced = originalReviews \+ liveReviews \+ historicalPeriods/);
+  assert.match(summary, /const retentionDepth = baseline \+ liveReviews/);
   assert.doesNotMatch(summary, /retentionDepth[^\n]*historicalPeriods/);
 });
 
@@ -53,5 +55,6 @@ test("5. existing Founder aggregate self-heals once through a bounded account/su
   assert.match(repair, /collection\("users"\)/);
   assert.match(repair, /collection\("founderPlayerSummaries"\)/);
   assert.doesNotMatch(repair, /collection\("desks"\)|collection\("evidence"\)|resolveChessComPlayer/);
+  assert.match(repair, /collectionGroup\("reviewPeriods"\).*FOUNDER_REVIEW_FACT_RECONCILE_LIMIT/s);
   assert.match(repair, /lifecycleTruthVersion: FOUNDER_LIFECYCLE_TRUTH_VERSION/);
 });

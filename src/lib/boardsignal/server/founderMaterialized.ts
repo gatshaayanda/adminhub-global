@@ -8,13 +8,19 @@ import {
   type FounderOperationComparableRow,
 } from "../founderOperationsLogic";
 import type { CanonicalReportPeriod, ReviewHistoryCoverage } from "../reviewPeriods";
+import { originalBetaSourceInventory } from "../../../data/originalBetaHistory";
+import { reviewProductionFromFacts, validReviewProductionStats, type ReviewProductionFact, type ReviewProductionStats } from "../reviewProduction";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { logFirestoreReadBudget, noteFirestoreServiceFailure } from "./firestoreService";
 
 export const FOUNDER_MATERIALIZED_VERSION = "boardsignal-founder-operations-v1" as const;
 const FOUNDER_PENDING_RECONCILE_LIMIT = 200;
-const FOUNDER_LIFECYCLE_TRUTH_VERSION = 2 as const;
+const FOUNDER_LIFECYCLE_TRUTH_VERSION = 3 as const;
 const FOUNDER_LIFECYCLE_RECONCILE_LIMIT = 200;
+const FOUNDER_REVIEW_FACT_RECONCILE_LIMIT = 1000;
+const ORIGINAL_BETA_SOURCES = originalBetaSourceInventory();
+const ORIGINAL_BETA_REVIEW_TOTAL = ORIGINAL_BETA_SOURCES.length;
+const ORIGINAL_BETA_BY_HANDLE = new Map(ORIGINAL_BETA_SOURCES.map((entry) => [entry.normalizedHandle, entry] as const));
 
 export type FounderOperationsRow = FounderOperationComparableRow & {
   playerId?: number;
@@ -47,6 +53,7 @@ export type FounderValidationContribution = {
   originalReviews: number;
   liveReviews: number;
   historicalPeriods: number;
+  totalReviewsProduced: number;
   originalToLive: number;
   retentionDepth: number;
 };
@@ -77,7 +84,7 @@ export type FounderOperationsAggregate = {
   generatedAt: string;
   attention: { newRequests: number; followUpsDue: number; unreadReplies: number; exceptions: number; identityConflicts: number };
   metrics: { activePlayers: number; reviewsForming: number; reviewsReady: number; followUpsDue: number; notSeenRecently: number; unreadReplies: number };
-  validation: { playersServed: number; verifiedReviews: number; originalReviews: number; liveReviews: number; historicalPeriods: number; originalToLive: number; r2Plus: number; r3Plus: number; r4: number; dataCompleteness: string };
+  validation: { playersServed: number; verifiedReviews: number; originalReviews: number; liveReviews: number; historicalPeriods: number; totalReviewsProduced: number; originalToLive: number; r2Plus: number; r3Plus: number; r4: number; dataCompleteness: string };
 };
 
 type Contribution = {
@@ -94,16 +101,17 @@ type Contribution = {
   originalReviews: number;
   liveReviews: number;
   historicalPeriods: number;
+  totalReviewsProduced: number;
   originalToLive: number;
   r2Plus: number;
   r3Plus: number;
   r4: number;
 };
 
-const DATA_COMPLETENESS = "Verified Reviews remain Original Beta plus organic LIVE Reviews. Historical onboarding is shown separately as game-bearing historical periods and does not count as a retention return or qualifying Review. Reviews Forming counts active players with an established cadence-aligned current week, not only players whose cached Player Room progress happened to refresh recently.";
+const DATA_COMPLETENESS = "TOTAL REVIEWS is cumulative product output: Original Manual + Organic Live + Historical Onboarding. Historical onboarding is real Review work/output, but it does not count as a player return. RETENTION REVIEWS is Original Manual + Organic Live. R2+/R3+/R4+ advance from one baseline Review plus later organic weekly returns. The Player Room still retains only four heavy Review payloads; tiny cumulative Review truth survives that rotation.";
 
 function clean<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
-function zeroContribution(): Contribution { return { activePlayers: 0, reviewsForming: 0, reviewsReady: 0, followUpsDue: 0, notSeenRecently: 0, unreadReplies: 0, exceptions: 0, identityConflicts: 0, playersServed: 0, verifiedReviews: 0, originalReviews: 0, liveReviews: 0, historicalPeriods: 0, originalToLive: 0, r2Plus: 0, r3Plus: 0, r4: 0 }; }
+function zeroContribution(): Contribution { return { activePlayers: 0, reviewsForming: 0, reviewsReady: 0, followUpsDue: 0, notSeenRecently: 0, unreadReplies: 0, exceptions: 0, identityConflicts: 0, playersServed: 0, verifiedReviews: 0, originalReviews: 0, liveReviews: 0, historicalPeriods: 0, totalReviewsProduced: 0, originalToLive: 0, r2Plus: 0, r3Plus: 0, r4: 0 }; }
 function nonnegative(value: number) { return Math.max(0, Math.round(value)); }
 function emptyAggregate(now = new Date()): FounderOperationsAggregate {
   return {
@@ -113,7 +121,7 @@ function emptyAggregate(now = new Date()): FounderOperationsAggregate {
     generatedAt: now.toISOString(),
     attention: { newRequests: 0, followUpsDue: 0, unreadReplies: 0, exceptions: 0, identityConflicts: 0 },
     metrics: { activePlayers: 0, reviewsForming: 0, reviewsReady: 0, followUpsDue: 0, notSeenRecently: 0, unreadReplies: 0 },
-    validation: { playersServed: 0, verifiedReviews: 0, originalReviews: 0, liveReviews: 0, historicalPeriods: 0, originalToLive: 0, r2Plus: 0, r3Plus: 0, r4: 0, dataCompleteness: DATA_COMPLETENESS },
+    validation: { playersServed: ORIGINAL_BETA_REVIEW_TOTAL, verifiedReviews: ORIGINAL_BETA_REVIEW_TOTAL, originalReviews: ORIGINAL_BETA_REVIEW_TOTAL, liveReviews: 0, historicalPeriods: 0, totalReviewsProduced: ORIGINAL_BETA_REVIEW_TOTAL, originalToLive: 0, r2Plus: 0, r3Plus: 0, r4: 0, dataCompleteness: DATA_COMPLETENESS },
   };
 }
 
@@ -130,11 +138,12 @@ function contributionForSummary(summary: FounderPlayerSummary | undefined): Cont
     unreadReplies: Math.max(0, Number(row.unreadReplies) || 0),
     exceptions: row.exceptionCount > 0 || row.reviewCheckRequired ? 1 : 0,
     identityConflicts: row.identityConflict ? 1 : 0,
-    playersServed: summary.validation.served,
-    verifiedReviews: summary.validation.verifiedReviews,
-    originalReviews: summary.validation.originalReviews,
+    playersServed: summary.validation.served && summary.validation.originalReviews === 0 ? 1 : 0,
+    verifiedReviews: summary.validation.liveReviews,
+    originalReviews: 0,
     liveReviews: summary.validation.liveReviews,
     historicalPeriods: summary.validation.historicalPeriods ?? 0,
+    totalReviewsProduced: summary.validation.liveReviews + (summary.validation.historicalPeriods ?? 0),
     originalToLive: summary.validation.originalToLive,
     r2Plus: retentionDepth >= 2 ? 1 : 0,
     r3Plus: retentionDepth >= 3 ? 1 : 0,
@@ -146,6 +155,11 @@ function applyDelta(aggregate: FounderOperationsAggregate, before: Contribution,
   const delta = (key: keyof Contribution) => after[key] - before[key];
   const followUpsDue = nonnegative(aggregate.metrics.followUpsDue + delta("followUpsDue"));
   const unreadReplies = nonnegative(aggregate.metrics.unreadReplies + delta("unreadReplies"));
+  const liveReviews = nonnegative(aggregate.validation.liveReviews + delta("liveReviews"));
+  const historicalPeriods = nonnegative((aggregate.validation.historicalPeriods ?? 0) + delta("historicalPeriods"));
+  const originalReviews = ORIGINAL_BETA_REVIEW_TOTAL;
+  const verifiedReviews = originalReviews + liveReviews;
+  const totalReviewsProduced = verifiedReviews + historicalPeriods;
   return {
     ...aggregate,
     version: FOUNDER_MATERIALIZED_VERSION,
@@ -169,10 +183,11 @@ function applyDelta(aggregate: FounderOperationsAggregate, before: Contribution,
     validation: {
       ...aggregate.validation,
       playersServed: nonnegative(aggregate.validation.playersServed + delta("playersServed")),
-      verifiedReviews: nonnegative(aggregate.validation.verifiedReviews + delta("verifiedReviews")),
-      originalReviews: nonnegative(aggregate.validation.originalReviews + delta("originalReviews")),
-      liveReviews: nonnegative(aggregate.validation.liveReviews + delta("liveReviews")),
-      historicalPeriods: nonnegative((aggregate.validation.historicalPeriods ?? 0) + delta("historicalPeriods")),
+      verifiedReviews,
+      originalReviews,
+      liveReviews,
+      historicalPeriods,
+      totalReviewsProduced,
       originalToLive: nonnegative(aggregate.validation.originalToLive + delta("originalToLive")),
       r2Plus: nonnegative(aggregate.validation.r2Plus + delta("r2Plus")),
       r3Plus: nonnegative(aggregate.validation.r3Plus + delta("r3Plus")),
@@ -191,23 +206,91 @@ type FounderLifecycleAccount = {
   role?: string;
   accessStatus?: string;
   cadenceAnchor?: string;
-  reviewHistoryBackfill?: { evaluated?: Record<string, { status?: string }> };
+  chessCom?: { canonicalUsername?: string };
+  originalBetaPlayer?: boolean;
+  originalBetaHistoryPeriods?: Record<string, { periodStart?: string; periodEnd?: string; retiredAt?: string }>;
+  reviewHistoryBackfill?: {
+    activationBaseline?: boolean;
+    evaluated?: Record<string, { status?: string; evaluatedAt?: string }>;
+  };
+  reviewProduction?: ReviewProductionStats;
 };
 
-function historicalPeriodsFromAccount(account: FounderLifecycleAccount | undefined) {
-  return Object.values(account?.reviewHistoryBackfill?.evaluated ?? {}).filter((evaluation) => evaluation?.status === "published").length;
+type StoredLifecycleReviewPeriod = {
+  outcome?: string;
+  periodStart?: string;
+  reviewLifecycle?: string;
+};
+
+function normalizedHandle(value?: string) {
+  return String(value ?? "").trim().replace(/^@/, "").toLowerCase();
+}
+
+function validLifecycle(value?: string): ReviewProductionFact["reviewLifecycle"] | undefined {
+  if (value === "original_beta" || value === "organic_live" || value === "historical_backfill") return value;
+  return undefined;
+}
+
+function reviewFactsForAccount(
+  account: FounderLifecycleAccount | undefined,
+  summary: FounderPlayerSummary,
+  ledger: StoredLifecycleReviewPeriod[],
+): ReviewProductionFact[] {
+  const facts: ReviewProductionFact[] = [];
+  const historicalStarts = new Set<string>();
+
+  for (const marker of Object.values(account?.originalBetaHistoryPeriods ?? {})) {
+    if (marker?.periodStart) facts.push({ periodStart: marker.periodStart, reviewLifecycle: "original_beta" });
+  }
+
+  if (!facts.some((fact) => fact.reviewLifecycle === "original_beta")) {
+    const original = ORIGINAL_BETA_BY_HANDLE.get(normalizedHandle(account?.chessCom?.canonicalUsername ?? summary.row.username));
+    if (account?.originalBetaPlayer && original?.periodStart) {
+      facts.push({ periodStart: original.periodStart, reviewLifecycle: "original_beta" });
+    }
+  }
+
+  for (const [periodStart, evaluation] of Object.entries(account?.reviewHistoryBackfill?.evaluated ?? {})) {
+    if (evaluation?.status !== "published") continue;
+    historicalStarts.add(periodStart);
+    facts.push({ periodStart, reviewLifecycle: "historical_backfill" });
+  }
+
+  for (const period of summary.row.reviewPeriods ?? []) {
+    facts.push({
+      periodStart: period.periodStart,
+      reviewLifecycle: period.source === "original" ? "original_beta" : "organic_live",
+    });
+  }
+
+  for (const item of ledger) {
+    if (item.outcome !== "review" || !item.periodStart) continue;
+    const explicit = validLifecycle(item.reviewLifecycle);
+    const lifecycle = historicalStarts.has(item.periodStart)
+      ? "historical_backfill"
+      : explicit ?? "organic_live";
+    facts.push({ periodStart: item.periodStart, reviewLifecycle: lifecycle });
+  }
+
+  return facts;
 }
 
 export async function reconcileFounderLifecycleTruth(now = new Date()): Promise<FounderOperationsAggregate> {
   const started = Date.now();
   const db = getAdminDb();
-  const [users, summaries, pending] = await Promise.all([
+  const [users, summaries, pending, reviewPeriods] = await Promise.all([
     db.collection("users").limit(FOUNDER_LIFECYCLE_RECONCILE_LIMIT + 1).get(),
     db.collection("founderPlayerSummaries").limit(FOUNDER_LIFECYCLE_RECONCILE_LIMIT + 1).get(),
     db.collection("founderPendingRequestSummaries").where("active", "==", true).limit(FOUNDER_LIFECYCLE_RECONCILE_LIMIT + 1).get(),
+    db.collectionGroup("reviewPeriods").limit(FOUNDER_REVIEW_FACT_RECONCILE_LIMIT + 1).get(),
   ]);
 
-  if (users.size > FOUNDER_LIFECYCLE_RECONCILE_LIMIT || summaries.size > FOUNDER_LIFECYCLE_RECONCILE_LIMIT || pending.size > FOUNDER_LIFECYCLE_RECONCILE_LIMIT) {
+  if (
+    users.size > FOUNDER_LIFECYCLE_RECONCILE_LIMIT
+    || summaries.size > FOUNDER_LIFECYCLE_RECONCILE_LIMIT
+    || pending.size > FOUNDER_LIFECYCLE_RECONCILE_LIMIT
+    || reviewPeriods.size > FOUNDER_REVIEW_FACT_RECONCILE_LIMIT
+  ) {
     throw Object.assign(new Error("Founder lifecycle truth reconciliation exceeded its bounded safety limit."), {
       status: 503,
       code: "FOUNDER_LIFECYCLE_RECONCILE_LIMIT",
@@ -222,22 +305,54 @@ export async function reconcileFounderLifecycleTruth(now = new Date()): Promise<
       .map(({ id, data }) => [String(data.uid ?? id), data] as const),
   );
 
-  const nextSummaries = summaries.docs
+  const ledgerByUid = new Map<string, StoredLifecycleReviewPeriod[]>();
+  for (const document of reviewPeriods.docs) {
+    const uid = document.ref.parent.parent?.id;
+    if (!uid) continue;
+    ledgerByUid.set(uid, [...(ledgerByUid.get(uid) ?? []), document.data() as StoredLifecycleReviewPeriod]);
+  }
+
+  const repaired = summaries.docs
     .map((document) => document.data() as FounderPlayerSummary)
     .filter((summary) => summary.version === FOUNDER_MATERIALIZED_VERSION)
     .map((summary) => {
       const account = accountsByUid.get(summary.uid);
       const forming = account?.accessStatus === "active" && Boolean(account.cadenceAnchor);
-      return {
+      const facts = reviewFactsForAccount(account, summary, ledgerByUid.get(summary.uid) ?? []);
+      const reconstructed = reviewProductionFromFacts(facts, now, true);
+      const originalReviews = Math.max(reconstructed.originalBetaReviews, account?.originalBetaPlayer ? 1 : 0);
+      const liveReviews = reconstructed.organicLiveReviews;
+      const historicalPeriods = reconstructed.historicalBackfillReviews;
+      const reviewProduction: ReviewProductionStats = {
+        ...reconstructed,
+        originalBetaReviews: originalReviews,
+        totalReviews: originalReviews + liveReviews + historicalPeriods,
+      };
+      const baseline = originalReviews > 0 || account?.reviewHistoryBackfill?.activationBaseline === true ? 1 : 0;
+      const retentionDepth = baseline + liveReviews;
+      const nextSummary: FounderPlayerSummary = {
         ...summary,
         updatedAt: now.toISOString(),
         row: { ...summary.row, forming },
-        validation: { ...summary.validation, historicalPeriods: historicalPeriodsFromAccount(account) },
-      } satisfies FounderPlayerSummary;
+        validation: {
+          ...summary.validation,
+          served: reviewProduction.totalReviews > 0 ? 1 : 0,
+          verifiedReviews: originalReviews + liveReviews,
+          originalReviews,
+          liveReviews,
+          historicalPeriods,
+          totalReviewsProduced: reviewProduction.totalReviews,
+          originalToLive: originalReviews > 0 && liveReviews > 0 ? 1 : 0,
+          retentionDepth,
+        },
+      };
+      return { summary: nextSummary, account, reviewProduction };
     });
 
   let aggregate = emptyAggregate(now);
-  for (const summary of nextSummaries) aggregate = applyDelta(aggregate, zeroContribution(), contributionForSummary(summary), now);
+  for (const item of repaired) {
+    aggregate = applyDelta(aggregate, zeroContribution(), contributionForSummary(item.summary), now);
+  }
 
   aggregate = {
     ...aggregate,
@@ -249,18 +364,35 @@ export async function reconcileFounderLifecycleTruth(now = new Date()): Promise<
     validation: { ...aggregate.validation, dataCompleteness: DATA_COMPLETENESS },
   };
 
-  const batch = db.batch();
-  for (const summary of nextSummaries) batch.set(summaryRef(summary.playerId), clean(summary), { merge: false });
+  let batch = db.batch();
+  let writes = 0;
+  const flush = async () => {
+    if (!writes) return;
+    await batch.commit();
+    batch = db.batch();
+    writes = 0;
+  };
+
+  for (const item of repaired) {
+    batch.set(summaryRef(item.summary.playerId), clean(item.summary), { merge: false });
+    writes += 1;
+    if (item.account) {
+      batch.set(db.collection("users").doc(item.summary.uid), { reviewProduction: clean(item.reviewProduction) }, { merge: true });
+      writes += 1;
+    }
+    if (writes >= 400) await flush();
+  }
   batch.set(aggregateRef(), clean(aggregate), { merge: false });
-  await batch.commit();
+  writes += 1;
+  await flush();
 
   logFirestoreReadBudget({
     operation: "founder_lifecycle_truth_reconcile",
     durationMs: Date.now() - started,
     materialized: "rebuild",
-    resultSize: nextSummaries.length,
-    approxDocumentReads: users.size + summaries.size + pending.size,
-    querySizes: { users: users.size, summaries: summaries.size, pending: pending.size },
+    resultSize: repaired.length,
+    approxDocumentReads: users.size + summaries.size + pending.size + reviewPeriods.size,
+    querySizes: { users: users.size, summaries: summaries.size, pending: pending.size, reviewPeriods: reviewPeriods.size },
   });
 
   return aggregate;
@@ -532,11 +664,18 @@ export function founderSummaryFromRow(input: {
   originalReviews: number;
   liveReviews: number;
   historicalPeriods?: number;
+  reviewProduction?: ReviewProductionStats;
   activationBaseline?: boolean;
   updatedAt?: string;
 }): FounderPlayerSummary {
-  const verifiedReviews = input.originalReviews + input.liveReviews;
-  const retentionDepth = verifiedReviews + (input.activationBaseline && input.originalReviews === 0 ? 1 : 0);
+  const production = validReviewProductionStats(input.reviewProduction);
+  const originalReviews = Math.max(input.originalReviews, production?.originalBetaReviews ?? 0);
+  const liveReviews = Math.max(input.liveReviews, production?.organicLiveReviews ?? 0);
+  const historicalPeriods = Math.max(0, production?.historicalBackfillReviews ?? (Number(input.historicalPeriods) || 0));
+  const verifiedReviews = originalReviews + liveReviews;
+  const totalReviewsProduced = originalReviews + liveReviews + historicalPeriods;
+  const baseline = originalReviews > 0 || input.activationBaseline === true ? 1 : 0;
+  const retentionDepth = baseline + liveReviews;
   return {
     version: FOUNDER_MATERIALIZED_VERSION,
     playerId: String(input.playerId),
@@ -545,12 +684,13 @@ export function founderSummaryFromRow(input: {
     active: input.row.accessStatus === "active",
     row: input.row,
     validation: {
-      served: retentionDepth > 0 ? 1 : 0,
+      served: totalReviewsProduced > 0 ? 1 : 0,
       verifiedReviews,
-      originalReviews: input.originalReviews,
-      liveReviews: input.liveReviews,
-      historicalPeriods: Math.max(0, Number(input.historicalPeriods) || 0),
-      originalToLive: input.originalReviews > 0 && input.liveReviews > 0 ? 1 : 0,
+      originalReviews,
+      liveReviews,
+      historicalPeriods,
+      totalReviewsProduced,
+      originalToLive: originalReviews > 0 && liveReviews > 0 ? 1 : 0,
       retentionDepth,
     },
   };

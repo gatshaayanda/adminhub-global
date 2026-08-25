@@ -146,9 +146,30 @@ async function sourcePlayerSummary(account: OperationsAccount, now = new Date())
     lastContactMethod: account.founderOps?.lastContactMethod,
     followUpSnoozedUntil: account.founderOps?.followUpSnoozedUntil,
   };
-  const originalReviews = nonHistorical.filter((period) => period.source === "original").length;
-  const liveReviews = nonHistorical.filter((period) => period.source === "live").length;
-  return founderSummaryFromRow({ playerId: account.chessCom.playerId, uid: account.uid, row, originalReviews, liveReviews, historicalPeriods: historicalPublishedPeriods(account), activationBaseline: account.reviewHistoryBackfill?.activationBaseline === true, updatedAt: now.toISOString() });
+  const originalReviews = Math.max(
+    nonHistorical.filter((period) => period.source === "original").length,
+    Object.keys(account.originalBetaHistoryPeriods ?? {}).length,
+    account.originalBetaPlayer ? 1 : 0,
+  );
+  const liveReviews = Math.max(
+    account.reviewProduction?.organicLiveReviews ?? 0,
+    nonHistorical.filter((period) => period.source === "live").length,
+  );
+  const historicalPeriods = Math.max(
+    account.reviewProduction?.historicalBackfillReviews ?? 0,
+    historicalPublishedPeriods(account),
+  );
+  return founderSummaryFromRow({
+    playerId: account.chessCom.playerId,
+    uid: account.uid,
+    row,
+    originalReviews,
+    liveReviews,
+    historicalPeriods,
+    reviewProduction: account.reviewProduction,
+    activationBaseline: account.reviewHistoryBackfill?.activationBaseline === true,
+    updatedAt: now.toISOString(),
+  });
 }
 
 export async function refreshFounderPlayerSummary(account: OperationsAccount, now = new Date()) {

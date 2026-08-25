@@ -58,8 +58,12 @@ export async function POST(request: Request) {
     if (body.action === "publishDesk" && body.desk && body.engineResults) {
       const publication = await publishPrivateDesk(token, body.desk, body.engineResults, { reviewLifecycle: body.reviewLifecycle, historyLeaseId: body.historyLeaseId });
       const account = await accountForToken(token);
-      await recordReviewPeriodResult(account.uid, { periodStart: body.desk.period.start, periodEnd: body.desk.period.end, periodLabel: body.desk.period.label, outcome: "review", reviewKey: body.desk.episodeKey, reviewLifecycle: body.reviewLifecycle ?? "organic_live", evaluatedAt: new Date().toISOString() });
-      await import("@/lib/boardsignal/server/founderOperations").then(({ refreshFounderPlayerSummary }) => refreshFounderPlayerSummary(account)).catch(() => undefined);
+      const reviewLifecycle = "reviewLifecycle" in publication
+        ? publication.reviewLifecycle
+        : body.reviewLifecycle ?? "organic_live";
+      const reviewProduction = await recordReviewPeriodResult(account.uid, { periodStart: body.desk.period.start, periodEnd: body.desk.period.end, periodLabel: body.desk.period.label, outcome: "review", reviewKey: body.desk.episodeKey, reviewLifecycle, evaluatedAt: new Date().toISOString() });
+      const accountWithReviewProduction = reviewProduction ? { ...account, reviewProduction } : account;
+      await import("@/lib/boardsignal/server/founderOperations").then(({ refreshFounderPlayerSummary }) => refreshFounderPlayerSummary(accountWithReviewProduction)).catch(() => undefined);
       return response({ ok: true, publication });
     }
     if (body.action === "updatePreferences" && body.privacy && body.notificationPreferences) return response({ ok: true, preferences: await updatePlayerPreferences(token, body.privacy, body.notificationPreferences, body.contact) });

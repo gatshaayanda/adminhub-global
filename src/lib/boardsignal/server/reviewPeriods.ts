@@ -15,6 +15,7 @@ import {
 } from "../reviewPeriods";
 import type { CompletedReviewHistoryItem } from "../reviewHistory";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
+import { addReviewProductionFact, validReviewProductionStats, type ReviewProductionStats } from "../reviewProduction";
 import { loadCompletedReviewHistory } from "./persistence";
 import { logFirestoreReadBudget, noteFirestoreServiceFailure } from "./firestoreService";
 
@@ -86,13 +87,30 @@ export async function loadRecentReportPeriodTruth(
   }
 }
 
-export async function recordReviewPeriodResult(uid: string, result: ReviewPeriodResult) {
+export async function recordReviewPeriodResult(uid: string, result: ReviewPeriodResult): Promise<ReviewProductionStats | undefined> {
+  const db = getAdminDb();
   const ref = ledgerRef(uid, result.periodStart);
-  await getAdminDb().runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
+  const userRef = db.collection("users").doc(uid);
+  return db.runTransaction(async (transaction) => {
+    const [snapshot, userSnapshot] = await Promise.all([transaction.get(ref), transaction.get(userRef)]);
     const existingData = snapshot.data() as (Partial<ReviewPeriodResult> & Record<string, unknown>) | undefined;
     const existing = validStoredResult(existingData);
-    if (existing?.outcome === "review" && result.outcome === "no_activity") return;
-    transaction.set(ref, clean(mergeReviewPeriodResult(existingData, result)), { merge: false });
+    const currentProduction = validReviewProductionStats(userSnapshot.data()?.reviewProduction);
+
+    if (existing?.outcome === "review" && result.outcome === "no_activity") return currentProduction;
+
+    const merged = mergeReviewPeriodResult(existingData, result);
+    transaction.set(ref, clean(merged), { merge: false });
+
+    if (result.outcome !== "review" || existing?.outcome === "review") return currentProduction;
+
+    const lifecycle = result.reviewLifecycle ?? "organic_live";
+    const nextProduction = addReviewProductionFact(
+      currentProduction,
+      { periodStart: result.periodStart, reviewLifecycle: lifecycle },
+      new Date(result.evaluatedAt),
+    );
+    transaction.set(userRef, { reviewProduction: clean(nextProduction) }, { merge: true });
+    return nextProduction;
   });
 }

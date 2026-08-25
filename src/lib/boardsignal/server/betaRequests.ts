@@ -412,7 +412,9 @@ export async function approveFoundingBetaRequest(requestId: string) {
   }), { merge: true });
   const publicHighlights = await reconcileConfirmedPublicHighlights(confirmedAccount);
 
-  await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt));
+  // Public Universe publication is derived/secondary. It must never block the
+  // authoritative Founder approval/identity decision.
+  await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt)).catch(() => undefined);
   const magic = betaMagicAccessCredential(request.id, request.chessPlayerId, account.uid, new Date(decidedAt));
   await ref.set({ status: "approved", identityReviewStatus: "confirmed", decidedAt, firebaseUid: account.uid, magicAccess: magic.record, claimedAt: null, previewClaimConsumedAt: null }, { merge: true });
 
@@ -503,7 +505,9 @@ export async function confirmFoundingBetaIdentity(requestId: string) {
   }), { merge: true });
   const publicHighlights = await reconcileConfirmedPublicHighlights(confirmedAccount);
   await ref.set({ status: "approved", identityReviewStatus: "confirmed", decidedAt }, { merge: true });
-  await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt));
+  // Public Universe publication is derived/secondary. It must never block the
+  // authoritative Founder approval/identity decision.
+  await writePublicUniverseEvent(newPlayerUniverseEvent(request, decidedAt)).catch(() => undefined);
   const identityConfirmationDelivery = await deliverFoundingBetaIdentityConfirmation({ requestId, playerAlreadyInside: true })
     .catch(() => ({ channel: "none" as const, status: "failed" as const }));
   return {

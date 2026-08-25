@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import {
   createFoundingBetaAccess,
-  listFounderPlayerIdentities,
+  loadFounderPlayerDirectoryState,
+  refreshFounderDirectoryPlayer,
+  refreshFounderDirectoryRequest,
   resetFoundingBetaAccess,
   revokeFoundingBetaAccess,
 } from "@/lib/boardsignal/server/betaAccess";
@@ -9,7 +11,6 @@ import { deleteBoardSignalAccount } from "@/lib/boardsignal/server/accountDeleti
 import {
   approveFoundingBetaRequest,
   confirmFoundingBetaIdentity,
-  listFoundingBetaRequests,
   regenerateFoundingBetaMagicAccess,
   rejectFoundingBetaRequest,
   revokeProvisionalFoundingBetaIdentity,
@@ -61,12 +62,16 @@ async function settlePendingRequest(request: { id: string; firebaseUid?: string;
   await clearFounderPendingRequestSummary(request.id).catch(() => undefined);
   if (request.firebaseUid) await refreshFounderPlayerSummaryByUid(request.firebaseUid).catch(() => undefined);
   if (request.chessPlayerId) await refreshMaterializedUniverseParticipantForPlayerId(request.chessPlayerId).catch(() => undefined);
+  await Promise.all([
+    refreshFounderDirectoryRequest(request.id).catch(() => undefined),
+    request.chessPlayerId ? refreshFounderDirectoryPlayer(request.chessPlayerId).catch(() => undefined) : Promise.resolve(),
+  ]);
 }
 
 export async function GET() {
   try {
-    const [players, requests] = await Promise.all([listFounderPlayerIdentities(), listFoundingBetaRequests()]);
-    return response({ ok: true, players, requests });
+    const directory = await loadFounderPlayerDirectoryState();
+    return response({ ok: true, players: directory.players, requests: directory.requests });
   } catch (error) {
     return failure(error, "BETA_ACCESS_ADMIN_LIST_FAILED");
   }
@@ -83,6 +88,10 @@ export async function POST(request: Request) {
         removeMaterializedUniverseParticipant(deletion.playerId).catch(() => undefined),
         removeFounderPlayerSummary(deletion.playerId).catch(() => undefined),
         clearFounderPendingRequestSummary(String(deletion.playerId)).catch(() => undefined),
+      ]);
+      await Promise.all([
+        refreshFounderDirectoryPlayer(deletion.playerId).catch(() => undefined),
+        refreshFounderDirectoryRequest(String(deletion.playerId)).catch(() => undefined),
       ]);
       return response({ ok: true, deletion });
     }
@@ -103,6 +112,7 @@ export async function POST(request: Request) {
     if (body.action === "revokeIdentity" && typeof body.requestId === "string") {
       const result = await revokeProvisionalFoundingBetaIdentity(body.requestId);
       await clearFounderPendingRequestSummary(body.requestId).catch(() => undefined);
+      await refreshFounderDirectoryRequest(body.requestId).catch(() => undefined);
       return response({ ok: true, result });
     }
     if (body.action === "approveRequest" && typeof body.requestId === "string") {
@@ -123,10 +133,12 @@ export async function POST(request: Request) {
     if (body.action === "rejectRequest" && typeof body.requestId === "string") {
       const rejected = await rejectFoundingBetaRequest(body.requestId);
       await clearFounderPendingRequestSummary(rejected.id).catch(() => undefined);
+      await refreshFounderDirectoryRequest(rejected.id).catch(() => undefined);
       return response({ ok: true, request: rejected });
     }
     if (body.action === "regenerateMagic" && typeof body.requestId === "string") {
       const result = await regenerateFoundingBetaMagicAccess(body.requestId);
+      await refreshFounderDirectoryRequest(body.requestId).catch(() => undefined);
       return response({ ok: true, magicLink: result.magicLink, magicAccessExpiresAt: result.magicAccessExpiresAt, approvalMessage: result.approvalMessage });
     }
     if (body.action === "registerFounderPush") return response({ ok: true, result: await registerFounderNotificationDevice(body.fcmToken, body.userAgent) });
@@ -134,21 +146,27 @@ export async function POST(request: Request) {
     if (body.action === "repairPublicHighlights") {
       const publicHighlights = await repairSafePublicCoverageForPlayer(body.playerId);
       const playerId = Number(body.playerId);
-      if (Number.isSafeInteger(playerId) && playerId > 0) await refreshMaterializedUniverseParticipantForPlayerId(playerId).catch(() => undefined);
+      if (Number.isSafeInteger(playerId) && playerId > 0) {
+        await refreshMaterializedUniverseParticipantForPlayerId(playerId).catch(() => undefined);
+        await refreshFounderDirectoryPlayer(playerId).catch(() => undefined);
+      }
       return response({ ok: true, publicHighlights });
     }
     if (body.action === "create" && typeof body.username === "string") {
       const result = await createFoundingBetaAccess(body.username);
       await refreshFounderPlayerSummaryByUid(result.account.uid).catch(() => undefined);
+      await refreshFounderDirectoryPlayer(result.account.chessCom.playerId).catch(() => undefined);
       return response({ ok: true, player: { username: result.account.chessCom.canonicalUsername, playerId: result.account.chessCom.playerId }, accessCode: result.accessCode });
     }
     if (body.action === "reset") {
       const result = await resetFoundingBetaAccess(body.playerId);
+      await refreshFounderDirectoryPlayer(body.playerId).catch(() => undefined);
       return response({ ok: true, player: result.account ? { username: result.account.chessCom.canonicalUsername, playerId: result.account.chessCom.playerId } : { playerId: Number(body.playerId) }, accessCode: result.accessCode });
     }
     if (body.action === "revoke") {
       const result = await revokeFoundingBetaAccess(body.playerId);
       await removeMaterializedUniverseParticipant(result.playerId).catch(() => undefined);
+      await refreshFounderDirectoryPlayer(result.playerId).catch(() => undefined);
       return response({ ok: true, result });
     }
     return response({ ok: false, error: "Choose Confirm/Revoke Identity, Repair Public Highlights, recovery access, Founder Alerts, Create access, Reset Access, Revoke Access, or Delete BoardSignal Account." }, 400);

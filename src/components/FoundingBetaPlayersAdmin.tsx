@@ -32,6 +32,29 @@ type ApiResult = {
 type ManualCode = { username: string; playerId: number; accessCode: string; action: "created" | "reset" };
 type PreparedAccess = { requestId: string; username: string; playerId: number; accessCode?: string; magicLink: string; approvalMessage: string; expiresAt?: string; emailDelivery?: RequestRow["accessEmailDelivery"]; deviceDelivery?: RequestRow["activationDeviceDelivery"] };
 
+const FOUNDER_DIRECTORY_CLIENT_CACHE_MS = 2_500;
+let founderDirectoryInFlight: Promise<ApiResult> | null = null;
+let founderDirectoryClientCache: { at: number; value: ApiResult } | null = null;
+
+function invalidateFounderDirectoryClientCache() {
+  founderDirectoryClientCache = null;
+}
+
+async function fetchFounderDirectory(): Promise<ApiResult> {
+  const now = Date.now();
+  if (founderDirectoryClientCache && now - founderDirectoryClientCache.at < FOUNDER_DIRECTORY_CLIENT_CACHE_MS) return founderDirectoryClientCache.value;
+  if (founderDirectoryInFlight) return founderDirectoryInFlight;
+  founderDirectoryInFlight = fetch("/api/admin/boardsignal/beta-access", { cache: "no-store" })
+    .then(async (response) => {
+      const body = await response.json() as ApiResult;
+      if (!response.ok || !body.ok || !body.players || !body.requests) throw new Error(body.error ?? "Founding Access identities could not be loaded.");
+      founderDirectoryClientCache = { at: Date.now(), value: body };
+      return body;
+    })
+    .finally(() => { founderDirectoryInFlight = null; });
+  return founderDirectoryInFlight;
+}
+
 function privateAccessLabel(status: FounderPlayerIdentityRow["accountStatus"]) {
   return status === "active" ? "Active" : status === "paused" ? "Paused" : "Deleted";
 }
@@ -84,10 +107,8 @@ export default function FoundingBetaPlayersAdmin() {
   const loadPlayers = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const response = await fetch("/api/admin/boardsignal/beta-access", { cache: "no-store" });
-      const body = await response.json() as ApiResult;
-      if (!response.ok || !body.ok || !body.players || !body.requests) throw new Error(body.error ?? "Founding Access identities could not be loaded.");
-      setPlayers(body.players); setRequests(body.requests);
+      const body = await fetchFounderDirectory();
+      setPlayers(body.players!); setRequests(body.requests!);
       const params = new URLSearchParams(window.location.search);
       const requestId = params.get("request");
       const playerId = params.get("player");
@@ -110,6 +131,7 @@ export default function FoundingBetaPlayersAdmin() {
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Founding Access could not be updated.");
       if ((action === "create" || action === "reset") && body.accessCode && body.player) setManualCode({ username: body.player.username ?? players.find((player) => player.playerId === body.player!.playerId)?.username ?? "Player", playerId: body.player.playerId, accessCode: body.accessCode, action: action === "create" ? "created" : "reset" });
       if (action === "create") setUsername("");
+      invalidateFounderDirectoryClientCache();
       await loadPlayers();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Founding Access could not be updated."); }
     finally { setBusyPlayer(null); }
@@ -126,6 +148,7 @@ export default function FoundingBetaPlayersAdmin() {
       });
       const body = await response.json() as ApiResult;
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Public highlights could not be repaired.");
+      invalidateFounderDirectoryClientCache();
       await loadPlayers();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Public highlights could not be repaired."); }
     finally { setBusyPlayer(null); }
@@ -139,6 +162,7 @@ export default function FoundingBetaPlayersAdmin() {
       const body = await response.json() as ApiResult;
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Founding Access request could not be updated.");
       if (action === "confirmIdentity" && body.player && body.magicLink && body.approvalMessage) setPreparedAccess({ requestId: request.id, username: body.player.username ?? request.canonicalUsername, playerId: body.player.playerId, accessCode: body.accessCode, magicLink: body.magicLink, approvalMessage: body.approvalMessage, expiresAt: body.magicAccessExpiresAt, emailDelivery: body.accessEmailDelivery, deviceDelivery: body.deviceDelivery });
+      invalidateFounderDirectoryClientCache();
       await loadPlayers();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Founding Access request could not be updated."); }
     finally { setBusyPlayer(null); }
@@ -155,6 +179,7 @@ export default function FoundingBetaPlayersAdmin() {
       const body = await response.json() as ApiResult;
       if (!response.ok || !body.ok || !body.magicLink || !body.approvalMessage) throw new Error(body.error ?? "A fresh access link could not be prepared.");
       setPreparedAccess({ requestId: request.id, username: request.canonicalUsername, playerId: request.chessPlayerId, magicLink: body.magicLink, approvalMessage: body.approvalMessage, expiresAt: body.magicAccessExpiresAt, emailDelivery: request.accessEmailDelivery });
+      invalidateFounderDirectoryClientCache();
       await loadPlayers();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "A fresh access link could not be prepared."); }
     finally { setBusyPlayer(null); }
@@ -171,7 +196,7 @@ export default function FoundingBetaPlayersAdmin() {
     <FounderBetaRequestAlerts />
 
     <section className="desk-section pending-beta-requests">
-      <div className="founder-directory-heading"><div><p className="kicker">NEW / PENDING REQUESTS · {pending.length}</p><h2>Identity review and access requests.</h2><p>New Founding Access requests stay first. Confirm Identity upgrades the same stable account for official public participation; Revoke Access blocks a mistaken provisional identity.</p></div><button className="button button-quiet" type="button" onClick={loadPlayers} disabled={loading}><RefreshCcw size={15}/> Refresh</button></div>
+      <div className="founder-directory-heading"><div><p className="kicker">NEW / PENDING REQUESTS · {pending.length}</p><h2>Identity review and access requests.</h2><p>New Founding Access requests stay first. Confirm Identity upgrades the same stable account for official public participation; Revoke Access blocks a mistaken provisional identity.</p></div><button className="button button-quiet" type="button" onClick={()=>{invalidateFounderDirectoryClientCache();void loadPlayers();}} disabled={loading}><RefreshCcw size={15}/> Refresh</button></div>
       {loading ? <div className="founder-directory-loading"><LoaderCircle className="button-spinner"/> Loading requests</div> : pending.length ? <div className="pending-request-grid">{pending.map((request) => <RequestCard key={request.id} request={request} busy={busyPlayer === request.id} onConfirm={() => decideRequest(request, "confirmIdentity")} onRevoke={() => decideRequest(request, "revokeIdentity")} onRecovery={() => regenerate(request)} />)}</div> : <div className="universe-empty"><p>No new Founding Access requests.</p></div>}
     </section>
 

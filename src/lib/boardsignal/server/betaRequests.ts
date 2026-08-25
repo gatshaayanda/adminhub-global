@@ -15,7 +15,7 @@ import {
   notifyFounderOfBetaRequest,
   verifyBetaPreviewStatusCredential,
 } from "./activation";
-import { createFoundingBetaAccessForIdentity, loadExistingFoundingBetaAccess } from "./betaAccess";
+import { createFoundingBetaAccessForIdentity, loadExistingFoundingBetaAccess, refreshFounderDirectoryRequest } from "./betaAccess";
 import { ensureStablePlayerAccount } from "./persistence";
 import { ensureSafePublicCoverageForAccount } from "./publicCoverageRepair";
 import { deliverFoundingBetaIdentityConfirmation } from "./foundingBetaIdentityConfirmation";
@@ -226,6 +226,7 @@ export async function submitFoundingBetaRequest(input: {
   };
   await ref.set({ founderAlertRequest, ...(founderAlert.delivered > 0 ? { founderAlertSentAt: founderAlertAttemptedAt } : {}) }, { merge: true }).catch(() => undefined);
   const finalRecord = { ...record, founderAlertRequest, previewSnapshot: generated.preview, previewGeneratedAt: generated.preview?.generatedAt, previewError: generated.previewError };
+  await refreshFounderDirectoryRequest(id).catch(() => undefined);
   return { request: finalRecord, statusToken: credential.token, preview: generated.preview, previewError: generated.previewError };
 }
 
@@ -269,6 +270,7 @@ export async function updateFoundingBetaReturnPreference(input: { requestId: str
     throw Object.assign(new Error("Use Notify this device to enable device alerts."), { status: 400, code: "PREVIEW_DEVICE_ACTION_REQUIRED" });
   }
   const refreshed = await verified.ref.get();
+  await refreshFounderDirectoryRequest(input.requestId).catch(() => undefined);
   return refreshed.data() as FoundingBetaRequest;
 }
 
@@ -283,6 +285,7 @@ export async function rememberFoundingBetaApprovalDevice(input: { requestId: str
   // Provisional claim may retire the Preview activationDevice, but this copy
   // remains until the player changes away from Device or delivery completes.
   await verified.ref.set(clean({ approvalAlertDevice: request.activationDevice }), { merge: true });
+  await refreshFounderDirectoryRequest(input.requestId).catch(() => undefined);
   return { ...request, approvalAlertDevice: request.activationDevice };
 }
 

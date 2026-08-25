@@ -305,13 +305,21 @@ export async function loadActiveUniverseState(now = new Date()): Promise<ActiveU
       logFirestoreReadBudget({ operation: "materialized_universe_read", durationMs: Date.now() - started, materialized: "hit", resultSize: state.officialPlayerCount, approxDocumentReads: 1 });
       return state;
     }
-    const bootstrapped = await bootstrapMaterializedUniverse(now);
-    if (bootstrapped) return bootstrapped;
-    throw Object.assign(new Error("The live BoardSignal field is being prepared. Try again shortly."), { status: 503, code: "BOARDSIGNAL_UNIVERSE_BOOTSTRAPPING", retryAfterSeconds: 5 });
+
+    // G.4.2.1 safety lock: an ordinary read must never fan out across the player
+    // population. Missing materialized state is a bounded degraded condition.
+    logFirestoreReadBudget({ operation: "materialized_universe_read", durationMs: Date.now() - started, materialized: "miss", approxDocumentReads: 1 });
+    throw Object.assign(new Error("The live BoardSignal field is temporarily unavailable while its materialized state is repaired."), {
+      status: 503,
+      code: "BOARDSIGNAL_UNIVERSE_STATE_UNAVAILABLE",
+      retryAfterSeconds: 30,
+    });
   } catch (error) {
     const failure = classifyFirestoreServiceError(error);
-    if (failure) noteFirestoreServiceFailure(error);
-    logFirestoreReadBudget({ operation: "materialized_universe_read", durationMs: Date.now() - started, materialized: "miss", approxDocumentReads: 1, failure: failure?.kind });
+    if (failure) {
+      noteFirestoreServiceFailure(error);
+      logFirestoreReadBudget({ operation: "materialized_universe_read", durationMs: Date.now() - started, materialized: "miss", approxDocumentReads: 1, failure: failure.kind });
+    }
     throw error;
   }
 }
@@ -322,7 +330,7 @@ export async function rebuildMaterializedUniverseState(now = new Date(), exclude
   try {
     const db = getAdminDb();
     const [participantsSnapshot, previousSnapshot] = await Promise.all([
-      db.collection("publicUniverseParticipants").get(),
+      db.collection("publicUniverseParticipants").limit(MATERIALIZED_PARTICIPANT_LIMIT).get(),
       stateRef().get(),
     ]);
     const participantDocs = participantsSnapshot.docs
@@ -386,9 +394,9 @@ export async function upsertMaterializedUniverseParticipant(input: {
   const currentSnapshot = await stateRef().get();
   const current = currentSnapshot.exists ? validateMaterializedState(currentSnapshot.data()) : undefined;
   if (current?.bootstrapComplete !== true) {
-    const bootstrapped = await bootstrapMaterializedUniverse(now);
-    if (bootstrapped) return bootstrapped;
-    throw Object.assign(new Error("The live BoardSignal field is being prepared. Try again shortly."), { status: 503, code: "BOARDSIGNAL_UNIVERSE_BOOTSTRAPPING", retryAfterSeconds: 5 });
+    // Write lifecycle may repair state, but only from the bounded materialized
+    // participant collection. It must never fall back to users + retained Reviews.
+    return rebuildMaterializedUniverseState(now);
   }
   return rebuildMaterializedUniverseState(now);
 }

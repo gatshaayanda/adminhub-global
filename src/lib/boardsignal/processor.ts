@@ -1,4 +1,5 @@
 import { Chess } from "chess.js";
+import { chessComOpeningMetadata, classifyOpeningPgn } from "./openingClassification";
 import type { BoardSignalDesk, DeskCandidate, DeskDay, DeskPool, ResolvedPlayer } from "./types";
 import {
   deriveActiveWeekNextGameGuidance,
@@ -194,9 +195,7 @@ function streaks(games: ChessComGame[], username: string) {
 }
 
 function parseOpening(pgn: string) {
-  const match = pgn.match(/^\[ECOUrl "[^"]*\/openings\/([^"]+)"\]$/m);
-  if (!match) return "Unclassified";
-  return match[1].replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return classifyOpeningPgn(pgn)?.name ?? chessComOpeningMetadata(pgn)?.name ?? "Unclassified";
 }
 
 function finalFen(pgn: string) {
@@ -265,6 +264,14 @@ function candidatePositions(game: ChessComGame, username: string): DeskCandidate
     chess.loadPgn(game.pgn);
     const history = chess.history({ verbose: true });
     const playerColorCode = result.color === "white" ? "w" : "b";
+    const opening = classifyOpeningPgn(game.pgn) ?? chessComOpeningMetadata(game.pgn);
+    const playerContext = (index: number) => ({
+      opening,
+      playerContext: {
+        playerQueenMovesBefore: history.slice(0, index).filter((item) => item.color === playerColorCode && item.piece === "q").length,
+        playerMovesBefore: history.slice(0, index).filter((item) => item.color === playerColorCode).length,
+      },
+    });
     const candidates: DeskCandidate[] = [];
 
     history.forEach((move, index) => {
@@ -313,6 +320,7 @@ function candidatePositions(game: ChessComGame, username: string): DeskCandidate
             fenAfter: move.after,
             fen: move.before,
             heuristicScore: positiveScore,
+            ...playerContext(index),
             reconstruction: "legal",
           });
         }
@@ -357,6 +365,7 @@ function candidatePositions(game: ChessComGame, username: string): DeskCandidate
         fenAfter: move.after,
         fen: move.before,
         heuristicScore,
+        ...playerContext(index),
         reconstruction: "legal",
       });
     });
@@ -378,6 +387,11 @@ function candidatePositions(game: ChessComGame, username: string): DeskCandidate
         fenBefore: finalPosition,
         fen: finalPosition,
         heuristicScore: finalKind === "resignation" ? 72 : 66,
+        opening,
+        playerContext: {
+          playerQueenMovesBefore: history.filter((item) => item.color === playerColorCode && item.piece === "q").length,
+          playerMovesBefore: history.filter((item) => item.color === playerColorCode).length,
+        },
         reconstruction: "legal",
       });
     }
@@ -532,6 +546,10 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
   if (!archives.length) throw new Error("This Chess.com account has no public game archives yet.");
 
   const referenceDate = options.referenceDate ?? new Date();
+  // Fair-play boundary: full position-specific understanding and Stockfish are built
+  // only from games that ended before the current UTC day. Current-episode guidance
+  // stays factual/general and never receives this completed-Review engine layer.
+  const completedGameCutoffSeconds = Math.floor(atUtcMidnight(referenceDate).getTime() / 1000) - 1;
   let latest: { start: Date; end: Date };
   let mostRecentCompletedGame: ChessComGame | undefined;
 
@@ -541,7 +559,7 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
   } else if (options.anchorStart) {
     latest = latestCompletedAlignedWeek(options.anchorStart, referenceDate);
   } else {
-    const latestEligibleEndSeconds = Math.floor(atUtcMidnight(referenceDate).getTime() / 1000) - 1;
+    const latestEligibleEndSeconds = completedGameCutoffSeconds;
     for (const archive of [...archives].reverse().slice(0, 24)) {
       const games = await getArchiveGames(archive);
       mostRecentCompletedGame = games
@@ -565,6 +583,7 @@ export async function buildLiveDesk(requestedUsername: string, options: BuildLiv
     const time = game.end_time * 1000;
     return time >= selectedStart.getTime()
       && time < selectedEnd.getTime() + DAY_MS
+      && game.end_time <= completedGameCutoffSeconds
       && (!game.rules || game.rules === "chess");
   });
   const seenGames = new Set<string>();

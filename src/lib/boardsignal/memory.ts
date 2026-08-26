@@ -1,4 +1,4 @@
-import type { BoardSignalDesk, DeskPool } from "./types";
+import type { BoardSignalDesk, ChessUnderstandingConceptId, DeskPool } from "./types";
 
 export type SignalFamilyKey =
   | "passed_pawn_conversion"
@@ -16,6 +16,8 @@ export type SignalFamilyKey =
   | "forcing_reply"
   | "material_conversion"
   | "general_decision";
+
+export type PatternFamilyKey = SignalFamilyKey | ChessUnderstandingConceptId;
 
 export type DeskSignalFamilies = {
   greenFamily?: SignalFamilyKey;
@@ -58,6 +60,7 @@ export type DeskSummary = {
   terminationDistributions?: Array<{ type: string; games: number }>;
   openingFamilies?: Array<{ name: string; games: number }>;
   signalFamilies: DeskSignalFamilies;
+  conceptIds?: ChessUnderstandingConceptId[];
   previousBlue?: { title: string; copy: string };
   previousAmber?: { title: string; copy: string };
 };
@@ -86,7 +89,7 @@ export type ProgressSeries = {
 };
 
 export type RecurringPattern = {
-  family: SignalFamilyKey;
+  family: PatternFamilyKey;
   status: "repeated" | "not-repeated";
   appearances: number;
   desksCompared: number;
@@ -280,6 +283,7 @@ export function toDeskSummary(desk: BoardSignalDesk): DeskSummary {
     terminationDistributions: desk.terminations,
     openingFamilies: desk.openings.filter((opening) => opening.games >= 3),
     signalFamilies: deriveSignalFamilies(desk),
+    conceptIds: desk.understanding?.conceptIds,
     previousBlue: supported(desk.signals.blue) ? { title: desk.signals.blue.title, copy: desk.signals.blue.copy } : undefined,
     previousAmber: supported(desk.signals.amber) ? { title: desk.signals.amber.title, copy: desk.signals.amber.copy } : undefined,
   };
@@ -334,8 +338,9 @@ export function buildPoolProgress(summaries: DeskSummary[], minimumGames = 3): P
   });
 }
 
-function families(summary: DeskSummary) {
-  return Object.values(summary.signalFamilies).filter((family): family is SignalFamilyKey => Boolean(family));
+function families(summary: DeskSummary): PatternFamilyKey[] {
+  const signalFamilies = Object.values(summary.signalFamilies).filter((family): family is SignalFamilyKey => Boolean(family));
+  return [...new Set<PatternFamilyKey>([...signalFamilies, ...(summary.conceptIds ?? [])])];
 }
 
 export function deriveRecurringPatterns(summaries: DeskSummary[]): RecurringPattern[] {

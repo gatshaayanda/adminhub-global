@@ -1,3 +1,50 @@
+export type ChessUnderstandingConceptId =
+  | "piece_safety"
+  | "opponent_forcing_reply"
+  | "king_safety"
+  | "development"
+  | "piece_activity"
+  | "centre_control"
+  | "pawn_structure"
+  | "opening_plan"
+  | "opening_danger";
+
+export type BoardSignalOpeningClassification = {
+  eco?: string;
+  name: string;
+  source: "lichess_cc0" | "chesscom_metadata";
+  sourceVersion?: string;
+  recognizedPly: number;
+};
+
+export type DeskUnderstandingMoment = {
+  candidateId: string;
+  gameId?: string;
+  conceptId: ChessUnderstandingConceptId;
+  status: "supported" | "withheld";
+  confidence: "high" | "medium" | "low";
+  evidenceIds: string[];
+  boardFacts: string[];
+  whatHappened: string;
+  whatYouCouldHaveNoticed: string;
+  whyItMattered: string;
+  chessName?: string;
+  nextGameRule: string;
+  opening?: BoardSignalOpeningClassification;
+};
+
+export type DeskUnderstanding = {
+  version: "boardsignal-understanding-1.0.0";
+  moments: DeskUnderstandingMoment[];
+  conceptIds: ChessUnderstandingConceptId[];
+  humanMoveModel: {
+    adapter: string;
+    available: boolean;
+    factualAuthority: false;
+    boardSignalContinuesWithoutAdapter: true;
+  };
+};
+
 export type DeskSignal = {
   label: string;
   title: string;
@@ -25,6 +72,12 @@ export type DeskCandidate = {
   fenAfter?: string;
   fen?: string;
   heuristicScore?: number;
+  opening?: BoardSignalOpeningClassification;
+  playerContext?: {
+    playerQueenMovesBefore?: number;
+    playerMovesBefore?: number;
+  };
+  understanding?: DeskUnderstandingMoment;
   reconstruction: "legal" | "unavailable";
 };
 
@@ -67,6 +120,19 @@ export type DeskEngineResult = {
   afterMate?: number;
   bestMove?: string;
   bestMoveSan?: string;
+  candidateMoves?: Array<{
+    rank: number;
+    uci: string;
+    san?: string;
+    cp?: number;
+    mate?: number;
+    lineUci?: string[];
+    lineSan?: string[];
+  }>;
+  strongestOpponentReply?: string;
+  strongestOpponentReplySan?: string;
+  forcingLineUci?: string[];
+  forcingLineSan?: string[];
   evaluationLossCp?: number;
   classification?: "major-miss" | "mistake" | "playable-resignation" | "sound-resignation" | "clock-opportunity" | "clock-lost" | "supported";
 };
@@ -264,6 +330,7 @@ export type BoardSignalDesk = {
     blue: DeskSignal;
   };
   candidates: DeskCandidate[];
+  understanding?: DeskUnderstanding;
   caveats: string[];
   returnLoop?: DeskReturnLoop;
 };

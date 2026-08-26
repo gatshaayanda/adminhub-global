@@ -2,10 +2,11 @@ import type {
   DeskSignalFamilies,
   ProgressSeries,
   RecurringPattern,
+  PatternFamilyKey,
   SignalFamilyKey,
   DeskSummary,
 } from "./memory";
-import type { BoardSignalDesk } from "./types";
+import type { BoardSignalDesk, ChessUnderstandingConceptId } from "./types";
 import type { ReviewLifecycle } from "./historyBackfill";
 
 export type ReviewHistoryPool = {
@@ -50,6 +51,7 @@ export type CompletedReviewHistoryItem = {
   medianGameLength?: number;
   blackScorePct?: number;
   signalFamilies: DeskSignalFamilies;
+  conceptIds?: ChessUnderstandingConceptId[];
   green?: ReviewHistorySignal;
   red?: ReviewHistorySignal;
   blue?: ReviewHistorySignal;
@@ -88,6 +90,7 @@ export function liveDeskToReviewHistory(
     medianGameLength: summary.medianGameLength,
     blackScorePct: summary.blackScorePct,
     signalFamilies: summary.signalFamilies,
+    conceptIds: summary.conceptIds,
     green: supported(desk.signals.green) ? { title: desk.signals.green.title, copy: desk.signals.green.copy } : undefined,
     red: supported(desk.signals.red) ? { title: desk.signals.red.title, copy: desk.signals.red.copy } : undefined,
     blue: supported(desk.signals.blue) ? { title: desk.signals.blue.title, copy: desk.signals.blue.copy } : undefined,
@@ -121,8 +124,9 @@ export function buildReviewProgress(history: CompletedReviewHistoryItem[], minim
   });
 }
 
-function families(review: CompletedReviewHistoryItem) {
-  return Object.values(review.signalFamilies).filter((family): family is SignalFamilyKey => Boolean(family));
+function families(review: CompletedReviewHistoryItem): PatternFamilyKey[] {
+  const signalFamilies = Object.values(review.signalFamilies).filter((family): family is SignalFamilyKey => Boolean(family));
+  return [...new Set<PatternFamilyKey>([...signalFamilies, ...(review.conceptIds ?? [])])];
 }
 
 export function deriveRecurringPatternsFromReviewHistory(history: CompletedReviewHistoryItem[]): RecurringPattern[] {

@@ -34,6 +34,8 @@ import type {
 const ENGINE_JS_URL = "/stockfish/stockfish-18-lite-single.js";
 const ENGINE_WASM_URL = "/stockfish/stockfish-18-lite-single.wasm";
 const ENGINE_DEPTH = 11;
+const ENGINE_EDUCATIONAL_MULTIPV = 2;
+const MAX_MULTIPV_CANDIDATES = 3;
 const DESK_CACHE_VERSION = "v1";
 const MAX_AUTO_ENGINE_RECOVERY_PASSES = 1;
 const NON_RETRYABLE_ENGINE_CODES = new Set<EngineDiagnosticCode>(["ENGINE_UNSUPPORTED", "ENGINE_ASSET_404"]);
@@ -287,19 +289,23 @@ export default function UniversalPlayerDesk({
       return;
     }
 
-    type EngineTask = { candidate: DeskCandidate; phase: "before" | "after"; fen: string };
+    type EngineLine = { depth: number; cp?: number; mate?: number; pv?: string[] };
+    type EngineTask = { candidate: DeskCandidate; phase: "before" | "after"; fen: string; multiPv: number };
+    let multiPvCandidates = 0;
     const tasks: EngineTask[] = candidates.flatMap((candidate) => {
       const before = candidate.fenBefore ?? candidate.fen;
       if (!before) return [];
+      const educational = candidate.role === "correction" && multiPvCandidates < MAX_MULTIPV_CANDIDATES;
+      if (educational) multiPvCandidates += 1;
       return [
-        { candidate, phase: "before" as const, fen: before },
-        ...(candidate.fenAfter ? [{ candidate, phase: "after" as const, fen: candidate.fenAfter }] : []),
+        { candidate, phase: "before" as const, fen: before, multiPv: educational ? ENGINE_EDUCATIONAL_MULTIPV : 1 },
+        ...(candidate.fenAfter ? [{ candidate, phase: "after" as const, fen: candidate.fenAfter, multiPv: 1 }] : []),
       ];
     });
     const partial = new Map<string, DeskEngineResult>();
     let queueIndex = 0;
     let current: EngineTask | undefined;
-    let latest: { depth: number; cp?: number; mate?: number; bestMove?: string } | undefined;
+    let latestLines = new Map<number, EngineLine>();
     let waitingForStop = false;
 
     const clearBootTimer = () => {
@@ -324,7 +330,7 @@ export default function UniversalPlayerDesk({
       );
       const failedResult: DeskEngineResult = {
         id: failedCandidate.id,
-        depth: latest?.depth ?? 0,
+        depth: latestLines.get(1)?.depth ?? 0,
         status: "failed",
         failureReason: item.consumerMessage,
         failureCode: item.code,
@@ -338,7 +344,7 @@ export default function UniversalPlayerDesk({
       }));
       while (queueIndex < tasks.length && tasks[queueIndex].candidate.id === failedCandidate.id) queueIndex += 1;
       current = undefined;
-      latest = undefined;
+      latestLines = new Map();
       waitingForStop = true;
       worker?.postMessage("stop");
       stopTimer = setTimeout(() => {
@@ -356,11 +362,12 @@ export default function UniversalPlayerDesk({
     const beginNext = () => {
       clearTaskTimer();
       current = tasks[queueIndex];
-      latest = current ? { depth: 0 } : undefined;
+      latestLines = new Map();
       if (!current) {
         worker?.terminate();
         return;
       }
+      worker?.postMessage(`setoption name MultiPV value ${current.multiPv}`);
       worker?.postMessage(`position fen ${current.fen}`);
       worker?.postMessage(`go depth ${ENGINE_DEPTH}`);
       taskTimer = setTimeout(failCurrent, 20_000);
@@ -448,25 +455,53 @@ export default function UniversalPlayerDesk({
           beginNext();
           return;
         }
-        if (line.startsWith("info ") && current && latest) {
-          const depth = Number(line.match(/\bdepth (\d+)/)?.[1] ?? latest.depth);
+        if (line.startsWith("info ") && current) {
+          const rank = Number(line.match(/\bmultipv (\d+)/)?.[1] ?? 1);
+          const previousLine = latestLines.get(rank) ?? { depth: 0 };
+          const depth = Number(line.match(/\bdepth (\d+)/)?.[1] ?? previousLine.depth);
           const cpRaw = line.match(/\bscore cp (-?\d+)/)?.[1];
           const mateRaw = line.match(/\bscore mate (-?\d+)/)?.[1];
-          latest = {
-            depth,
-            ...(cpRaw ? { cp: normalized(Number(cpRaw), current.fen, current.candidate.playerColor) } : {}),
-            ...(mateRaw ? { mate: normalized(Number(mateRaw), current.fen, current.candidate.playerColor) } : {}),
-          };
+          const pvRaw = line.match(/\bpv (.+)$/)?.[1];
+          if (cpRaw || mateRaw || pvRaw) {
+            latestLines.set(rank, {
+              depth,
+              ...(cpRaw ? { cp: normalized(Number(cpRaw), current.fen, current.candidate.playerColor) } : previousLine.cp !== undefined ? { cp: previousLine.cp } : {}),
+              ...(mateRaw ? { mate: normalized(Number(mateRaw), current.fen, current.candidate.playerColor) } : previousLine.mate !== undefined ? { mate: previousLine.mate } : {}),
+              ...(pvRaw ? { pv: pvRaw.trim().split(/\s+/).slice(0, 4) } : previousLine.pv ? { pv: previousLine.pv } : {}),
+            });
+          }
         }
-        if (line.startsWith("bestmove") && current && latest) {
+        if (line.startsWith("bestmove") && current) {
           clearTaskTimer();
           const completedTask = current;
-          const completedLatest = latest;
+          const completedLatest = latestLines.get(1) ?? { depth: 0 };
           const bestMove = line.match(/^bestmove\s+(\S+)/)?.[1];
           const previous = partial.get(completedTask.candidate.id) ?? { id: completedTask.candidate.id, depth: 0 };
+          const candidateMoves = [...latestLines.entries()]
+            .sort(([a], [b]) => a - b)
+            .slice(0, completedTask.multiPv)
+            .flatMap(([rank, item]) => {
+              const uci = item.pv?.[0] ?? (rank === 1 ? bestMove : undefined);
+              return uci ? [{ rank, uci, cp: item.cp, mate: item.mate, lineUci: item.pv }] : [];
+            });
+          const strongestOpponentReply = completedLatest.pv?.[0] ?? bestMove;
           const next: DeskEngineResult = completedTask.phase === "before"
-            ? { ...previous, depth: Math.max(previous.depth, completedLatest.depth), beforeCp: completedLatest.cp, beforeMate: completedLatest.mate, bestMove }
-            : { ...previous, depth: Math.max(previous.depth, completedLatest.depth), afterCp: completedLatest.cp, afterMate: completedLatest.mate };
+            ? {
+                ...previous,
+                depth: Math.max(previous.depth, completedLatest.depth),
+                beforeCp: completedLatest.cp,
+                beforeMate: completedLatest.mate,
+                bestMove,
+                candidateMoves,
+              }
+            : {
+                ...previous,
+                depth: Math.max(previous.depth, completedLatest.depth),
+                afterCp: completedLatest.cp,
+                afterMate: completedLatest.mate,
+                strongestOpponentReply,
+                forcingLineUci: completedLatest.pv,
+              };
           partial.set(completedTask.candidate.id, next);
           const needsAfter = Boolean(completedTask.candidate.fenAfter);
           if (completedTask.phase === "after" || !needsAfter) {
@@ -1045,10 +1080,20 @@ function EvidenceCard({ candidate, engine, supports = [] }: { candidate: DeskCan
   const swing = engine?.status === "failed" ? engine.failureReason ?? "Position review failed" : engine?.evaluationLossCp !== undefined && engine.evaluationLossCp >= 100
     ? `${(engine.evaluationLossCp / 100).toFixed(2)} evaluation swing`
     : engine?.bestMoveSan ? `Stronger: ${engine.bestMoveSan}` : "Reviewed position";
+  const lesson = candidate.understanding?.status === "supported" ? candidate.understanding : undefined;
+  const alternatives = engine?.candidateMoves?.filter((item) => item.san).slice(0, 3) ?? [];
   return <article id={supports.length ? `review-evidence-${candidate.id}` : undefined} className={supports.length ? "g3-linked-evidence-card" : undefined}>
     {supports.length ? <div className="g3-evidence-supports" aria-label="Supported Review conclusions">{supports.map((support) => <span key={support.signal}>SUPPORTS · {support.label}</span>)}</div> : null}
     <div className="evidence-eval"><span>{gameLabel}</span><strong>{value}</strong></div>
     <div><p>{candidate.reason} · {candidate.playerColor}</p>{candidate.opponent ? <h3>vs {candidate.opponent}</h3> : null}<p>{swing}</p></div>
+    {lesson ? <div className="g3-disclosure-body" aria-label="Chess understanding">
+      <p className="kicker">WHAT HAPPENED</p><p>{lesson.whatHappened}</p>
+      <p className="kicker">WHAT YOU COULD HAVE NOTICED</p><p>{lesson.whatYouCouldHaveNoticed}</p>
+      <p className="kicker">WHY IT MATTERED</p><p>{lesson.whyItMattered}</p>
+      {lesson.chessName ? <><p className="kicker">CHESS NAME</p><p>{lesson.chessName}</p></> : null}
+      <p className="kicker">NEXT-GAME RULE</p><p><strong>{lesson.nextGameRule}</strong></p>
+      {alternatives.length > 1 ? <small>Other engine-supported candidate moves: {alternatives.map((item) => item.san).join(" · ")}</small> : null}
+    </div> : null}
     <a href={candidate.gameUrl} target="_blank" rel="noreferrer" className="button button-outline">Open game <ExternalLink size={15} /></a>
   </article>;
 }

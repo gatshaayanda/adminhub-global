@@ -78,6 +78,21 @@ export function validateDeskForPublication(
     if ((desk.candidates.length && reviewed.length === 0) || ((desk.validation?.engineFailed ?? 0) > 0 && (desk.validation?.engineSucceeded ?? 0) === 0)) codes.push("ENGINE_REVIEW_UNAVAILABLE");
     if (/reviewing|preparing/i.test(`${desk.signals.red.label} ${desk.signals.blue.label}`)) codes.push("SIGNALS_NOT_FINAL");
 
+    const understandingRequired = desk.validation?.rulesVersion === "boardsignal-rules-1.2.0";
+    if (understandingRequired && !desk.understanding) codes.push("UNDERSTANDING_LAYER_MISSING");
+    if (desk.understanding) {
+      const supportedMoments = desk.understanding.moments.filter((moment) => moment.status === "supported");
+      for (const moment of supportedMoments) {
+        const candidate = desk.candidates.find((item) => item.id === moment.candidateId);
+        const result = engineResults[moment.candidateId];
+        if (!candidate || candidate.reconstruction !== "legal" || !result || result.status === "failed") codes.push("UNDERSTANDING_EVIDENCE_INVALID");
+        if (!moment.boardFacts.length || !moment.evidenceIds.includes(moment.candidateId)) codes.push("UNDERSTANDING_BOARD_FACTS_MISSING");
+        if (!moment.whatHappened.trim() || !moment.whatYouCouldHaveNoticed.trim() || !moment.whyItMattered.trim() || !moment.nextGameRule.trim()) codes.push("UNDERSTANDING_PLAIN_LANGUAGE_INCOMPLETE");
+        if (/you failed to calculate/i.test(`${moment.whatHappened} ${moment.whatYouCouldHaveNoticed} ${moment.whyItMattered}`)) codes.push("UNDERSTANDING_PSYCHOLOGY_CLAIM");
+        if ((moment.conceptId === "opening_plan" || moment.conceptId === "opening_danger") && moment.boardFacts.every((fact) => /^opening metadata:/i.test(fact))) codes.push("OPENING_NAME_USED_AS_CAUSAL_EVIDENCE");
+      }
+    }
+
     const redSupported = desk.signals.red.status !== "withheld";
     const blueSupported = desk.signals.blue.status !== "withheld";
     if (redSupported !== blueSupported) codes.push("RED_BLUE_SUPPORT_MISMATCH");

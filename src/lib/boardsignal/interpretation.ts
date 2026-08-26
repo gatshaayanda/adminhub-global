@@ -1,4 +1,5 @@
 import { Chess } from "chess.js";
+import { buildDeskUnderstanding } from "./chessUnderstanding";
 import type {
   BoardSignalDesk,
   DeskCandidate,
@@ -8,7 +9,7 @@ import type {
   DeskWeekShape,
 } from "./types";
 
-const RULES_VERSION = "boardsignal-rules-1.1.0";
+const RULES_VERSION = "boardsignal-rules-1.2.0";
 const MIN_REPEATED_EVIDENCE = 2;
 
 function score(cp?: number, mate?: number) {
@@ -21,6 +22,22 @@ export function moveToSan(fen: string | undefined, uci: string | undefined) {
   try {
     const chess = new Chess(fen);
     return chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] })?.san;
+  } catch {
+    return undefined;
+  }
+}
+
+function lineToSan(fen: string | undefined, moves: string[] | undefined) {
+  if (!fen || !moves?.length) return undefined;
+  try {
+    const chess = new Chess(fen);
+    const output: string[] = [];
+    for (const move of moves.slice(0, 4)) {
+      const played = chess.move({ from: move.slice(0, 2), to: move.slice(2, 4), promotion: move[4] });
+      if (!played) break;
+      output.push(played.san);
+    }
+    return output.length ? output : undefined;
   } catch {
     return undefined;
   }
@@ -52,6 +69,14 @@ export function finalizeEngineResult(
     ...result,
     status: "complete",
     bestMoveSan: result.bestMoveSan ?? moveToSan(candidate.fenBefore ?? candidate.fen, result.bestMove),
+    candidateMoves: result.candidateMoves?.map((item) => ({
+      ...item,
+      san: item.san ?? moveToSan(candidate.fenBefore ?? candidate.fen, item.uci),
+      lineSan: item.lineSan ?? lineToSan(candidate.fenBefore ?? candidate.fen, item.lineUci),
+    })),
+    strongestOpponentReplySan: result.strongestOpponentReplySan
+      ?? moveToSan(candidate.fenAfter, result.strongestOpponentReply),
+    forcingLineSan: result.forcingLineSan ?? lineToSan(candidate.fenAfter, result.forcingLineUci),
     evaluationLossCp,
     classification,
   };
@@ -195,15 +220,21 @@ function evidenceReason(candidate: DeskCandidate, result: DeskEngineResult) {
 
 function redAndBlue(
   reviewed: Array<{ candidate: DeskCandidate; result: DeskEngineResult }>,
+  understanding?: BoardSignalDesk["understanding"],
 ) {
   const supported = reviewed.filter(({ candidate, result }) => supportedEvidence(candidate, result));
+  const supportedMoments = new Map(
+    (understanding?.moments ?? [])
+      .filter((item) => item.status === "supported")
+      .map((item) => [item.candidateId, item] as const),
+  );
   const groups = new Map<string, Array<{ candidate: DeskCandidate; result: DeskEngineResult }>>();
   for (const item of supported) {
     const key = item.result.classification === "playable-resignation"
       ? "resignation"
       : item.result.classification === "clock-opportunity"
         ? "clock"
-        : item.candidate.motif ?? "general";
+        : supportedMoments.get(item.candidate.id)?.conceptId ?? item.candidate.motif ?? "general";
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
 
@@ -235,6 +266,25 @@ function redAndBlue(
   const { key, items, games: count } = selected;
   const first = items[0];
   const evidenceIds = items.map(({ candidate }) => candidate.id);
+  const firstMoment = supportedMoments.get(first.candidate.id);
+  if (firstMoment) {
+    return {
+      red: recordSignal(
+        "Red · Fix first",
+        `${count} reviewed games repeated the same decision problem.`,
+        `${firstMoment.whatHappened} ${firstMoment.whyItMattered}`,
+        "supported",
+        evidenceIds,
+      ),
+      blue: recordSignal(
+        "Blue · Carry with you",
+        firstMoment.nextGameRule,
+        firstMoment.whatYouCouldHaveNoticed,
+        "supported",
+        evidenceIds,
+      ),
+    };
+  }
   if (key === "resignation") {
     return {
       red: recordSignal("Red · Fix first", `${count} reviewed resignations ended while the position remained playable.`, "The engine evidence—not the termination count—supports one more scan before leaving the board.", "supported", evidenceIds),
@@ -369,14 +419,20 @@ export function applyEngineInterpretation(
   const reviewed = attempted.filter(({ result }) => result.status !== "failed");
   if (!finished) return { desk, complete: false, reviewed: attempted.length, total: desk.candidates.length };
 
-  const { red, blue } = redAndBlue(reviewed);
+  const understanding = buildDeskUnderstanding(desk, reviewed);
+  const { red, blue } = redAndBlue(reviewed, understanding);
   const replay = buildReplay(desk);
   const candidates = desk.candidates
     .map((candidate) => {
       const result = results[candidate.id];
+      const educational = understanding.moments.find((item) => item.candidateId === candidate.id);
       return result && result.status !== "failed"
-        ? { ...candidate, reason: evidenceReason(candidate, result) }
-        : candidate;
+        ? {
+            ...candidate,
+            reason: educational?.status === "supported" ? educational.whatHappened : evidenceReason(candidate, result),
+            understanding: educational,
+          }
+        : { ...candidate, understanding: educational };
     })
     .sort((a, b) => Number(b.role === "strength") - Number(a.role === "strength") || (results[b.id]?.evaluationLossCp ?? 0) - (results[a.id]?.evaluationLossCp ?? 0))
     .slice(0, 8);
@@ -400,6 +456,7 @@ export function applyEngineInterpretation(
         blue,
       },
       candidates,
+      understanding,
       caveats: [
         ...desk.caveats,
         ...(failed ? [`Stockfish completed ${reviewed.length} of ${attempted.length} selected position reviews; ${failed} remained visible but were excluded from every diagnosis.`] : []),

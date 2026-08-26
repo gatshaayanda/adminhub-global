@@ -44,6 +44,7 @@ import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
 import DeskReturnChannelPrompt from "@/components/DeskReturnChannelPrompt";
 import LiveDataUnavailablePlayerRoom from "@/components/LiveDataUnavailablePlayerRoom";
 import { PlayerRoomRefreshGate, isLiveDataUnavailableResponse } from "@/lib/boardsignal/client/playerRoomRefreshGate";
+import { BOARDSIGNAL_SUPPORT_DISCORD_URL, FIRESTORE_QUOTA_EXHAUSTED_CODE, firestoreQuotaBlocked, markFirestoreQuotaExhausted, noteFirestoreQuotaResponse } from "@/lib/boardsignal/client/firestoreQuota";
 
 type DeskBundle = { desk: BoardSignalDesk; engineResults: Record<string, DeskEngineResult>; summary: DeskSummary };
 type Snapshot = {
@@ -84,6 +85,7 @@ export default function BoardSignalPlayerRoom() {
   const [offlineSnapshot, setOfflineSnapshot] = useState<OfflinePlayerRoomSnapshot | null>(null);
   // null = normal live/offline routing; undefined = live service unavailable with no saved snapshot.
   const [liveDataUnavailableSnapshot, setLiveDataUnavailableSnapshot] = useState<OfflinePlayerRoomSnapshot | undefined | null>(null);
+  const [liveDataUnavailableCode, setLiveDataUnavailableCode] = useState<string>();
   const [offlineReadyNotice, setOfflineReadyNotice] = useState(false);
   const activeUidRef = useRef<string | undefined>(undefined);
   const reconnectRefreshRef = useRef(false);
@@ -99,13 +101,22 @@ export default function BoardSignalPlayerRoom() {
       if (!quiet) setLoading(true);
       setError("");
       try {
+        if (firestoreQuotaBlocked()) {
+          const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
+          setLiveDataUnavailableCode(FIRESTORE_QUOTA_EXHAUSTED_CODE);
+          setLiveDataUnavailableSnapshot(saved);
+          setOfflineSnapshot(null);
+          return false;
+        }
         const idToken = await activeUser.getIdToken();
         setToken(idToken);
         const response = await fetch("/api/boardsignal/player-room", { headers: { Authorization: `Bearer ${idToken}` }, cache: "no-store" });
         const body = await response.json() as { ok: boolean; snapshot?: Snapshot; error?: string; code?: string };
         if (!response.ok || !body.ok || !body.snapshot) {
           if (typeof navigator !== "undefined" && navigator.onLine && isLiveDataUnavailableResponse(response.status, body.code)) {
+            noteFirestoreQuotaResponse(response.status, body.code, response.headers.get("Retry-After"));
             const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
+            setLiveDataUnavailableCode(body.code);
             setLiveDataUnavailableSnapshot(saved);
             setOfflineSnapshot(null);
             setError("");
@@ -116,6 +127,7 @@ export default function BoardSignalPlayerRoom() {
         setSnapshot(body.snapshot);
         setOfflineSnapshot(null);
         setLiveDataUnavailableSnapshot(null);
+        setLiveDataUnavailableCode(undefined);
         void savePlayerRoomOfflineSnapshot(activeUser.uid, body.snapshot).then(({ firstReady }) => {
           window.dispatchEvent(new CustomEvent("boardsignal:offline-saved"));
           if (body.snapshot?.desks?.length) markBoardSignalPwaEngaged();
@@ -166,7 +178,7 @@ export default function BoardSignalPlayerRoom() {
     setUser(activeUser);
     setAuthReady(true);
     if (activeUser) void loadRoom(activeUser).catch((reason) => { setError(reason instanceof Error ? reason.message : "My BoardSignal could not be loaded."); setLoading(false); });
-    else { setSnapshot(null); setOfflineSnapshot(null); setLiveDataUnavailableSnapshot(null); setToken(""); setLoading(false); }
+    else { setSnapshot(null); setOfflineSnapshot(null); setLiveDataUnavailableSnapshot(null); setLiveDataUnavailableCode(undefined); setToken(""); setLoading(false); }
   }), [loadRoom]);
 
   useEffect(() => {
@@ -357,7 +369,8 @@ export default function BoardSignalPlayerRoom() {
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ action: "publishDesk", desk, engineResults }),
     });
-    const body = await response.json() as { ok: boolean; error?: string };
+    const body = await response.json() as { ok: boolean; error?: string; code?: string };
+    if (noteFirestoreQuotaResponse(response.status, body.code, response.headers.get("Retry-After"))) markFirestoreQuotaExhausted(response.headers.get("Retry-After"));
     if (!response.ok || !body.ok) throw new Error(body.error ?? "The completed review could not be saved.");
     publishedDeskKeyThisSessionRef.current = deskKeyFor(desk);
     window.dispatchEvent(new CustomEvent("boardsignal:review-published", {
@@ -404,7 +417,7 @@ export default function BoardSignalPlayerRoom() {
       <UsernameDeskForm />
     </div>
   );
-  if (liveDataUnavailableSnapshot !== null && user) return <LiveDataUnavailablePlayerRoom initialSnapshot={liveDataUnavailableSnapshot} onRetry={() => loadRoom(user, false)} />;
+  if (liveDataUnavailableSnapshot !== null && user) return <LiveDataUnavailablePlayerRoom initialSnapshot={liveDataUnavailableSnapshot} reasonCode={liveDataUnavailableCode} onRetry={() => loadRoom(user, false)} />;
   if (offlineSnapshot && user) return <OfflinePlayerRoom uid={user.uid} initialSnapshot={offlineSnapshot} embedded />;
   if (error || !snapshot) return <RoomError error={error || "My BoardSignal could not be loaded."} />;
   if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;
@@ -438,7 +451,7 @@ export default function BoardSignalPlayerRoom() {
       {tab === "universe" ? <section id="player-room-panel-universe" role="tabpanel" aria-labelledby="player-room-tab-universe" className="g3-room-panel"><div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div></section> : null}
       {tab === "friends" ? <section id="player-room-panel-friends" role="tabpanel" aria-labelledby="player-room-tab-friends" className="g3-room-panel"><div className="container player-room-memory"><PlayerFriends uid={user.uid} token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div></section> : null}
       {tab === "inbox" ? <section id="player-room-panel-inbox" role="tabpanel" aria-labelledby="player-room-tab-inbox" className="g3-room-panel"><div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div></section> : null}
-      {tab === "profile" ? <section id="player-room-panel-profile" role="tabpanel" aria-labelledby="player-room-tab-profile" className="g3-room-panel"><div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} uid={user.uid} token={token} onSaved={async () => { if (user) await loadRoom(user, true); }} onSignOut={signOutPlayer} /></div></section> : null}
+      {tab === "profile" ? <section id="player-room-panel-profile" role="tabpanel" aria-labelledby="player-room-tab-profile" className="g3-room-panel"><div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} uid={user.uid} token={token} onSaved={async () => { if (user) await loadRoom(user, true); }} onSignOut={signOutPlayer} /><div className="founding-field-note"><ShieldCheck size={18}/><div><strong>Talk to the founder</strong><p>Questions, feedback or something not working? Join the BoardSignal Discord and talk directly with the founder.</p><a className="button button-quiet" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener">Open BoardSignal Discord</a></div></div></div></section> : null}
     </div>
   );
 }

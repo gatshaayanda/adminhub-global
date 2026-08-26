@@ -179,4 +179,6 @@ Termination counts, streaks, volume, rating movement, openings, and opponent ban
 - `CURRENT EPISODE — DESK FORMING` is separate factual state. It may show public-game progress but never mutates a completed Desk, assigns daily Red/Amber/Blue, or runs the full Stockfish diagnosis on every login.
 - The previous supported Blue may carry forward as ungraded advice; the previous supported Amber may remain awareness. Previous Red does not nag.
 - Notification event hooks and preferences may exist before delivery. This phase sends no email or browser push.
+- Daily Firestore quota exhaustion is a live-data service state, not an internet-offline state. When the free allowance is exhausted, BoardSignal pauses background Firestore work, keeps UID-scoped saved Reviews read-only, explains that live data returns after the next daily reset around midnight Pacific time, and must not loop retries against an exhausted quota.
+- Player-facing support includes a permanent BoardSignal Discord invitation so a player can contact the founder from Profile and from quota/service-unavailable recovery UI.
 - Founding Beta credential records are server-only. Repeated failures cause a temporary lockout; founder create/reset reveals a cryptographically random code once, and revoke prevents further Beta Access sign-in without changing the stable player identity.

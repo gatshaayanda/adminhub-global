@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { RefreshCcw, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MessageCircle, RefreshCcw, ShieldCheck } from "lucide-react";
 import UniversalPlayerDesk from "@/components/UniversalPlayerDesk";
 import type { OfflinePlayerRoomSnapshot } from "@/lib/boardsignal/offline/types";
+import {
+  BOARDSIGNAL_SUPPORT_DISCORD_URL,
+  FIRESTORE_QUOTA_EXHAUSTED_CODE,
+  firestoreQuotaBlockedUntil,
+  quotaResetLocalLabel,
+} from "@/lib/boardsignal/client/firestoreQuota";
 
 function savedLabel(value: string) {
   try {
@@ -13,33 +19,55 @@ function savedLabel(value: string) {
   }
 }
 
+function FounderHelp() {
+  return <a className="button button-quiet" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener">
+    <MessageCircle size={15} /> Talk to the founder on Discord
+  </a>;
+}
+
 export default function LiveDataUnavailablePlayerRoom({
   initialSnapshot,
   onRetry,
+  reasonCode,
 }: {
   initialSnapshot?: OfflinePlayerRoomSnapshot;
   onRetry: () => Promise<boolean | void>;
+  reasonCode?: string;
 }) {
   const [retrying, setRetrying] = useState(false);
   const latest = initialSnapshot?.desks?.[0];
+  const quotaExhausted = reasonCode === FIRESTORE_QUOTA_EXHAUSTED_CODE;
+  const quotaUntil = quotaExhausted ? firestoreQuotaBlockedUntil() : undefined;
+  const resetLabel = quotaResetLocalLabel(quotaUntil);
 
   const retry = async () => {
-    if (retrying) return;
+    if (retrying || (quotaExhausted && firestoreQuotaBlockedUntil())) return;
     setRetrying(true);
     try { await onRetry(); }
     finally { setRetrying(false); }
   };
 
+  useEffect(() => {
+    if (!quotaExhausted || !quotaUntil) return;
+    const delay = Math.max(1000, quotaUntil - Date.now() + 1000);
+    const timer = window.setTimeout(() => { void onRetry(); }, Math.min(delay, 2_147_000_000));
+    return () => window.clearTimeout(timer);
+  }, [onRetry, quotaExhausted, quotaUntil]);
+
   if (!initialSnapshot) {
     return <div id="main" className="desk-processing-page">
       <section className="container desk-processing-card error-card" role="status">
         <ShieldCheck />
-        <p className="kicker">LIVE DATA UNAVAILABLE</p>
-        <h1>BoardSignal is online, but live account data is temporarily unavailable.</h1>
-        <p>No saved My BoardSignal snapshot is available on this device yet. Your account has not been presented as offline and BoardSignal is not fabricating live data.</p>
-        <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
+        <p className="kicker">{quotaExhausted ? "DAILY LIVE-DATA LIMIT REACHED" : "LIVE DATA UNAVAILABLE"}</p>
+        <h1>{quotaExhausted
+          ? "BoardSignal has used today's free live-data allowance."
+          : "BoardSignal is online, but live account data is temporarily unavailable."}</h1>
+        <p>{quotaExhausted
+          ? `This Founding Beta currently uses Firestore's free daily allowance. Live account data, new Review generation, Universe movement, messages and account changes will return after the daily reset around midnight Pacific time — approximately ${resetLabel} for you. Nothing has been deleted.`
+          : "No saved My BoardSignal snapshot is available on this device yet. Your account has not been presented as offline and BoardSignal is not fabricating live data."}</p>
+        {quotaExhausted ? <FounderHelp /> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
           <RefreshCcw size={15} /> {retrying ? "Retrying…" : "Retry live data"}
-        </button>
+        </button>}
       </section>
     </div>;
   }
@@ -50,7 +78,9 @@ export default function LiveDataUnavailablePlayerRoom({
       <div>
         <span>MY BOARDSIGNAL · SAVED</span>
         <h1>{initialSnapshot.canonicalUsername}</h1>
-        <p><ShieldCheck size={14} /> Live BoardSignal data is temporarily unavailable. Showing your saved BoardSignal from {savedLabel(initialSnapshot.lastSyncedAt)}.</p>
+        <p><ShieldCheck size={14} /> {quotaExhausted
+          ? `Today's free live-data allowance has been used. Your saved BoardSignal remains available. Live updates are expected back around ${resetLabel}.`
+          : `Live BoardSignal data is temporarily unavailable. Showing your saved BoardSignal from ${savedLabel(initialSnapshot.lastSyncedAt)}.`}</p>
       </div>
     </header>
     <div
@@ -58,13 +88,15 @@ export default function LiveDataUnavailablePlayerRoom({
       role="status"
       style={{ background: "var(--bs-surface-dark)", color: "var(--bs-text-on-dark)" }}
     >
-      <strong style={{ color: "var(--bs-text-on-dark)" }}>LIVE DATA UNAVAILABLE · SAVED</strong>
-      <span style={{ color: "var(--bs-text-on-dark)" }}>New games, Pulse movement, messages and account changes may not be current after {savedLabel(initialSnapshot.lastSyncedAt)}. Saved content is read-only until live data returns.</span>
+      <strong style={{ color: "var(--bs-text-on-dark)" }}>{quotaExhausted ? "DAILY DATA LIMIT · SAVED" : "LIVE DATA UNAVAILABLE · SAVED"}</strong>
+      <span style={{ color: "var(--bs-text-on-dark)" }}>{quotaExhausted
+        ? `Saved Reviews remain read-only and safe on this device. BoardSignal has paused live database work until the free Firestore allowance resets around midnight Pacific time. It will check again automatically after ${resetLabel}.`
+        : `New games, Pulse movement, messages and account changes may not be current after ${savedLabel(initialSnapshot.lastSyncedAt)}. Saved content is read-only until live data returns.`}</span>
     </div>
     <div className="container player-room-memory">
-      <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
+      {quotaExhausted ? <FounderHelp /> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
         <RefreshCcw size={15} /> {retrying ? "Retrying…" : "Retry live data"}
-      </button>
+      </button>}
       {latest ? <div className="founding-field-note"><ShieldCheck size={18}/><div><strong>Latest saved Review</strong><p>{latest.summary.periodLabel}</p></div></div> : <div className="universe-empty"><p>No completed Review was saved on this device yet.</p></div>}
     </div>
     {latest ? <div aria-label="Saved Review read only">

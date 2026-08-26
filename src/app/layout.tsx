@@ -76,6 +76,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${montserrat.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
+        <meta name="trustpilot-one-time-domain-verification-id" content="88f344e5-4f9b-4089-b887-1fb2bdbababb" />
         <script dangerouslySetInnerHTML={{ __html: boardSignalThemeBootstrap }} />
       </head>
       <body suppressHydrationWarning>

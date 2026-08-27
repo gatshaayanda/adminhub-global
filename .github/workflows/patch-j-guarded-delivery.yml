@@ -75,6 +75,14 @@ jobs:
               raise SystemExit(f"PATCH_J_CORE_TEST_UNIVERSE_ANCHOR_MISMATCH count={text.count(old_universe)}")
           text = text.replace(old_universe, new_universe, 1)
 
+          old_profile = '  assert.match(profile, /Founding Access Universe participation = Included/);\n'
+          new_profile = '''  assert.match(profile, /Founding Access public highlights = Included/);
+          assert.match(profile, /privacy: \\{ \\.\\.\\.privacy, publicPlayerPage: true, universeCoverage: true \\}/);
+          '''
+          if text.count(old_profile) != 1:
+              raise SystemExit(f"PATCH_J_CORE_TEST_PROFILE_ANCHOR_MISMATCH count={text.count(old_profile)}")
+          text = text.replace(old_profile, new_profile, 1)
+
           path.write_text(text, encoding="utf-8")
           print("PATCH_J_CORE_COMMUNICATIONS_TESTS_REPAIRED")
           PY

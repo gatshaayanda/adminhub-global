@@ -1,0 +1,56 @@
+name: BoardSignal Patch J CJS diagnostic
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose-cjs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
+      TARGET_BRANCH: boardsignal-v10
+      TRANSFORMER: .patch-j/apply_patch_j.py
+    steps:
+      - name: Checkout guarded staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify baseline and apply Patch J
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          live_sha="$(git rev-parse "origin/$TARGET_BRANCH")"
+          test "$live_sha" = "$BASELINE_SHA" || { echo "PATCH_J_BASELINE_MOVED expected=$BASELINE_SHA actual=$live_sha"; exit 42; }
+          cp "$TRANSFORMER" /tmp/apply_patch_j.py
+          git checkout --detach "$BASELINE_SHA"
+          python3 /tmp/apply_patch_j.py
+          git diff --check
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run CJS and capture exact failure
+        shell: bash
+        run: |
+          set +e
+          node --test tests/boardsignal-*.test.cjs > /tmp/patch-j-cjs.log 2>&1
+          status=$?
+          cat /tmp/patch-j-cjs.log
+          if [ "$status" -ne 0 ]; then
+            mkdir -p .patch-j
+            cp /tmp/patch-j-cjs.log .patch-j/cjs-failure.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f .patch-j/cjs-failure.log
+            git commit -m "Capture Patch J CJS failure diagnostics"
+            git push origin "HEAD:refs/heads/diagnostic/patch-j-cjs-${GITHUB_RUN_ID}"
+            exit "$status"
+          fi

@@ -1,0 +1,55 @@
+name: Patch J baseline build diagnostic
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+jobs:
+  capture-baseline-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout frozen production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "$BASELINE_SHA"
+          npm install --no-audit --no-fund
+      - name: Capture baseline production build
+        shell: bash
+        run: |
+          set +e
+          npm run build > /tmp/baseline-build.log 2>&1
+          status=$?
+          set -e
+          echo "BUILD_EXIT_STATUS=$status" > /tmp/baseline-build-summary.log
+          echo >> /tmp/baseline-build-summary.log
+          echo "===== ERROR MATCHES =====" >> /tmp/baseline-build-summary.log
+          grep -nEi 'error|failed|failure|cannot|invalid|module not found|prerender|export encountered|build failed' /tmp/baseline-build.log | tail -120 >> /tmp/baseline-build-summary.log || true
+          echo >> /tmp/baseline-build-summary.log
+          echo "===== BUILD LOG TAIL =====" >> /tmp/baseline-build-summary.log
+          tail -300 /tmp/baseline-build.log >> /tmp/baseline-build-summary.log
+          cat /tmp/baseline-build-summary.log
+      - name: Persist baseline diagnostic summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/baseline-build-summary.log /tmp/summary.log
+          git reset --hard "$BASELINE_SHA"
+          git clean -fd
+          mkdir -p .patch-j
+          cp /tmp/summary.log .patch-j/baseline-build-summary.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .patch-j/baseline-build-summary.log
+          git commit -m "Record frozen baseline build ${GITHUB_RUN_ID}"
+          git push --force origin "HEAD:refs/heads/diagnostic/patch-j-baseline-build-${GITHUB_RUN_ID}"

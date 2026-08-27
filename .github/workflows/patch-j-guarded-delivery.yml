@@ -1,0 +1,120 @@
+name: BoardSignal Patch J guarded delivery
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boardsignal-patch-j-guarded-delivery
+  cancel-in-progress: false
+
+jobs:
+  validate-and-deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
+      TARGET_BRANCH: boardsignal-v10
+      PATCH_FILE: .patch-j/BOARD_SIGNAL_PATCH_J.patch
+    steps:
+      - name: Checkout guarded staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify immutable baseline and clean checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          live_sha="$(git rev-parse "origin/$TARGET_BRANCH")"
+          test "$live_sha" = "$BASELINE_SHA" || { echo "PATCH_J_BASELINE_MOVED expected=$BASELINE_SHA actual=$live_sha"; exit 42; }
+          test -z "$(git status --porcelain)" || { echo "PATCH_J_STAGING_WORKTREE_NOT_CLEAN"; git status --short; exit 43; }
+          cp "$PATCH_FILE" /tmp/BOARD_SIGNAL_PATCH_J.patch
+          git checkout --detach "$BASELINE_SHA"
+          test "$(git rev-parse HEAD)" = "$BASELINE_SHA"
+          test -z "$(git status --porcelain)" || { echo "PATCH_J_BASELINE_WORKTREE_NOT_CLEAN"; git status --short; exit 44; }
+
+      - name: Apply Patch J and verify exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check /tmp/BOARD_SIGNAL_PATCH_J.patch
+          git apply /tmp/BOARD_SIGNAL_PATCH_J.patch
+          git diff --check
+          cat > /tmp/expected-paths <<'EOF'
+          BOARD_SIGNAL_PRODUCT_CONTRACT.md
+          src/app/api/boardsignal/player-room/route.ts
+          src/app/api/boardsignal/review-journal/route.ts
+          src/app/boardsignal-player-room-g3.css
+          src/app/boardsignal/privacy/page.tsx
+          src/components/BoardSignalPlayerRoom.tsx
+          src/components/OfflinePlayerRoom.tsx
+          src/components/PlayerReviewJournal.tsx
+          src/lib/boardsignal/offline/snapshots.ts
+          src/lib/boardsignal/offline/types.ts
+          src/lib/boardsignal/reviewJournal.ts
+          src/lib/boardsignal/server/accountDeletion.ts
+          src/lib/boardsignal/server/reviewJournal.ts
+          tests/boardsignal-patch-j-review-journal.test.cjs
+          EOF
+          git status --porcelain | cut -c4- | sort > /tmp/actual-paths
+          sort -o /tmp/expected-paths /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths || { echo "PATCH_J_SCOPE_MISMATCH"; exit 45; }
+
+      - name: Install repository dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Patch J focused contract tests
+        run: node --test tests/boardsignal-patch-j-review-journal.test.cjs
+
+      - name: BoardSignal critical regressions
+        run: npm run test:critical
+
+      - name: BoardSignal core tests
+        run: npm run test:core
+
+      - name: BoardSignal CJS regression suite
+        shell: bash
+        run: node --test tests/boardsignal-*.test.cjs
+
+      - name: PWA offline regression
+        run: npm run test:pwa
+
+      - name: Contrast and dark-mode regression
+        run: npm run test:contrast
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Production build
+        run: npm run build
+
+      - name: Recheck live baseline, back up, commit and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          live_sha="$(git rev-parse "origin/$TARGET_BRANCH")"
+          test "$live_sha" = "$BASELINE_SHA" || { echo "PATCH_J_BASELINE_MOVED_BEFORE_PUSH expected=$BASELINE_SHA actual=$live_sha"; exit 46; }
+          git diff --check
+          git status --porcelain | cut -c4- | sort > /tmp/final-paths
+          diff -u /tmp/expected-paths /tmp/final-paths || { echo "PATCH_J_POST_TEST_SCOPE_MISMATCH"; exit 47; }
+          backup_branch="backup/patch-j-${GITHUB_RUN_ID}"
+          git push origin "$BASELINE_SHA:refs/heads/$backup_branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add private Review journal to BoardSignal"
+          final_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          {
+            echo "## Patch J delivered"
+            echo "- Baseline: $BASELINE_SHA"
+            echo "- Backup: $backup_branch"
+            echo "- Final commit: $final_sha"
+          } >> "$GITHUB_STEP_SUMMARY"

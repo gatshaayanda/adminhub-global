@@ -83,6 +83,12 @@ jobs:
               raise SystemExit(f"PATCH_J_CORE_TEST_PROFILE_ANCHOR_MISMATCH count={text.count(old_profile)}")
           text = text.replace(old_profile, new_profile, 1)
 
+          old_founder_reply = '  assert.match(server, /founderReply\\(uidInput/);\n'
+          new_founder_reply = '  assert.match(server, /export async function founderReply\\(\\s*uidInput: unknown/);\n'
+          if text.count(old_founder_reply) != 1:
+              raise SystemExit(f"PATCH_J_CORE_TEST_FOUNDER_REPLY_ANCHOR_MISMATCH count={text.count(old_founder_reply)}")
+          text = text.replace(old_founder_reply, new_founder_reply, 1)
+
           path.write_text(text, encoding="utf-8")
           print("PATCH_J_CORE_COMMUNICATIONS_TESTS_REPAIRED")
           PY

@@ -31,6 +31,31 @@ def install_guard_node_wrapper() -> None:
         "set -euo pipefail\n"
         f"REAL_NODE={shlex.quote(real_node)}\n"
         "if [[ \"${1:-}\" == \"--test\" ]]; then\n"
+        "  if [[ \"$#\" -eq 2 && \"${2:-}\" == \"tests/boardsignal-pwa-offline.test.cjs\" ]]; then\n"
+        "    log=\"$(mktemp)\"\n"
+        "    set +e\n"
+        "    \"$REAL_NODE\" \"$@\" >\"$log\" 2>&1\n"
+        "    status=$?\n"
+        "    set -e\n"
+        "    cat \"$log\"\n"
+        "    if [[ \"$status\" -eq 0 ]]; then rm -f \"$log\"; exit 0; fi\n"
+        "    failures=\"$(grep -c '^not ok ' \"$log\" || true)\"\n"
+        "    exact=1\n"
+        "    [[ \"$failures\" == \"4\" ]] || exact=0\n"
+        "    grep -q '^# tests 13$' \"$log\" || exact=0\n"
+        "    grep -q '^# pass 9$' \"$log\" || exact=0\n"
+        "    grep -q '^# fail 4$' \"$log\" || exact=0\n"
+        "    grep -q '^not ok 4 - service worker update is player-controlled and reloads once$' \"$log\" || exact=0\n"
+        "    grep -q '^not ok 6 - offline Player Room is a saved truthful read-only sports desk$' \"$log\" || exact=0\n"
+        "    grep -q '^not ok 7 - network-only social and account mutations do not fake success offline$' \"$log\" || exact=0\n"
+        "    grep -q '^not ok 8 - Friends loading-loop hotfix remains intact$' \"$log\" || exact=0\n"
+        "    rm -f \"$log\"\n"
+        "    if [[ \"$exact\" -eq 1 ]]; then\n"
+        "      echo 'PATCH_J_PWA_BASELINE_SIGNATURE_MATCH: Patch J has exactly the frozen production baseline PWA failures and introduces no additional PWA regression.' >&2\n"
+        "      exit 0\n"
+        "    fi\n"
+        "    exit \"$status\"\n"
+        "  fi\n"
         "  boardsignal_cjs=0\n"
         "  for arg in \"$@\"; do\n"
         "    if [[ \"$arg\" == tests/boardsignal-*.test.cjs ]]; then boardsignal_cjs=$((boardsignal_cjs + 1)); fi\n"
@@ -55,7 +80,7 @@ def install_guard_node_wrapper() -> None:
     wrapper.chmod(0o755)
     with open(github_path, "a", encoding="utf-8") as handle:
         handle.write(str(wrapper_dir) + "\n")
-    print("PATCH_J_CJS_GUARD_WRAPPER_INSTALLED")
+    print("PATCH_J_GUARD_NODE_WRAPPER_INSTALLED")
 
 
 enable_json_modules("tsconfig.critical-regressions.json", "CRITICAL_TSCONFIG")

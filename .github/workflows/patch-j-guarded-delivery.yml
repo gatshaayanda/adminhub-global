@@ -53,61 +53,62 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}_ANCHOR_MISMATCH count={count}")
+              return text.replace(old, new, 1)
+
           path = Path("tests/boardsignal-communications-onboarding.test.ts")
           text = path.read_text(encoding="utf-8")
-
-          old_identity = '  assert.match(source, /createFoundingBetaAccess\\(request\\.canonicalUsername\\)/);\n'
-          new_identity = '''  assert.match(source, /const identity: StableChessComIdentity = \\{/);
-          assert.match(source, /playerId: request\\.chessPlayerId/);
-          assert.match(source, /canonicalUsername: request\\.canonicalUsername/);
-          assert.match(source, /ensureStablePlayerAccount\\(identity\\)/);
-          assert.match(source, /createFoundingBetaAccessForIdentity\\(identity\\)/);
-          '''
-          if text.count(old_identity) != 1:
-              raise SystemExit(f"PATCH_J_CORE_TEST_IDENTITY_ANCHOR_MISMATCH count={text.count(old_identity)}")
-          text = text.replace(old_identity, new_identity, 1)
-
-          old_universe = '  assert.match(form, /Included with Founding Beta/);\n'
-          new_universe = '''  assert.match(form, /className="beta-universe-disclosure"/);
-          assert.match(form, /SEE YOUR GAMES TOGETHER/);
-          '''
-          if text.count(old_universe) != 1:
-              raise SystemExit(f"PATCH_J_CORE_TEST_UNIVERSE_ANCHOR_MISMATCH count={text.count(old_universe)}")
-          text = text.replace(old_universe, new_universe, 1)
-
-          old_profile = '  assert.match(profile, /Founding Access Universe participation = Included/);\n'
-          new_profile = '''  assert.match(profile, /Founding Access public highlights = Included/);
-          assert.match(profile, /privacy: \\{ \\.\\.\\.privacy, publicPlayerPage: true, universeCoverage: true \\}/);
-          '''
-          if text.count(old_profile) != 1:
-              raise SystemExit(f"PATCH_J_CORE_TEST_PROFILE_ANCHOR_MISMATCH count={text.count(old_profile)}")
-          text = text.replace(old_profile, new_profile, 1)
-
-          old_founder_reply = '  assert.match(server, /founderReply\\(uidInput/);\n'
-          new_founder_reply = '  assert.match(server, /export async function founderReply\\(\\s*uidInput: unknown/);\n'
-          if text.count(old_founder_reply) != 1:
-              raise SystemExit(f"PATCH_J_CORE_TEST_FOUNDER_REPLY_ANCHOR_MISMATCH count={text.count(old_founder_reply)}")
-          text = text.replace(old_founder_reply, new_founder_reply, 1)
-
+          text = replace_once(
+              text,
+              '  assert.match(source, /createFoundingBetaAccess\\(request\\.canonicalUsername\\)/);\n',
+              '  assert.match(source, /const identity: StableChessComIdentity = \\{/);\n  assert.match(source, /playerId: request\\.chessPlayerId/);\n  assert.match(source, /canonicalUsername: request\\.canonicalUsername/);\n  assert.match(source, /ensureStablePlayerAccount\\(identity\\)/);\n  assert.match(source, /createFoundingBetaAccessForIdentity\\(identity\\)/);\n',
+              "PATCH_J_CORE_TEST_IDENTITY",
+          )
+          text = replace_once(
+              text,
+              '  assert.match(form, /Included with Founding Beta/);\n',
+              '  assert.match(form, /className="beta-universe-disclosure"/);\n  assert.match(form, /SEE YOUR GAMES TOGETHER/);\n',
+              "PATCH_J_CORE_TEST_UNIVERSE",
+          )
+          text = replace_once(
+              text,
+              '  assert.match(profile, /Founding Access Universe participation = Included/);\n',
+              '  assert.match(profile, /Founding Access public highlights = Included/);\n  assert.match(profile, /privacy: \\{ \\.\\.\\.privacy, publicPlayerPage: true, universeCoverage: true \\}/);\n',
+              "PATCH_J_CORE_TEST_PROFILE",
+          )
+          text = replace_once(
+              text,
+              '  assert.match(server, /founderReply\\(uidInput/);\n',
+              '  assert.match(server, /export async function founderReply\\(\\s*uidInput: unknown/);\n',
+              "PATCH_J_CORE_TEST_FOUNDER_REPLY",
+          )
           path.write_text(text, encoding="utf-8")
           print("PATCH_J_CORE_COMMUNICATIONS_TESTS_REPAIRED")
 
           patch_h = Path("tests/boardsignal-patch-h.test.ts")
           patch_h_text = patch_h.read_text(encoding="utf-8")
-          old_patch_h = '''  assert.match(coordinator, /state\\?\\.version === REVIEW_HISTORY_BACKFILL_VERSION && state\\.status === "complete"/);
-          assert.match(coordinator, /addReviewDays\\(latestPeriodStart, 14\\) <= todayIso\\(now\\)/);
-          assert.match(coordinator, /activationBaseline:\\s*false/);
-          '''
-          new_patch_h = '''  assert.match(coordinator, /state\\.version !== REVIEW_HISTORY_BACKFILL_VERSION/);
-          assert.match(coordinator, /!sameTargets\\(state\\.targetPeriods, targets\\)/);
-          assert.match(coordinator, /if \\(backfillComplete\\(targets, state\\.evaluated, existingStarts\\)\\)/);
-          assert.match(coordinator, /if \\(leaseIsActive\\(state\\.lease, now\\)\\) return undefined/);
-          assert.match(coordinator, /const target = nextBackfillPeriod\\(targets, state\\.evaluated, existingStarts\\)/);
-          assert.match(coordinator, /activationBaseline: previous\\?\\.activationBaseline \\?\\? false/);
-          '''
-          if patch_h_text.count(old_patch_h) != 1:
-              raise SystemExit(f"PATCH_J_CORE_TEST_PATCH_H_ANCHOR_MISMATCH count={patch_h_text.count(old_patch_h)}")
-          patch_h.write_text(patch_h_text.replace(old_patch_h, new_patch_h, 1), encoding="utf-8")
+          patch_h_text = replace_once(
+              patch_h_text,
+              '  assert.match(coordinator, /state\\?\\.version === REVIEW_HISTORY_BACKFILL_VERSION && state\\.status === "complete"/);\n',
+              '  assert.match(coordinator, /state\\.version !== REVIEW_HISTORY_BACKFILL_VERSION/);\n  assert.match(coordinator, /!sameTargets\\(state\\.targetPeriods, targets\\)/);\n',
+              "PATCH_J_CORE_TEST_PATCH_H_STATE",
+          )
+          patch_h_text = replace_once(
+              patch_h_text,
+              '  assert.match(coordinator, /addReviewDays\\(latestPeriodStart, 14\\) <= todayIso\\(now\\)/);\n',
+              '  assert.match(coordinator, /if \\(backfillComplete\\(targets, state\\.evaluated, existingStarts\\)\\)/);\n  assert.match(coordinator, /if \\(leaseIsActive\\(state\\.lease, now\\)\\) return undefined/);\n  assert.match(coordinator, /const target = nextBackfillPeriod\\(targets, state\\.evaluated, existingStarts\\)/);\n',
+              "PATCH_J_CORE_TEST_PATCH_H_IDEMPOTENCE",
+          )
+          patch_h_text = replace_once(
+              patch_h_text,
+              '  assert.match(coordinator, /activationBaseline:\\s*false/);\n',
+              '  assert.match(coordinator, /activationBaseline: previous\\?\\.activationBaseline \\?\\? false/);\n',
+              "PATCH_J_CORE_TEST_PATCH_H_BASELINE",
+          )
+          patch_h.write_text(patch_h_text, encoding="utf-8")
           print("PATCH_J_CORE_PATCH_H_TEST_REPAIRED")
           PY
           git diff --check

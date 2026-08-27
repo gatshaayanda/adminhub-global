@@ -32,19 +32,19 @@ jobs:
           git diff --check
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Capture PWA result
+      - name: Capture compact PWA failures
         shell: bash
         run: |
           set +e
           npm run test:pwa > /tmp/pwa.log 2>&1
           status=$?
-          tail -n 180 /tmp/pwa.log
           mkdir -p .patch-j
-          tail -n 180 /tmp/pwa.log > .patch-j/pwa-failure-tail.log
-          echo "EXIT=$status" >> .patch-j/pwa-failure-tail.log
+          grep -E '^(not ok|# Subtest:|# tests|# pass|# fail|  location:|  failureType:|  error:|  code:|  operator:)' /tmp/pwa.log > .patch-j/pwa-failure-summary.log || true
+          echo "EXIT=$status" >> .patch-j/pwa-failure-summary.log
+          cat .patch-j/pwa-failure-summary.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f .patch-j/pwa-failure-tail.log
-          git commit -m "Capture Patch J PWA diagnostic"
-          git push origin "HEAD:refs/heads/diagnostic/patch-j-pwa-${GITHUB_RUN_ID}"
+          git add -f .patch-j/pwa-failure-summary.log
+          git commit -m "Capture compact Patch J PWA diagnostics"
+          git push origin "HEAD:refs/heads/diagnostic/patch-j-pwa-summary-${GITHUB_RUN_ID}"
           exit "$status"

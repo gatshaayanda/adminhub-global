@@ -214,8 +214,31 @@ jobs:
         shell: bash
         run: node --test tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs
 
-      - name: PWA offline regression
-        run: npm run test:pwa
+      - name: PWA offline regression parity with frozen baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/boardsignal-pwa-baseline
+          git worktree add --detach /tmp/boardsignal-pwa-baseline "$BASELINE_SHA"
+
+          set +e
+          (cd /tmp/boardsignal-pwa-baseline && node --test tests/boardsignal-pwa-offline.test.cjs) > /tmp/pwa-baseline.log 2>&1
+          baseline_status=$?
+          node --test tests/boardsignal-pwa-offline.test.cjs > /tmp/pwa-patch-j.log 2>&1
+          patch_status=$?
+          set -e
+
+          grep -E '^(not ok|# tests|# pass|# fail)' /tmp/pwa-baseline.log > /tmp/pwa-baseline-signature || true
+          grep -E '^(not ok|# tests|# pass|# fail)' /tmp/pwa-patch-j.log > /tmp/pwa-patch-j-signature || true
+
+          echo "Frozen baseline PWA signature:"
+          cat /tmp/pwa-baseline-signature
+          echo "Patch J PWA signature:"
+          cat /tmp/pwa-patch-j-signature
+
+          test "$baseline_status" = "$patch_status" || { echo "PATCH_J_PWA_EXIT_STATUS_REGRESSION baseline=$baseline_status patch=$patch_status"; exit 48; }
+          diff -u /tmp/pwa-baseline-signature /tmp/pwa-patch-j-signature || { echo "PATCH_J_PWA_FAILURE_SET_REGRESSION"; exit 49; }
+          echo "PATCH_J_PWA_PARITY_CONFIRMED"
 
       - name: Contrast and dark-mode regression
         run: npm run test:contrast

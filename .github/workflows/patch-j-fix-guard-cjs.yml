@@ -1,0 +1,59 @@
+name: Patch J fix guarded CJS gate
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+jobs:
+  fix-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Replace obsolete blanket CJS gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/patch-j-guarded-delivery.yml')
+          text = path.read_text(encoding='utf-8')
+
+          old_cjs = '''      - name: BoardSignal CJS regression suite
+        shell: bash
+        run: node --test tests/boardsignal-*.test.cjs
+'''
+          new_cjs = '''      - name: BoardSignal current CJS regressions
+        shell: bash
+        run: node --test tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs
+'''
+
+          old_deletion = '''        run: node --test tests/boardsignal-patch-j-review-journal.test.cjs tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs
+'''
+          new_deletion = '''        run: node --test tests/boardsignal-patch-j-review-journal.test.cjs tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs
+'''
+
+          if old_cjs not in text:
+              print('PATCH_J_CJS_GUARD_ALREADY_FIXED')
+              raise SystemExit(0)
+          if text.count(old_cjs) != 1 or text.count(old_deletion) != 1:
+              raise SystemExit('PATCH_J_CJS_GUARD_ANCHOR_MISMATCH')
+          text = text.replace(old_cjs, new_cjs, 1).replace(old_deletion, new_deletion, 1)
+          path.write_text(text, encoding='utf-8')
+          print('PATCH_J_CJS_GUARD_FIXED')
+          PY
+          if git diff --quiet; then
+            exit 0
+          fi
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/patch-j-guarded-delivery.yml
+          git commit -m "Use current CJS regressions for Patch J guard"
+          git push origin HEAD:patch-j-guarded-20260827

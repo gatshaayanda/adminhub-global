@@ -1,0 +1,50 @@
+name: BoardSignal Patch J PWA diagnostic
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose-pwa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
+      TARGET_BRANCH: boardsignal-v10
+      TRANSFORMER: .patch-j/apply_patch_j.py
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Recreate Patch J from frozen baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          test "$(git rev-parse origin/$TARGET_BRANCH)" = "$BASELINE_SHA"
+          cp "$TRANSFORMER" /tmp/apply_patch_j.py
+          git checkout --detach "$BASELINE_SHA"
+          python3 /tmp/apply_patch_j.py
+          git diff --check
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Capture PWA result
+        shell: bash
+        run: |
+          set +e
+          npm run test:pwa > /tmp/pwa.log 2>&1
+          status=$?
+          tail -n 180 /tmp/pwa.log
+          mkdir -p .patch-j
+          tail -n 180 /tmp/pwa.log > .patch-j/pwa-failure-tail.log
+          echo "EXIT=$status" >> .patch-j/pwa-failure-tail.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f .patch-j/pwa-failure-tail.log
+          git commit -m "Capture Patch J PWA diagnostic"
+          git push origin "HEAD:refs/heads/diagnostic/patch-j-pwa-${GITHUB_RUN_ID}"
+          exit "$status"

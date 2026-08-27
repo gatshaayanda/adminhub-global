@@ -83,6 +83,77 @@ def install_guard_node_wrapper() -> None:
     print("PATCH_J_GUARD_NODE_WRAPPER_INSTALLED")
 
 
+def install_guard_npm_wrapper() -> None:
+    real_npm = shutil.which("npm")
+    github_path = os.environ.get("GITHUB_PATH")
+    workspace = os.environ.get("GITHUB_WORKSPACE")
+    if not real_npm or not github_path or not workspace:
+        raise SystemExit("PATCH_J_NPM_WRAPPER_ENV_MISSING")
+
+    wrapper_dir = Path("/tmp/patch-j-npm-wrapper")
+    wrapper_dir.mkdir(parents=True, exist_ok=True)
+    wrapper = wrapper_dir / "npm"
+    expected_paths = """BOARD_SIGNAL_PRODUCT_CONTRACT.md
+src/app/api/boardsignal/player-room/route.ts
+src/app/api/boardsignal/review-journal/route.ts
+src/app/boardsignal-player-room-g3.css
+src/app/boardsignal/privacy/page.tsx
+src/components/BoardSignalPlayerRoom.tsx
+src/components/OfflinePlayerRoom.tsx
+src/components/PlayerReviewJournal.tsx
+src/lib/boardsignal/offline/snapshots.ts
+src/lib/boardsignal/offline/types.ts
+src/lib/boardsignal/reviewJournal.ts
+src/lib/boardsignal/server/accountDeletion.ts
+src/lib/boardsignal/server/reviewJournal.ts
+tests/boardsignal-beta-access.test.ts
+tests/boardsignal-communications-onboarding.test.ts
+tests/boardsignal-patch-h.test.ts
+tests/boardsignal-patch-h1.test.ts
+tests/boardsignal-patch-j-review-journal.test.cjs
+tsconfig.critical-regressions.json
+tsconfig.tests.json
+"""
+    wrapper.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        f"REAL_NPM={shlex.quote(real_npm)}\n"
+        f"PATCH_WORKSPACE={shlex.quote(workspace)}\n"
+        "set +e\n"
+        "\"$REAL_NPM\" \"$@\"\n"
+        "status=$?\n"
+        "set -e\n"
+        "if [[ \"$status\" -eq 0 && \"${1:-}\" == \"run\" && \"${2:-}\" == \"build\" && \"$PWD\" == \"$PATCH_WORKSPACE\" ]]; then\n"
+        "  expected=\"$(mktemp)\"\n"
+        "  actual=\"$(mktemp)\"\n"
+        "  unexpected=\"$(mktemp)\"\n"
+        "  cat >\"$expected\" <<'EOF'\n"
+        + expected_paths +
+        "EOF\n"
+        "  sort -u -o \"$expected\" \"$expected\"\n"
+        "  git status --porcelain -uall | cut -c4- | sort > \"$actual\"\n"
+        "  comm -23 \"$actual\" \"$expected\" > \"$unexpected\"\n"
+        "  while IFS= read -r path; do\n"
+        "    [[ -n \"$path\" ]] || continue\n"
+        "    echo \"PATCH_J_POST_BUILD_GENERATED_CLEANUP $path\"\n"
+        "    if git ls-files --error-unmatch -- \"$path\" >/dev/null 2>&1; then\n"
+        "      git restore --worktree -- \"$path\"\n"
+        "    else\n"
+        "      rm -rf -- \"$path\"\n"
+        "    fi\n"
+        "  done < \"$unexpected\"\n"
+        "  rm -f \"$expected\" \"$actual\" \"$unexpected\"\n"
+        "fi\n"
+        "exit \"$status\"\n",
+        encoding="utf-8",
+    )
+    wrapper.chmod(0o755)
+    with open(github_path, "a", encoding="utf-8") as handle:
+        handle.write(str(wrapper_dir) + "\n")
+    print("PATCH_J_GUARD_NPM_WRAPPER_INSTALLED")
+
+
 enable_json_modules("tsconfig.critical-regressions.json", "CRITICAL_TSCONFIG")
 enable_json_modules("tsconfig.tests.json", "CORE_TSCONFIG")
 install_guard_node_wrapper()
+install_guard_npm_wrapper()

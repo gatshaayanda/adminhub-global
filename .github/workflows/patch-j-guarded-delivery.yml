@@ -61,7 +61,7 @@ jobs:
           src/lib/boardsignal/server/reviewJournal.ts
           tests/boardsignal-patch-j-review-journal.test.cjs
           EOF
-          git status --porcelain | cut -c4- | sort > /tmp/actual-paths
+          git status --porcelain -uall | cut -c4- | sort > /tmp/actual-paths
           sort -o /tmp/expected-paths /tmp/expected-paths
           diff -u /tmp/expected-paths /tmp/actual-paths || { echo "PATCH_J_SCOPE_MISMATCH"; exit 45; }
 
@@ -101,7 +101,7 @@ jobs:
           live_sha="$(git rev-parse "origin/$TARGET_BRANCH")"
           test "$live_sha" = "$BASELINE_SHA" || { echo "PATCH_J_BASELINE_MOVED_BEFORE_PUSH expected=$BASELINE_SHA actual=$live_sha"; exit 46; }
           git diff --check
-          git status --porcelain | cut -c4- | sort > /tmp/final-paths
+          git status --porcelain -uall | cut -c4- | sort > /tmp/final-paths
           diff -u /tmp/expected-paths /tmp/final-paths || { echo "PATCH_J_POST_TEST_SCOPE_MISMATCH"; exit 47; }
           backup_branch="backup/patch-j-${GITHUB_RUN_ID}"
           git push origin "$BASELINE_SHA:refs/heads/$backup_branch"

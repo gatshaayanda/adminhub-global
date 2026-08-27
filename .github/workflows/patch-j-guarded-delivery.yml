@@ -19,7 +19,7 @@ jobs:
     env:
       BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
       TARGET_BRANCH: boardsignal-v10
-      PATCH_FILE: .patch-j/BOARD_SIGNAL_PATCH_J.patch
+      TRANSFORMER: .patch-j/apply_patch_j.py
     steps:
       - name: Checkout guarded staging branch
         uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
           live_sha="$(git rev-parse "origin/$TARGET_BRANCH")"
           test "$live_sha" = "$BASELINE_SHA" || { echo "PATCH_J_BASELINE_MOVED expected=$BASELINE_SHA actual=$live_sha"; exit 42; }
           test -z "$(git status --porcelain)" || { echo "PATCH_J_STAGING_WORKTREE_NOT_CLEAN"; git status --short; exit 43; }
-          cp "$PATCH_FILE" /tmp/BOARD_SIGNAL_PATCH_J.patch
+          cp "$TRANSFORMER" /tmp/apply_patch_j.py
           git checkout --detach "$BASELINE_SHA"
           test "$(git rev-parse HEAD)" = "$BASELINE_SHA"
           test -z "$(git status --porcelain)" || { echo "PATCH_J_BASELINE_WORKTREE_NOT_CLEAN"; git status --short; exit 44; }
@@ -43,8 +43,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git apply --recount --check /tmp/BOARD_SIGNAL_PATCH_J.patch
-          git apply --recount /tmp/BOARD_SIGNAL_PATCH_J.patch
+          python3 /tmp/apply_patch_j.py
           git diff --check
           cat > /tmp/expected-paths <<'EOF'
           BOARD_SIGNAL_PRODUCT_CONTRACT.md

@@ -21,6 +21,7 @@ jobs:
       TARGET_BRANCH: boardsignal-v10
       TRANSFORMER: .patch-j/apply_patch_j.py
       REPAIRER: .patch-j/repair_critical_tsconfig.py
+      TEST_REPAIRER: .patch-j/repair_critical_tests.py
     steps:
       - name: Checkout guarded staging branch
         uses: actions/checkout@v4
@@ -37,16 +38,18 @@ jobs:
           test -z "$(git status --porcelain)" || { echo "PATCH_J_STAGING_WORKTREE_NOT_CLEAN"; git status --short; exit 43; }
           cp "$TRANSFORMER" /tmp/apply_patch_j.py
           cp "$REPAIRER" /tmp/repair_critical_tsconfig.py
+          cp "$TEST_REPAIRER" /tmp/repair_critical_tests.py
           git checkout --detach "$BASELINE_SHA"
           test "$(git rev-parse HEAD)" = "$BASELINE_SHA"
           test -z "$(git status --porcelain)" || { echo "PATCH_J_BASELINE_WORKTREE_NOT_CLEAN"; git status --short; exit 44; }
 
-      - name: Apply Patch J and approved critical-test repair
+      - name: Apply Patch J and approved critical-test repairs
         shell: bash
         run: |
           set -euo pipefail
           python3 /tmp/apply_patch_j.py
           python3 /tmp/repair_critical_tsconfig.py
+          python3 /tmp/repair_critical_tests.py
           git diff --check
           cat > /tmp/expected-paths <<'EOF'
           BOARD_SIGNAL_PRODUCT_CONTRACT.md
@@ -62,6 +65,7 @@ jobs:
           src/lib/boardsignal/reviewJournal.ts
           src/lib/boardsignal/server/accountDeletion.ts
           src/lib/boardsignal/server/reviewJournal.ts
+          tests/boardsignal-beta-access.test.ts
           tests/boardsignal-patch-j-review-journal.test.cjs
           tsconfig.critical-regressions.json
           EOF
@@ -90,6 +94,10 @@ jobs:
 
       - name: Contrast and dark-mode regression
         run: npm run test:contrast
+
+      - name: Deletion privacy and retention regressions
+        shell: bash
+        run: node --test tests/boardsignal-patch-j-review-journal.test.cjs tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs
 
       - name: TypeScript
         run: npx tsc --noEmit

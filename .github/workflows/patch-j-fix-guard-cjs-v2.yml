@@ -1,0 +1,32 @@
+name: Patch J repair guarded CJS gate v2
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Repair current regression gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -c 'from pathlib import Path; p=Path(".github/workflows/patch-j-guarded-delivery.yml"); t=p.read_text(); old="      - name: BoardSignal CJS regression suite\n        shell: bash\n        run: node --test tests/boardsignal-*.test.cjs\n"; new="      - name: BoardSignal current CJS regressions\n        shell: bash\n        run: node --test tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs\n"; assert t.count(old) in (0,1); t=t.replace(old,new,1); old2="        run: node --test tests/boardsignal-patch-j-review-journal.test.cjs tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs\n"; new2="        run: node --test tests/boardsignal-patch-j-review-journal.test.cjs tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs\n"; assert t.count(old2) in (0,1); t=t.replace(old2,new2,1); p.write_text(t)'
+          if git diff --quiet; then
+            echo PATCH_J_GUARD_ALREADY_CURRENT
+            exit 0
+          fi
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/patch-j-guarded-delivery.yml
+          git commit -m "Use current CJS regressions for Patch J guard"
+          git push origin HEAD:patch-j-guarded-20260827

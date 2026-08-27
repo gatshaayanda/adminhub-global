@@ -1,0 +1,65 @@
+name: Patch J build diagnostic
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+jobs:
+  capture-build-failure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
+      TRANSFORMER: .patch-j/apply_patch_j.py
+      REPAIRER: .patch-j/repair_critical_tsconfig.py
+      TEST_REPAIRER: .patch-j/repair_critical_tests.py
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reproduce exact Patch J product tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$TRANSFORMER" /tmp/apply_patch_j.py
+          cp "$REPAIRER" /tmp/repair_critical_tsconfig.py
+          cp "$TEST_REPAIRER" /tmp/repair_critical_tests.py
+          git checkout --detach "$BASELINE_SHA"
+          python3 /tmp/apply_patch_j.py
+          python3 /tmp/repair_critical_tsconfig.py
+          python3 /tmp/repair_critical_tests.py
+          npm install --no-audit --no-fund
+      - name: Capture production build
+        shell: bash
+        run: |
+          set +e
+          npm run build > /tmp/patch-j-build.log 2>&1
+          status=$?
+          set -e
+          echo "BUILD_EXIT_STATUS=$status" > /tmp/patch-j-build-summary.log
+          echo >> /tmp/patch-j-build-summary.log
+          echo "===== ERROR MATCHES =====" >> /tmp/patch-j-build-summary.log
+          grep -nEi 'error|failed|failure|cannot|invalid|module not found|prerender|export encountered|build failed' /tmp/patch-j-build.log | tail -120 >> /tmp/patch-j-build-summary.log || true
+          echo >> /tmp/patch-j-build-summary.log
+          echo "===== BUILD LOG TAIL =====" >> /tmp/patch-j-build-summary.log
+          tail -300 /tmp/patch-j-build.log >> /tmp/patch-j-build-summary.log
+          cat /tmp/patch-j-build-summary.log
+          test "$status" -ne 0 || echo "PATCH_J_BUILD_DIAGNOSTIC_BUILD_PASSED"
+      - name: Persist diagnostic summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp /tmp/patch-j-build-summary.log /tmp/summary.log
+          git reset --hard "$BASELINE_SHA"
+          git clean -fd
+          mkdir -p .patch-j
+          cp /tmp/summary.log .patch-j/build-failure-summary.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .patch-j/build-failure-summary.log
+          git commit -m "Record Patch J build failure ${GITHUB_RUN_ID}"
+          git push --force origin "HEAD:refs/heads/diagnostic/patch-j-build-${GITHUB_RUN_ID}"

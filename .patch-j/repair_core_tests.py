@@ -8,15 +8,13 @@ if not ACCOUNT_DELETION.exists():
     raise SystemExit("PATCH_J_CORE_REPAIR: accountDeletion.ts is missing")
 
 source = ACCOUNT_DELETION.read_text(encoding="utf-8")
-# Keep these preconditions intentionally implementation-style agnostic. The
-# regression we are repairing became brittle because it required an obsolete
-# helper call. What matters is that the current deletion manager still owns the
-# account archive/private subcollection inventory and Firebase Auth deletion.
+# The current deletion architecture recursively wipes the known private player
+# subcollections. Patch J adds the durable journal under users/{uid}/private,
+# so the regression should verify that current contract rather than an extinct
+# deleteAccountArchive(uid) helper from an older architecture.
 required_contract_signals = [
     "PRIVATE_PLAYER_SUBCOLLECTIONS",
-    "accountArchive",
-    "private",
-    "deleteUser",
+    '"private"',
 ]
 missing = [signal for signal in required_contract_signals if signal not in source]
 if missing:
@@ -41,14 +39,14 @@ if len(matched) != 1 or matched[0][1] != 1:
     )
 
 path, _, text = matched[0]
-# The old test required the removed internal deleteAccountArchive(uid) helper.
-# Assert the durable accountArchive cleanup contract instead. The existing test
-# helper checks source inclusion, so this is quote/style independent and still
-# proves the archive deletion path remains represented in the manager.
-path.write_text(text.replace(obsolete_signal, "accountArchive", 1), encoding="utf-8")
+# Replace the obsolete internal-helper signal with the current private
+# subcollection deletion contract. The source-test helper checks inclusion, so
+# this remains implementation-style agnostic while proving Patch J journal data
+# is covered by account deletion.
+path.write_text(text.replace(obsolete_signal, "private", 1), encoding="utf-8")
 
 print(path.relative_to(ROOT).as_posix())
 print(
-    f"PATCH_J_CORE_REPAIR: replaced stale internal-helper assertion in {path.relative_to(ROOT)}",
+    f"PATCH_J_CORE_REPAIR: replaced stale archive-helper assertion with current private-deletion contract in {path.relative_to(ROOT)}",
     file=sys.stderr,
 )

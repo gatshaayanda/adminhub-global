@@ -1,0 +1,41 @@
+# Subtest: manifest is a standalone BoardSignal PWA with stable identity and shortcuts
+# Subtest: manifest icon files have real required dimensions and a separate maskable artifact
+# Subtest: one native service worker preserves push while hardening cache behavior
+# Subtest: service worker update is player-controlled and reloads once
+not ok 4 - service worker update is player-controlled and reloads once
+  location: '/home/runner/work/adminhub-global/adminhub-global/tests/boardsignal-pwa-offline.test.cjs:93:1'
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_ASSERTION'
+  operator: 'match'
+# Subtest: private IndexedDB data is UID-scoped and bounded
+# Subtest: offline Player Room is a saved truthful read-only sports desk
+not ok 6 - offline Player Room is a saved truthful read-only sports desk
+  location: '/home/runner/work/adminhub-global/adminhub-global/tests/boardsignal-pwa-offline.test.cjs:120:1'
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_ASSERTION'
+  operator: 'match'
+# Subtest: network-only social and account mutations do not fake success offline
+not ok 7 - network-only social and account mutations do not fake success offline
+  location: '/home/runner/work/adminhub-global/adminhub-global/tests/boardsignal-pwa-offline.test.cjs:136:1'
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_ASSERTION'
+  operator: 'match'
+# Subtest: Friends loading-loop hotfix remains intact
+not ok 8 - Friends loading-loop hotfix remains intact
+  location: '/home/runner/work/adminhub-global/adminhub-global/tests/boardsignal-pwa-offline.test.cjs:153:1'
+  failureType: 'testCodeFailure'
+  error: |-
+  code: 'ERR_ASSERTION'
+  operator: 'match'
+# Subtest: Ask BoardSignal has a factual offline path and bounded local drafts
+# Subtest: connectivity recovery is probed and coordinated once
+# Subtest: install experience is engagement-aware, standalone-aware and iOS-aware
+# Subtest: offline page and standalone CSS preserve readable native-feeling UX
+# Subtest: artifact QA keeps production prebuild stable and adds PWA suite separately
+# tests 13
+# pass 9
+# fail 4
+EXIT=1

@@ -60,7 +60,7 @@ replace_once(
 '''test("Founder Beta Access management API remains behind shared Founder session/Basic fallback middleware without double-auth", () => {
   const middleware = readFileSync("middleware.ts", "utf8");
   const api = readFileSync("src/app/api/admin/boardsignal/beta-access/route.ts", "utf8");
-  const founderApiRouteMatches = middleware.match(/pathname\.startsWith\((["'])\\/api\\/admin\\/boardsignal\\/\1\)/g) ?? [];
+  const founderApiRouteMatches = middleware.match(/pathname\.startsWith\(["']\\/api\\/admin\\/boardsignal\\/["']\)/g) ?? [];
   assert.equal(founderApiRouteMatches.length, 2);
   assert.match(middleware, /if \(!isFounderRoute\(pathname\)\) return NextResponse\.next\(\)/);
   assert.match(middleware, /if \(isFounderApi\(pathname\)\)[\s\S]*status:\s*401/);

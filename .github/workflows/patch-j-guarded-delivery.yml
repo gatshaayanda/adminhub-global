@@ -43,7 +43,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$BASELINE_SHA"
           test -z "$(git status --porcelain)" || { echo "PATCH_J_BASELINE_WORKTREE_NOT_CLEAN"; git status --short; exit 44; }
 
-      - name: Apply Patch J and approved critical-test repairs
+      - name: Apply Patch J and approved test-harness repairs
         shell: bash
         run: |
           set -euo pipefail
@@ -68,6 +68,7 @@ jobs:
           tests/boardsignal-beta-access.test.ts
           tests/boardsignal-patch-j-review-journal.test.cjs
           tsconfig.critical-regressions.json
+          tsconfig.tests.json
           EOF
           git status --porcelain -uall | cut -c4- | sort > /tmp/actual-paths
           sort -o /tmp/expected-paths /tmp/expected-paths

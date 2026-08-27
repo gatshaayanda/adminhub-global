@@ -50,6 +50,34 @@ jobs:
           python3 /tmp/apply_patch_j.py
           python3 /tmp/repair_critical_tsconfig.py
           python3 /tmp/repair_critical_tests.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/boardsignal-communications-onboarding.test.ts")
+          text = path.read_text(encoding="utf-8")
+
+          old_identity = '  assert.match(source, /createFoundingBetaAccess\\(request\\.canonicalUsername\\)/);\n'
+          new_identity = '''  assert.match(source, /const identity: StableChessComIdentity = \\{/);
+          assert.match(source, /playerId: request\\.chessPlayerId/);
+          assert.match(source, /canonicalUsername: request\\.canonicalUsername/);
+          assert.match(source, /ensureStablePlayerAccount\\(identity\\)/);
+          assert.match(source, /createFoundingBetaAccessForIdentity\\(identity\\)/);
+          '''
+          if text.count(old_identity) != 1:
+              raise SystemExit(f"PATCH_J_CORE_TEST_IDENTITY_ANCHOR_MISMATCH count={text.count(old_identity)}")
+          text = text.replace(old_identity, new_identity, 1)
+
+          old_universe = '  assert.match(form, /Included with Founding Beta/);\n'
+          new_universe = '''  assert.match(form, /className="beta-universe-disclosure"/);
+          assert.match(form, /SEE YOUR GAMES TOGETHER/);
+          '''
+          if text.count(old_universe) != 1:
+              raise SystemExit(f"PATCH_J_CORE_TEST_UNIVERSE_ANCHOR_MISMATCH count={text.count(old_universe)}")
+          text = text.replace(old_universe, new_universe, 1)
+
+          path.write_text(text, encoding="utf-8")
+          print("PATCH_J_CORE_COMMUNICATIONS_TESTS_REPAIRED")
+          PY
           git diff --check
           cat > /tmp/expected-paths <<'EOF'
           BOARD_SIGNAL_PRODUCT_CONTRACT.md
@@ -66,6 +94,7 @@ jobs:
           src/lib/boardsignal/server/accountDeletion.ts
           src/lib/boardsignal/server/reviewJournal.ts
           tests/boardsignal-beta-access.test.ts
+          tests/boardsignal-communications-onboarding.test.ts
           tests/boardsignal-patch-j-review-journal.test.cjs
           tsconfig.critical-regressions.json
           tsconfig.tests.json

@@ -16,6 +16,7 @@ export default function BoardSignalPrivacyPage() {
       <h2>Messages and browser alerts</h2><p>BoardSignal can deliver private in-app messages. Browser push is separate: BoardSignal asks the browser for notification permission only after you explicitly choose Enable browser alerts. Denial is respected and does not block your Inbox.</p>
       <h2>Retention</h2><p>BoardSignal retains at most four completed Reviews per player. When Review 5 publishes, full Review 1 expires and Reviews 2–5 remain. Small durable personal records may remain only where the existing memory model supports them.</p>
       <h2>Contact</h2><p>Your preferred contact is used for BoardSignal account communication, Review availability, important product updates and BoardSignal feedback. It is not an authentication identity and is not silently converted into unrelated marketing consent.</p>
+      <h2>Trustpilot review invitations</h2><p>After you have a genuine completed BoardSignal Review, BoardSignal may use your Firebase sign-in email, Chess.com username and a non-sensitive BoardSignal reference ID to ask Trustpilot to send one neutral service-review invitation. BoardSignal does not select players for invitation based on whether their chess results, feedback or likely review are positive or negative, and it does not send your private Review evidence to Trustpilot.</p>
       <h2>Your choice</h2><p>You may change optional notification categories, stop participating in Founding Access or request deletion of your account data.</p>
     </section>
   </div>;

@@ -72,7 +72,11 @@ jobs:
         run: node --test tests/boardsignal-patch-j-review-journal.test.cjs
 
       - name: BoardSignal critical regressions
-        run: npm run test:critical
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx tsc -p tsconfig.critical-regressions.json --resolveJsonModule
+          node --test .test-dist-critical/tests/boardsignal-identity-memory.test.js .test-dist-critical/tests/boardsignal-beta-access.test.js .test-dist-critical/tests/boardsignal-universe.test.js
 
       - name: BoardSignal core tests
         run: npm run test:core

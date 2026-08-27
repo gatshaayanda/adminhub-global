@@ -22,7 +22,6 @@ jobs:
       TRANSFORMER: .patch-j/apply_patch_j.py
       REPAIRER: .patch-j/repair_critical_tsconfig.py
       TEST_REPAIRER: .patch-j/repair_critical_tests.py
-      CORE_TEST_REPAIRER: .patch-j/repair_core_tests.py
     steps:
       - name: Checkout guarded staging branch
         uses: actions/checkout@v4
@@ -40,7 +39,6 @@ jobs:
           cp "$TRANSFORMER" /tmp/apply_patch_j.py
           cp "$REPAIRER" /tmp/repair_critical_tsconfig.py
           cp "$TEST_REPAIRER" /tmp/repair_critical_tests.py
-          cp "$CORE_TEST_REPAIRER" /tmp/repair_core_tests.py
           git checkout --detach "$BASELINE_SHA"
           test "$(git rev-parse HEAD)" = "$BASELINE_SHA"
           test -z "$(git status --porcelain)" || { echo "PATCH_J_BASELINE_WORKTREE_NOT_CLEAN"; git status --short; exit 44; }
@@ -52,7 +50,6 @@ jobs:
           python3 /tmp/apply_patch_j.py
           python3 /tmp/repair_critical_tsconfig.py
           python3 /tmp/repair_critical_tests.py
-          python3 /tmp/repair_core_tests.py > /tmp/core-repair-paths
           git diff --check
           cat > /tmp/expected-paths <<'EOF'
           BOARD_SIGNAL_PRODUCT_CONTRACT.md
@@ -73,7 +70,6 @@ jobs:
           tsconfig.critical-regressions.json
           tsconfig.tests.json
           EOF
-          cat /tmp/core-repair-paths >> /tmp/expected-paths
           git status --porcelain -uall | cut -c4- | sort > /tmp/actual-paths
           sort -u -o /tmp/expected-paths /tmp/expected-paths
           diff -u /tmp/expected-paths /tmp/actual-paths || { echo "PATCH_J_SCOPE_MISMATCH"; exit 45; }

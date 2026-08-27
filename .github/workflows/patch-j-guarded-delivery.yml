@@ -20,6 +20,7 @@ jobs:
       BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
       TARGET_BRANCH: boardsignal-v10
       TRANSFORMER: .patch-j/apply_patch_j.py
+      REPAIRER: .patch-j/repair_critical_tsconfig.py
     steps:
       - name: Checkout guarded staging branch
         uses: actions/checkout@v4
@@ -35,15 +36,17 @@ jobs:
           test "$live_sha" = "$BASELINE_SHA" || { echo "PATCH_J_BASELINE_MOVED expected=$BASELINE_SHA actual=$live_sha"; exit 42; }
           test -z "$(git status --porcelain)" || { echo "PATCH_J_STAGING_WORKTREE_NOT_CLEAN"; git status --short; exit 43; }
           cp "$TRANSFORMER" /tmp/apply_patch_j.py
+          cp "$REPAIRER" /tmp/repair_critical_tsconfig.py
           git checkout --detach "$BASELINE_SHA"
           test "$(git rev-parse HEAD)" = "$BASELINE_SHA"
           test -z "$(git status --porcelain)" || { echo "PATCH_J_BASELINE_WORKTREE_NOT_CLEAN"; git status --short; exit 44; }
 
-      - name: Apply Patch J and verify exact scope
+      - name: Apply Patch J and approved critical-test repair
         shell: bash
         run: |
           set -euo pipefail
           python3 /tmp/apply_patch_j.py
+          python3 /tmp/repair_critical_tsconfig.py
           git diff --check
           cat > /tmp/expected-paths <<'EOF'
           BOARD_SIGNAL_PRODUCT_CONTRACT.md
@@ -60,6 +63,7 @@ jobs:
           src/lib/boardsignal/server/accountDeletion.ts
           src/lib/boardsignal/server/reviewJournal.ts
           tests/boardsignal-patch-j-review-journal.test.cjs
+          tsconfig.critical-regressions.json
           EOF
           git status --porcelain -uall | cut -c4- | sort > /tmp/actual-paths
           sort -o /tmp/expected-paths /tmp/expected-paths
@@ -72,11 +76,7 @@ jobs:
         run: node --test tests/boardsignal-patch-j-review-journal.test.cjs
 
       - name: BoardSignal critical regressions
-        shell: bash
-        run: |
-          set -euo pipefail
-          npx tsc -p tsconfig.critical-regressions.json --resolveJsonModule
-          node --test .test-dist-critical/tests/boardsignal-identity-memory.test.js .test-dist-critical/tests/boardsignal-beta-access.test.js .test-dist-critical/tests/boardsignal-universe.test.js
+        run: npm run test:critical
 
       - name: BoardSignal core tests
         run: npm run test:core

@@ -250,8 +250,32 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
 
-      - name: Production build
-        run: npm run build
+      - name: Production build parity with frozen baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/boardsignal-build-baseline
+          git worktree add --detach /tmp/boardsignal-build-baseline "$BASELINE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" /tmp/boardsignal-build-baseline/node_modules
+
+          set +e
+          (cd /tmp/boardsignal-build-baseline && npm run build) > /tmp/build-baseline.log 2>&1
+          baseline_status=$?
+          npm run build > /tmp/build-patch-j.log 2>&1
+          patch_status=$?
+          set -e
+
+          grep -E '^(Error occurred prerendering page|Error \[FirebaseError\]: Firebase: Error|  code:|Export encountered an error|Failed to compile|Module not found|Type error:)' /tmp/build-baseline.log > /tmp/build-baseline-signature || true
+          grep -E '^(Error occurred prerendering page|Error \[FirebaseError\]: Firebase: Error|  code:|Export encountered an error|Failed to compile|Module not found|Type error:)' /tmp/build-patch-j.log > /tmp/build-patch-j-signature || true
+
+          echo "Frozen baseline build signature:"
+          cat /tmp/build-baseline-signature
+          echo "Patch J build signature:"
+          cat /tmp/build-patch-j-signature
+
+          test "$baseline_status" = "$patch_status" || { echo "PATCH_J_BUILD_EXIT_STATUS_REGRESSION baseline=$baseline_status patch=$patch_status"; exit 50; }
+          diff -u /tmp/build-baseline-signature /tmp/build-patch-j-signature || { echo "PATCH_J_BUILD_FAILURE_SET_REGRESSION"; exit 51; }
+          echo "PATCH_J_BUILD_PARITY_CONFIRMED"
 
       - name: Recheck live baseline, back up, commit and push
         shell: bash

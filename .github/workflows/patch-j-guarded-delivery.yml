@@ -43,8 +43,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git apply --check /tmp/BOARD_SIGNAL_PATCH_J.patch
-          git apply /tmp/BOARD_SIGNAL_PATCH_J.patch
+          git apply --recount --check /tmp/BOARD_SIGNAL_PATCH_J.patch
+          git apply --recount /tmp/BOARD_SIGNAL_PATCH_J.patch
           git diff --check
           cat > /tmp/expected-paths <<'EOF'
           BOARD_SIGNAL_PRODUCT_CONTRACT.md

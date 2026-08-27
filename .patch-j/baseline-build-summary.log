@@ -1,0 +1,298 @@
+BUILD_EXIT_STATUS=1
+
+===== ERROR MATCHES =====
+272:Error occurred prerendering page "/_not-found". Read more: https://nextjs.org/docs/messages/prerender-error
+273:Error [FirebaseError]: Firebase: Error (auth/invalid-api-key).
+284:  code: 'auth/invalid-api-key',
+288:Export encountered an error on /_not-found/page: /_not-found, exiting the build.
+
+===== BUILD LOG TAIL =====
+
+> boardsignal-v10@0.1.0 prebuild
+> npm run prepare:stockfish && npm run test:contrast
+
+
+> boardsignal-v10@0.1.0 prepare:stockfish
+> node scripts/prepare-stockfish.mjs
+
+BoardSignal Stockfish 18 lite single-threaded assets are ready.
+
+> boardsignal-v10@0.1.0 test:contrast
+> node scripts/check-boardsignal-contrast.mjs
+
+BoardSignal static contrast/token invariant PASS
+light:primary/surface #101923 on #fffdf8 17.43:1
+light:primary/elevated #101923 on #ffffff 17.72:1
+light:secondary/surface #3f4953 on #fffdf8 9.02:1
+light:secondary/elevated #3f4953 on #ffffff 9.17:1
+light:muted/surface #5f6871 on #fffdf8 5.58:1
+light:muted/elevated #5f6871 on #ffffff 5.67:1
+light:link/surface #1733b8 on #fffdf8 9.38:1
+light:positive/status #23613f on #e8f3ec 6.47:1
+light:warning/status #7a560c on #fff4da 6.07:1
+light:danger/status #a83220 on #fff0ec 6.02:1
+light:selection #fffdf8 on #1733b8 9.38:1
+light:inverse-primary #fffdf8 on #101923 17.43:1
+light:inverse-secondary #d8e0ec on #101923 13.32:1
+light:inverse-muted #bdc9d8 on #101923 10.55:1
+light:text-on-lime/lime #101923 on #c9f65d 14.19:1
+light:disabled #4f5963 on #ebe7df 5.79:1
+light:ui-border/surface #8c857b on #fffdf8 3.59:1
+light:ui-border/elevated #8c857b on #ffffff 3.65:1
+light:focus/surface #3157ff on #fffdf8 5.25:1
+light:focus/elevated #3157ff on #ffffff 5.33:1
+light:primary/learning-card #fffdf8 on #172e50 13.39:1
+light:secondary/learning-card #d8e0ec on #172e50 10.23:1
+light:muted/learning-card #bdc9d8 on #172e50 8.11:1
+dark:primary/surface #f6f2e9 on #111c2e 15.29:1
+dark:primary/elevated #f6f2e9 on #162338 14.12:1
+dark:secondary/surface #c5cfdd on #111c2e 10.85:1
+dark:secondary/elevated #c5cfdd on #162338 10.02:1
+dark:muted/surface #9daabc on #111c2e 7.25:1
+dark:muted/elevated #9daabc on #162338 6.69:1
+dark:link/surface #9fb4ff on #111c2e 8.50:1
+dark:positive/status #8bd6a6 on #173225 8.07:1
+dark:warning/status #f2c86e on #382d18 8.52:1
+dark:danger/status #ff9d88 on #3b2020 7.38:1
+dark:selection #0b1220 on #9fb4ff 9.31:1
+dark:inverse-primary #fffdf8 on #08111e 18.62:1
+dark:inverse-secondary #d8e0ec on #08111e 14.24:1
+dark:inverse-muted #bdc9d8 on #08111e 11.28:1
+dark:text-on-lime/lime #101923 on #c9f65d 14.19:1
+dark:disabled #aeb9c8 on #202d40 7.00:1
+dark:ui-border/surface #65748c on #111c2e 3.60:1
+dark:ui-border/elevated #65748c on #162338 3.33:1
+dark:focus/surface #9fb4ff on #111c2e 8.50:1
+dark:focus/elevated #9fb4ff on #162338 7.85:1
+dark:primary/learning-card #fffdf8 on #172e50 13.39:1
+dark:secondary/learning-card #d8e0ec on #172e50 10.23:1
+dark:muted/learning-card #bdc9d8 on #172e50 8.11:1
+Rendered browser verification is still required.
+
+> boardsignal-v10@0.1.0 build
+> next build
+
+⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+   ▲ Next.js 15.5.15
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 24.6s
+   Linting and checking validity of types ...
+
+./src/app/admin/blog/[id]/edit/page.tsx
+82:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+155:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+185:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+202:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+366:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/admin/blog/[id]/page.tsx
+79:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/admin/blog/new/page.tsx
+83:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+114:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+279:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/admin/blog/page.tsx
+148:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+339:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/admin/dashboard/highlights/page.tsx
+157:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+197:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+256:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+321:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+343:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+495:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+533:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/admin/dashboard/products/[id]/edit/page.tsx
+217:40  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/admin/dashboard/products/[id]/page.tsx
+211:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/admin/dashboard/products/new/page.tsx
+202:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/admin/dashboard/shop/page.tsx
+56:60  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+84:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+93:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+151:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+169:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/admin/dashboard/suites/page.tsx
+55:60  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+76:70  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+148:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+166:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/admin/invite/page.tsx
+26:13  Warning: 'docRef' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+37:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/admin/project/[id]/edit/page.tsx
+9:3  Warning: 'ClipboardList' is defined but never used.  @typescript-eslint/no-unused-vars
+73:52  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+100:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+133:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+179:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+206:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/admin/project/[id]/page.tsx
+368:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/admin/project/create-project/page.tsx
+94:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+133:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/admin/project/page.tsx
+16:3  Warning: 'FileText' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/client-login/route.ts
+13:48  Warning: '_' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/blog/page.tsx
+614:9  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/client/dashboard/page.tsx
+21:3  Warning: 'Phone' is defined but never used.  @typescript-eslint/no-unused-vars
+265:5  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+
+./src/app/client/project/[id]/page.tsx
+500:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/deals/page.tsx
+42:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/home/page.tsx
+149:15  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/app/player/[handle]/page.tsx
+55:103  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/AskBoardSignal.tsx
+160:6  Warning: React Hook useEffect has a missing dependency: 'user.uid'. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setMessages' needs the current value of 'user.uid'.  react-hooks/exhaustive-deps
+432:16  Warning: 'reason' is defined but never used.  @typescript-eslint/no-unused-vars
+508:397  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+511:92  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/BetaPreviewRoom.tsx
+395:252  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+417:159  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+510:192  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+523:358  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+534:113  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/BoardSignalChatAttachment.tsx
+149:5  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+240:41  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+263:9  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/BoardSignalPlayerRoom.tsx
+445:226  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+460:175  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+587:30  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/BrowserPushControl.tsx
+122:201  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/ChatPanel.tsx
+144:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+175:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/ConnectivityProvider.tsx
+99:143  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/FounderOperationsConsole.tsx
+78:401  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/OfflinePlayerRoom.tsx
+78:254  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+88:272  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+97:340  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/OriginalBetaHistoryAdmin.tsx
+98:276  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/PlayerFriends.tsx
+234:126  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+238:141  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+242:2316  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/ServiceWorkerRegister.tsx
+86:75  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/UniversalPlayerDesk.tsx
+1050:150  Warning: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/lib/boardsignal/chessUnderstanding.ts
+250:9  Warning: 'beforeMap' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/boardsignal/foundingBetaIdentityConfirmation.mjs
+27:9  Warning: 'previewUrl' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/boardsignal/pulse.ts
+477:32  Warning: '_score' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/boardsignal/server/accountDeletion.ts
+583:9  Warning: 'db' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/boardsignal/server/founderOperations.ts
+49:10  Warning: 'clean' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/boardsignal/server/legacyBetaReconciliation.ts
+145:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+151:46  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+157:42  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+319:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+384:52  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+511:94  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+512:98  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+513:87  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+538:140  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+556:81  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+625:107  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+626:96  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+710:73  Warning: 'entry' is defined but never used.  @typescript-eslint/no-unused-vars
+716:52  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/boardsignal/server/universePulse.ts
+253:16  Warning: 'bootstrapMaterializedUniverse' is defined but never used.  @typescript-eslint/no-unused-vars
+579:94  Warning: 'rank' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/boardsignal/server/weeklyGuide.ts
+5:10  Warning: 'NO_ACTIVITY_COPY' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/utils/log.ts
+7:27  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+11:35  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/62) ...
+Error occurred prerendering page "/_not-found". Read more: https://nextjs.org/docs/messages/prerender-error
+Error [FirebaseError]: Firebase: Error (auth/invalid-api-key).
+    at q (.next/server/chunks/9861.js:3:67312)
+    at r (.next/server/chunks/9861.js:3:67360)
+    at e.instanceFactory (.next/server/chunks/9861.js:3:119809)
+    at g.getOrInitializeService (.next/server/chunks/9861.js:3:141831)
+    at g.initialize (.next/server/chunks/9861.js:3:141213)
+    at <unknown> (.next/server/chunks/9861.js:3:117853)
+    at a1 (.next/server/chunks/9861.js:3:117882)
+    at 83437 (.next/server/chunks/1745.js:19:4696)
+    at c (.next/server/webpack-runtime.js:1:128)
+    at 33799 (.next/server/chunks/1745.js:1:46832) {
+  code: 'auth/invalid-api-key',
+  customData: [Object],
+  digest: '2126344588'
+}
+Export encountered an error on /_not-found/page: /_not-found, exiting the build.
+ ⨯ Next.js build worker exited with code: 1 and signal: null

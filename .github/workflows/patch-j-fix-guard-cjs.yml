@@ -57,3 +57,4 @@ jobs:
           git add .github/workflows/patch-j-guarded-delivery.yml
           git commit -m "Use current CJS regressions for Patch J guard"
           git push origin HEAD:patch-j-guarded-20260827
+# Trigger once after workflow creation so this guard repair executes from an existing workflow definition.

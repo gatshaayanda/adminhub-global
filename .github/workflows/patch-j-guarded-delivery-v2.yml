@@ -1,0 +1,256 @@
+name: BoardSignal Patch J guarded delivery v2
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+concurrency:
+  group: boardsignal-patch-j-guarded-delivery-v2
+  cancel-in-progress: false
+
+jobs:
+  validate-and-deliver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
+      TARGET_BRANCH: boardsignal-v10
+      TRANSFORMER: .patch-j/apply_patch_j.py
+      REPAIRER: .patch-j/repair_critical_tsconfig.py
+      TEST_REPAIRER: .patch-j/repair_critical_tests.py
+    steps:
+      - name: Checkout guarded staging branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify immutable baseline and clean checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          live_sha="$(git rev-parse "origin/$TARGET_BRANCH")"
+          test "$live_sha" = "$BASELINE_SHA" || { echo "PATCH_J_BASELINE_MOVED expected=$BASELINE_SHA actual=$live_sha"; exit 42; }
+          test -z "$(git status --porcelain)" || { echo "PATCH_J_STAGING_WORKTREE_NOT_CLEAN"; git status --short; exit 43; }
+          cp "$TRANSFORMER" /tmp/apply_patch_j.py
+          cp "$REPAIRER" /tmp/repair_critical_tsconfig.py
+          cp "$TEST_REPAIRER" /tmp/repair_critical_tests.py
+          git checkout --detach "$BASELINE_SHA"
+          test "$(git rev-parse HEAD)" = "$BASELINE_SHA"
+          test -z "$(git status --porcelain)" || { echo "PATCH_J_BASELINE_WORKTREE_NOT_CLEAN"; git status --short; exit 44; }
+
+      - name: Apply Patch J and approved test-harness repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 /tmp/apply_patch_j.py
+          python3 /tmp/repair_critical_tsconfig.py
+          python3 /tmp/repair_critical_tests.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}_ANCHOR_MISMATCH count={count}")
+              return text.replace(old, new, 1)
+
+          path = Path("tests/boardsignal-communications-onboarding.test.ts")
+          text = path.read_text(encoding="utf-8")
+          text = replace_once(
+              text,
+              '  assert.match(source, /createFoundingBetaAccess\\(request\\.canonicalUsername\\)/);\n',
+              '  assert.match(source, /const identity: StableChessComIdentity = \\{/);\n  assert.match(source, /playerId: request\\.chessPlayerId/);\n  assert.match(source, /canonicalUsername: request\\.canonicalUsername/);\n  assert.match(source, /ensureStablePlayerAccount\\(identity\\)/);\n  assert.match(source, /createFoundingBetaAccessForIdentity\\(identity\\)/);\n',
+              "PATCH_J_CORE_TEST_IDENTITY",
+          )
+          text = replace_once(
+              text,
+              '  assert.match(form, /Included with Founding Beta/);\n',
+              '  assert.match(form, /className="beta-universe-disclosure"/);\n  assert.match(form, /SEE YOUR GAMES TOGETHER/);\n',
+              "PATCH_J_CORE_TEST_UNIVERSE",
+          )
+          text = replace_once(
+              text,
+              '  assert.match(profile, /Founding Access Universe participation = Included/);\n',
+              '  assert.match(profile, /Founding Access public highlights = Included/);\n  assert.match(profile, /privacy: \\{ \\.\\.\\.privacy, publicPlayerPage: true, universeCoverage: true \\}/);\n',
+              "PATCH_J_CORE_TEST_PROFILE",
+          )
+          text = replace_once(
+              text,
+              '  assert.match(server, /founderReply\\(uidInput/);\n',
+              '  assert.match(server, /export async function founderReply\\(\\s*uidInput: unknown/);\n',
+              "PATCH_J_CORE_TEST_FOUNDER_REPLY",
+          )
+          path.write_text(text, encoding="utf-8")
+          print("PATCH_J_CORE_COMMUNICATIONS_TESTS_REPAIRED")
+
+          patch_h = Path("tests/boardsignal-patch-h.test.ts")
+          patch_h_text = patch_h.read_text(encoding="utf-8")
+          patch_h_text = replace_once(
+              patch_h_text,
+              '  assert.match(coordinator, /state\\?\\.version === REVIEW_HISTORY_BACKFILL_VERSION && state\\.status === "complete"/);\n',
+              '  assert.match(coordinator, /state\\.version !== REVIEW_HISTORY_BACKFILL_VERSION/);\n  assert.match(coordinator, /!sameTargets\\(state\\.targetPeriods, targets\\)/);\n',
+              "PATCH_J_CORE_TEST_PATCH_H_STATE",
+          )
+          patch_h_text = replace_once(
+              patch_h_text,
+              '  assert.match(coordinator, /addReviewDays\\(latestPeriodStart, 14\\) <= todayIso\\(now\\)/);\n',
+              '  assert.match(coordinator, /if \\(backfillComplete\\(targets, state\\.evaluated, existingStarts\\)\\)/);\n  assert.match(coordinator, /if \\(leaseIsActive\\(state\\.lease, now\\)\\) return undefined/);\n  assert.match(coordinator, /const target = nextBackfillPeriod\\(targets, state\\.evaluated, existingStarts\\)/);\n',
+              "PATCH_J_CORE_TEST_PATCH_H_IDEMPOTENCE",
+          )
+          patch_h_text = replace_once(
+              patch_h_text,
+              '  assert.match(coordinator, /activationBaseline:\\s*false/);\n',
+              '  assert.match(coordinator, /activationBaseline: previous\\?\\.activationBaseline \\?\\? false/);\n',
+              "PATCH_J_CORE_TEST_PATCH_H_BASELINE",
+          )
+          patch_h.write_text(patch_h_text, encoding="utf-8")
+          print("PATCH_J_CORE_PATCH_H_TEST_REPAIRED")
+
+          patch_h1 = Path("tests/boardsignal-patch-h1.test.ts")
+          patch_h1_text = patch_h1.read_text(encoding="utf-8")
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /reviewsForming:\\s*rows\\.filter\\(\\(row\\) => row\\.forming\\)\\.length/);\n',
+              '  const materialized = read("src/lib/boardsignal/server/founderMaterialized.ts");\n  assert.match(materialized, /reviewsForming:\\s*row\\.forming \\? 1 : 0/);\n',
+              "PATCH_J_CORE_TEST_H1_FORMING",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /verifiedDocuments = allVerifiedDocuments\\.filter\\(\\(\\{ period \\}\\) => period\\.source !== "historical"\\)/);\n',
+              '  assert.match(server, /const nonHistorical = periods\\.filter\\(\\(period\\) => period\\.source !== "historical"\\)/);\n',
+              "PATCH_J_CORE_TEST_H1_HISTORICAL_FILTER",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /reviewCount:\\s*snapshot\\.verified\\.length/);\n',
+              '  assert.match(server, /reviewCount:\\s*nonHistorical\\.length/);\n  assert.match(server, /reviewPeriods:\\s*nonHistorical/);\n',
+              "PATCH_J_CORE_TEST_H1_REVIEW_COUNT",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(consoleSource, /<dt>Latest qualifying Review<\\/dt><dd>\\{row\\.latestReview\\?\\.periodLabel \\?\\? "No qualifying Review"\\}<\\/dd>/);\n',
+              '  assert.match(consoleSource, /\\{row\\.reviewCount\\} qualifying/);\n  assert.match(consoleSource, /LATEST VERIFIED REVIEW PERIODS/);\n  assert.match(consoleSource, /No verified completed Review periods stored\\./);\n',
+              "PATCH_J_CORE_TEST_H1_FOUNDER_LABELS",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /source: "original"/);\n',
+              '  const materialized = read("src/lib/boardsignal/server/founderMaterialized.ts");\n  assert.match(server, /nonHistorical\\.filter\\(\\(period\\) => period\\.source === "original"\\)\\.length/);\n',
+              "PATCH_J_CORE_TEST_H1_ORIGINAL",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /source: review\\.source/);\n',
+              '  assert.match(server, /nonHistorical\\.filter\\(\\(period\\) => period\\.source === "live"\\)\\.length/);\n',
+              "PATCH_J_CORE_TEST_H1_LIVE",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /summarizeOperationalRetention\\(evidence, originalToLive, historicalActivationPlayers\\)/);\n',
+              '  assert.match(materialized, /const baseline = originalReviews > 0 \\|\\| input\\.activationBaseline === true \\? 1 : 0/);\n  assert.match(materialized, /const retentionDepth = baseline \\+ liveReviews/);\n  assert.match(materialized, /originalToLive: originalReviews > 0 && liveReviews > 0 \\? 1 : 0/);\n',
+              "PATCH_J_CORE_TEST_H1_RETENTION",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  const server = read("src/lib/boardsignal/server/founderOperations.ts");\n  assert.match(server, /account\\.accessTier === "founding_beta"/);\n',
+              '  const account = read("src/lib/boardsignal/account.ts");\n  assert.match(account, /export type BoardSignalAccessTier = "founding_beta" \\| "paid"/);\n  assert.match(account, /accessTier: "founding_beta"/);\n',
+              "PATCH_J_CORE_TEST_H1_FOUNDING_TIER",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(layout, /boardsignal-h1-hotfix\\.css";\\nimport "\\.\\/boardsignal-f2-readability\\.css";/);\n',
+              '  assert.match(layout, /boardsignal-h1-hotfix\\.css";[\\s\\S]*import "\\.\\/boardsignal-f2-readability\\.css";/);\n',
+              "PATCH_J_CORE_TEST_H1_F2_ORDER",
+          )
+          patch_h1.write_text(patch_h1_text, encoding="utf-8")
+          print("PATCH_J_CORE_PATCH_H1_TEST_REPAIRED")
+          PY
+          git diff --check
+          cat > /tmp/expected-paths <<'EOF'
+          BOARD_SIGNAL_PRODUCT_CONTRACT.md
+          src/app/api/boardsignal/player-room/route.ts
+          src/app/api/boardsignal/review-journal/route.ts
+          src/app/boardsignal-player-room-g3.css
+          src/app/boardsignal/privacy/page.tsx
+          src/components/BoardSignalPlayerRoom.tsx
+          src/components/OfflinePlayerRoom.tsx
+          src/components/PlayerReviewJournal.tsx
+          src/lib/boardsignal/offline/snapshots.ts
+          src/lib/boardsignal/offline/types.ts
+          src/lib/boardsignal/reviewJournal.ts
+          src/lib/boardsignal/server/accountDeletion.ts
+          src/lib/boardsignal/server/reviewJournal.ts
+          tests/boardsignal-beta-access.test.ts
+          tests/boardsignal-communications-onboarding.test.ts
+          tests/boardsignal-patch-h.test.ts
+          tests/boardsignal-patch-h1.test.ts
+          tests/boardsignal-patch-j-review-journal.test.cjs
+          tsconfig.critical-regressions.json
+          tsconfig.tests.json
+          EOF
+          git status --porcelain -uall | cut -c4- | sort > /tmp/actual-paths
+          sort -u -o /tmp/expected-paths /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths || { echo "PATCH_J_SCOPE_MISMATCH"; exit 45; }
+
+      - name: Install repository dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Patch J focused contract tests
+        run: node --test tests/boardsignal-patch-j-review-journal.test.cjs
+
+      - name: BoardSignal critical regressions
+        run: npm run test:critical
+
+      - name: BoardSignal core tests
+        shell: bash
+        run: npm run test:core
+
+      - name: BoardSignal current CJS regressions
+        shell: bash
+        run: node --test tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs
+
+      - name: PWA offline regression
+        run: npm run test:pwa
+
+      - name: Contrast and dark-mode regression
+        run: npm run test:contrast
+
+      - name: Deletion privacy and retention regressions
+        shell: bash
+        run: node --test tests/boardsignal-patch-j-review-journal.test.cjs tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-patch-g41.test.cjs tests/boardsignal-patch-g426-cumulative-review-truth.test.cjs
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Production build
+        run: npm run build
+
+      - name: Recheck live baseline, back up, commit and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH"
+          live_sha="$(git rev-parse "origin/$TARGET_BRANCH")"
+          test "$live_sha" = "$BASELINE_SHA" || { echo "PATCH_J_BASELINE_MOVED_BEFORE_PUSH expected=$BASELINE_SHA actual=$live_sha"; exit 46; }
+          git diff --check
+          git status --porcelain -uall | cut -c4- | sort > /tmp/final-paths
+          diff -u /tmp/expected-paths /tmp/final-paths || { echo "PATCH_J_POST_TEST_SCOPE_MISMATCH"; exit 47; }
+          backup_branch="backup/patch-j-${GITHUB_RUN_ID}"
+          git push origin "$BASELINE_SHA:refs/heads/$backup_branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add private Review journal to BoardSignal"
+          final_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          {
+            echo "## Patch J delivered"
+            echo "- Baseline: $BASELINE_SHA"
+            echo "- Backup: $backup_branch"
+            echo "- Final commit: $final_sha"
+          } >> "$GITHUB_STEP_SUMMARY"

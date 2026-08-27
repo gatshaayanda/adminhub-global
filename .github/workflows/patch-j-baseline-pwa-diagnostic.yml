@@ -1,0 +1,32 @@
+name: BoardSignal baseline PWA diagnostic
+
+on:
+  push:
+    branches:
+      - patch-j-guarded-20260827
+
+permissions:
+  contents: write
+
+jobs:
+  baseline-pwa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASELINE_SHA: 8a3b80f8a45ab82b3a2a73d6241d08b615d0cd1a
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Checkout frozen production baseline only
+        run: git checkout --detach "$BASELINE_SHA"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Capture baseline PWA summary
+        shell: bash
+        run: |
+          set +e
+          npm run test:pwa > /tmp/pwa.log 2>&1
+          status=$?
+          grep -E '^(not ok|# Subtest:|# tests|# pass|# fail)' /tmp/pwa.log || true
+          exit "$status"

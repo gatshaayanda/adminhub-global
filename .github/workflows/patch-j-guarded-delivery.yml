@@ -84,7 +84,22 @@ jobs:
         run: npm run test:critical
 
       - name: BoardSignal core tests
-        run: npm run test:core
+        shell: bash
+        run: |
+          set +e
+          npm run test:core > /tmp/patch-j-core.log 2>&1
+          status=$?
+          cat /tmp/patch-j-core.log
+          if [ "$status" -ne 0 ]; then
+            mkdir -p .patch-j
+            cp /tmp/patch-j-core.log .patch-j/core-failure.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f .patch-j/core-failure.log
+            git commit -m "Capture Patch J core failure diagnostics"
+            git push origin "HEAD:refs/heads/diagnostic/patch-j-core-${GITHUB_RUN_ID}"
+            exit "$status"
+          fi
 
       - name: BoardSignal CJS regression suite
         shell: bash

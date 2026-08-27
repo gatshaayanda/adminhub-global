@@ -67,12 +67,13 @@ replace_once(
   assert.match(middleware, /matcher:\s*\[[^\]]*["']\\/api\\/admin\\/boardsignal\\/:path\\*["']/);
   assert.match(middleware, /verifyFounderAuthorization/);
   assert.doesNotMatch(api, /requireFounderBasicAuth/);
-  assert.match(api, /listFounderPlayerIdentities\(\)/);
-  assert.match(api, /createFoundingBetaAccess\(body\.username\)/);
-  assert.match(api, /resetFoundingBetaAccess\(body\.playerId\)/);
-  assert.match(api, /revokeFoundingBetaAccess\(body\.playerId\)/);
-  assert.match(api, /accessCode: result\.accessCode/);
-  assert.match(api, /errorStatus\(error\)/);
+  assert.match(api, /export async function GET\(\)/);
+  assert.match(api, /return response\(\{ ok: true, players: directory\.players, requests: directory\.requests \}\)/);
+  assert.match(api, /export async function POST\(request: Request\)/);
+  for (const action of ["create", "reset", "revoke"]) {
+    assert.match(api, new RegExp(`body\\.action === "${action}"`));
+  }
+  assert.match(api, /accessCode:/);
 });''',
 )
 

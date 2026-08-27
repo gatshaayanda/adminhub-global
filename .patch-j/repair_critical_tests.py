@@ -144,3 +144,27 @@ replace_once(
 
 path.write_text(text, encoding="utf-8")
 print("PATCH_J_CRITICAL_TESTS_REPAIRED")
+
+patch_h_path = Path("tests/boardsignal-patch-h.test.ts")
+patch_h_text = patch_h_path.read_text(encoding="utf-8")
+
+
+def replace_patch_h_once(old: str, new: str) -> None:
+    global patch_h_text
+    count = patch_h_text.count(old)
+    if count != 1:
+        raise SystemExit(f"PATCH_J_PATCH_H_TEST_REPAIR_ANCHOR_MISMATCH count={count} anchor={old[:100]!r}")
+    patch_h_text = patch_h_text.replace(old, new, 1)
+
+
+replace_patch_h_once(
+    '  assert.match(persistence, /recordCompletedDeskUniverseArtifacts\\(\\{ account, desk/); // 32\n',
+    '  assert.match(persistence, /recordCompletedDeskUniverseArtifacts\\(\\{ account: updatedAccount, desk/); // 32\n',
+)
+replace_patch_h_once(
+    '  assert.match(persistence, /liveDeskToReviewHistory\\(data\\.desk, data\\.summary\\)/); // 33/34\n',
+    '  assert.match(persistence, /liveDeskToReviewHistory\\(data\\.desk, data\\.summary, lifecycle \\?\\? "organic_live"\\)/); // 33/34\n',
+)
+
+patch_h_path.write_text(patch_h_text, encoding="utf-8")
+print("PATCH_J_PATCH_H_LIFECYCLE_TESTS_REPAIRED")

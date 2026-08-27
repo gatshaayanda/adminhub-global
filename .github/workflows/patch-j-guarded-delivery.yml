@@ -110,6 +110,65 @@ jobs:
           )
           patch_h.write_text(patch_h_text, encoding="utf-8")
           print("PATCH_J_CORE_PATCH_H_TEST_REPAIRED")
+
+          patch_h1 = Path("tests/boardsignal-patch-h1.test.ts")
+          patch_h1_text = patch_h1.read_text(encoding="utf-8")
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /reviewsForming:\\s*rows\\.filter\\(\\(row\\) => row\\.forming\\)\\.length/);\n',
+              '  const materialized = read("src/lib/boardsignal/server/founderMaterialized.ts");\n  assert.match(materialized, /reviewsForming:\\s*row\\.forming \\? 1 : 0/);\n',
+              "PATCH_J_CORE_TEST_H1_FORMING",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /verifiedDocuments = allVerifiedDocuments\\.filter\\(\\(\\{ period \\}\\) => period\\.source !== "historical"\\)/);\n',
+              '  assert.match(server, /const nonHistorical = periods\\.filter\\(\\(period\\) => period\\.source !== "historical"\\)/);\n',
+              "PATCH_J_CORE_TEST_H1_HISTORICAL_FILTER",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /reviewCount:\\s*snapshot\\.verified\\.length/);\n',
+              '  assert.match(server, /reviewCount:\\s*nonHistorical\\.length/);\n  assert.match(server, /reviewPeriods:\\s*nonHistorical/);\n',
+              "PATCH_J_CORE_TEST_H1_REVIEW_COUNT",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(consoleSource, /<dt>Latest qualifying Review<\\/dt><dd>\\{row\\.latestReview\\?\\.periodLabel \\?\\? "No qualifying Review"\\}<\\/dd>/);\n',
+              '  assert.match(consoleSource, /\\{row\\.reviewCount\\} qualifying/);\n  assert.match(consoleSource, /LATEST VERIFIED REVIEW PERIODS/);\n  assert.match(consoleSource, /No verified completed Review periods stored\\./);\n',
+              "PATCH_J_CORE_TEST_H1_FOUNDER_LABELS",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /source: "original"/);\n',
+              '  const materialized = read("src/lib/boardsignal/server/founderMaterialized.ts");\n  assert.match(server, /nonHistorical\\.filter\\(\\(period\\) => period\\.source === "original"\\)\\.length/);\n',
+              "PATCH_J_CORE_TEST_H1_ORIGINAL",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /source: review\\.source/);\n',
+              '  assert.match(server, /nonHistorical\\.filter\\(\\(period\\) => period\\.source === "live"\\)\\.length/);\n',
+              "PATCH_J_CORE_TEST_H1_LIVE",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(server, /summarizeOperationalRetention\\(evidence, originalToLive, historicalActivationPlayers\\)/);\n',
+              '  assert.match(materialized, /const baseline = originalReviews > 0 \\|\\| input\\.activationBaseline === true \\? 1 : 0/);\n  assert.match(materialized, /const retentionDepth = baseline \\+ liveReviews/);\n  assert.match(materialized, /originalToLive: originalReviews > 0 && liveReviews > 0 \\? 1 : 0/);\n',
+              "PATCH_J_CORE_TEST_H1_RETENTION",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  const server = read("src/lib/boardsignal/server/founderOperations.ts");\n  assert.match(server, /account\\.accessTier === "founding_beta"/);\n',
+              '  const account = read("src/lib/boardsignal/account.ts");\n  assert.match(account, /export type BoardSignalAccessTier = "founding_beta" \\| "paid"/);\n  assert.match(account, /accessTier: "founding_beta"/);\n',
+              "PATCH_J_CORE_TEST_H1_FOUNDING_TIER",
+          )
+          patch_h1_text = replace_once(
+              patch_h1_text,
+              '  assert.match(layout, /boardsignal-h1-hotfix\\.css";\\nimport "\\.\\/boardsignal-f2-readability\\.css";/);\n',
+              '  assert.match(layout, /boardsignal-h1-hotfix\\.css";[\\s\\S]*import "\\.\\/boardsignal-f2-readability\\.css";/);\n',
+              "PATCH_J_CORE_TEST_H1_F2_ORDER",
+          )
+          patch_h1.write_text(patch_h1_text, encoding="utf-8")
+          print("PATCH_J_CORE_PATCH_H1_TEST_REPAIRED")
           PY
           git diff --check
           cat > /tmp/expected-paths <<'EOF'
@@ -129,6 +188,7 @@ jobs:
           tests/boardsignal-beta-access.test.ts
           tests/boardsignal-communications-onboarding.test.ts
           tests/boardsignal-patch-h.test.ts
+          tests/boardsignal-patch-h1.test.ts
           tests/boardsignal-patch-j-review-journal.test.cjs
           tsconfig.critical-regressions.json
           tsconfig.tests.json

@@ -91,6 +91,24 @@ jobs:
 
           path.write_text(text, encoding="utf-8")
           print("PATCH_J_CORE_COMMUNICATIONS_TESTS_REPAIRED")
+
+          patch_h = Path("tests/boardsignal-patch-h.test.ts")
+          patch_h_text = patch_h.read_text(encoding="utf-8")
+          old_patch_h = '''  assert.match(coordinator, /state\\?\\.version === REVIEW_HISTORY_BACKFILL_VERSION && state\\.status === "complete"/);
+          assert.match(coordinator, /addReviewDays\\(latestPeriodStart, 14\\) <= todayIso\\(now\\)/);
+          assert.match(coordinator, /activationBaseline:\\s*false/);
+          '''
+          new_patch_h = '''  assert.match(coordinator, /state\\.version !== REVIEW_HISTORY_BACKFILL_VERSION/);
+          assert.match(coordinator, /!sameTargets\\(state\\.targetPeriods, targets\\)/);
+          assert.match(coordinator, /if \\(backfillComplete\\(targets, state\\.evaluated, existingStarts\\)\\)/);
+          assert.match(coordinator, /if \\(leaseIsActive\\(state\\.lease, now\\)\\) return undefined/);
+          assert.match(coordinator, /const target = nextBackfillPeriod\\(targets, state\\.evaluated, existingStarts\\)/);
+          assert.match(coordinator, /activationBaseline: previous\\?\\.activationBaseline \\?\\? false/);
+          '''
+          if patch_h_text.count(old_patch_h) != 1:
+              raise SystemExit(f"PATCH_J_CORE_TEST_PATCH_H_ANCHOR_MISMATCH count={patch_h_text.count(old_patch_h)}")
+          patch_h.write_text(patch_h_text.replace(old_patch_h, new_patch_h, 1), encoding="utf-8")
+          print("PATCH_J_CORE_PATCH_H_TEST_REPAIRED")
           PY
           git diff --check
           cat > /tmp/expected-paths <<'EOF'
@@ -109,6 +127,7 @@ jobs:
           src/lib/boardsignal/server/reviewJournal.ts
           tests/boardsignal-beta-access.test.ts
           tests/boardsignal-communications-onboarding.test.ts
+          tests/boardsignal-patch-h.test.ts
           tests/boardsignal-patch-j-review-journal.test.cjs
           tsconfig.critical-regressions.json
           tsconfig.tests.json

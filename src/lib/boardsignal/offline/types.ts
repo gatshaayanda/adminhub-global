@@ -1,6 +1,7 @@
 import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import type { CurrentEpisodeSummary, DeskSummary, PersonalRecords, ProgressSeries, RecurringPattern } from "@/lib/boardsignal/memory";
 import type { PlayerPulse, SafeShareMoment } from "@/lib/boardsignal/pulse";
+import type { ReviewJournal } from "@/lib/boardsignal/reviewJournal";
 import type { HeadToHeadPayload, SocialPlayerCard } from "@/lib/boardsignal/social";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 
@@ -31,6 +32,7 @@ export type OfflinePlayerRoomSnapshot = {
   pendingFactualReview?: FactualReviewDraft;
   pulse?: PlayerPulse;
   shareMoments: SafeShareMoment[];
+  reviewJournal?: ReviewJournal;
 };
 
 export type OfflineSocialOverview = {

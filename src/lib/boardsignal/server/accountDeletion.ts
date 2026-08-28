@@ -16,6 +16,7 @@ const DELETE_CHUNK_SIZE = 200;
 const PRIVATE_PLAYER_SUBCOLLECTIONS = [
   "desks",
   "factualReviews",
+  "private",
   "social",
   "inbox",
   "conversations",

@@ -110,9 +110,12 @@ test("14-17 idempotence: existing/evaluated slots and leases prevent duplicate w
   assert.equal(nextBackfillPeriod(targets, partial, ["2026-08-13"])?.start, "2026-07-30"); // 16
   assert.equal(backfillComplete(targets, {}, fixtures.E.existing), true); // 17
   const coordinator = read("src/lib/boardsignal/server/historyBackfill.ts");
-  assert.match(coordinator, /state\?\.version === REVIEW_HISTORY_BACKFILL_VERSION && state\.status === "complete"/);
-  assert.match(coordinator, /addReviewDays\(latestPeriodStart, 14\) <= todayIso\(now\)/);
-  assert.match(coordinator, /activationBaseline:\s*false/);
+  assert.match(coordinator, /state\.version !== REVIEW_HISTORY_BACKFILL_VERSION/);
+  assert.match(coordinator, /!sameTargets\(state\.targetPeriods, targets\)/);
+  assert.match(coordinator, /if \(backfillComplete\(targets, state\.evaluated, existingStarts\)\)/);
+  assert.match(coordinator, /if \(leaseIsActive\(state\.lease, now\)\) return undefined/);
+  assert.match(coordinator, /const target = nextBackfillPeriod\(targets, state\.evaluated, existingStarts\)/);
+  assert.match(coordinator, /activationBaseline: previous\?\.activationBaseline \?\? false/);
 });
 
 test("18-23 retention: four imported Reviews equal one new-player activation, never four returns", () => {
@@ -154,12 +157,12 @@ test("24-32 Universe: historical persistence is silent and current boards choose
   const boards = buildActiveUniverseBoards([olderStrong, latestNormal, other], []);
   for (const board of boards) assert.ok(board.entries.filter((entry) => entry.stablePlayerId === "42").length <= 1);
   assert.equal(publicArtifactHasPrivateFields({ headline: "public", red: { title: "private" } }), true); // 31
-  assert.match(persistence, /recordCompletedDeskUniverseArtifacts\(\{ account, desk/); // 32
+  assert.match(persistence, /recordCompletedDeskUniverseArtifacts\(\{ account: updatedAccount, desk/); // 32
 });
 
 test("33-37 Progress/Ask: imported Reviews stay in chronological private history", () => {
   const persistence = read("src/lib/boardsignal/server/persistence.ts");
-  assert.match(persistence, /liveDeskToReviewHistory\(data\.desk, data\.summary\)/); // 33/34
+  assert.match(persistence, /liveDeskToReviewHistory\(data\.desk, data\.summary, lifecycle \?\? "organic_live"\)/); // 33/34
   assert.match(persistence, /deriveRecurringPatternsFromReviewHistory\(reviewHistory\)/); // 35
   assert.match(read("src/lib/boardsignal/server/askContext.ts"), /loadPublishedDesks/); // 36
   assert.match(persistence, /orderBy\("periodEnd", "desc"\)\.limit\(4\)/); // 37

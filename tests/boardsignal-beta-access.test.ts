@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import { firebaseUidForChessPlayer } from "../src/lib/boardsignal/account";
 import {
   BETA_ACCESS_MAX_FAILED_ATTEMPTS,
@@ -94,8 +95,10 @@ test("public username to LIVE Desk remains available without authentication", ()
   const usernameForm = readFileSync("src/components/UsernameDeskForm.tsx", "utf8");
   const liveRoute = readFileSync("src/app/api/boardsignal/[username]/route.ts", "utf8");
   assert.match(buildPage, /UniversalPlayerDesk/);
-  assert.match(usernameForm, /Get My BoardSignal/);
-  assert.doesNotMatch(usernameForm, /Build My Desk/);
+  assert.match(usernameForm, /onSubmit=\{submit\}/);
+  assert.match(usernameForm, /name="username"/);
+  assert.match(usernameForm, /event\.preventDefault\(\)/);
+  assert.match(usernameForm, /const cleanUsername = username\.trim\(\)/);
   assert.match(liveRoute, /buildLiveDesk/);
   assert.doesNotMatch(liveRoute, /requirePlayerToken/);
 });
@@ -110,40 +113,60 @@ test("private Player Room remains owner-only and Beta Access records remain serv
 test("Founder Beta Access management API remains behind shared Founder session/Basic fallback middleware without double-auth", () => {
   const middleware = readFileSync("middleware.ts", "utf8");
   const api = readFileSync("src/app/api/admin/boardsignal/beta-access/route.ts", "utf8");
-  assert.match(middleware, /startsWith\('\/api\/admin\/boardsignal\/'\)/);
-  assert.match(middleware, /'\/api\/admin\/boardsignal\/:path\*'/);
+  const founderApiRouteMatches = middleware.match(/pathname\.startsWith\(["']\/api\/admin\/boardsignal\/["']\)/g) ?? [];
+  assert.equal(founderApiRouteMatches.length, 2);
+  assert.match(middleware, /if \(!isFounderRoute\(pathname\)\) return NextResponse\.next\(\)/);
+  assert.match(middleware, /if \(isFounderApi\(pathname\)\)[\s\S]*status:\s*401/);
+  assert.match(middleware, /matcher:\s*\[[^\]]*["']\/api\/admin\/boardsignal\/:path\*["']/);
   assert.match(middleware, /verifyFounderAuthorization/);
   assert.doesNotMatch(api, /requireFounderBasicAuth/);
-  assert.match(api, /listFounderPlayerIdentities\(\)/);
-  assert.match(api, /createFoundingBetaAccess\(body\.username\)/);
-  assert.match(api, /resetFoundingBetaAccess\(body\.playerId\)/);
-  assert.match(api, /revokeFoundingBetaAccess\(body\.playerId\)/);
-  assert.match(api, /accessCode: result\.accessCode/);
-  assert.match(api, /errorStatus\(error\)/);
+  assert.match(api, /export async function GET\(\)/);
+  assert.match(api, /return response\(\{ ok: true, players: directory\.players, requests: directory\.requests \}\)/);
+  assert.match(api, /export async function POST\(request: Request\)/);
+  for (const action of ["create", "reset", "revoke"]) {
+    assert.match(api, new RegExp(`body\.action === "${action}"`));
+  }
+  assert.match(api, /accessCode:/);
 });
 
-test("Founder middleware rejects unauthenticated Beta Access requests and permits valid Founder auth", async () => {
-  process.env.ADMIN_PASSWORD = "focused-founder-test-secret";
-  try {
-    const { middleware } = await import("../middleware");
-    const request = (authorization?: string) => ({
-      nextUrl: { pathname: "/api/admin/boardsignal/beta-access" },
-      headers: new Headers(authorization ? { authorization } : undefined),
-      cookies: { get: () => undefined },
-    }) as Parameters<typeof middleware>[0];
+test("Founder authorization accepts native session and Basic auth while rejecting missing or invalid credentials", async () => {
+  type FounderSessionModule = {
+    createFounderSession: (adminPassword: string, options?: { nowMs?: number; nonce?: string }) => Promise<{ value: string }>;
+    verifyFounderAuthorization: (input: { sessionValue?: string; authorization?: string; adminPassword?: string; nowMs?: number }) => Promise<{ authorized: boolean; method: string; reason?: string }>;
+  };
+  const nativeImport = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<FounderSessionModule>;
+  const founderSessionUrl = pathToFileURL(`${process.cwd()}/src/lib/boardsignal/founderSession.mjs`).href;
+  const { createFounderSession, verifyFounderAuthorization } = await nativeImport(founderSessionUrl);
+  const secret = "focused-founder-test-secret";
+  const nowMs = Date.parse("2026-08-11T12:00:00.000Z");
 
-    const unauthenticated = await middleware(request());
-    assert.equal(unauthenticated.status, 401);
+  const notConfigured = await verifyFounderAuthorization({ adminPassword: undefined, nowMs });
+  assert.equal(notConfigured.authorized, false);
+  assert.equal(notConfigured.reason, "not_configured");
 
-    const rejected = await middleware(request(`Basic ${Buffer.from("founder:wrong-secret").toString("base64")}`));
-    assert.equal(rejected.status, 401);
+  const unauthenticated = await verifyFounderAuthorization({ adminPassword: secret, nowMs });
+  assert.equal(unauthenticated.authorized, false);
+  assert.equal(unauthenticated.reason, "invalid");
 
-    const authenticated = await middleware(request(`Basic ${Buffer.from("founder:focused-founder-test-secret").toString("base64")}`));
-    assert.equal(authenticated.status, 200);
-    assert.equal(authenticated.headers.get("x-middleware-next"), "1");
-  } finally {
-    delete process.env.ADMIN_PASSWORD;
-  }
+  const rejected = await verifyFounderAuthorization({
+    authorization: `Basic ${Buffer.from("founder:wrong-secret").toString("base64")}`,
+    adminPassword: secret,
+    nowMs,
+  });
+  assert.equal(rejected.authorized, false);
+
+  const basic = await verifyFounderAuthorization({
+    authorization: `Basic ${Buffer.from(`founder:${secret}`).toString("base64")}`,
+    adminPassword: secret,
+    nowMs,
+  });
+  assert.equal(basic.authorized, true);
+  assert.equal(basic.method, "basic");
+
+  const session = await createFounderSession(secret, { nowMs, nonce: "focused-founder-session" });
+  const sessionAuthorization = await verifyFounderAuthorization({ sessionValue: session.value, adminPassword: secret, nowMs });
+  assert.equal(sessionAuthorization.authorized, true);
+  assert.equal(sessionAuthorization.method, "session");
 });
 
 test("Beta Access adds no Google, email-password, magic-link, URL-code, or credential logging flow", () => {

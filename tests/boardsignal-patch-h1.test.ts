@@ -60,7 +60,8 @@ test("H.1 1 stale June forming becomes review-check truth", () => {
 test("H.1 2 stale forming cannot inflate Reviews Forming metric", () => {
   const server = read("src/lib/boardsignal/server/founderOperations.ts");
   assert.match(server, /forming:\s*derived\.forming/);
-  assert.match(server, /reviewsForming:\s*rows\.filter\(\(row\) => row\.forming\)\.length/);
+  const materialized = read("src/lib/boardsignal/server/founderMaterialized.ts");
+  assert.match(materialized, /reviewsForming:\s*row\.forming \? 1 : 0/);
 });
 
 // 3. The shared filter consumes the same effective row.forming value.
@@ -118,8 +119,9 @@ test("H.1 7 past review date is not labelled NEXT REVIEW", () => {
 // 8. H.1 does not change Patch H retention accounting.
 test("H.1 8 historical backfill remains separate from qualifying Review retention", () => {
   const server = read("src/lib/boardsignal/server/founderOperations.ts");
-  assert.match(server, /verifiedDocuments = allVerifiedDocuments\.filter\(\(\{ period \}\) => period\.source !== "historical"\)/);
-  assert.match(server, /reviewCount:\s*snapshot\.verified\.length/);
+  assert.match(server, /const nonHistorical = periods\.filter\(\(period\) => period\.source !== "historical"\)/);
+  assert.match(server, /reviewCount:\s*nonHistorical\.length/);
+  assert.match(server, /reviewPeriods:\s*nonHistorical/);
   assert.match(server, /activationBaseline === true/);
 });
 
@@ -213,7 +215,9 @@ test("H.1 correction missing historical slot is not fabricated before complete",
 
 test("H.1 correction Founder detail labels qualifying Review truthfully", () => {
   const consoleSource = read("src/components/FounderOperationsConsole.tsx");
-  assert.match(consoleSource, /<dt>Latest qualifying Review<\/dt><dd>\{row\.latestReview\?\.periodLabel \?\? "No qualifying Review"\}<\/dd>/);
+  assert.match(consoleSource, /\{row\.reviewCount\} qualifying/);
+  assert.match(consoleSource, /LATEST VERIFIED REVIEW PERIODS/);
+  assert.match(consoleSource, /No verified completed Review periods stored\./);
   assert.doesNotMatch(consoleSource, /<dt>Latest Review<\/dt>/);
   assert.doesNotMatch(consoleSource, /No completed Review/);
 });
@@ -221,9 +225,12 @@ test("H.1 correction Founder detail labels qualifying Review truthfully", () => 
 // 12. Original Beta/organic validation semantics remain untouched.
 test("H.1 12 Original Beta and organic retention semantics remain intact", () => {
   const server = read("src/lib/boardsignal/server/founderOperations.ts");
-  assert.match(server, /source: "original"/);
-  assert.match(server, /source: review\.source/);
-  assert.match(server, /summarizeOperationalRetention\(evidence, originalToLive, historicalActivationPlayers\)/);
+  const materialized = read("src/lib/boardsignal/server/founderMaterialized.ts");
+  assert.match(server, /nonHistorical\.filter\(\(period\) => period\.source === "original"\)\.length/);
+  assert.match(server, /nonHistorical\.filter\(\(period\) => period\.source === "live"\)\.length/);
+  assert.match(materialized, /const baseline = originalReviews > 0 \|\| input\.activationBaseline === true \? 1 : 0/);
+  assert.match(materialized, /const retentionDepth = baseline \+ liveReviews/);
+  assert.match(materialized, /originalToLive: originalReviews > 0 && liveReviews > 0 \? 1 : 0/);
 });
 
 // 13. Final specialized pocket surface owns both background/foreground and passes contrast.
@@ -262,8 +269,9 @@ test("H.1 15 customer-facing Founding Beta Field maps to Founding Access", () =>
 
 // 16. Internal founding_beta identifiers remain unchanged.
 test("H.1 16 internal founding_beta values remain intact", () => {
-  const server = read("src/lib/boardsignal/server/founderOperations.ts");
-  assert.match(server, /account\.accessTier === "founding_beta"/);
+  const account = read("src/lib/boardsignal/account.ts");
+  assert.match(account, /export type BoardSignalAccessTier = "founding_beta" \| "paid"/);
+  assert.match(account, /accessTier: "founding_beta"/);
 });
 
 // 17. G.3 Quick Read hierarchy remains intact and H.1 does not replace it.
@@ -282,7 +290,7 @@ test("H.1 18 protected F.2 readability contract remains intact", () => {
   assert.match(f2, /\.universal-section\.universe-learning-section/);
   assert.match(f2, /--bs-f2-learning-card-dark/);
   const layout = read("src/app/layout.tsx");
-  assert.match(layout, /boardsignal-h1-hotfix\.css";\nimport "\.\/boardsignal-f2-readability\.css";/);
+  assert.match(layout, /boardsignal-h1-hotfix\.css";[\s\S]*import "\.\/boardsignal-f2-readability\.css";/);
 });
 
 test("H.1 analytics configuration still expects the dedicated Vercel token", () => {

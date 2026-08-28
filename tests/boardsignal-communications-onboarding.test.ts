@@ -25,7 +25,11 @@ test("2. founder can approve and reject pending requests", () => {
 
 test("3. approval reuses stable identity instead of creating a duplicate player", () => {
   const source = read("src/lib/boardsignal/server/betaRequests.ts");
-  assert.match(source, /createFoundingBetaAccess\(request\.canonicalUsername\)/);
+  assert.match(source, /const identity: StableChessComIdentity = \{/);
+  assert.match(source, /playerId: request\.chessPlayerId/);
+  assert.match(source, /canonicalUsername: request\.canonicalUsername/);
+  assert.match(source, /ensureStablePlayerAccount\(identity\)/);
+  assert.match(source, /createFoundingBetaAccessForIdentity\(identity\)/);
   assert.match(source, /BETA_ACCESS_EXISTS/);
   assert.match(source, /loadExistingFoundingBetaAccess\(request\.chessPlayerId\)/);
   assert.doesNotMatch(source, /resetFoundingBetaAccess\(request\.chessPlayerId\)/);
@@ -45,9 +49,11 @@ test("5. required Universe participation is disclosed and cannot be falsely togg
   const form = read("src/components/UsernameDeskForm.tsx");
   const gate = read("src/components/BetaAgreementGate.tsx");
   const profile = read("src/components/PlayerProfileNotifications.tsx");
-  assert.match(form, /Included with Founding Beta/);
+  assert.match(form, /className="beta-universe-disclosure"/);
+  assert.match(form, /SEE YOUR GAMES TOGETHER/);
   assert.match(gate, /Included with Founding Access/);
-  assert.match(profile, /Founding Access Universe participation = Included/);
+  assert.match(profile, /Founding Access public highlights = Included/);
+  assert.match(profile, /privacy: \{ \.\.\.privacy, publicPlayerPage: true, universeCoverage: true \}/);
   assert.doesNotMatch(profile, /Allow safe positive Universe coverage/);
 });
 
@@ -116,7 +122,7 @@ test("14. founder reads and replies to the correct private player thread", () =>
   const server = read("src/lib/boardsignal/server/communications.ts");
   assert.match(server, /founderConversation\(uidInput/);
   assert.match(server, /collection\("users"\)\.doc\(uid\)\.collection\("conversations"\)\.doc\(threadId\)/);
-  assert.match(server, /founderReply\(uidInput/);
+  assert.match(server, /export async function founderReply\(\s*uidInput: unknown/);
 });
 
 test("15. push-disabled configuration keeps the in-app product usable", () => {

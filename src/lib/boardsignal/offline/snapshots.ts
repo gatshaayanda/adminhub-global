@@ -2,6 +2,7 @@ import type { BoardSignalAccount } from "@/lib/boardsignal/account";
 import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import type { CurrentEpisodeSummary, PersonalRecords, ProgressSeries, RecurringPattern } from "@/lib/boardsignal/memory";
 import type { PlayerPulse, SafeShareMoment } from "@/lib/boardsignal/pulse";
+import type { ReviewJournal } from "@/lib/boardsignal/reviewJournal";
 import type { HeadToHeadPayload } from "@/lib/boardsignal/social";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 import { getOfflineRecord, offlineKey, putOfflineRecord } from "./db";
@@ -27,6 +28,7 @@ type OnlineSnapshotInput = {
   pendingFactualReview?: FactualReviewDraft;
   pulse?: PlayerPulse;
   shareMoments?: SafeShareMoment[];
+  reviewJournal?: ReviewJournal;
 };
 
 const PLAYER_ROOM_KIND = "player-room";
@@ -56,6 +58,7 @@ export async function savePlayerRoomOfflineSnapshot(uid: string, input: OnlineSn
     pendingFactualReview: input.pendingFactualReview,
     pulse: input.pulse,
     shareMoments: (input.shareMoments ?? []).filter((item) => activeDeskKeys.has(item.deskKey)).slice(0, 12),
+    reviewJournal: input.reviewJournal ?? { version: 1, notes: [] },
   };
   await putOfflineRecord("snapshots", { key: offlineKey(uid, PLAYER_ROOM_KIND), uid, kind: PLAYER_ROOM_KIND, updatedAt: now, payload: snapshot });
   const meta = await getOfflineMeta(uid);

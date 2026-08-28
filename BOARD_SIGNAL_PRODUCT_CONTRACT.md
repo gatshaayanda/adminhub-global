@@ -193,3 +193,13 @@ Termination counts, streaks, volume, rating movement, openings, and opponent ban
 - Human move prediction is optional. Maia-2 is reviewed as an MIT-licensed adapter candidate but is not a required dependency. Maia-3 is AGPL-3.0 and remains blocked from product integration until explicit licence approval. No human model can replace Stockfish or legal reconstruction as factual authority.
 - Understanding concept IDs may persist inside the existing retained Review summaries so recurrence can be compared across Reviews without prose matching and without introducing an additional Firestore population scan or ordinary-read query.
 - Full position-specific engine or understanding analysis is completed-game only. BoardSignal must never analyze an ongoing Chess.com game, provide a move for a game in progress, or attach position-specific engine assistance to the forming current episode. Carry-forward guidance between Reviews must stay general.
+
+## Private Review journal
+
+- Player-authored Review notes are a separate private layer: `WHAT I NOTICED`, `WHAT I'LL TRY`, and `FOLLOW-UP`. They never mutate, score, reinterpret or become part of BoardSignal's immutable completed Review truth, Stockfish evidence, rankings or lifecycle.
+- Notes are player-private account data. They do not enter Universe, public player pages, public highlights, Share Moments, Founder public coverage, Trustpilot payloads, public Ask BoardSignal context or analytics event bodies.
+- The private journal may outlive the four-heavy-Review window as tiny durable memory containing only Review identity/period context, note type/body, note ID and created/updated timestamps. Expired engine payloads, reviewed positions and evidence are not retained to support the journal.
+- Journal persistence is bounded to one private document per player at `users/{uid}/private/reviewJournal`, with at most 260 notes and 1,000 characters per note. Reaching the bound must fail visibly; BoardSignal never silently deletes an older note to make room.
+- Normal Player Room journal loading adds at most one bounded document read, never one read per note or Review. Add/edit/delete mutations are explicit, transaction-safe, and perform one durable journal-document write after validation; typing never writes to Firestore.
+- Saved journal notes may be copied into the existing UID-scoped offline Player Room snapshot for read-only offline access. Offline Add/Edit/Delete remains disabled with an explicit reconnect message unless BoardSignal later adopts a real durable mutation queue.
+- Deleting the BoardSignal account recursively deletes the private journal. Deleting a single note deletes only that note and never its Review.

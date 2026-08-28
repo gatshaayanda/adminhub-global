@@ -8,6 +8,7 @@ import { canonicalGenerationRequired, performanceEvidencePeriods } from "@/lib/b
 import { buildReviewProgress, deriveRecurringPatternsFromReviewHistory } from "@/lib/boardsignal/reviewHistory";
 import { acceptFoundingBetaAgreement, accountForToken, buildPlayerRoomSnapshot, publishPrivateDesk, savePendingFactualReview, requirePlayerToken, updatePlayerPreferences } from "@/lib/boardsignal/server/persistence";
 import { loadRecentReportPeriodTruth, recordReviewPeriodResult } from "@/lib/boardsignal/server/reviewPeriods";
+import { loadReviewJournal } from "@/lib/boardsignal/server/reviewJournal";
 import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
 import { recordGuidePlayerRoomSnapshot } from "@/lib/boardsignal/server/guide";
 import { classifyBoardSignalHttpError } from "@/lib/boardsignal/server/firestoreService";
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
   try {
     const token = await requirePlayerToken(request);
     const account = await accountForToken(token);
-    if (!hasAcceptedCurrentBetaAgreement(account)) return response({ ok: true, snapshot: { account, desks: [], reviewHistory: [], reportPeriods: [], historyCoverage: { evaluatedCount: 0, totalCount: 0 }, originalBetaReturn: Boolean((account as typeof account & { originalBetaPlayer?: boolean }).originalBetaPlayer), progress: [], recurringPatterns: [], personalRecords: { desksCompleted: 0, personalBestWinRun: 0, largestPoolSpecificRatingClimb: {} }, generationRequired: false } });
+    if (!hasAcceptedCurrentBetaAgreement(account)) return response({ ok: true, snapshot: { account, desks: [], reviewHistory: [], reportPeriods: [], historyCoverage: { evaluatedCount: 0, totalCount: 0 }, originalBetaReturn: Boolean((account as typeof account & { originalBetaPlayer?: boolean }).originalBetaPlayer), progress: [], recurringPatterns: [], personalRecords: { desksCompleted: 0, personalBestWinRun: 0, largestPoolSpecificRatingClimb: {} }, generationRequired: false, reviewJournal: { version: 1, notes: [] } } });
     let currentEpisode: Awaited<ReturnType<typeof buildCurrentEpisodeSummary>> | undefined;
     let progressUnavailable;
     try { currentEpisode = await buildCurrentEpisodeSummary(account.chessCom.canonicalUsername, { anchorStart: account.cadenceAnchor, playerKey: account.uid }); }
@@ -35,7 +36,8 @@ export async function GET(request: Request) {
     snapshot.recurringPatterns = deriveRecurringPatternsFromReviewHistory(snapshot.reviewHistory);
     snapshot.personalRecords = { ...snapshot.personalRecords, desksCompleted: snapshot.reviewHistory.length };
     snapshot.generationRequired = canonicalGenerationRequired(snapshot.generationRequired, reportTruth.periods);
-    Object.assign(snapshot, { reportPeriods: reportTruth.periods, historyCoverage: reportTruth.coverage });
+    const reviewJournal = await loadReviewJournal(account.uid);
+    Object.assign(snapshot, { reportPeriods: reportTruth.periods, historyCoverage: reportTruth.coverage, reviewJournal });
     if (snapshot.currentEpisode && currentEpisode) {
       const previous = snapshot.reviewHistory[0];
       currentEpisode = { ...currentEpisode, nextGameGuidance: withPreviousReviewGuidance(currentEpisode.nextGameGuidance, previous?.blue ? { title: previous.blue.title, copy: previous.blue.copy, family: previous.signalFamilies.blueFamily, sourcePeriod: previous.periodLabel } : undefined) };

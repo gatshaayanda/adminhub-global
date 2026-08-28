@@ -569,3 +569,79 @@
     font-size: .75rem;
   }
 }
+
+/* Patch J — private Review journal. Neutral signifiers only; note types are not grades. */
+.player-room-authenticated .g3-review-journal-slot {
+  width: min(100% - 1rem, var(--g3-reading-width));
+  padding-block: 1rem;
+}
+
+.player-room-authenticated .review-journal,
+.player-room-authenticated .review-journal-progress {
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .review-journal { padding: clamp(1rem, 2.5vw, 1.5rem); }
+.player-room-authenticated .review-journal.is-compact { margin-top: 1rem; padding: 1rem; box-shadow: none; }
+.player-room-authenticated .review-journal-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.player-room-authenticated .review-journal-heading h3 { margin: .2rem 0; }
+.player-room-authenticated .review-journal-heading p:not(.kicker),
+.player-room-authenticated .review-journal-empty,
+.player-room-authenticated .review-journal-field-help,
+.player-room-authenticated .review-journal-body-label span,
+.player-room-authenticated .review-journal-note small,
+.player-room-authenticated .review-journal-progress summary small { color: var(--bs-text-secondary); }
+.player-room-authenticated .review-journal-heading > span,
+.player-room-authenticated .review-journal-period,
+.player-room-authenticated .review-journal-note-type { font-size: .75rem; font-weight: 800; letter-spacing: .07em; }
+.player-room-authenticated .review-journal-heading > span { padding: .35rem .55rem; border: 1px solid var(--bs-border-strong); border-radius: 999px; }
+.player-room-authenticated .review-journal-add,
+.player-room-authenticated .review-journal-note-actions button { min-height: 44px; border: 1px solid var(--bs-border-strong); border-radius: var(--bs-radius-md); background: transparent; color: var(--bs-text-primary); font: inherit; font-weight: 800; cursor: pointer; }
+.player-room-authenticated .review-journal-add { margin-top: 1rem; padding: .7rem .9rem; }
+.player-room-authenticated .review-journal-note-actions button { padding: .55rem .75rem; }
+.player-room-authenticated .review-journal-add:disabled,
+.player-room-authenticated .review-journal-note-actions button:disabled { cursor: not-allowed; opacity: .7; }
+.player-room-authenticated .review-journal-add:focus-visible,
+.player-room-authenticated .review-journal-note-actions button:focus-visible,
+.player-room-authenticated .review-journal-editor button:focus-visible,
+.player-room-authenticated .review-journal-editor textarea:focus-visible,
+.player-room-authenticated .review-journal-type-grid input:focus-visible,
+.player-room-authenticated .review-journal-progress > summary:focus-visible { outline: 3px solid var(--bs-focus); outline-offset: 3px; }
+.player-room-authenticated .review-journal-note-list { display: grid; gap: .75rem; margin-top: 1rem; }
+.player-room-authenticated .review-journal-note { padding: 1rem; border: 1px solid var(--bs-border); border-radius: var(--bs-radius-md); background: var(--bs-surface-soft); }
+.player-room-authenticated .review-journal-note > p { margin: .55rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.player-room-authenticated .review-journal-period { display: block; margin-bottom: .25rem; color: var(--bs-text-secondary); }
+.player-room-authenticated .review-journal-note-actions,
+.player-room-authenticated .review-journal-editor-actions,
+.player-room-authenticated .review-journal-delete-confirm > div { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.player-room-authenticated .review-journal-editor { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--bs-border); }
+.player-room-authenticated .review-journal-editor fieldset { margin: 0; padding: 0; border: 0; }
+.player-room-authenticated .review-journal-editor legend,
+.player-room-authenticated .review-journal-body-label > strong { font-weight: 800; }
+.player-room-authenticated .review-journal-type-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin-top: .75rem; }
+.player-room-authenticated .review-journal-type-grid label { display: flex; min-height: 64px; gap: .55rem; align-items: flex-start; padding: .75rem; border: 1px solid var(--bs-border); border-radius: var(--bs-radius-md); cursor: pointer; }
+.player-room-authenticated .review-journal-type-grid label.is-selected { border-color: var(--bs-border-strong); background: var(--bs-surface-soft); }
+.player-room-authenticated .review-journal-type-grid input { width: 20px; height: 20px; margin-top: .1rem; }
+.player-room-authenticated .review-journal-type-grid span,
+.player-room-authenticated .review-journal-body-label { display: grid; gap: .2rem; }
+.player-room-authenticated .review-journal-type-grid small { color: var(--bs-text-secondary); }
+.player-room-authenticated .review-journal-body-label { margin-top: 1rem; }
+.player-room-authenticated .review-journal-editor textarea { width: 100%; min-height: 110px; margin-top: .5rem; padding: .75rem; border: 1px solid var(--bs-border-strong); border-radius: var(--bs-radius-md); background: var(--bs-surface); color: var(--bs-text-primary); font: inherit; resize: vertical; }
+.player-room-authenticated .review-journal-editor-meta { display: flex; justify-content: space-between; gap: .75rem; margin-top: .35rem; }
+.player-room-authenticated .review-journal-error,
+.player-room-authenticated .review-journal-offline { margin-top: .75rem; color: var(--bs-text-secondary); }
+.player-room-authenticated .review-journal-delete-confirm { margin-top: .75rem; padding: .75rem; border: 1px solid var(--bs-border-strong); border-radius: var(--bs-radius-md); }
+.player-room-authenticated .review-journal-progress { margin: 1rem 0; }
+.player-room-authenticated .review-journal-progress > summary { min-height: 48px; display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: 1rem; cursor: pointer; }
+.player-room-authenticated .review-journal-progress > summary span { display: grid; gap: .2rem; }
+.player-room-authenticated .review-journal-progress-body { padding: 0 1rem 1rem; }
+@media (max-width: 720px) {
+  .player-room-authenticated .review-journal-type-grid { grid-template-columns: 1fr; }
+  .player-room-authenticated .review-journal-heading,
+  .player-room-authenticated .review-journal-editor-meta,
+  .player-room-authenticated .review-journal-progress > summary { align-items: stretch; flex-direction: column; }
+}

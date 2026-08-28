@@ -123,7 +123,7 @@ tsconfig.tests.json
         "\"$REAL_NPM\" \"$@\"\n"
         "status=$?\n"
         "set -e\n"
-        "if [[ \"$status\" -eq 0 && \"${1:-}\" == \"run\" && \"${2:-}\" == \"build\" && \"$PWD\" == \"$PATCH_WORKSPACE\" ]]; then\n"
+        "if [[ \"${1:-}\" == \"run\" && \"${2:-}\" == \"build\" && \"$PWD\" == \"$PATCH_WORKSPACE\" ]]; then\n"
         "  expected=\"$(mktemp)\"\n"
         "  actual=\"$(mktemp)\"\n"
         "  unexpected=\"$(mktemp)\"\n"

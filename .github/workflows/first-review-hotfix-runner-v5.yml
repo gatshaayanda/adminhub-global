@@ -1,0 +1,111 @@
+name: BoardSignal First Review Hotfix Runner V5
+
+on:
+  push:
+    branches:
+      - boardsignal-hotfix-first-review-completion-ux-runner-v5
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out isolated hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: boardsignal-hotfix-first-review-completion-ux
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply verified V4 implementation and correct stale focused assertion
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import textwrap
+
+          workflow = subprocess.check_output([
+              "git", "show",
+              "origin/boardsignal-hotfix-first-review-completion-ux-runner-v4:.github/workflows/first-review-hotfix-runner-v4.yml",
+          ], text=True)
+          marker = "          python - <<'PY'\n"
+          start = workflow.find(marker)
+          if start < 0:
+              raise SystemExit("Could not locate verified V4 apply script")
+          start += len(marker)
+          end = workflow.find("\n          PY", start)
+          if end < 0:
+              raise SystemExit("Could not locate verified V4 apply terminator")
+          script = textwrap.dedent(workflow[start:end])
+          exec(compile(script, "verified-v4-apply.py", "exec"), {})
+
+          test_path = Path("tests/boardsignal-first-review-completion-ux-hotfix.test.cjs")
+          test_text = test_path.read_text()
+          old = "assert.match(room, /async \\(firebaseUser: User, quiet = false\\)/);"
+          new = "assert.match(room, /async \\(activeUser: User, quiet = false\\)/);"
+          if test_text.count(old) != 1:
+              raise SystemExit(f"Expected one stale loadRoom assertion, found {test_text.count(old)}")
+          test_path.write_text(test_text.replace(old, new, 1))
+          PY
+
+      - name: Focused hotfix regression
+        run: node --test tests/boardsignal-first-review-completion-ux-hotfix.test.cjs
+
+      - name: Focused telemetry regression
+        run: npx tsc -p tsconfig.tests.json && node --test .test-dist/tests/boardsignal-engine-diagnostics.test.js
+
+      - name: Existing first-review and history regressions
+        run: node --test tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs tests/boardsignal-durable-first-desk-resilience.test.cjs tests/boardsignal-active-week-next-game-guidance.test.cjs tests/boardsignal-player-room-g3.test.cjs
+
+      - name: Core suite
+        run: npm run test:core
+
+      - name: Critical suite
+        run: npm run test:critical
+
+      - name: Stockfish smoke
+        run: npm run test:stockfish
+
+      - name: PWA suite
+        run: npm run test:pwa
+
+      - name: Contrast suite
+        run: npm run test:contrast
+
+      - name: Production build
+        run: npm run build
+
+      - name: Confirm isolated diff and untouched history worker
+        shell: bash
+        run: |
+          git diff --exit-code HEAD -- src/components/BoardSignalHistoryWorker.tsx
+          printf '%s\n' \
+            src/app/api/boardsignal/engine-diagnostic/route.ts \
+            src/components/BoardSignalPlayerRoom.tsx \
+            src/components/UniversalPlayerDesk.tsx \
+            src/lib/boardsignal/client/engineDiagnosticReporter.ts \
+            src/lib/boardsignal/engineDiagnostics.ts \
+            tests/boardsignal-engine-diagnostics.test.ts \
+            tests/boardsignal-first-review-completion-ux-hotfix.test.cjs | sort > /tmp/expected-files
+          git diff --name-only HEAD | sort > /tmp/actual-files
+          diff -u /tmp/expected-files /tmp/actual-files
+
+      - name: Commit validated hotfix
+        run: |
+          git config user.name "BoardSignal Hotfix Runner"
+          git config user.email "boardsignal-hotfix@users.noreply.github.com"
+          git add src/components/BoardSignalPlayerRoom.tsx src/components/UniversalPlayerDesk.tsx src/lib/boardsignal/engineDiagnostics.ts src/lib/boardsignal/client/engineDiagnosticReporter.ts src/app/api/boardsignal/engine-diagnostic/route.ts tests/boardsignal-engine-diagnostics.test.ts tests/boardsignal-first-review-completion-ux-hotfix.test.cjs
+          git commit -m "Fix first Review completion experience"
+          git push origin HEAD:boardsignal-hotfix-first-review-completion-ux

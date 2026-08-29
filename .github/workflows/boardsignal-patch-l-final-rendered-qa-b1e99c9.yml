@@ -1,0 +1,202 @@
+name: BoardSignal Patch L Final Rendered QA b1e99c9
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-l-final-qa-b1e99c9
+
+permissions:
+  contents: read
+
+jobs:
+  rendered-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchLGuard000000000000000000000
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-l-ci.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-l-ci
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: patch-l-ci.appspot.com
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+      NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+      NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+    steps:
+      - name: Checkout exact Patch L candidate
+        uses: actions/checkout@v4
+        with:
+          ref: b1e99c923ee8f2f3a09963b8c624a1a4916768f8
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install candidate dependencies
+        run: npm ci
+
+      - name: Install browser driver outside candidate tree
+        run: npm install --prefix /tmp/patch-l-qa-driver playwright-core@1.55.0
+
+      - name: Create disposable authenticated-state fixture route
+        shell: bash
+        run: |
+          mkdir -p src/app/patch-l-qa-fixture
+          cat > src/app/patch-l-qa-fixture/page.tsx <<'TSX'
+          "use client";
+          // @ts-nocheck -- disposable rendered-QA fixture; never committed to Patch L.
+          import { useSearchParams } from "next/navigation";
+          import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
+          import LiveDataUnavailablePlayerRoom from "@/components/LiveDataUnavailablePlayerRoom";
+          import PlayerInbox from "@/components/PlayerInbox";
+          import PlayerFriends from "@/components/PlayerFriends";
+          import PlayerProfileNotifications from "@/components/PlayerProfileNotifications";
+          import { findSeededDesk } from "@/data/seededDesks";
+
+          const desk = findSeededDesk("Ayandakopano")!;
+          const deskKey = desk.episodeKey ?? `${desk.player.username}:${desk.period.start}:${desk.period.end}`;
+          const summary = {
+            deskKey, periodStart:desk.period.start, periodEnd:desk.period.end, periodLabel:desk.period.label,
+            games:desk.games, wins:desk.wins, draws:desk.draws, losses:desk.losses, scorePct:desk.score,
+            pools:desk.pools.map((p)=>({pool:p.pool,games:p.games,ratingStart:p.firstRecordedRating,ratingEnd:p.lastRecordedRating,ratingDelta:p.firstRecordedRating!==undefined&&p.lastRecordedRating!==undefined?p.lastRecordedRating-p.firstRecordedRating:undefined})),
+            longestWinRun:desk.longestWinStreak,longestLossRun:desk.longestLossStreak,signalFamilies:{},
+          };
+          const snapshot = {
+            version:1,uid:"qa-user",canonicalUsername:"Ayandakopano",savedAt:"2026-08-29T15:00:00.000Z",lastSyncedAt:"2026-08-29T15:00:00.000Z",
+            desks:[{desk,engineResults:{},summary}],
+            progress:[{pool:"rapid",points:[{deskKey,periodLabel:desk.period.label,games:desk.games,scorePct:desk.score,ratingDelta:-35}]}],
+            recurringPatterns:[],personalRecords:{desksCompleted:1,personalBestWinRun:desk.longestWinStreak,largestPoolSpecificRatingClimb:{}},
+            currentEpisode:{status:"forming",periodStart:"2026-08-27",periodEnd:"2026-09-02",periodLabel:"27 Aug–2 Sep 2026",checkedAt:"2026-08-29T15:00:00.000Z",daysComplete:3,daysRemaining:4,games:6,wins:4,draws:0,losses:2,currentWinRun:2,currentLossRun:0,sessions:2,pools:[{pool:"rapid",games:6,wins:4,draws:0,losses:2,ratingStart:809,ratingEnd:827,ratingDelta:18}],nextDeskDueAt:"2026-09-03T00:00:00.000Z",nextGameGuidance:{status:"available",source:"current_week",family:"positive_run",title:"Protect the good run.",copy:"Before committing, check the opponent's forcing reply once.",supportingFacts:[],gamesConsidered:6,evidenceCount:2}},
+            pendingFactualReview:undefined,
+            pulse:{sinceAway:{eyebrow:"SINCE YOU WERE AWAY",title:"The field moved.",body:"Two players posted new positive moments."},boardMoved:[],proximity:[],provisional:[],whatsHot:[{eventId:"qa-hot-1",eventType:"winning_run",headline:"A five-game winning run is setting the pace.",supportingFact:"Five consecutive wins in the latest completed Review."}],standings:[{categoryId:"winning-run",categoryTitle:"Winning Run",rank:4,denominator:18,label:"4 straight wins",valueLabel:"4 straight wins"}]},
+            shareMoments:[],reviewJournal:{version:1,notes:[{noteId:"qa-note-1",reviewKey:deskKey,periodStart:desk.period.start,periodEnd:desk.period.end,periodLabel:desk.period.label,type:"try_next",body:"Before moving my queen, name every enemy piece attacking the landing square.",createdAt:"2026-08-29T14:00:00.000Z",updatedAt:"2026-08-29T14:00:00.000Z"}]},
+          };
+          const serviceSnapshot = snapshot;
+          const account = {
+            uid:"qa-user",role:"player",accessTier:"founding_beta",accessStatus:"active",billingRequired:false,maxActiveDesks:4,
+            chessCom:{playerId:46574228,canonicalUsername:"Ayandakopano",profileUrl:"https://www.chess.com/member/ayandakopano"},
+            identityStatus:"founder_reviewed",identityReviewStatus:"confirmed",preferencesConfirmedAt:"2026-08-01T00:00:00.000Z",
+            preferredContactMethod:"email",preferredContactValue:"player@example.com",betaContactConsent:true,
+            privacy:{publicPlayerPage:true,universeCoverage:true,additionalPositiveHighlights:true,publicGameLinks:false,expandedPublicProfile:false},
+            notificationPreferences:{email:true,browserPush:false,deskReady:true,episodeProgress:true,blueReminder:true,amberWatch:false,universeAchievement:true,founderUpdates:true},eligibleCoverageKeys:[],
+          };
+          export default function QaFixture(){
+            const state=useSearchParams().get("state")??"offline";
+            if(state==="offline") return <OfflinePlayerRoom uid="qa-user" initialSnapshot={snapshot}/>;
+            if(state==="service") return <LiveDataUnavailablePlayerRoom initialSnapshot={serviceSnapshot} reasonCode="FIRESTORE_QUOTA_EXHAUSTED" onRetry={async()=>false}/>;
+            if(state==="inbox") return <main id="main" className="container page-shell"><p className="kicker">INBOX</p><h1>Your BoardSignal messages.</h1><PlayerInbox token="qa-token"/></main>;
+            if(state==="friends") return <main id="main" className="container page-shell"><PlayerFriends uid="qa-user" token="qa-token"/></main>;
+            if(state==="profile") return <main id="main" className="container page-shell"><p className="kicker">PROFILE</p><h1>Your BoardSignal settings.</h1><PlayerProfileNotifications account={account} uid="qa-user" token="qa-token" onSaved={async()=>{}} onSignOut={()=>{}}/></main>;
+            return null;
+          }
+          TSX
+
+      - name: Start disposable exact-candidate renderer
+        shell: bash
+        run: |
+          npm run dev -- -H 127.0.0.1 -p 3000 > /tmp/boardsignal-qa-dev.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS 'http://127.0.0.1:3000/' >/dev/null && curl -fsS 'http://127.0.0.1:3000/patch-l-qa-fixture?state=offline' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/boardsignal-qa-dev.log
+          exit 1
+
+      - name: Capture required rendered states
+        shell: bash
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"; export CHROME
+          mkdir -p patch-l-final-rendered-qa
+          cat > /tmp/patch-l-final-rendered-qa.cjs <<'NODE'
+          const fs=require('fs');
+          const {chromium}=require('/tmp/patch-l-qa-driver/node_modules/playwright-core');
+          const modes=[
+            ['desktop-light',{width:1440,height:1000},false,'light'],
+            ['desktop-dark',{width:1440,height:1000},false,'dark'],
+            ['mobile-light',{width:390,height:844},true,'light'],
+            ['mobile-dark',{width:390,height:844},true,'dark'],
+          ];
+          const report=[]; const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          function rgb(s){const m=String(s||'').match(/rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);return m?[+m[1],+m[2],+m[3]]:null}
+          function lum(c){const v=c.map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4});return .2126*v[0]+.7152*v[1]+.0722*v[2]}
+          function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+          async function capture(browser,spec,mode){
+            const [modeName,viewport,isMobile,scheme]=mode;
+            const context=await browser.newContext({viewport,isMobile,hasTouch:isMobile,colorScheme:scheme,deviceScaleFactor:1,...(spec.userAgent?{userAgent:spec.userAgent}:{})});
+            const page=await context.newPage(); const consoleErrors=[]; const pageErrors=[];
+            page.on('console',m=>{if(m.type()==='error')consoleErrors.push(m.text())}); page.on('pageerror',e=>pageErrors.push(String(e)));
+            await page.route('**/api/boardsignal/inbox**',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,inbox:{unreadCount:1,messages:[{id:'qa-m1',userId:'qa-user',type:'desk_ready',title:'Your Review is ready',body:'Your completed Review is ready to open.',link:'/boardsignal/player-room',actionLabel:'Open Review',createdAt:'2026-08-29T14:00:00.000Z',senderType:'system',allowReply:false}]}})}));
+            await page.route('**/api/boardsignal/social?view=overview*',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,overview:{friends:[{playerId:2,canonicalUsername:'snoopyissocute',relationshipStatus:'friends',latestDeskPeriod:'18–24 Aug 2026',primaryPool:'rapid',safeHighlight:'Three-game winning run',universePlacement:'#3 in Winning Run'}],incoming:[{playerId:3,canonicalUsername:'NewRival',relationshipStatus:'incoming',latestDeskPeriod:'18–24 Aug 2026'}],outgoing:[],rivalWatch:[],socialPulse:[]}})}));
+            await page.route('**/api/boardsignal/social?view=suggested*',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,players:[{playerId:4,canonicalUsername:'FriendlyKnight',latestDeskPeriod:'18–24 Aug 2026',safeHighlight:'A strong comeback week'}]})}));
+            if(spec.forming) await page.route('**/api/boardsignal/Ayandakopano**',async r=>{await sleep(7000);await r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({ok:false,error:'QA hold'})})});
+            const response=await page.goto(spec.url,{waitUntil:'domcontentloaded',timeout:45000});
+            await page.evaluate(theme=>{document.documentElement.dataset.bsTheme=theme},scheme);
+            if(spec.install==='web') await page.evaluate(()=>{localStorage.setItem('boardsignal:pwa-engaged-at',new Date().toISOString());const e=new Event('beforeinstallprompt',{cancelable:true});Object.defineProperty(e,'prompt',{value:async()=>{}});Object.defineProperty(e,'userChoice',{value:Promise.resolve({outcome:'dismissed',platform:'web'})});window.dispatchEvent(e);window.dispatchEvent(new CustomEvent('boardsignal:pwa-engaged'))});
+            if(spec.install==='ios') await page.evaluate(()=>{localStorage.setItem('boardsignal:pwa-engaged-at',new Date().toISOString());window.dispatchEvent(new CustomEvent('boardsignal:pwa-engaged'))});
+            if(spec.click){const b=page.getByRole('button',{name:spec.click}).first();if(await b.count())await b.click()}
+            if(spec.ask){const b=page.getByRole('button',{name:/Open Ask BoardSignal/i}).first();if(await b.count())await b.click()}
+            await sleep(spec.forming?900:900);
+            const metrics=await page.evaluate(()=>{
+              const visible=e=>{const r=e.getBoundingClientRect();const s=getComputedStyle(e);return r.width>0&&r.height>0&&s.visibility!=='hidden'&&s.display!=='none'};
+              const universeNodes=[...document.querySelectorAll('[class*="universe"], [class*="pulse"], [class*="standing"]')].filter(visible).slice(0,250);
+              const pairs=universeNodes.map(e=>{const s=getComputedStyle(e);let p=e;let bg=s.backgroundColor;while(p&&(!bg||bg==='rgba(0, 0, 0, 0)'||bg==='transparent')){p=p.parentElement;if(p)bg=getComputedStyle(p).backgroundColor}return {tag:e.tagName,cls:e.className?.toString().slice(0,120),text:(e.textContent||'').trim().slice(0,120),color:s.color,bg}});
+              return {title:document.title,bodyText:document.body.innerText.slice(0,12000),theme:document.documentElement.dataset.bsTheme||null,scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,horizontalOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,headings:Array.from(document.querySelectorAll('h1,h2,h3')).slice(0,80).map(e=>e.textContent?.trim()).filter(Boolean),buttons:Array.from(document.querySelectorAll('button')).slice(0,100).map(e=>e.textContent?.trim()).filter(Boolean),universePairs:pairs};
+            });
+            const contrastFlags=(metrics.universePairs||[]).map(x=>{const a=rgb(x.color),b=rgb(x.bg);return a&&b?{...x,ratio:+ratio(a,b).toFixed(2)}:null}).filter(Boolean).filter(x=>x.text&&x.ratio<3);
+            const file=`patch-l-final-rendered-qa/${spec.name}-${modeName}.jpg`; await page.screenshot({path:file,fullPage:true,type:'jpeg',quality:72});
+            report.push({name:spec.name,mode:modeName,status:response?.status()??null,finalUrl:page.url(),...metrics,contrastFlags,consoleErrors,pageErrors,screenshot:file}); await context.close();
+          }
+          (async()=>{const browser=await chromium.launch({executablePath:process.env.CHROME,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const specs=[
+              {name:'homepage',url:'http://127.0.0.1:3000/'},
+              {name:'google-entry',url:'http://127.0.0.1:3000/boardsignal/access'},
+              {name:'first-run-onboarding',url:'http://127.0.0.1:3000/join'},
+              {name:'player-room-entry',url:'http://127.0.0.1:3000/boardsignal/player-room'},
+              {name:'review-forming',url:'http://127.0.0.1:3000/boardsignal/build/Ayandakopano',forming:true},
+              {name:'completed-review',url:'http://127.0.0.1:3000/boardsignal/build/Ayandakopano?mode=seed'},
+              {name:'universe',url:'http://127.0.0.1:3000/feed'},
+              {name:'ask-board-signal',url:'http://127.0.0.1:3000/',ask:true},
+              {name:'saved-review-journal',url:'http://127.0.0.1:3000/patch-l-qa-fixture?state=offline'},
+              {name:'progress',url:'http://127.0.0.1:3000/patch-l-qa-fixture?state=offline',click:'Progress'},
+              {name:'saved-universe',url:'http://127.0.0.1:3000/patch-l-qa-fixture?state=offline',click:'Universe'},
+              {name:'saved-friends',url:'http://127.0.0.1:3000/patch-l-qa-fixture?state=offline',click:'Friends'},
+              {name:'inbox',url:'http://127.0.0.1:3000/patch-l-qa-fixture?state=inbox'},
+              {name:'friends',url:'http://127.0.0.1:3000/patch-l-qa-fixture?state=friends'},
+              {name:'profile',url:'http://127.0.0.1:3000/patch-l-qa-fixture?state=profile'},
+              {name:'install-web',url:'http://127.0.0.1:3000/boardsignal/player-room',install:'web'},
+              {name:'offline-empty',url:'http://127.0.0.1:3000/offline/player-room'},
+              {name:'service-unavailable',url:'http://127.0.0.1:3000/patch-l-qa-fixture?state=service'},
+            ];
+            for(const s of specs)for(const m of modes)await capture(browser,s,m);
+            const ua='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1';
+            for(const m of modes.filter(x=>x[2]))await capture(browser,{name:'install-ios',url:'http://127.0.0.1:3000/boardsignal/player-room',install:'ios',userAgent:ua},m);
+            await browser.close();
+            fs.writeFileSync('patch-l-final-rendered-qa/report.json',JSON.stringify(report,null,2));
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          node /tmp/patch-l-final-rendered-qa.cjs
+          cp /tmp/boardsignal-qa-dev.log patch-l-final-rendered-qa/server.log
+
+      - name: Assert rendered QA basics
+        shell: bash
+        run: |
+          node <<'NODE'
+          const report=require('./patch-l-final-rendered-qa/report.json');
+          const badStatus=report.filter(x=>x.status && x.status>=500 && x.name!=='review-forming');
+          const overflow=report.filter(x=>x.horizontalOverflow);
+          const pageErrors=report.filter(x=>x.pageErrors?.length);
+          const missingUniverse=report.filter(x=>x.name==='universe' && !/UNIVERSE|BoardSignal/i.test(x.bodyText||''));
+          if(badStatus.length||overflow.length||pageErrors.length||missingUniverse.length){
+            console.error(JSON.stringify({badStatus:badStatus.map(x=>[x.name,x.mode,x.status]),overflow:overflow.map(x=>[x.name,x.mode]),pageErrors:pageErrors.map(x=>[x.name,x.mode,x.pageErrors]),missingUniverse:missingUniverse.map(x=>x.mode)},null,2));
+            process.exit(1);
+          }
+          console.log(`Captured ${report.length} rendered states with no horizontal overflow or page errors.`);
+          NODE
+
+      - name: Upload final rendered QA evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: patch-l-final-rendered-qa-b1e99c9
+          path: patch-l-final-rendered-qa/
+          if-no-files-found: error

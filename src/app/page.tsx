@@ -8,8 +8,28 @@ import { loadPublicBoardSignalProof } from "@/lib/boardsignal/server/publicProof
 
 const secondaryStories = coverageStories.slice(0, 3);
 
+function playersServedCopy(count: number) {
+  return `${count} ${count === 1 ? "player has" : "players have"} already used BoardSignal to understand their games.`;
+}
+
+function reviewsCompletedCopy(count: number) {
+  return `${count} ${count === 1 ? "Review" : "Reviews"} completed`;
+}
+
+function returningPlayersCopy(count: number) {
+  return `${count} ${count === 1 ? "player has" : "players have"} already come back for another Review`;
+}
+
 export default async function HomePage() {
   const liveProof = await loadPublicBoardSignalProof();
+  const playersServed = liveProof?.playersServed ?? 0;
+  const reviewsProduced = liveProof?.reviewsProduced ?? 0;
+  const returningPlayers = liveProof?.returningPlayers ?? 0;
+  const secondaryProof = [
+    reviewsProduced > 0 ? reviewsCompletedCopy(reviewsProduced) : "",
+    returningPlayers > 0 ? returningPlayersCopy(returningPlayers) : "",
+  ].filter(Boolean).join(" · ");
+
   return (
     <div id="main" className="personal-home">
       <section className="personal-hero">
@@ -21,15 +41,9 @@ export default async function HomePage() {
             <div id="get-my-boardsignal" className="hero-username-card">
               <UsernameDeskForm />
             </div>
-            {liveProof ? <div className="boardsignal-live-proof" aria-label="BoardSignal product proof">
-              <p className="kicker">REAL BOARDSIGNAL PRODUCT PROOF</p>
-              <div className="boardsignal-live-proof-grid">
-                <span><strong>{liveProof.playersServed}</strong> Players served</span>
-                <span><strong>{liveProof.reviewsProduced}</strong> Reviews produced</span>
-                <span><strong>{liveProof.returningPlayers}</strong> Returning players</span>
-                <span><strong>{liveProof.reviewsForming}</strong> Reviews forming</span>
-              </div>
-              <small>BoardSignal product activity only — not Vercel visitors, pageviews or traffic counts.</small>
+            {liveProof && (playersServed > 0 || secondaryProof) ? <div className="boardsignal-social-proof" aria-label="BoardSignal usage by real players">
+              {playersServed > 0 ? <p className="boardsignal-social-proof-primary">{playersServedCopy(playersServed)}</p> : null}
+              {secondaryProof ? <p className="boardsignal-social-proof-secondary">{secondaryProof}</p> : null}
             </div> : null}
             <div className="first-value-preview">
               <p className="kicker">WHAT BOARDSIGNAL GIVES YOU</p>

@@ -1,17 +1,14 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
 import type { BoardSignalAccount, StableChessComIdentity } from "../account";
 import { createFoundingBetaAccount, firebaseUidForChessPlayer } from "../account";
 import { resolveChessComPlayer } from "../processor";
-import { getAdminAuth, getAdminDb, getAdminMessaging } from "../../../utils/firebaseAdmin";
-import { refreshFounderPlayerSummaryByUid } from "./founderOperations";
+import { getAdminAuth, getAdminDb } from "../../../utils/firebaseAdmin";
 import { verifyGoogleAccessToken } from "./googleAccess";
 
 export const GOOGLE_ONBOARDING_BUDGET = Object.freeze({
   resolveProfile: { firestoreReads: 0, firestoreWrites: 0, chessComProfileResolutions: 1 },
   claimProfile: { transactionReads: 4, writesWhenNew: 5, privateReviewGeneration: 0 },
-  identityConflict: { directReads: 3, boundedTransactionReads: 2, writes: 3 },
 });
 
 type GoogleSubjectAlias = {
@@ -25,11 +22,6 @@ type GoogleSubjectAlias = {
 };
 
 type GooglePlayerAlias = GoogleSubjectAlias & { provider?: string };
-
-type IdentityConflictContact = {
-  method: "email" | "discord";
-  value: string;
-};
 
 function clean<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -47,31 +39,12 @@ function googlePlayerAliasId(playerId: number) {
   return `google_player_${playerId}`;
 }
 
-function identityConflictId(playerId: number, providerUidHash: string) {
-  return `google_identity_${playerId}_${providerUidHash.slice(0, 32)}`;
-}
-
 function validateUsername(value: unknown) {
   const username = String(value ?? "").trim().replace(/^@/, "");
   if (!/^[A-Za-z0-9_-]{2,50}$/.test(username)) {
     throw httpError("GOOGLE_ONBOARDING_USERNAME_INVALID", "Enter a valid Chess.com username.", 400);
   }
   return username;
-}
-
-function validateCaseContact(methodInput: unknown, valueInput: unknown): IdentityConflictContact {
-  const method = String(methodInput ?? "").trim().toLowerCase();
-  const value = String(valueInput ?? "").trim();
-  if (method !== "email" && method !== "discord") {
-    throw httpError("IDENTITY_CONFLICT_CONTACT_REQUIRED", "Choose Email or Discord for this ownership-review case.", 400);
-  }
-  if (value.length < 2 || value.length > 160) {
-    throw httpError("IDENTITY_CONFLICT_CONTACT_REQUIRED", "Enter one contact value for this ownership-review case.", 400);
-  }
-  if (method === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-    throw httpError("IDENTITY_CONFLICT_EMAIL_INVALID", "Enter a valid email address for this ownership-review case.", 400);
-  }
-  return { method, value } as IdentityConflictContact;
 }
 
 function resolvedIdentity(resolved: Awaited<ReturnType<typeof resolveChessComPlayer>>): StableChessComIdentity {
@@ -184,8 +157,8 @@ export async function claimGoogleOnboardingProfile(googleIdToken: unknown, usern
         publicPlayerPage: false,
         universeCoverage: false,
       },
-      // New K onboarding has no mandatory marketing/contact gate. No contact or
-      // notification consent is inferred from the Google identity.
+      // New K onboarding has no mandatory contact gate. No contact, marketing,
+      // Trustpilot or notification consent is inferred from Google authentication.
       preferencesConfirmedAt: now,
       contactConfirmedAt: now,
       notificationPreferences: {
@@ -227,120 +200,4 @@ export async function claimGoogleOnboardingProfile(googleIdToken: unknown, usern
     googleIdentityVerified: true,
     chessComOwnership: result.account.identityStatus === "oauth_verified" ? "verified" : "provisional",
   };
-}
-
-async function notifyFounderOfIdentityConflict(input: { caseId: string; targetUid: string; canonicalUsername: string }) {
-  if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()) return { eligible: false, delivered: 0, failed: 0 };
-  const devices = await getAdminDb().collection("founderNotificationDevices").get();
-  if (devices.empty) return { eligible: false, delivered: 0, failed: 0 };
-  const link = `/admin/players?uid=${encodeURIComponent(input.targetUid)}`;
-  let delivered = 0;
-  let failed = 0;
-  for (const device of devices.docs) {
-    const token = String(device.data().token ?? "");
-    if (!token) continue;
-    try {
-      await getAdminMessaging().send({
-        token,
-        notification: { title: "BoardSignal", body: `Identity conflict — ${input.canonicalUsername}` },
-        webpush: { fcmOptions: { link } },
-        data: { type: "boardsignal_identity_conflict", link, caseId: input.caseId },
-      });
-      delivered += 1;
-    } catch (error) {
-      failed += 1;
-      const code = String((error as { code?: string }).code ?? "");
-      if (code.includes("registration-token-not-registered") || code.includes("invalid-registration-token")) {
-        await device.ref.delete().catch(() => undefined);
-      }
-    }
-  }
-  return { eligible: true, delivered, failed };
-}
-
-export async function requestGoogleIdentityHelp(
-  googleIdToken: unknown,
-  usernameInput: unknown,
-  contactMethodInput: unknown,
-  contactValueInput: unknown,
-) {
-  const google = await verifyGoogleAccessToken(googleIdToken);
-  const contact = validateCaseContact(contactMethodInput, contactValueInput);
-  const username = validateUsername(usernameInput);
-  const resolved = resolvedIdentity(await resolveChessComPlayer(username));
-  const db = getAdminDb();
-  const mappingRef = db.collection("chessPlayerAccounts").doc(String(resolved.playerId));
-  const mapping = await mappingRef.get();
-  const targetUid = mapping.exists && typeof mapping.data()?.uid === "string"
-    ? String(mapping.data()!.uid)
-    : firebaseUidForChessPlayer(resolved.playerId);
-  const targetRef = db.collection("users").doc(targetUid);
-  const subjectRef = db.collection("playerIdentityAliases").doc(googleSubjectAliasId(google.providerUidHash));
-  const [targetSnapshot, subjectSnapshot] = await Promise.all([targetRef.get(), subjectRef.get()]);
-  const target = targetSnapshot.exists ? targetSnapshot.data() as BoardSignalAccount : undefined;
-  const subject = subjectSnapshot.exists ? subjectSnapshot.data() as GoogleSubjectAlias : undefined;
-
-  if (!target || target.role !== "player" || target.chessCom?.playerId !== resolved.playerId || target.accessStatus === "deleted") {
-    return { recorded: false };
-  }
-  if (subject?.provider === "google_access" && subject.uid === targetUid && Number(subject.playerId) === resolved.playerId) {
-    return { recorded: false };
-  }
-
-  const caseId = identityConflictId(resolved.playerId, google.providerUidHash);
-  const conflictRef = db.collection("identityConflicts").doc(caseId);
-  const exceptionRef = db.collection("exceptions").doc(caseId);
-  const openedAt = new Date().toISOString();
-
-  await db.runTransaction(async (transaction) => {
-    const [freshTarget, existingCase] = await Promise.all([
-      transaction.get(targetRef),
-      transaction.get(conflictRef),
-    ]);
-    if (!freshTarget.exists) return;
-    const account = freshTarget.data() as BoardSignalAccount;
-    if (account.role !== "player" || account.chessCom?.playerId !== resolved.playerId || account.accessStatus === "deleted") return;
-    const prior = existingCase.exists ? existingCase.data() as Record<string, unknown> : undefined;
-    const createdAt = typeof prior?.createdAt === "string" ? String(prior.createdAt) : openedAt;
-
-    transaction.set(conflictRef, clean({
-      caseId,
-      type: "identity_conflict",
-      status: "open",
-      targetUid,
-      playerId: resolved.playerId,
-      canonicalUsername: resolved.canonicalUsername,
-      requester: {
-        provider: "google",
-        providerUidHash: google.providerUidHash,
-      },
-      caseContact: contact,
-      // Case contact is not product/marketing consent and is never copied into
-      // account notification preferences.
-      contactPurpose: "identity_conflict_only",
-      ownershipProof: {
-        status: "not_requested",
-        allowedMethods: ["chesscom_message_challenge", "public_profile_challenge"],
-      },
-      createdAt,
-      updatedAt: openedAt,
-    }), { merge: true });
-    transaction.set(exceptionRef, clean({
-      type: "identity_conflict",
-      uid: targetUid,
-      username: resolved.canonicalUsername,
-      title: "IDENTITY CONFLICT",
-      message: "A Google-authenticated requester asked for ownership review of an established Chess.com profile. No private data or mapping was transferred.",
-      caseId,
-      createdAt,
-      updatedAt: openedAt,
-    }), { merge: true });
-    transaction.set(targetRef, { identityConflictOpen: true, identityConflictOpenedAt: account.identityConflictOpenedAt ?? openedAt }, { merge: true });
-  });
-
-  await refreshFounderPlayerSummaryByUid(targetUid).catch(() => undefined);
-  const founderAlert = await notifyFounderOfIdentityConflict({ caseId, targetUid, canonicalUsername: resolved.canonicalUsername })
-    .catch(() => ({ eligible: true, delivered: 0, failed: 1 }));
-  await conflictRef.set({ founderAlert, founderAlertAttemptedAt: new Date().toISOString() }, { merge: true }).catch(() => undefined);
-  return { recorded: true, caseId };
 }

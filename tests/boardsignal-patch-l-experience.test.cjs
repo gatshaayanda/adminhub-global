@@ -69,11 +69,23 @@ test('existing semantic theme and accessibility foundations are consolidated, no
 });
 
 test('homepage keeps personal value before proof, explanation and Universe', () => {
-  sourceOrder(homepage, ['personal-hero', 'boardsignal-live-proof', 'first-value-preview', 'THE BOARDSIGNAL UNIVERSE']);
+  sourceOrder(homepage, ['personal-hero', 'boardsignal-social-proof', 'first-value-preview', 'THE BOARDSIGNAL UNIVERSE']);
   assert.match(username, /GET MY BOARDSIGNAL/);
   assert.match(username, /CONTINUE WITH GOOGLE/);
   assert.match(username, /OR EXPLORE THE PUBLIC UNIVERSE/);
   assert.doesNotMatch(homepage, /Founder beta|Fact Pack|Data Lab|seeded Desk/i);
+});
+
+test('homepage credibility uses truthful aggregate values as understated human social proof', () => {
+  assert.match(homepage, /liveProof\?\.playersServed/);
+  assert.match(homepage, /liveProof\?\.reviewsProduced/);
+  assert.match(homepage, /liveProof\?\.returningPlayers/);
+  assert.match(homepage, /already used BoardSignal to understand their games/);
+  assert.match(homepage, /Review" : "Reviews"/);
+  assert.match(homepage, /already come back for another Review/);
+  assert.match(system, /\.boardsignal-social-proof/);
+  assert.doesNotMatch(homepage, /liveProof\.reviewsForming|REAL BOARDSIGNAL PRODUCT PROOF|Players served|Reviews produced|Returning players|Reviews forming|BoardSignal product activity only|Vercel visitors|pageviews/i);
+  assert.doesNotMatch(homepage, /\b49\b|\b72\b|\b8\b/);
 });
 
 test('returning-player access is Google-first and legacy recovery is progressively disclosed', () => {

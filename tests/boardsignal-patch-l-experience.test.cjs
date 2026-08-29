@@ -20,6 +20,7 @@ const room = read('src/components/BoardSignalPlayerRoom.tsx');
 const offlineRoom = read('src/components/OfflinePlayerRoom.tsx');
 const liveUnavailable = read('src/components/LiveDataUnavailablePlayerRoom.tsx');
 const pkg = JSON.parse(read('package.json'));
+const contrastEntry = read('scripts/check-boardsignal-contrast.mjs');
 const cascadeCheck = read('scripts/check-boardsignal-cascade.mjs');
 
 function sourceOrder(source, fragments) {
@@ -132,8 +133,9 @@ test('motion remains state-based and reduced-motion safe', () => {
   assert.doesNotMatch(motion, /animation\s*:\s*[^;]*(?:scan|breathe)[^;]*infinite/i);
 });
 
-test('contrast command validates the active imported cascade', () => {
-  assert.match(pkg.scripts['test:contrast'], /check-boardsignal-cascade\.mjs/);
+test('stable contrast command delegates to the active imported cascade validator', () => {
+  assert.equal(pkg.scripts['test:contrast'], 'node scripts/check-boardsignal-contrast.mjs');
+  assert.match(contrastEntry, /check-boardsignal-cascade\.mjs/);
   assert.match(cascadeCheck, /cssImports\(entryPath\)/);
   assert.match(cascadeCheck, /light/);
   assert.match(cascadeCheck, /dark/);

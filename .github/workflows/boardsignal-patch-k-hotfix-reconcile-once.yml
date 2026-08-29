@@ -1,0 +1,84 @@
+name: BoardSignal Patch K Hotfix Reconcile Once
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-k-hotfix-reconcile-runner
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out Patch K
+        uses: actions/checkout@v4
+        with:
+          ref: boardsignal-patch-k-instant-access-growth
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge live hotfix baseline and resolve known overlap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin boardsignal-v10 boardsignal-patch-k-instant-access-growth
+          LIVE_SHA="$(git rev-parse origin/boardsignal-v10)"
+          if [ "$LIVE_SHA" != "588298bc7b8a52d05816cfa86b68e826c699315a" ]; then
+            echo "Unexpected production baseline: $LIVE_SHA"
+            exit 1
+          fi
+
+          set +e
+          git merge --no-commit --no-ff origin/boardsignal-v10
+          MERGE_STATUS=$?
+          set -e
+
+          if [ "$MERGE_STATUS" -ne 0 ]; then
+            UNMERGED="$(git diff --name-only --diff-filter=U)"
+            if [ "$UNMERGED" != "src/components/BoardSignalPlayerRoom.tsx" ]; then
+              echo "Unexpected merge conflicts:"
+              printf '%s\n' "$UNMERGED"
+              exit 1
+            fi
+            git checkout --ours -- src/components/BoardSignalPlayerRoom.tsx
+          fi
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/BoardSignalPlayerRoom.tsx')
+          text = path.read_text()
+
+          old_publish = '''    if (user) await loadRoom(user);\n  }, [connectivity.online, loadRoom, token, user]);'''
+          new_publish = '''    if (user) await loadRoom(user, true);\n  }, [connectivity.online, loadRoom, token, user]);'''
+          if old_publish not in text:
+              raise SystemExit('Patch K publish refresh anchor missing')
+          text = text.replace(old_publish, new_publish, 1)
+
+          old_episode = '''          {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} uid={user.uid} online={connectivity.online} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}'''
+          new_episode = '''          {snapshot.pendingFactualReview && !snapshot.account.cadenceAnchor ? null : snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} uid={user.uid} online={connectivity.online} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}'''
+          if old_episode not in text:
+              raise SystemExit('Patch K current-episode anchor missing')
+          text = text.replace(old_episode, new_episode, 1)
+
+          path.write_text(text)
+          PY
+
+          git add src/components/BoardSignalPlayerRoom.tsx
+
+          if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+            echo "Unresolved conflicts remain"
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+
+          git diff --check
+          git commit -m "Reconcile Patch K with first Review hotfix"
+          git push origin HEAD:boardsignal-patch-k-instant-access-growth

@@ -32,7 +32,27 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/boardsignal-patch-k-instant-access-growth'
         run: |
           node scripts/patch-k-final-reconcile.mjs
-          sed -i '/assert.match(identityHelp, \/<never>\/).not;/d' tests/boardsignal-patch-k-universal-access.test.cjs
+          python - <<'PY'
+          from pathlib import Path
+
+          room = Path('src/components/BoardSignalPlayerRoom.tsx')
+          source = room.read_text()
+          source = source.replace(
+              'if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return',
+              'if (!snapshot.account.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement(snapshot.account)) return',
+          )
+          room.write_text(source)
+
+          tests = Path('tests/boardsignal-patch-k-universal-access.test.cjs')
+          source = tests.read_text()
+          source = source.replace("  assert.doesNotMatch(usernameForm, /beta-request|claimProvisionalBetaPreview|openDirectReview/);", "  assert.doesNotMatch(usernameForm, /\\/api\\/boardsignal\\/beta-request|claimProvisionalBetaPreview|openDirectReview/);")
+          source = source.replace("  assert.doesNotMatch(usernameForm, /PREVIEW|FOUNDER REVIEW|WAITING FOR APPROVAL|CONTINUE WITHOUT GOOGLE/i);", "  assert.doesNotMatch(usernameForm, /BOARD SIGNAL PREVIEW|CONTINUE PREVIEW|FOUNDER REVIEW|WAITING FOR APPROVAL|CONTINUE WITHOUT GOOGLE/i);")
+          source = source.replace("  assert.match(identityHelp, /<never>/).not;\n", "")
+          marker = "  assert.match(room, /PlayerReviewJournal/);"
+          if "googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement" not in source:
+              source = source.replace(marker, "  assert.match(room, /!snapshot\\.account\\.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement/);\n" + marker)
+          tests.write_text(source)
+          PY
           git diff --check
 
       - name: Install dependencies

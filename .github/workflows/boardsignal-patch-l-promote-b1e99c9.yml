@@ -1,0 +1,40 @@
+name: Promote exact Patch L candidate to production
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-l-promote-b1e99c9
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: prj_54gboYTbEBPHSwGZ12w5H20KRaD8
+      VERCEL_TEAM_ID: team_yrHsDKn6b68zNvvd4otNaS3z
+      PATCH_L_DEPLOYMENT_ID: dpl_Csv5iZ9sPJP2GYno4Epb1rm36An2
+    steps:
+      - name: Require existing Vercel API token
+        shell: bash
+        run: |
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "::error::VERCEL_TOKEN is not configured in this repository; production was not changed."
+            exit 1
+          fi
+      - name: Promote already-built exact Patch L deployment
+        shell: bash
+        run: |
+          status="$(curl --silent --show-error --output /tmp/vercel-promote.json --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/promote/${PATCH_L_DEPLOYMENT_ID}?teamId=${VERCEL_TEAM_ID}")"
+          cat /tmp/vercel-promote.json || true
+          if [ "$status" != "201" ] && [ "$status" != "202" ]; then
+            echo "::error::Vercel promotion returned HTTP ${status}; production may not have changed."
+            exit 1
+          fi
+          echo "Vercel accepted exact Patch L deployment promotion (HTTP ${status})."

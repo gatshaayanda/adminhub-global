@@ -34,191 +34,196 @@ function pngSize(file) {
   assert.equal(data.toString('ascii', 1, 4), 'PNG');
   return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) };
 }
-
 function installHandlerSource() {
   const start = sw.indexOf('self.addEventListener("install"');
   const end = sw.indexOf('self.addEventListener("message"');
   return sw.slice(start, end);
 }
 
-test('manifest is a standalone BoardSignal PWA with stable identity and shortcuts', () => {
-  assert.match(manifest, /name:\s*"BoardSignal — Weekly Chess Review"/); // 1
-  assert.match(manifest, /short_name:\s*"BoardSignal"/); // 2
-  assert.match(manifest, /id:\s*"\/boardsignal"/); // 3
-  assert.match(manifest, /start_url:\s*"\/boardsignal\?source=pwa"/); // 4
-  assert.match(manifest, /scope:\s*"\/"/); // 5
-  assert.match(manifest, /display:\s*"standalone"/); // 6
-  assert.match(manifest, /boardsignal-192\.png/); // 7
-  assert.match(manifest, /boardsignal-512\.png/); // 8
-  assert.match(manifest, /boardsignal-maskable-512\.png[\s\S]*purpose:\s*"maskable"/); // 9
-  assert.match(manifest, /Player Room[\s\S]*\/boardsignal\/player-room/); // 10
-  assert.match(manifest, /Inbox[\s\S]*tab=inbox/); // 11
-  assert.match(manifest, /Friends[\s\S]*tab=friends/); // 12
+test('manifest keeps the standalone BoardSignal identity, icons and shortcuts', () => {
+  for (const pattern of [
+    /name:\s*"BoardSignal — Weekly Chess Review"/,
+    /short_name:\s*"BoardSignal"/,
+    /id:\s*"\/boardsignal"/,
+    /start_url:\s*"\/boardsignal\?source=pwa"/,
+    /scope:\s*"\/"/,
+    /display:\s*"standalone"/,
+    /boardsignal-192\.png/,
+    /boardsignal-512\.png/,
+    /boardsignal-maskable-512\.png[\s\S]*purpose:\s*"maskable"/,
+    /Player Room[\s\S]*\/boardsignal\/player-room/,
+    /Inbox[\s\S]*tab=inbox/,
+    /Friends[\s\S]*tab=friends/,
+  ]) assert.match(manifest, pattern);
+  assert.deepEqual(pngSize('public/icons/boardsignal-192.png'), { width: 192, height: 192 });
+  assert.deepEqual(pngSize('public/icons/boardsignal-512.png'), { width: 512, height: 512 });
+  assert.deepEqual(pngSize('public/icons/boardsignal-maskable-512.png'), { width: 512, height: 512 });
+  assert.notDeepEqual(fs.readFileSync(path.join(root, 'public/icons/boardsignal-512.png')), fs.readFileSync(path.join(root, 'public/icons/boardsignal-maskable-512.png')));
 });
 
-test('manifest icon files have real required dimensions and a separate maskable artifact', () => {
-  assert.deepEqual(pngSize('public/icons/boardsignal-192.png'), { width: 192, height: 192 }); // 13
-  assert.deepEqual(pngSize('public/icons/boardsignal-512.png'), { width: 512, height: 512 }); // 14
-  assert.deepEqual(pngSize('public/icons/boardsignal-maskable-512.png'), { width: 512, height: 512 }); // 15
-  assert.notDeepEqual(fs.readFileSync(path.join(root, 'public/icons/boardsignal-512.png')), fs.readFileSync(path.join(root, 'public/icons/boardsignal-maskable-512.png'))); // 16
+test('one native service worker preserves private boundaries, bounded caches and push', () => {
+  assert.equal((register.match(/navigator\.serviceWorker\.register\("\/sw\.js"/g) || []).length, 1);
+  for (const pattern of [
+    /boardsignal-shell-\$\{CACHE_VERSION\}/,
+    /boardsignal-static-\$\{CACHE_VERSION\}/,
+    /boardsignal-public-\$\{CACHE_VERSION\}/,
+    /if \(request\.method !== "GET"\) return;/,
+    /if \(url\.pathname\.startsWith\("\/api\/"\)\) return;/,
+    /url\.pathname\.startsWith\("\/admin"\)/,
+    /url\.pathname\.startsWith\("\/app"\)/,
+    /url\.pathname\.startsWith\("\/connect"\)/,
+    /\/boardsignal\/player-room[\s\S]*\/offline\/player-room/,
+    /\/player\/[\s\S]*\/share\//,
+    /url\.pathname\.startsWith\("\/stockfish\/"\)[\s\S]*cacheFirst/,
+    /self\.addEventListener\("push"/,
+    /showNotification/,
+    /self\.addEventListener\("notificationclick"/,
+    /openWindow/,
+    /event\.data\?\.type === "SKIP_WAITING"[\s\S]*self\.skipWaiting\(\)/,
+    /key\.startsWith\(BOARDSIGNAL_CACHE_PREFIX\)/,
+    /trimCache\(PUBLIC_CACHE, 24\)/,
+    /trimCache\(STATIC_CACHE, 80\)/,
+    /precacheSafeShell/,
+    /\/_next\/static\//,
+  ]) assert.match(sw, pattern);
+  assert.doesNotMatch(sw.slice(sw.indexOf('const APP_SHELL'), sw.indexOf('self.addEventListener("install"')), /stockfish/);
+  assert.doesNotMatch(installHandlerSource(), /skipWaiting\s*\(/);
 });
 
-test('one native service worker preserves push while hardening cache behavior', () => {
-  assert.equal((register.match(/navigator\.serviceWorker\.register\("\/sw\.js"/g) || []).length, 1); // 17
-  assert.match(sw, /boardsignal-shell-\$\{CACHE_VERSION\}/); // 18
-  assert.match(sw, /boardsignal-static-\$\{CACHE_VERSION\}/); // 19
-  assert.match(sw, /boardsignal-public-\$\{CACHE_VERSION\}/); // 20
-  assert.match(sw, /if \(request\.method !== "GET"\) return;/); // 21
-  assert.match(sw, /if \(url\.pathname\.startsWith\("\/api\/"\)\) return;/); // 22
-  assert.match(sw, /url\.pathname\.startsWith\("\/admin"\)/); // 23
-  assert.match(sw, /url\.pathname\.startsWith\("\/app"\)/); // 24
-  assert.match(sw, /url\.pathname\.startsWith\("\/connect"\)/); // 25
-  assert.match(sw, /\/boardsignal\/player-room[\s\S]*\/offline\/player-room/); // 26
-  assert.match(sw, /\/player\/[\s\S]*\/share\//); // 27
-  assert.match(sw, /url\.pathname\.startsWith\("\/stockfish\/"\)[\s\S]*cacheFirst/); // 28
-  assert.doesNotMatch(sw.slice(sw.indexOf('const APP_SHELL'), sw.indexOf('self.addEventListener("install"')), /stockfish/); // 29
-  assert.match(sw, /self\.addEventListener\("push"/); // 30
-  assert.match(sw, /showNotification/); // 31
-  assert.match(sw, /self\.addEventListener\("notificationclick"/); // 32
-  assert.match(sw, /openWindow/); // 33
-  assert.doesNotMatch(installHandlerSource(), /skipWaiting\s*\(/); // 34
-  assert.match(sw, /event\.data\?\.type === "SKIP_WAITING"[\s\S]*self\.skipWaiting\(\)/); // 35
-  assert.match(sw, /key\.startsWith\(BOARDSIGNAL_CACHE_PREFIX\)/); // 36
-  assert.match(sw, /trimCache\(PUBLIC_CACHE, 24\)/); // 37
-  assert.match(sw, /trimCache\(STATIC_CACHE, 80\)/); // 38
-  assert.match(sw, /precacheSafeShell/); // 39
-  assert.match(sw, /\/_next\/static\//); // 40
+test('service worker update remains player-controlled and reloads once', () => {
+  for (const pattern of [/registration\.waiting/, /BoardSignal update ready/, /waiting\.postMessage\(\{ type: "SKIP_WAITING" \}\)/, /controllerchange/, /reloadForUpdateRef\.current/, /Your current screen will not reload on its own/]) assert.match(register, pattern);
 });
 
-test('service worker update is player-controlled and reloads once', () => {
-  assert.match(register, /registration\.waiting/); // 41
-  assert.match(register, /BoardSignal update ready/); // 42
-  assert.match(register, /waiting\.postMessage\(\{ type: "SKIP_WAITING" \}\)/); // 43
-  assert.match(register, /controllerchange/); // 44
-  assert.match(register, /reloadForUpdateRef\.current/); // 45
-  assert.match(register, /Your current screen will not reload on its own/); // 46
+test('private offline data remains UID-scoped and bounded', () => {
+  for (const pattern of [
+    /BOARDSIGNAL_OFFLINE_DB_NAME = "boardsignal-offline-v1"/,
+    /BOARDSIGNAL_OFFLINE_MAX_DESKS = 4/,
+    /BOARDSIGNAL_OFFLINE_MAX_DRAFTS = 4/,
+    /BOARDSIGNAL_OFFLINE_MAX_SOCIAL_COMPARISONS = 4/,
+  ]) assert.match(offlineTypes, pattern);
+  assert.match(db, /return `\$\{uid\}:\$\{kind\}:\$\{id\}`/);
+  assert.match(db, /record\.uid !== expectedUid/);
+  assert.match(db, /key\.startsWith\("boardsignal-"\)/);
+  for (const pattern of [
+    /if \(input\.account\.uid !== uid\) throw new Error\("Offline snapshot identity mismatch\."\)/,
+    /slice\(0, BOARDSIGNAL_OFFLINE_MAX_DESKS\)/,
+    /activeDeskKeys\.has\(point\.deskKey\)/,
+    /lastSyncedAt:\s*now/,
+    /savedAt:\s*now/,
+  ]) assert.match(snapshots, pattern);
+  assert.match(room, /previousUid && nextUid && previousUid !== nextUid[\s\S]*setSnapshot\(null\)[\s\S]*setOfflineSnapshot\(null\)[\s\S]*clearBoardSignalPrivateOfflineData\(previousUid\)/);
+  assert.match(room, /user\?\.uid[\s\S]*clearBoardSignalPrivateOfflineData\(user\.uid\)/);
+  assert.doesNotMatch(snapshots, /Firebase ID token|Beta Access plaintext|CRON_SECRET|VAPID/i);
 });
 
-test('private IndexedDB data is UID-scoped and bounded', () => {
-  assert.match(offlineTypes, /BOARDSIGNAL_OFFLINE_DB_NAME = "boardsignal-offline-v1"/); // 47
-  assert.match(offlineTypes, /BOARDSIGNAL_OFFLINE_MAX_DESKS = 4/); // 48
-  assert.match(offlineTypes, /BOARDSIGNAL_OFFLINE_MAX_DRAFTS = 4/); // 49
-  assert.match(offlineTypes, /BOARDSIGNAL_OFFLINE_MAX_SOCIAL_COMPARISONS = 4/); // 50
-  assert.match(db, /return `\$\{uid\}:\$\{kind\}:\$\{id\}`/); // 51
-  assert.match(db, /record\.uid !== expectedUid/); // 52
-  assert.match(snapshots, /if \(input\.account\.uid !== uid\) throw new Error\("Offline snapshot identity mismatch\."\)/); // 53
-  assert.match(snapshots, /slice\(0, BOARDSIGNAL_OFFLINE_MAX_DESKS\)/); // 54
-  assert.match(snapshots, /activeDeskKeys\.has\(point\.deskKey\)/); // 55
-  assert.match(snapshots, /lastSyncedAt:\s*now/); // 56
-  assert.match(snapshots, /savedAt:\s*now/); // 57
-  assert.match(room, /previousUid && nextUid && previousUid !== nextUid[\s\S]*setSnapshot\(null\)[\s\S]*setOfflineSnapshot\(null\)[\s\S]*clearBoardSignalPrivateOfflineData\(previousUid\)/); // 58
-  assert.match(room, /user\?\.uid[\s\S]*clearBoardSignalPrivateOfflineData\(user\.uid\)/); // 59
-  assert.match(db, /key\.startsWith\("boardsignal-"\)/); // 60
-  assert.doesNotMatch(snapshots, /Firebase ID token|Beta Access plaintext|CRON_SECRET|VAPID/i); // 61
+test('saved Player Room stays truthful, read-only and aligned with live player language', () => {
+  assert.match(offlinePlayerPage, /OfflinePlayerRoom/);
+  assert.match(offlineRoom, /You're offline\. Showing your saved BoardSignal from/);
+  assert.match(offlineRoom, /New Chess\.com games, Universe movement, messages and account changes are not included after/);
+  assert.match(offlineRoom, /Latest four saved Reviews/);
+  assert.match(offlineRoom, /UniversalPlayerDesk[\s\S]*publishedDesk=/);
+  assert.match(offlineRoom, /PROGRESS · SAVED/);
+  assert.match(offlineRoom, /UNIVERSE · SAVED/);
+  assert.match(offlineRoom, /SINCE YOUR LAST SAVED VISIT/);
+  assert.match(offlineRoom, /What's Hot — saved/);
+  assert.match(offlineRoom, /FRIENDS · SAVED/);
+  assert.match(offlineRoom, /Inbox needs a connection/);
+  assert.match(offlineRoom, /no new analysis runs offline/);
+  assert.match(offlineRoom, /No BoardSignal has been saved for this account on this device yet/);
+  assert.doesNotMatch(offlineRoom, /PULSE · LAST SYNCHRONIZED|item === "pulse" \? "Pulse"/);
 });
 
-test('offline Player Room is a saved truthful read-only sports desk', () => {
-  assert.match(offlinePlayerPage, /OfflinePlayerRoom/); // 62
-  assert.match(offlineRoom, /You're offline\. Showing your saved BoardSignal from/); // 63
-  assert.match(offlineRoom, /New Chess\.com games, Pulse movement, messages and account changes are not included after/); // 64
-  assert.match(offlineRoom, /Latest four saved Reviews/); // 65
-  assert.match(offlineRoom, /UniversalPlayerDesk[\s\S]*publishedDesk=/); // 66
-  assert.match(offlineRoom, /PROGRESS · SAVED/); // 67
-  assert.match(offlineRoom, /PULSE · LAST SYNCHRONIZED/); // 68
-  assert.match(offlineRoom, /UNIVERSE · SAVED/); // 69
-  assert.match(offlineRoom, /What's Hot — saved/); // 70
-  assert.match(offlineRoom, /FRIENDS · SAVED/); // 71
-  assert.match(offlineRoom, /Inbox needs a connection/); // 72
-  assert.match(offlineRoom, /no new analysis runs offline/); // 73
-  assert.match(offlineRoom, /No BoardSignal has been saved for this account on this device yet/); // 74
-});
-
-test('network-only social and account mutations do not fake success offline', () => {
-  assert.match(friends, /if \(!connectivity\.online\) \{ setError\("Reconnect to change your BoardSignal connections\."\); return; \}/); // 75
-  assert.match(friends, /Reconnect to search active BoardSignal players/); // 76
-  assert.match(friends, /disabled=\{Boolean\(busy\) \|\| !connectivity\.online\}/); // 77
-  assert.match(friends, /loadSocialOfflineSnapshot\(uid\)/); // 78
-  assert.match(friends, /savedComparison/); // 79
-  assert.match(profileDevice, /disabled=\{!connectivity\.online/); // 80
-  assert.match(read('src/components/PlayerProfileNotifications.tsx'), /disabled=\{busy \|\| !connectivity\.online/); // 81
+test('network-only social and account mutations never fake success offline', () => {
+  assert.match(friends, /if \(!connectivity\.online\) \{ setError\("Reconnect to change your BoardSignal connections\."\); return; \}/);
+  assert.match(friends, /Reconnect to search active BoardSignal players/);
+  assert.match(friends, /disabled=\{Boolean\(busy\) \|\| !connectivity\.online\}/);
+  assert.match(friends, /loadSocialOfflineSnapshot\(uid\)/);
+  assert.match(friends, /savedComparison/);
+  assert.match(profileDevice, /disabled=\{!connectivity\.online/);
+  assert.match(read('src/components/PlayerProfileNotifications.tsx'), /disabled=\{busy \|\| !connectivity\.online/);
   assert.match(room, /Reconnect before accepting the Founding Access Agreement/);
   assert.match(room, /Reconnect before changing BoardSignal account or communication settings/);
   assert.match(room, /Reconnect before finishing or saving a review/);
   assert.match(room, /connectivity\.state !== "offline"[\s\S]*loadPlayerRoomOfflineSnapshot\(user\.uid\)/);
   assert.match(room, /Reconnect to sign in/);
-  assert.match(push, /navigator\.serviceWorker\.ready/); // 82
-  assert.match(push, /Reconnect before changing browser alerts/); // 83
+  assert.match(push, /navigator\.serviceWorker\.ready/);
+  assert.match(push, /Reconnect before changing browser alerts/);
 });
 
-test('Friends loading-loop hotfix remains intact', () => {
-  assert.match(friends, /const onChangedRef = useRef\(onChanged\)/); // 84
-  assert.match(friends, /useEffect\(\(\) => \{ onChangedRef\.current = onChanged; \}, \[onChanged\]\)/); // 85
-  assert.match(friends, /const load = useCallback[\s\S]*\}, \[messageTarget, token\]\)/); // 86
-  assert.doesNotMatch(friends, /\}, \[onChanged, token/); // 87
-  assert.match(friends, /loadedTokenRef = useRef<string \| undefined>\(undefined\)/); // 88
-  assert.match(friends, /shouldRunInitialFriendsLoad\(loadedTokenRef\.current, token\)/); // 89
-  assert.match(friends, /AbortController/); // 90
-  assert.match(friends, /12000/); // 91
-  assert.match(friends, /Your board gets better with people you know/); // 92
+test('Friends loading-loop protections remain intact', () => {
+  for (const pattern of [
+    /const onChangedRef = useRef\(onChanged\)/,
+    /useEffect\(\(\) => \{ onChangedRef\.current = onChanged; \}, \[onChanged\]\)/,
+    /const load = useCallback[\s\S]*\}, \[messageTarget, token\]\)/,
+    /loadedTokenRef = useRef<string \| undefined>\(undefined\)/,
+    /shouldRunInitialFriendsLoad\(loadedTokenRef\.current, token\)/,
+    /AbortController/,
+    /12000/,
+    /Your board gets better with people you know/,
+  ]) assert.match(friends, pattern);
+  assert.doesNotMatch(friends, /\}, \[onChanged, token/);
 });
 
-test('Ask BoardSignal has a factual offline path and bounded local drafts', () => {
-  assert.match(ask, /if \(!connectivity\.online\)/); // 93
-  assert.match(ask, /buildOfflineGuideResponse/); // 94
-  assert.match(ask, /saveOfflineDraft/); // 95
-  assert.match(ask, /Saved locally\. When you're back online/); // 96
-  assert.match(ask, /Your message draft for Ayanda is ready/); // 97
-  assert.match(ask, /Send to Ayanda/); // 98
-  assert.match(offlineGuide, /You're offline/); // 99
-  assert.match(offlineGuide, /can't check Chess\.com for anything newer/); // 100
-  assert.match(offlineGuide, /don't create new chess analysis/); // 101
-  assert.match(snapshots, /slice\(0, BOARDSIGNAL_OFFLINE_MAX_DRAFTS\)/); // 102
+test('Ask BoardSignal keeps a bounded factual offline path', () => {
+  assert.match(ask, /if \(!connectivity\.online\)/);
+  assert.match(ask, /buildOfflineGuideResponse/);
+  assert.match(ask, /saveOfflineDraft/);
+  assert.match(ask, /Saved locally\. When you're back online/);
+  assert.match(ask, /Your message draft for Ayanda is ready/);
+  assert.match(ask, /Send to Ayanda/);
+  assert.match(offlineGuide, /You're offline/);
+  assert.match(offlineGuide, /can't check Chess\.com for anything newer/);
+  assert.match(offlineGuide, /don't create new chess analysis/);
+  assert.match(snapshots, /slice\(0, BOARDSIGNAL_OFFLINE_MAX_DRAFTS\)/);
 });
 
-test('connectivity recovery is probed and coordinated once', () => {
-  assert.match(connectivityCore, /\/api\/boardsignal\/connectivity/); // 103
-  assert.match(connectivityRoute, /status:\s*204/); // 104
-  assert.match(connectivityRoute, /["']Cache-Control["']:\s*"no-store[^"']*"/); // 105
-  assert.doesNotMatch(connectivityRoute, /firebase|firestore|requirePlayerToken|database/i); // 106
-  assert.match(connectivity, /inFlightRef/); // 107
-  assert.match(connectivityCore, /BOARDSIGNAL_RECONNECTED_EVENT = "boardsignal:reconnected"/); // 108
-  assert.match(room, /reconnectRefreshRef/); // 109
-  assert.match(room, /boardsignal:refresh-complete/); // 110
-  assert.match(offlineRoom, /boardsignal:pwa-recovery-refresh/); // 111
-  assert.match(offlineRoom, /window\.location\.replace\("\/boardsignal\/player-room"\)/); // 112
+test('connectivity recovery is probed independently and coordinated once', () => {
+  assert.match(connectivityCore, /\/api\/boardsignal\/connectivity/);
+  assert.match(connectivityRoute, /status:\s*204/);
+  assert.match(connectivityRoute, /["']Cache-Control["']:\s*"no-store[^"']*"/);
+  assert.doesNotMatch(connectivityRoute, /firebase|firestore|requirePlayerToken|database/i);
+  assert.match(connectivity, /inFlightRef/);
+  assert.match(connectivityCore, /BOARDSIGNAL_RECONNECTED_EVENT = "boardsignal:reconnected"/);
+  assert.match(room, /reconnectRefreshRef/);
+  assert.match(room, /boardsignal:refresh-complete/);
+  assert.match(offlineRoom, /boardsignal:pwa-recovery-refresh/);
+  assert.match(offlineRoom, /window\.location\.replace\("\/boardsignal\/player-room"\)/);
 });
 
-test('install experience is engagement-aware, standalone-aware and iOS-aware', () => {
-  assert.match(install, /pathname\.startsWith\("\/boardsignal\/player-room"\)/); // 113
-  assert.match(install, /PWA_ENGAGED_KEY/); // 114
-  assert.match(install, /installDismissedRecently/); // 115
-  assert.match(installLib, /14 \* 24 \* 60 \* 60 \* 1000/); // 116
-  assert.match(install, /beforeinstallprompt/); // 117
-  assert.match(install, /appinstalled/); // 118
-  assert.match(profileDevice, /Add to Home Screen/); // 119
-  assert.match(profileDevice, /Install BoardSignal/); // 120
-  assert.match(launch, /isStandaloneBoardSignal/); // 121
-  assert.match(launch, /window\.location\.replace\("\/boardsignal\/player-room"\)/); // 122
+test('install experience is engagement-aware, standalone-aware and clear on iOS', () => {
+  assert.match(install, /pathname\.startsWith\("\/boardsignal\/player-room"\)/);
+  assert.match(install, /PWA_ENGAGED_KEY/);
+  assert.match(install, /installDismissedRecently/);
+  assert.match(installLib, /14 \* 24 \* 60 \* 60 \* 1000/);
+  assert.match(install, /beforeinstallprompt/);
+  assert.match(install, /appinstalled/);
+  assert.match(install, /isIosInstallCandidate/);
+  assert.match(install, /Add to Home Screen/);
+  assert.match(install, /App Store or Play Store/);
+  assert.match(profileDevice, /Add to Home Screen/);
+  assert.match(profileDevice, /Install BoardSignal/);
+  assert.match(launch, /isStandaloneBoardSignal/);
+  assert.match(launch, /window\.location\.replace\("\/boardsignal\/player-room"\)/);
 });
 
 test('offline page and standalone CSS preserve readable native-feeling UX', () => {
-  assert.match(offlinePage, /The newsroom lost its signal/); // 123
-  assert.match(offlinePage, /Open saved Player Room/); // 124
-  assert.match(css, /@media \(display-mode: standalone\)/); // 125
-  assert.match(css, /safe-area-inset-top/); // 126
-  assert.match(css, /safe-area-inset-bottom/); // 127
-  assert.match(css, /\.bs-connectivity-strip\.is-offline[\s\S]*var\(--bs-text-on-dark\)/); // 128
-  assert.match(css, /\.offline-room-tabs button[\s\S]*min-height:\s*44px/); // 129
-  assert.match(css, /\.device-offline-actions \.button[\s\S]*min-height:\s*44px/); // 130
-  assert.match(css, /\.install-card \{ display: none !important; \}/); // 131
+  assert.match(offlinePage, /The newsroom lost its signal/);
+  assert.match(offlinePage, /Open saved Player Room/);
+  assert.match(css, /@media \(display-mode: standalone\)/);
+  assert.match(css, /safe-area-inset-top/);
+  assert.match(css, /safe-area-inset-bottom/);
+  assert.match(css, /\.bs-connectivity-strip\.is-offline[\s\S]*var\(--bs-text-on-dark\)/);
+  assert.match(css, /\.offline-room-tabs button[\s\S]*min-height:\s*44px/);
+  assert.match(css, /\.device-offline-actions \.button[\s\S]*min-height:\s*44px/);
+  assert.match(css, /\.install-card \{ display: none !important; \}/);
 });
 
-test('artifact QA keeps production prebuild stable and adds PWA suite separately', () => {
-  assert.equal(pkg.scripts.prebuild, 'npm run prepare:stockfish && npm run test:contrast'); // 132
-  assert.ok(pkg.scripts['test:pwa']); // 133
-  assert.doesNotMatch(pkg.scripts.prebuild, /test:pwa/); // 134
-  assert.equal(pkg.dependencies?.workbox, undefined); // 135
-  assert.equal(pkg.dependencies?.['next-pwa'], undefined); // 136
+test('artifact QA keeps production prebuild stable and PWA suite separate', () => {
+  assert.equal(pkg.scripts.prebuild, 'npm run prepare:stockfish && npm run test:contrast');
+  assert.ok(pkg.scripts['test:pwa']);
+  assert.doesNotMatch(pkg.scripts.prebuild, /test:pwa/);
+  assert.equal(pkg.dependencies?.workbox, undefined);
+  assert.equal(pkg.dependencies?.['next-pwa'], undefined);
   const pwaSources = [
     'src/lib/boardsignal/offline/db.ts',
     'src/lib/boardsignal/offline/types.ts',
@@ -228,5 +233,5 @@ test('artifact QA keeps production prebuild stable and adds PWA suite separately
     'src/components/ConnectivityProvider.tsx',
     'src/components/DeviceOfflineControl.tsx',
   ].map(read).join('\n');
-  assert.doesNotMatch(pwaSources, /process\.env\./); // 137
+  assert.doesNotMatch(pwaSources, /process\.env\./);
 });

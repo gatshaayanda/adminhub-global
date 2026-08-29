@@ -26,6 +26,8 @@ const proof = read('src/lib/boardsignal/server/publicProof.ts');
 const homepage = read('src/app/page.tsx');
 const account = read('src/lib/boardsignal/account.ts');
 const founderOperations = read('src/lib/boardsignal/server/founderOperations.ts');
+const betaRequests = read('src/lib/boardsignal/server/betaRequests.ts');
+const activation = read('src/lib/boardsignal/server/activation.ts');
 const deletion = read('src/lib/boardsignal/server/accountDeletion.ts');
 const pkg = JSON.parse(read('package.json'));
 
@@ -40,6 +42,7 @@ test('Google is an additive BoardSignal return key on the canonical chesscom UID
   assert.match(googleServer, /verifyIdToken\(idToken, true\)/);
   assert.match(googleServer, /sign_in_provider/);
   assert.match(googleServer, /provider !== "google\.com"/);
+  assert.match(googleServer, /identities\?\.\["google\.com"\]/);
   assert.match(googleServer, /playerIdentityAliases/);
   assert.match(googleServer, /google_player_/);
   assert.match(googleServer, /createCustomToken\(account\.uid/);
@@ -50,8 +53,21 @@ test('Google is an additive BoardSignal return key on the canonical chesscom UID
   assert.match(account, /googleAccessConnectedAt\?: string/);
 });
 
+test('Google link and return preserve the same UID and do not migrate Reviews, Journal or Progress', () => {
+  const linked = section(googleServer, 'export async function linkGoogleAccess', 'export async function returnWithGoogle');
+  const returned = section(googleServer, 'export async function returnWithGoogle', 'async function notifyFounderIdentityConflict');
+  assert.match(linked, /const userRef = db\.collection\("users"\)\.doc\(playerToken\.uid\)/);
+  assert.match(returned, /createCustomToken\(account\.uid/);
+  assert.match(usernameForm, /stableFirebaseUidForPlayerId\(confirmation\.playerId\)/);
+  assert.match(usernameForm, /credentialMatchesExpectedUid\(expectedUid, signed\.user\.uid\)/);
+  for (const privateSurface of ['collection("desks")', 'reviewJournal', 'reviewHistoryBackfill', 'currentEpisodeSummary', 'recursiveDelete']) {
+    assert.doesNotMatch(linked, new RegExp(privateSurface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.doesNotMatch(returned, new RegExp(privateSurface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
 test('return is bounded, active-only and cannot revive revoked access', () => {
-  const returned = section(googleServer, 'export async function returnWithGoogle', 'export async function requestGoogleIdentityHelp');
+  const returned = section(googleServer, 'export async function returnWithGoogle', 'async function notifyFounderIdentityConflict');
   assert.match(returned, /subjectRef\.get\(\)/);
   assert.match(returned, /userRef\.get\(\)/);
   assert.match(returned, /playerRef\.get\(\)/);
@@ -61,24 +77,68 @@ test('return is bounded, active-only and cannot revive revoked access', () => {
   assert.match(googleRoute, /action === "return"/);
 });
 
-test('existing-account collision never opens private data and routes to identity attention', () => {
-  assert.match(usernameForm, /I NEED ACCESS TO MY CHESS\.COM PROFILE/);
-  assert.match(usernameForm, /expectedPlayerId=/);
-  assert.match(googleButton, /action: "identityHelp"/);
-  assert.match(googleRoute, /did not grant, replace, merge or expose a private BoardSignal account/);
-  assert.match(googleServer, /identityConflictOpen: true/);
-  assert.match(founderOperations, /account\.identityConflictOpen === true/);
-  assert.match(founderOperations, /identityConflict: identityConflict\(account\)/);
-  assert.doesNotMatch(section(googleServer, 'export async function requestGoogleIdentityHelp'), /createCustomToken|signInWithCustomToken/);
+test('new player is username first, confirmed on the same page, then opens private BoardSignal with optional Google', () => {
+  assert.match(usernameForm, /Chess\.com username/);
+  assert.match(usernameForm, /SHOW ME MY REVIEW/);
+  assert.match(usernameForm, /WE FOUND YOU/);
+  assert.match(usernameForm, /preview\.games/);
+  assert.match(usernameForm, /OPEN MY BOARDSIGNAL/);
+  assert.match(usernameForm, /CONTINUE WITH GOOGLE/);
+  assert.match(usernameForm, /CONTINUE WITHOUT GOOGLE/);
+  assert.match(usernameForm, /Private\. Saved\. No Chess\.com password required\./);
+  assert.match(usernameForm, /Google is a BoardSignal return key/);
+  assert.doesNotMatch(usernameForm, /window\.location\.assign\(`\/boardsignal\/preview|router\.(?:push|replace)\(`\/boardsignal\/preview/);
+  assert.match(usernameForm, /action: "claim"/);
+  assert.match(usernameForm, /router\.replace\(`\/boardsignal\/player-room/);
+  assert.match(login, /RETURN TO MY BOARDSIGNAL/);
+  assert.match(login, /GoogleAccessButton/);
+
+  const ordinaryCopy = [usernameForm, login, profile].join('\n');
+  assert.doesNotMatch(ordinaryCopy, /PROVISIONAL PLAYER|PENDING FOUNDER REVIEW|PREVIEW ACTIVE|WAITING FOR APPROVAL|FOUNDER WILL REVIEW YOU/i);
 });
 
-test('Google email convenience never silently grants contact or notification consent', () => {
+test('existing-account collision requires Google plus explicit case contact and never opens private data', () => {
+  assert.match(usernameForm, /THIS BOARDSIGNAL ALREADY EXISTS/);
+  assert.match(usernameForm, /I NEED ACCESS TO THIS CHESS\.COM PROFILE/);
+  assert.match(googleButton, /caseContactMethod/);
+  assert.match(googleButton, /caseContactValue/);
+  assert.match(googleButton, /<option value="email">Email<\/option>/);
+  assert.match(googleButton, /<option value="discord">Discord<\/option>/);
+  assert.match(googleButton, /This contact is for this identity case only/);
+  assert.match(googleButton, /action: "identityHelp"/);
+  assert.match(googleRoute, /did not grant, replace, merge, transfer or expose a private BoardSignal account/);
+
+  const identityHelp = section(googleServer, 'export async function requestGoogleIdentityHelp');
+  assert.match(identityHelp, /collection\("exceptions"\)/);
+  assert.match(identityHelp, /GOOGLE_IDENTITY_CONFLICT/);
+  assert.match(identityHelp, /identityConflictOpen: true/);
+  assert.match(identityHelp, /chesscom_message/);
+  assert.match(identityHelp, /BOARDSIGNAL_FOUNDER_CHESSCOM_USERNAME/);
+  assert.match(identityHelp, /public_profile/);
+  assert.match(identityHelp, /notifyFounderIdentityConflict/);
+  assert.doesNotMatch(identityHelp, /createCustomToken|signInWithCustomToken/);
+  assert.doesNotMatch(identityHelp, /transaction\.set\(subjectRef|google_access_player/);
+  assert.match(founderOperations, /account\.identityConflictOpen === true/);
+  assert.match(founderOperations, /identityConflict: identityConflict\(account\)/);
+});
+
+test('Founder notifications are exception-only in the normal K journey', () => {
+  const submitRequest = section(betaRequests, 'export async function submitFoundingBetaRequest', 'export async function retryFoundingBetaPreview');
+  const instantClaim = section(activation, 'export async function claimProvisionalBetaPreview', 'export async function claimBetaPreviewAccess');
+  const identityHelp = section(googleServer, 'export async function requestGoogleIdentityHelp');
+  assert.doesNotMatch(submitRequest, /notifyFounderOfBetaRequest/);
+  assert.doesNotMatch(instantClaim, /notifyFounderOfProvisionalClaim/);
+  assert.match(identityHelp, /notifyFounderIdentityConflict/);
+});
+
+test('Google email convenience never silently grants contact, notification, marketing or Trustpilot consent', () => {
   assert.match(profile, /readGoogleEmailPrefill/);
   assert.match(profile, /if \(method === "email" && !contact\.trim\(\)\) setContact\(email\)/);
   assert.match(profile, /checked=\{consent\}/);
   assert.match(profile, /Google may pre-fill an email for convenience, but it never switches this consent on/);
   assert.match(profile, /email: emailContactReady \? notifications\.email : false/);
   assert.doesNotMatch(section(profile, 'async function connectGoogle', 'async function save'), /setConsent\(true\)|betaContactConsent:\s*true|email:\s*true/);
+  assert.match(googleButton, /does not opt you into marketing, product notifications, Trustpilot invitations/);
 });
 
 test('Google popup errors are finite and actionable, including the exact unauthorized hostname', () => {
@@ -91,18 +151,15 @@ test('Google popup errors are finite and actionable, including the exact unautho
   assert.match(googleClient, /GOOGLE_ACCESS_APP_NAME/);
 });
 
-test('new first value remains username-first and Google remains optional', () => {
-  assert.match(usernameForm, /Chess\.com username/);
-  assert.match(usernameForm, /SHOW ME MY REVIEW/);
-  assert.match(usernameForm, /Google is optional and comes after first private value/);
-  assert.match(preview, /Continue to My BoardSignal/);
-  assert.match(preview, /Google is optional and can be connected later as a return key/);
-  assert.doesNotMatch(preview, /FOUNDER REVIEW/);
-  assert.doesNotMatch(preview, /setInterval\(/);
-  assert.match(login, /CONTINUE WITH GOOGLE|GoogleAccessButton/);
+test('safe Preview/status backend remains available while the ordinary journey no longer depends on understanding Preview', () => {
+  assert.match(activation, /export async function claimProvisionalBetaPreview/);
+  assert.match(activation, /export async function verifyBetaPreviewStatusCredential/);
+  assert.match(betaRequests, /createBetaPreviewStatusCredential/);
+  assert.match(usernameForm, /\/api\/boardsignal\/beta-preview\//);
+  assert.match(preview, /BetaPreviewStatus/);
 });
 
-test('homepage proof is one cached aggregate projection and never traffic theatre', () => {
+test('homepage proof is one cached aggregate product projection and never traffic theatre', () => {
   assert.match(proof, /collection\("founderOperationsState"\)\.doc\("current"\)\.get\(\)/);
   assert.match(proof, /revalidate: 900/);
   assert.match(proof, /totalReviewsProduced/);
@@ -113,6 +170,7 @@ test('homepage proof is one cached aggregate projection and never traffic theatr
   assert.match(homepage, /Reviews forming/);
   assert.match(homepage, /Returning players/);
   assert.match(homepage, /not site visitors or live-viewer theatre/);
+  assert.doesNotMatch(homepage, /0\.0|0 reviews|Trustpilot/i);
 });
 
 test('engagement channels stay independent and Discord is optional', () => {

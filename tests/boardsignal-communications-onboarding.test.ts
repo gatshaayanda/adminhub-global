@@ -209,7 +209,7 @@ test("25. requested screens retain readable contrast, visible focus and non-dupl
   assert.match(css, /focus-visible/);
   assert.match(css, /\.beta-value-card[\s\S]*color: var\(--ink\)/);
   assert.match(css, /@media \(max-width: 600px\)/);
-  assert.equal((header.match(/Get My BoardSignal/g) ?? []).length, 2);
-  assert.match(screens, /Get My BoardSignal|Player Room|COMMUNICATIONS|COVERAGE/);
+  assert.equal((header.match(/Open BoardSignal/g) ?? []).length, 2);
+  assert.match(screens, /Open BoardSignal|My BoardSignal|COMMUNICATIONS|COVERAGE/);
 });
 

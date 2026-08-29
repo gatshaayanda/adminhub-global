@@ -576,7 +576,7 @@ function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeW
     : undefined;
   const guidanceSource = guidance.source === "previous_review"
     ? `FROM YOUR LAST REVIEW${guidance.previousReviewPeriod ? ` · ${guidance.previousReviewPeriod}` : ""}`
-    : isCurrentGuidance ? "THIS WEEK · PROVISIONAL" : undefined;
+    : isCurrentGuidance ? "THIS WEEK · FORMING" : undefined;
   // B.1 rendered `Based on ${guidance.gamesConsidered}` before F.4 introduced evidence-aware counts.
   const noGuidanceCopy = guidance.reason === "no_games"
     ? "Play the first game of this week and BoardSignal will look for one safe thing to carry into the next one."
@@ -598,7 +598,7 @@ function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeW
       : undefined);
 
   return <section className="current-episode-card g3-current-week" aria-labelledby="g3-current-week-title">
-    <div className="current-episode-heading"><div><p className="kicker">CURRENT WEEK · PROVISIONAL</p><h2 id="g3-current-week-title">THIS WEEK</h2><p>{episode.games ? `${episode.games} games so far. This is the forming week, not the completed Review.` : "Your current week will start taking shape as new Chess.com games arrive."}</p></div><small>{episode.periodLabel}</small></div>
+    <div className="current-episode-heading"><div><p className="kicker">CURRENT WEEK · FORMING</p><h2 id="g3-current-week-title">THIS WEEK</h2><p>{episode.games ? `${episode.games} games so far. This is the forming week, not the completed Review.` : "Your current week will start taking shape as new Chess.com games arrive."}</p></div><small>{episode.periodLabel}</small></div>
     <div className="current-episode-stats g3-current-week-stats" aria-label="Current week facts"><div><span>Games so far</span><strong>{episode.games}</strong></div><div><span>Record so far</span><strong>{episode.wins}W · {episode.draws}D · {episode.losses}L</strong></div><div><span>Week progress</span><strong>{episode.daysComplete} of 7 days</strong></div></div>
     <article className="g3-before-next-game">
       {liveStatus ? <div className={`corner-live-status ${liveStatus === "new" ? "is-new" : "is-updated"}`} role="status" aria-live="polite"><i className="corner-live-dot" aria-hidden="true" />{liveStatus === "new" ? "NEW GAME SEEN" : "UPDATED AFTER YOUR LAST GAME"}</div> : null}
@@ -664,7 +664,7 @@ function ShareMomentsSection({ moments }: { moments: SafeShareMoment[] }) {
 
 function PulseCards({ cards }: { cards: NonNullable<PlayerPulse["boardMoved"]> }) {
   if (!cards.length) return null;
-  return <div className="pulse-card-grid g4-pulse-card-grid">{cards.map((card) => <article className={`pulse-card pulse-${card.kind} g4-pulse-card`} key={card.id}><div className="pulse-card-label"><span>{card.eyebrow}</span><b>{card.finality === "provisional" ? "PROVISIONAL" : "OFFICIAL"}</b></div><h3>{card.title}</h3><p>{card.body}</p>{card.facts?.length ? <ul>{card.facts.map((fact) => <li key={fact}>{fact}</li>)}</ul> : null}</article>)}</div>;
+  return <div className="pulse-card-grid g4-pulse-card-grid">{cards.map((card) => <article className={`pulse-card pulse-${card.kind} g4-pulse-card`} key={card.id}><div className="pulse-card-label"><span>{card.eyebrow}</span><b>{card.finality === "provisional" ? "FORMING" : "OFFICIAL"}</b></div><h3>{card.title}</h3><p>{card.body}</p>{card.facts?.length ? <ul>{card.facts.map((fact) => <li key={fact}>{fact}</li>)}</ul> : null}</article>)}</div>;
 }
 
 function UniverseEventCards({ events, heading, account, socialPlayers, onSocialAction }: { events: PublicUniverseEvent[]; heading: string; account: BoardSignalAccount; socialPlayers: Record<string, SocialSummaryPlayer>; onSocialAction: (username: string) => Promise<void> }) {

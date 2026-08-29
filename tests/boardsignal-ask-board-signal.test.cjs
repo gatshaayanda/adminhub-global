@@ -23,6 +23,7 @@ const pulse = read('src/lib/boardsignal/pulse.ts');
 const rules = read('firestore.rules');
 const css = read('src/app/globals.css');
 const layout = read('src/app/layout.tsx');
+const chrome = read('src/components/RouteAwarePublicChrome.tsx');
 
 function context(extra = {}) {
   return {
@@ -193,8 +194,11 @@ test('Friends initial load retains the current loading-loop hotfix dependencies'
 });
 
 test('Ask panel remains a single readable semantic product surface', () => {
-  assert.match(layout, /<AskBoardSignal\s*\/>/);
+  assert.match(layout, /<RouteAwarePublicChrome>\{children\}<\/RouteAwarePublicChrome>/);
+  assert.match(chrome, /import AskBoardSignal from "@\/components\/AskBoardSignal"/);
+  assert.equal((chrome.match(/<AskBoardSignal\s*\/>/g) || []).length, 1);
   assert.doesNotMatch(layout, /<ChatWidget\s*\/>/);
+  assert.doesNotMatch(chrome, /<ChatWidget\s*\/>/);
   assert.doesNotMatch(serverGuide, /fake-bot|OpenAI|Anthropic|LLM/i);
   assert.match(widget, /ask-bs-panel bs-surface-paper/);
   assert.match(widget, /ask-bs-header bs-surface-dark/);
@@ -221,6 +225,12 @@ test('full active-cascade contrast invariant remains a release gate', () => {
 });
 
 test('Ask private persistence remains owner-only', () => {
-  assert.match(rules, /match \/users\/\{userId\}[\s\S]*allow read: if isOwner\(userId\)/);
-  assert.doesNotMatch(rules, /match \/guide\/\{[^}]+\}[\s\S]*allow read: if true/);
+  const guideRules = section(rules, 'match /guide/{guideId} {', 'match /guideFeedback/{feedbackId} {');
+  const feedbackRules = section(rules, 'match /guideFeedback/{feedbackId} {', '\n    }\n\n    match /publicPlayers/');
+  assert.match(guideRules, /allow read: if isOwner\(userId\);/);
+  assert.match(guideRules, /allow write: if false;/);
+  assert.doesNotMatch(guideRules, /allow read: if true;/);
+  assert.match(feedbackRules, /allow read: if isOwner\(userId\);/);
+  assert.match(feedbackRules, /allow write: if false;/);
+  assert.doesNotMatch(feedbackRules, /allow read: if true;/);
 });

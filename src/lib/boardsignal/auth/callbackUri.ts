@@ -1,35 +1,36 @@
-export const CHESSCOM_CALLBACK_PATH = "/api/auth/chesscom/callback";
-export const CHESSCOM_CANONICAL_CALLBACK_URI = `https://www.adminhub-global.com${CHESSCOM_CALLBACK_PATH}`;
-export const CHESSCOM_NON_WWW_CALLBACK_URI = `https://adminhub-global.com${CHESSCOM_CALLBACK_PATH}`;
-
-const PRODUCTION_ORIGINS = new Set([
-  "https://www.adminhub-global.com",
-  "https://adminhub-global.com",
+const CHESSCOM_CALLBACK_PATH = "/api/auth/chesscom/callback";
+const ALLOWED_PRODUCTION_CALLBACK_ORIGINS = new Set([
+  "https://www.boardsignal.ai",
+  "https://boardsignal-adminhub.vercel.app",
 ]);
 
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+function isLocalDevelopmentOrigin(origin: string) {
+  return /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}
 
-/**
- * Accepts only the registered BoardSignal callback route. Production stays on
- * the canonical domain (with the registered apex compatibility variant), while
- * local HTTP origins remain available outside production.
- */
+export function validateChessComCallbackUri(
+  value?: string,
+  nodeEnv?: string,
+): { valid: boolean; normalized?: string; reason?: string } {
+  const raw = String(value ?? "").trim();
+  if (!raw) return { valid: false, reason: "CHESSCOM_REDIRECT_URI is missing." };
+  let url: URL;
+  try { url = new URL(raw); }
+  catch { return { valid: false, reason: "CHESSCOM_REDIRECT_URI is not a valid URL." }; }
+  if (url.search || url.hash) return { valid: false, reason: "CHESSCOM_REDIRECT_URI must not contain query parameters or fragments." };
+  if (url.pathname !== CHESSCOM_CALLBACK_PATH) return { valid: false, reason: `CHESSCOM_REDIRECT_URI must use the canonical callback path ${CHESSCOM_CALLBACK_PATH}.` };
+  const origin = url.origin.toLowerCase();
+  const originAllowed =
+    ALLOWED_PRODUCTION_CALLBACK_ORIGINS.has(origin)
+    || (nodeEnv !== "production" && isLocalDevelopmentOrigin(origin));
+  if (!originAllowed) return { valid: false, reason: `CHESSCOM_REDIRECT_URI origin ${origin} is not allowed.` };
+  return { valid: true, normalized: `${origin}${CHESSCOM_CALLBACK_PATH}` };
+}
+
 export function resolveChessComCallbackUri(
-  configured: string | undefined,
-  nodeEnv: string | undefined = process.env.NODE_ENV,
+  value?: string,
+  nodeEnv?: string,
 ) {
-  if (!configured?.trim()) return undefined;
-  try {
-    const url = new URL(configured.trim());
-    if (url.username || url.password || url.search || url.hash || url.pathname !== CHESSCOM_CALLBACK_PATH) return undefined;
-    if (PRODUCTION_ORIGINS.has(url.origin)) return `${url.origin}${CHESSCOM_CALLBACK_PATH}`;
-    if (nodeEnv !== "production"
-      && url.protocol === "http:"
-      && LOCAL_HOSTS.has(url.hostname)) {
-      return `${url.origin}${CHESSCOM_CALLBACK_PATH}`;
-    }
-  } catch {
-    return undefined;
-  }
-  return undefined;
+  const validation = validateChessComCallbackUri(value, nodeEnv);
+  return validation.valid ? validation.normalized : undefined;
 }

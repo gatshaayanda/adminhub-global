@@ -1,0 +1,148 @@
+name: BoardSignal Patch L Visual QA
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-l-visual-qa-b2be2e9
+
+permissions:
+  contents: read
+
+jobs:
+  visual-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout frozen Patch L candidate
+        uses: actions/checkout@v4
+        with:
+          ref: b2be2e9ce1871ff3963b6d698eaf0999e0362de9
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install candidate dependencies
+        run: npm ci
+
+      - name: Build frozen candidate
+        run: npm run build
+
+      - name: Install runner-only browser driver
+        run: npm install --no-save --package-lock=false playwright-core@1.55.0
+
+      - name: Start exact candidate locally
+        shell: bash
+        run: |
+          npm start -- -H 127.0.0.1 -p 3000 > /tmp/boardsignal-next.log 2>&1 &
+          echo $! > /tmp/boardsignal-next.pid
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/boardsignal-next.log
+          exit 1
+
+      - name: Capture desktop mobile light dark QA
+        shell: bash
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          export CHROME
+          mkdir -p patch-l-visual-qa
+          cat > /tmp/patch-l-visual-qa.cjs <<'NODE'
+          const fs = require('fs');
+          const { chromium } = require('playwright-core');
+
+          const routes = [
+            ['home', '/'],
+            ['player-room', '/boardsignal/player-room'],
+            ['universe', '/feed'],
+          ];
+          const modes = [
+            ['desktop-light', { width: 1440, height: 1000 }, false, 'light'],
+            ['desktop-dark', { width: 1440, height: 1000 }, false, 'dark'],
+            ['mobile-light', { width: 390, height: 844 }, true, 'light'],
+            ['mobile-dark', { width: 390, height: 844 }, true, 'dark'],
+          ];
+
+          (async () => {
+            const browser = await chromium.launch({
+              executablePath: process.env.CHROME,
+              headless: true,
+              args: ['--no-sandbox', '--disable-dev-shm-usage'],
+            });
+            const report = [];
+            for (const [routeName, route] of routes) {
+              for (const [modeName, viewport, isMobile, scheme] of modes) {
+                const context = await browser.newContext({
+                  viewport,
+                  isMobile,
+                  hasTouch: isMobile,
+                  colorScheme: scheme,
+                  deviceScaleFactor: 1,
+                });
+                const page = await context.newPage();
+                const consoleErrors = [];
+                const pageErrors = [];
+                page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
+                page.on('pageerror', err => pageErrors.push(String(err)));
+                const response = await page.goto(`http://127.0.0.1:3000${route}`, {
+                  waitUntil: 'networkidle',
+                  timeout: 60000,
+                });
+                await page.evaluate((theme) => {
+                  if (theme === 'dark') document.documentElement.dataset.bsTheme = 'dark';
+                  else document.documentElement.removeAttribute('data-bs-theme');
+                }, scheme);
+                await page.waitForTimeout(500);
+                const metrics = await page.evaluate(() => ({
+                  title: document.title,
+                  bodyText: document.body.innerText.slice(0, 5000),
+                  htmlTheme: document.documentElement.dataset.bsTheme || null,
+                  bodyBg: getComputedStyle(document.body).backgroundColor,
+                  bodyColor: getComputedStyle(document.body).color,
+                  viewportWidth: innerWidth,
+                  viewportHeight: innerHeight,
+                  scrollWidth: document.documentElement.scrollWidth,
+                  scrollHeight: document.documentElement.scrollHeight,
+                  horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+                  headings: Array.from(document.querySelectorAll('h1,h2,h3')).slice(0, 30).map(el => el.textContent?.trim()).filter(Boolean),
+                  buttons: Array.from(document.querySelectorAll('button')).slice(0, 30).map(el => el.textContent?.trim()).filter(Boolean),
+                  links: Array.from(document.querySelectorAll('a')).slice(0, 40).map(el => el.textContent?.trim()).filter(Boolean),
+                }));
+                const screenshot = `patch-l-visual-qa/${routeName}-${modeName}.png`;
+                await page.screenshot({ path: screenshot, fullPage: true });
+                report.push({
+                  routeName,
+                  route,
+                  modeName,
+                  status: response?.status() ?? null,
+                  finalUrl: page.url(),
+                  ...metrics,
+                  consoleErrors,
+                  pageErrors,
+                  screenshot,
+                });
+                await context.close();
+              }
+            }
+            await browser.close();
+            fs.writeFileSync('patch-l-visual-qa/report.json', JSON.stringify(report, null, 2));
+          })().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
+          node /tmp/patch-l-visual-qa.cjs
+          cp /tmp/boardsignal-next.log patch-l-visual-qa/server.log
+
+      - name: Upload Patch L visual QA evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-l-visual-qa-b2be2e9
+          path: patch-l-visual-qa/
+          if-no-files-found: error

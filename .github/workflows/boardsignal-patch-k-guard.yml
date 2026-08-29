@@ -1,0 +1,59 @@
+name: BoardSignal Patch K Guard
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-k-instant-access-growth
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  patch-k-release-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout candidate with baseline history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Patch K universal access guard
+        run: node --test tests/boardsignal-patch-k-universal-access.test.cjs
+
+      - name: Core regressions
+        run: npm run test:core
+
+      - name: Critical regressions
+        run: npm run test:critical
+
+      - name: Beta access regressions
+        run: npm run test:beta-access
+
+      - name: Activation regressions
+        run: npm run test:activation
+
+      - name: Preview return regressions
+        run: npm run test:preview-return
+
+      - name: Contrast and dark-mode regressions
+        run: npm run test:contrast
+
+      - name: PWA and offline regressions
+        run: npm run test:pwa
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Production build
+        run: npm run build

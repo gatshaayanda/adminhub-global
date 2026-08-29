@@ -10,17 +10,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   patch-k-release-guard:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
-      - name: Checkout candidate with baseline history
+      - name: Checkout Patch K candidate
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -28,55 +26,17 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Reconcile final Patch K product model
-        if: github.event_name == 'push' && github.ref == 'refs/heads/boardsignal-patch-k-instant-access-growth'
-        run: |
-          node scripts/patch-k-final-reconcile.mjs
-          python - <<'PY'
-          from pathlib import Path
-
-          room = Path('src/components/BoardSignalPlayerRoom.tsx')
-          source = room.read_text()
-          source = source.replace(
-              'if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return',
-              'if (!snapshot.account.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement(snapshot.account)) return',
-          )
-          room.write_text(source)
-
-          tests = Path('tests/boardsignal-patch-k-universal-access.test.cjs')
-          source = tests.read_text()
-          source = source.replace("  assert.doesNotMatch(usernameForm, /beta-request|claimProvisionalBetaPreview|openDirectReview/);", "  assert.doesNotMatch(usernameForm, /\\/api\\/boardsignal\\/beta-request|claimProvisionalBetaPreview|openDirectReview/);")
-          source = source.replace("  assert.doesNotMatch(usernameForm, /PREVIEW|FOUNDER REVIEW|WAITING FOR APPROVAL|CONTINUE WITHOUT GOOGLE/i);", "  assert.doesNotMatch(usernameForm, /BOARD SIGNAL PREVIEW|CONTINUE PREVIEW|FOUNDER REVIEW|WAITING FOR APPROVAL|CONTINUE WITHOUT GOOGLE/i);")
-          source = source.replace("  assert.match(identityHelp, /<never>/).not;\n", "")
-          marker = "  assert.match(room, /PlayerReviewJournal/);"
-          if "googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement" not in source:
-              source = source.replace(marker, "  assert.match(room, /!snapshot\\.account\\.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement/);\n" + marker)
-          tests.write_text(source)
-          PY
-          node scripts/patch-k-legacy-compat-reconcile.mjs
-          git diff --check
+      - name: Check formatting safety
+        run: git diff --check
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Patch K universal access guard
-        run: node --test tests/boardsignal-patch-k-universal-access.test.cjs
+        run: npm run test:patch-k
 
       - name: Core regressions
-        run: |
-          set +e
-          npm run test:core
-          status=$?
-          if [ "$status" -ne 0 ]; then
-            echo "--- exact compiled legacy Preview request test ---"
-            if [ -f .test-dist/tests/boardsignal-beta-preview-request.test.js ]; then
-              nl -ba .test-dist/tests/boardsignal-beta-preview-request.test.js | sed -n '1,240p'
-            else
-              echo "compiled test not found"
-              find .test-dist/tests -maxdepth 1 -type f -print | sort
-            fi
-            exit "$status"
-          fi
+        run: npm run test:core
 
       - name: Critical regressions
         run: npm run test:critical
@@ -101,14 +61,3 @@ jobs:
 
       - name: Production build
         run: npm run build
-
-      - name: Commit reconciled release candidate
-        if: github.event_name == 'push' && github.ref == 'refs/heads/boardsignal-patch-k-instant-access-growth'
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add AGENTS.md BOARD_SIGNAL_PRODUCT_CONTRACT.md src/components/BoardSignalPlayerRoom.tsx src/components/PlayerProfileNotifications.tsx src/components/UsernameDeskForm.tsx tests/boardsignal-beta-access.test.ts tests/boardsignal-communications-onboarding.test.ts tests/boardsignal-patch-k-universal-access.test.cjs tests/boardsignal-activation-bridge.test.cjs
-            git commit -m "Reconcile Patch K final access and Universe UX"
-            git push origin HEAD:boardsignal-patch-k-instant-access-growth
-          fi

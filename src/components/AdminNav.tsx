@@ -1,23 +1,23 @@
 import Link from "next/link";
 
 const links = [
-  { label: "Newsroom", href: "/admin" },
-  { label: "Players", href: "/admin/players" },
+  { label: "Command Center", href: "/admin" },
+  { label: "Player operations", href: "/admin/players" },
   { label: "Communications", href: "/admin/communications" },
-  { label: "Review pipeline", href: "/admin/desks" },
-  { label: "Coverage editor", href: "/admin/coverage" },
-  { label: "Exceptions", href: "/admin/exceptions" },
+  { label: "Reviews", href: "/admin/desks" },
+  { label: "Coverage", href: "/admin/coverage" },
+  { label: "System issues", href: "/admin/exceptions" },
 ];
 
 export default function AdminNav() {
   return (
     <nav
       className="player-nav admin-nav"
-      aria-label="Founder Newsroom navigation"
+      aria-label="Founder operations navigation"
       style={{
-        background: "#0b1721",
-        borderColor: "#243846",
-        color: "#f2f6f8",
+        background: "#151b21",
+        borderColor: "#303942",
+        color: "#eef2f5",
         boxShadow: "none",
       }}
     >

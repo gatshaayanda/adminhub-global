@@ -10,6 +10,22 @@ const links = [
 ];
 
 export default function AdminNav() {
-  return <nav className="player-nav" aria-label="Founder Newsroom navigation">{links.map((link) => <Link href={link.href} key={link.href}>{link.label}</Link>)}</nav>;
+  return (
+    <nav
+      className="player-nav admin-nav"
+      aria-label="Founder Newsroom navigation"
+      style={{
+        background: "#0b1721",
+        borderColor: "#243846",
+        color: "#f2f6f8",
+        boxShadow: "none",
+      }}
+    >
+      {links.map((link) => (
+        <Link href={link.href} key={link.href}>
+          {link.label}
+        </Link>
+      ))}
+    </nav>
+  );
 }
-

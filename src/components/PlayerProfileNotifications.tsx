@@ -127,7 +127,7 @@ export default function PlayerProfileNotifications({
 
       <article className="profile-settings-card"><h3>Browser alerts</h3><BrowserPushControl idToken={token} onChanged={onSaved} /></article>
 
-      <article className="profile-settings-card"><h3>Community</h3><div className="required-participation-row"><ShieldCheck size={17} /><div><strong>BoardSignal Discord</strong><p>Optional community and founder contact. Discord is never required for access and is not identity proof.</p></div></div><a className="button button-outline" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener">JOIN THE BOARDSIGNAL DISCORD</a></article>
+      <article className="profile-settings-card"><h3>Community</h3><div className="required-participation-row"><ShieldCheck size={17}/><div><strong>Founding Access public highlights = Included</strong><p>Each completed Review can contribute a safe positive or neutral highlight. Private improvement guidance, reviewed positions and Progress stay private.</p></div></div><div className="required-participation-row"><ShieldCheck size={17}/><div><strong>BoardSignal Discord</strong><p>Optional community and founder contact. Discord is never required for access and is not identity proof.</p></div></div><a className="button button-outline" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener">JOIN THE BOARDSIGNAL DISCORD</a></article>
 
       <article className="profile-settings-card"><h3>Ask BoardSignal</h3><GuidePreferenceControl token={token} /></article>
 
@@ -137,6 +137,6 @@ export default function PlayerProfileNotifications({
     </div>
     {error ? <p className="form-error" role="alert">{error}</p> : null}
     {saved ? <p className="form-success" role="status">Profile saved.</p> : null}
-    <div className="profile-actions"><button className="button button-lime" type="button" onClick={save} disabled={busy || !connectivity.online || (consent && !contact.trim())}>{busy ? <><LoaderCircle className="button-spinner" size={15} /> Saving</> : <><Save size={15} /> Save profile</>}</button><button className="button button-quiet" type="button" onClick={onSignOut}><LogOut size={15} /> Sign out</button></div>
+    <div className="profile-actions"><button className="button button-lime" type="button" onClick={save} disabled={busy || !connectivity.online || (consent && !contact.trim())}>{busy ? <><LoaderCircle className="button-spinner" size={15}/> Saving</> : <><Save size={15}/> Save profile</>}</button><button className="button button-quiet" type="button" onClick={onSignOut}><LogOut size={15}/> Sign out</button></div>
   </section>;
 }

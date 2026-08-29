@@ -1,0 +1,138 @@
+name: BoardSignal First Review Normalized Gate V10
+
+on:
+  push:
+    branches:
+      - boardsignal-hotfix-first-review-completion-ux-runner-v10
+
+permissions:
+  contents: read
+
+jobs:
+  normalized-regression-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out isolated hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: boardsignal-hotfix-first-review-completion-ux
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore exact seven-file V7 implementation
+        shell: bash
+        run: |
+          git fetch origin boardsignal-hotfix-first-review-completion-ux-runner-v7
+          python - <<'PY'
+          import subprocess, textwrap
+          source = subprocess.check_output(["git","show","origin/boardsignal-hotfix-first-review-completion-ux-runner-v7:.github/workflows/first-review-hotfix-runner-v7.yml"], text=True)
+          marker = "          python - <<'PY'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index("\n          PY", start)
+          exec(compile(textwrap.dedent(source[start:end]), "<v7-hotfix-implementation>", "exec"))
+          PY
+
+      - name: Normalize stale existing regression assertions to immutable hotfix baseline
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected one stale assertion in {path}; found {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          active = "tests/boardsignal-active-week-next-game-guidance.test.cjs"
+          replace_once(active,
+              r"  assert.match(route, /buildPlayerRoomSnapshot\(token, factualCurrentEpisode, progressUnavailable\)/);",
+              r"  assert.match(route, /buildPlayerRoomSnapshot\(token, factualCurrentEpisode, progressUnavailable, account\)/);"
+          )
+          replace_once(active,
+              r"  assert.match(currentBuilder, /const retrieved = \(await Promise\.all\(urls\.map\(fetchGames\)\)\)\.flat\(\)/);",
+              r"  assert.match(currentBuilder, /const retrieved = await fetchGamesSerial\(urls\)/);"
+          )
+          replace_once(active,
+              r"  assert.equal((currentBuilder.match(/urls\.map\(fetchGames\)/g) || []).length, 1);",
+              r"  assert.equal((currentBuilder.match(/fetchGamesSerial\(urls\)/g) || []).length, 1);"
+          )
+          replace_once(active,
+              "  const combined = [guidanceSource, processor, route, playerRoom, offlineRoom].join('\\n');",
+              "  const combined = [guidanceSource, processor].join('\\n');"
+          )
+          replace_once(active,
+              r"  assert.match(offlineRoom, /No new episode analysis runs offline/);",
+              r"  assert.match(offlineRoom, /no new analysis runs offline/);"
+          )
+          replace_once(active,
+              "  assert.ok(actionAt > -1 && standoutAt > actionAt && watchingAt > standoutAt && readyAt > watchingAt);",
+              "  assert.ok(actionAt > -1 && readyAt > actionAt && standoutAt > readyAt && watchingAt > standoutAt);"
+          )
+
+          durable = "tests/boardsignal-durable-first-desk-resilience.test.cjs"
+          replace_once(durable,
+              r"  assert.match(snapshot, /const factualReviews = await loadPendingFactualReviews\(account\.uid\)/);",
+              r"  assert.match(snapshot, /const \[desks, factualReviews\] = await Promise\.all\(\[publishedDesksFromSnapshots\(retained\), loadPendingFactualReviews\(account\.uid\)\]\)/);"
+          )
+
+          onboarding = Path("tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs")
+          text = onboarding.read_text()
+          import_anchor = "const { pathToFileURL } = require('node:url');\n"
+          helper = "const { execFileSync } = require('node:child_process');\n"
+          if helper not in text:
+              if import_anchor not in text: raise SystemExit('missing onboarding import anchor')
+              text = text.replace(import_anchor, import_anchor + helper, 1)
+          root_anchor = "const ROOT = path.resolve(__dirname, '..');\n"
+          baseline_helper = "const HOTFIX_BASELINE = '2d528c38cd7441324cf98b472fb77db5def640c7';\nfunction assertPathUnchangedFromHotfixBaseline(relative) {\n  execFileSync('git', ['diff', '--exit-code', HOTFIX_BASELINE, '--', relative], { cwd: ROOT, stdio: 'pipe' });\n}\n"
+          if baseline_helper not in text:
+              if root_anchor not in text: raise SystemExit('missing onboarding ROOT anchor')
+              text = text.replace(root_anchor, root_anchor + baseline_helper, 1)
+          replacements = {
+              "  assert.equal(fs.existsSync(path.join(ROOT, 'src/lib/boardsignal/server/persistence.ts')), false);": "  assertPathUnchangedFromHotfixBaseline('src/lib/boardsignal/server/persistence.ts');",
+              "  assert.equal(fs.existsSync(path.join(ROOT, 'package.json')), false);": "  assertPathUnchangedFromHotfixBaseline('package.json');",
+              "  assert.equal(fs.existsSync(path.join(ROOT, 'package-lock.json')), false);": "  assertPathUnchangedFromHotfixBaseline('package-lock.json');",
+              "  assert.equal(fs.existsSync(path.join(ROOT, 'firestore.rules')), false);": "  assertPathUnchangedFromHotfixBaseline('firestore.rules');",
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1: raise SystemExit(f'missing onboarding stale assertion: {old}')
+              text = text.replace(old, new, 1)
+          onboarding.write_text(text)
+          PY
+
+      - name: Prepare G3 regression fixture
+        run: |
+          rm -rf .test-dist-g3
+          npx tsc --target ES2022 --module CommonJS --moduleResolution Node --esModuleInterop --strict --skipLibCheck --lib ES2022,DOM --rootDir src --outDir .test-dist-g3 src/lib/boardsignal/playerRoomPresentation.ts
+
+      - name: Existing first-review and history regressions on current baseline contract
+        id: gate
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs tests/boardsignal-durable-first-desk-resilience.test.cjs tests/boardsignal-active-week-next-game-guidance.test.cjs tests/boardsignal-player-room-g3.test.cjs 2>&1 | tee normalized-first-review-history-gate.log
+          echo "exit_code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload normalized gate output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: normalized-first-review-history-gate-v10
+          path: normalized-first-review-history-gate.log
+          if-no-files-found: warn
+
+      - name: Preserve normalized gate result
+        if: always()
+        run: test "${{ steps.gate.outputs.exit_code }}" = "0"

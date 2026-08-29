@@ -17,7 +17,7 @@
     "test:communications": "tsc -p tsconfig.communications.json && node --test .test-dist-communications/tests/boardsignal-communications-onboarding.test.js",
     "test:universe-pulse": "tsc -p tsconfig.universe-pulse.json && node --test tests/boardsignal-universe-pulse.test.cjs",
     "test:critical": "tsc -p tsconfig.critical-regressions.json && node --test .test-dist-critical/tests/boardsignal-identity-memory.test.js .test-dist-critical/tests/boardsignal-beta-access.test.js .test-dist-critical/tests/boardsignal-universe.test.js",
-    "test:contrast": "node scripts/check-boardsignal-contrast.mjs",
+    "test:contrast": "node scripts/check-boardsignal-contrast.mjs && node scripts/check-boardsignal-cascade.mjs",
     "test:ask": "tsc -p tsconfig.ask-board-signal.json && node --test tests/boardsignal-ask-board-signal.test.cjs",
     "test:pwa": "node --test tests/boardsignal-pwa-offline.test.cjs",
     "test:delivery": "node --test tests/boardsignal-delivery-polish.test.cjs",

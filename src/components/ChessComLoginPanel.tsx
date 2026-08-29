@@ -49,8 +49,8 @@ export default function ChessComLoginPanel({ compact = false }: { compact?: bool
       <div className="chesscom-login-icon"><LockKeyhole size={20} /></div>
       <div className="chesscom-login-copy">
         <span>RETURN TO MY BOARDSIGNAL</span>
-        <h2>Keep your latest four reviews together.</h2>
-        <p>Google is the easiest return key once you connect it from your Player Room. Existing Chess.com, Preview, magic and fallback access stay available.</p>
+        <h2>Open the exact BoardSignal you already use.</h2>
+        <p>Continue with Google if you connected it as your return key. Existing private access and recovery remain available.</p>
         <small><ShieldCheck size={14} /> Google signs you into BoardSignal only. It does not prove ownership of a Chess.com profile.</small>
       </div>
       <div className="chesscom-login-actions">

@@ -84,7 +84,7 @@ test('legacy return preferences remain server-side compatibility, not required s
   assert.ok(all(updateReturn, ['method === "return_here"', 'method === "email"', 'method === "discord"', 'method === "telegram"']));
   assert.ok(updateReturn.includes('request.status !== "pending"'));
   assert.ok(!section(updateReturn, 'method === "return_here"', '} else {').includes('validateContact'));
-  assert.ok(all(profile, ['External contact', '"Not added"']));
+  assert.ok(all(profile, ['BoardSignal contact', '"Not opted in"']));
   assert.ok(previewRoom.includes('Google is optional and can be connected later as a return key.'));
 });
 

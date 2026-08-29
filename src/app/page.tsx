@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LockKeyhole, ShieldCheck, Target } from "lucide-react";
 import ChessComLoginPanel from "@/components/ChessComLoginPanel";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
-import { betaProof, coverageStories } from "@/data/boardsignal";
+import { coverageStories } from "@/data/boardsignal";
 import { BOARDSIGNAL_SUPPORT_DISCORD_URL } from "@/lib/boardsignal/client/firestoreQuota";
 import { loadPublicBoardSignalProof } from "@/lib/boardsignal/server/publicProof";
 
@@ -21,15 +21,15 @@ export default async function HomePage() {
             <div id="get-my-boardsignal" className="hero-username-card">
               <UsernameDeskForm />
             </div>
-            {liveProof ? <div className="boardsignal-live-proof" aria-label="Live BoardSignal product proof">
-              <p className="kicker">LIVE BOARDSIGNAL PROOF</p>
+            {liveProof ? <div className="boardsignal-live-proof" aria-label="BoardSignal product proof">
+              <p className="kicker">REAL BOARDSIGNAL PRODUCT PROOF</p>
               <div className="boardsignal-live-proof-grid">
                 <span><strong>{liveProof.playersServed}</strong> Players served</span>
                 <span><strong>{liveProof.reviewsProduced}</strong> Reviews produced</span>
-                <span><strong>{liveProof.reviewsForming}</strong> Reviews forming</span>
                 <span><strong>{liveProof.returningPlayers}</strong> Returning players</span>
+                <span><strong>{liveProof.reviewsForming}</strong> Reviews forming</span>
               </div>
-              <small>Product activity only — not site visitors or live-viewer theatre.</small>
+              <small>BoardSignal product activity only — not Vercel visitors, pageviews or traffic counts.</small>
             </div> : null}
             <div className="first-value-preview">
               <p className="kicker">WHAT BOARDSIGNAL GIVES YOU</p>
@@ -59,10 +59,10 @@ export default async function HomePage() {
       <section className="container secondary-coverage">
         <div className="secondary-heading">
           <div>
-            <p className="kicker">Around BoardSignal</p>
-            <h2>Interesting weeks, through the players having them.</h2>
+            <p className="kicker">THE BOARDSIGNAL UNIVERSE</p>
+            <h2>See the weeks players are having, the performances moving the field, and the people around the chess already being played.</h2>
           </div>
-          <p>{betaProof.desks} player weeks. {betaProof.games} games reviewed.</p>
+          <p>Public positive highlights only. Private guidance and weaknesses stay private.</p>
         </div>
         <div className="secondary-story-grid">
           {secondaryStories.map((story) => (
@@ -75,7 +75,7 @@ export default async function HomePage() {
         </div>
         <div className="secondary-footer">
           <p><LockKeyhole size={15} /> Public highlights. Private improvement guidance.</p>
-          <Link href="/feed" className="text-link">See what&apos;s happening around BoardSignal</Link>
+          <Link href="/feed" className="button button-outline">EXPLORE THE UNIVERSE</Link>
         </div>
         <div className="boardsignal-community-entry">
           <div><p className="kicker">BOARDSIGNAL COMMUNITY</p><strong>Want to compare notes with other players or talk to the founder?</strong><p>Discord is optional and never required for access or identity.</p></div>

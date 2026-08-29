@@ -62,7 +62,20 @@ jobs:
         run: node --test tests/boardsignal-patch-k-universal-access.test.cjs
 
       - name: Core regressions
-        run: npm run test:core
+        run: |
+          set +e
+          npm run test:core
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "--- exact compiled legacy Preview request test ---"
+            if [ -f .test-dist/tests/boardsignal-beta-preview-request.test.js ]; then
+              nl -ba .test-dist/tests/boardsignal-beta-preview-request.test.js | sed -n '1,240p'
+            else
+              echo "compiled test not found"
+              find .test-dist/tests -maxdepth 1 -type f -print | sort
+            fi
+            exit "$status"
+          fi
 
       - name: Critical regressions
         run: npm run test:critical

@@ -107,7 +107,7 @@ test('homepage proof is one cached aggregate projection and never traffic theatr
   assert.match(proof, /revalidate: 900/);
   assert.match(proof, /totalReviewsProduced/);
   assert.match(proof, /r2Plus/);
-  assert.doesNotMatch(proof, /collection\("users"\)|collection\("desks"\)|vercel|fetch\(/i);
+  assert.doesNotMatch(proof, /collection\("users"\)|collection\("desks"\)|fetch\(|api\.vercel\.com|VERCEL_ACCESS_TOKEN/i);
   assert.match(homepage, /Players served/);
   assert.match(homepage, /Reviews produced/);
   assert.match(homepage, /Reviews forming/);

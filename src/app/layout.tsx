@@ -9,6 +9,7 @@ import "./boardsignal-h1-hotfix.css";
 import "./boardsignal-g4-universe.css";
 import "./boardsignal-g41-weekly-truth.css";
 import "./boardsignal-f2-readability.css";
+import "./boardsignal-experience.css";
 
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import TrustpilotInvitationBridge from "@/components/TrustpilotInvitationBridge";
@@ -37,13 +38,13 @@ export const metadata: Metadata = {
     default: "BoardSignal — Your weekly chess Review",
     template: "%s | BoardSignal",
   },
-  description: "BoardSignal turns a fixed seven days of your Chess.com games into a factual Review, a clear signal and a plan you can use.",
+  description: "BoardSignal is an installable chess performance app that turns a fixed seven days of your Chess.com games into a private Review, a clear signal and a plan you can use.",
   applicationName: "BoardSignal",
   keywords: ["chess improvement", "Chess.com analysis", "weekly chess report", "chess insights", "BoardSignal"],
   manifest: "/manifest.webmanifest",
   openGraph: {
     title: "BoardSignal — Your games, covered like sport",
-    description: "Personal sports coverage and private performance guidance for everyday chess players.",
+    description: "An installable chess performance app with private weekly Reviews and public-safe player coverage.",
     siteName: "BoardSignal",
     type: "website",
   },

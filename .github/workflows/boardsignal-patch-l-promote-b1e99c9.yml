@@ -1,0 +1,23 @@
+name: BoardSignal Patch L Promote b1e99c9
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-l-release-promote-b1e99c9
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Promote exact READY Patch L preview
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          test -n "$VERCEL_TOKEN"
+          npx --yes vercel@latest promote adminhub-global-3mzsw4z1w-gatshaayandagmailcoms-projects.vercel.app \
+            --token="$VERCEL_TOKEN" \
+            --scope=gatshaayandagmailcoms-projects

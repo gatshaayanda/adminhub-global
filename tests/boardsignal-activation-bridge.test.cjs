@@ -9,6 +9,7 @@ const pkg = JSON.parse(read('package.json'));
 const activation = read('src/lib/boardsignal/activation.ts');
 const serverActivation = read('src/lib/boardsignal/server/activation.ts');
 const betaRequests = read('src/lib/boardsignal/server/betaRequests.ts');
+const identityConfirmation = read('src/lib/boardsignal/server/foundingBetaIdentityConfirmation.ts');
 const requestRoute = read('src/app/api/boardsignal/beta-request/route.ts');
 const previewRoute = read('src/app/api/boardsignal/beta-preview/[requestId]/route.ts');
 const magicRoute = read('src/app/api/auth/beta-access/magic/route.ts');
@@ -84,11 +85,12 @@ test('09 request is persisted before preview generation', () => {
   const previewAt = submission.indexOf('generateAndStorePreview', setAt);
   assert.ok(setAt > 0 && previewAt > setAt);
 });
-test('10 preview generation failure retains request', () => {
+test("10 preview generation failure retains request without restoring Founder gating", () => {
   assert.match(betaRequests, /previewError/);
   assert.match(previewRoom, /REQUEST SAVED/);
-  assert.match(previewRoom, /Preview generation never blocks eventual approval/);
+  assert.match(previewRoom, /normal private use does not wait for Founder approval/);
 });
+
 test('11 preview reuses existing production chess pipeline', () => assert.match(safePreviewBuilder, /buildLiveDesk\(identity\.canonicalUsername/));
 test('12 no second preview chess processor is introduced', () => {
   assert.doesNotMatch(serverActivation, /new Stockfish|analy[sz]ePosition|new Chess/);
@@ -124,30 +126,31 @@ test('23 Universe preview is explicitly provisional', () => {
   assert.match(activation, /label: "PROVISIONAL"/);
   assert.match(previewRoom, /IF THE FIELD HELD/);
 });
-test('24 preview participant is not published as official Universe entry', () => {
+test("24 preview participant is not published as official Universe identity", () => {
   assert.doesNotMatch(safePreviewBuilder, /writePublicUniverseEvent/);
-  assert.match(previewRoom, /do not become an official Universe participant until Founder approval/);
+  assert.match(previewRoom, /does not turn it into verified Chess\.com ownership or public identity/);
 });
+
 test('25 approval creates deterministic New To The Board event', () => {
   assert.match(betaRequests, /eventType: "new_player"/);
   assert.match(betaRequests, /has entered the BoardSignal Universe/);
   assert.match(approval, /writePublicUniverseEvent\(newPlayerUniverseEvent/);
 });
-test('26 Progress preview does not invent prior Desks', () => {
-  assert.match(previewRoom, /Progress starts with Desk Two/);
+test("26 Progress preview does not invent a prior Review", () => {
+  assert.match(previewRoom, /Progress starts with your second review/);
   assert.match(previewRoom, /Building your baseline/);
   assert.match(previewRoom, /Next comparison/);
 });
+
 test('27 Players in Field comes only from safe Universe board entries', () => {
   assert.match(safePreviewBuilder, /fieldPlayers\(previewBoards/);
   assert.doesNotMatch(safePreviewBuilder, /preferredContact|signals|evidence/);
 });
-test('28 social mutations are unavailable before access', () => {
-  assert.match(previewRoom, /Friends unlock with private access/);
+test("28 social mutations remain unavailable before private access", () => {
+  assert.match(previewRoom, /Friends are inside My BoardSignal/);
   assert.doesNotMatch(previewRoom, /\/api\/boardsignal\/social|socialAction\(/);
 });
 
-// Ask preview security / presence
 test('29 Ask has dedicated beta_preview mode', () => {
   assert.match(guide, /mode\?: "beta_preview"/);
   assert.match(serverGuide, /input\.mode === "beta_preview"/);
@@ -183,34 +186,51 @@ test('37 requestId alone cannot read protected status', () => {
   assert.match(previewRoute, /verifyBetaPreviewStatusCredential\(id, body\.statusToken\)/);
 });
 test('38 status API returns no raw stored status token', () => assert.doesNotMatch(previewRoute, /statusTokenHash|ticketHash/));
-test('39 Preview removes status secret from browser URL', () => assert.match(previewRoom, /history\.replaceState\(null, "", `\$\{window\.location\.pathname\}\$\{window\.location\.search\}`\)/));
-test('40 pending status polling is gentle and visibility bounded', () => {
-  assert.match(activation, /BETA_PREVIEW_POLL_MS = 25_000/);
-  assert.match(previewRoom, /document\.visibilityState === "visible"/);
-  assert.match(previewRoom, /pollInFlightRef\.current/);
-});
-test('41 focus and visibility refresh status without one-second polling', () => {
-  assert.match(previewRoom, /visibilitychange/);
-  assert.match(previewRoom, /window\.addEventListener\("focus"/);
-  assert.doesNotMatch(previewRoom, /setInterval\([^,]+,\s*1000/);
-});
-test('42 approval becomes visible as YOU ARE IN without external messaging', () => {
-  assert.match(previewRoom, /You're in\./);
-  assert.match(previewRoom, /Open My Player Room/);
+test("39 Preview strips the status secret without restoring the fragment", () => {
+  assert.match(previewRoom, /stripStatusFragmentWithoutRouterRestore/);
+  assert.match(previewRoom, /History\.prototype\.replaceState\.call\(window\.history, currentState, "", cleanUrl\)/);
+  assert.match(previewRoom, /window\.history\.replaceState\(currentState, "", cleanUrl\)/);
 });
 
-// Compound approval + identity hydration
-test('43 Founder primary action is Approve + Prepare Access', () => assert.match(adminUi, /Approve \+ Prepare Access/));
-test('44 one approval function composes account, access, Universe, magic and email', () => {
-  for (const pattern of [/ensureStablePlayerAccount/, /createBetaAccessCredential|loadExistingFoundingBetaAccess/, /writePublicUniverseEvent/, /betaMagicAccessCredential/, /sendBoardSignalEmail/]) assert.match(approval, pattern);
+test("40 Preview status requests are single-flight instead of background polling", () => {
+  assert.match(previewRoom, /activeRequestRef\.current/);
+  assert.match(previewRoom, /beginPreviewStatusRequest/);
+  assert.doesNotMatch(previewRoom, /setInterval\(/);
 });
-test('45 approval preserves request stable identity across existing Beta Access recovery', () => {
+
+test("41 status refresh is startup or explicit retry, not focus polling", () => {
+  assert.match(previewRoom, /startupRequestIssuedRef\.current/);
+  assert.match(previewRoom, /requestStatus\("initial", token\)/);
+  assert.match(previewRoom, /async function retryPreview/);
+  assert.doesNotMatch(previewRoom, /visibilitychange|addEventListener\("focus"/);
+});
+
+test("42 approved legacy Preview exposes immediate My BoardSignal entry", () => {
+  assert.match(previewRoom, /status\?\.state === "approved" && status\.accessReady/);
+  assert.match(previewRoom, /MY BOARDSIGNAL READY/);
+  assert.match(previewRoom, /Continue to My BoardSignal/);
+});
+
+test("43 Founder primary action is identity confirmation, not an access gate", () => {
+  assert.match(adminUi, /Confirm Identity/);
+  assert.match(adminUi, /Player already has private BoardSignal access/);
+  assert.doesNotMatch(adminUi, /Approve \+ Prepare Access/);
+});
+
+test("44 legacy approval composes stable access, Universe, magic recovery and shared confirmation delivery", () => {
+  for (const pattern of [/ensureStablePlayerAccount/, /createFoundingBetaAccessForIdentity|loadExistingFoundingBetaAccess/, /writePublicUniverseEvent/, /betaMagicAccessCredential/, /deliverFoundingBetaIdentityConfirmation/]) assert.match(approval, pattern);
+  assert.doesNotMatch(approval, /sendBoardSignalEmail/);
+});
+
+test("45 approval preserves the request stable identity across existing fallback-access recovery", () => {
   assert.match(approval, /playerId: request\.chessPlayerId/);
+  assert.match(approval, /canonicalUsername: request\.canonicalUsername/);
   assert.doesNotMatch(approval, /resolveChessComPlayer/);
-  assert.match(approval, /createFoundingBetaAccess\(request\.canonicalUsername\)/);
+  assert.match(approval, /createFoundingBetaAccessForIdentity\(identity\)/);
   assert.match(approval, /account\.uid !== stableAccount\.uid/);
   assert.match(approval, /account\.chessCom\.playerId !== request\.chessPlayerId/);
 });
+
 test('46 stable Firebase UID remains chesscom_<playerId>', () => assert.match(approval, /stableAccount\.uid !== `chesscom_\$\{request\.chessPlayerId\}`/));
 test('47 approved request contact method hydrates final account', () => assert.match(approval, /preferredContactMethod: request\.preferredContactMethod/));
 test('48 approved request contact value hydrates final account', () => assert.match(approval, /preferredContactValue: request\.preferredContactValue/));
@@ -224,11 +244,13 @@ test('51 Profile initializes from hydrated account contact values', () => {
   assert.match(profile, /account\.preferredContactMethod \?\? "email"/);
   assert.match(profile, /account\.preferredContactValue \?\? ""/);
 });
-test('52 no duplicate setup gate after valid request hydration', () => {
-  assert.match(room, /if \(!snapshot\.account\.preferencesConfirmedAt \|\| !snapshot\.account\.contactConfirmedAt\) return <PlayerPreferencesGate/);
+test("52 legacy hydrated contact decisions avoid a duplicate preferences gate", () => {
+  assert.match(room, /!snapshot\.account\.preferencesConfirmedAt \|\| !snapshot\.account\.contactConfirmedAt/);
+  assert.match(room, /PlayerPreferencesGate account=\{snapshot\.account\} onContinue=\{confirmPreferences\}/);
   assert.match(approval, /preferencesConfirmedAt/);
   assert.match(approval, /contactConfirmedAt/);
 });
+
 test('53 agreement remains required before private Desk', () => {
   assert.match(room, /!hasAcceptedCurrentBetaAgreement\(snapshot\.account\).*BetaAgreementGate/);
   assert.ok(room.indexOf('BetaAgreementGate') < room.indexOf('PlayerPreferencesGate') || true);
@@ -242,26 +264,32 @@ test('54 first private destination remains Desk', () => {
 test('55 in-app notification defaults remain ON', () => {
   for (const key of ['deskReady','episodeProgress','blueReminder','universeAchievement','founderUpdates']) assert.match(approval, new RegExp(`${key}: currentPreferences\\.${key} \\?\\? true`));
 });
-test('56 email defaults ON only for a new valid consented email request', () => {
-  assert.match(approval, /consentedEmail = request\.preferredContactMethod === "email"/);
-  assert.match(approval, /email: newlyCreatedAccess && consentedEmail \? true/);
+test("56 one-time approval email never silently opts the player into ongoing email", () => {
+  assert.match(approval, /one-time approval-alert choice does not opt the player into ongoing email notifications/);
+  assert.match(approval, /email: currentPreferences\.email \?\? false/);
 });
-test('57 Discord and Telegram requests never infer email', () => assert.match(approval, /request\.preferredContactMethod === "email"/));
+
+test("57 legacy external contact methods never infer ongoing email preference", () => {
+  assert.match(approval, /validExternalContact/);
+  assert.match(approval, /email: currentPreferences\.email \?\? false/);
+  assert.doesNotMatch(approval, /email:\s*request\.preferredContactMethod/);
+});
+
 test('58 browser push default remains permission-gated and false', () => {
   assert.match(approval, /browserPush: currentPreferences\.browserPush \?\? false/);
   assert.match(push, /Notification\.requestPermission/);
 });
-test('59 Preview requests browser permission only inside explicit device enable action', () => {
-  const enableDeviceStart = previewRoom.indexOf('async function enableDevice');
-  const chooseStart = previewRoom.indexOf('async function choose', enableDeviceStart);
-  const enableDeviceBlock = previewRoom.slice(enableDeviceStart, chooseStart);
-  assert.match(enableDeviceBlock, /Notification\.requestPermission\(\)/);
-  assert.doesNotMatch(previewRoom.slice(0, enableDeviceStart), /Notification\.requestPermission\(\)/);
+test("59 Preview never opens browser notification permission on its own", () => {
+  assert.doesNotMatch(previewRoom, /Notification\.requestPermission\(/);
+  assert.match(previewRoom, /Notification\.permission === "granted"/);
+  assert.match(previewRoom, /registerBoardSignalBrowserPush/);
 });
-test('60 post-value browser alert prompt appears after a real saved Desk', () => {
+
+test("60 post-value browser alert prompt appears after a real saved Review", () => {
   assert.match(room, /<UniversalPlayerDesk[\s\S]*<DeskReturnChannelPrompt/);
-  assert.match(returnPrompt, /NEVER MISS YOUR NEXT DESK/);
+  assert.match(returnPrompt, /NEVER MISS YOUR NEXT REVIEW/);
 });
+
 test('61 only explicit Turn On Alerts path requests permission in return prompt', () => {
   assert.match(returnPrompt, /async function enable\(\)[\s\S]*Notification\.requestPermission\(\)/);
   assert.match(returnPrompt, /onClick=\{enable\}/);
@@ -299,24 +327,33 @@ test('72 access surface is noindex/no-referrer', () => {
   assert.match(accessPage, /index: false/);
   assert.match(accessPage, /referrer: "no-referrer"/);
 });
-test('73 expired link has human recovery UX', () => {
-  assert.match(magicAccess, /This access link expired/);
-  assert.match(magicAccess, /Request a fresh access link/);
+test("73 unusable magic link has human private-recovery UX", () => {
+  assert.match(magicAccess, /This link could not be opened/);
+  assert.match(magicAccess, /Use private access \/ recovery/);
+  assert.match(magicAccess, /Return to BoardSignal/);
 });
+
 test('74 fallback username + Beta code access remains', () => {
   assert.match(adminUi, /RECOVERY ACCESS/);
   assert.match(room, /<UsernameDeskForm/);
 });
 
 // Delivery / founder alerts / dedupe
-test('75 approved email can auto-deliver when configured and consented', () => {
-  assert.match(approval, /getBoardSignalDeliveryStatus/);
-  assert.match(approval, /sendBoardSignalEmail/);
+test("75 approved legacy email can deliver only through the shared consent-aware confirmation policy", () => {
+  assert.match(approval, /deliverFoundingBetaIdentityConfirmation/);
+  assert.match(identityConfirmation, /approvalAlertEmailConsent\?: true/);
+  assert.match(identityConfirmation, /emailConfigured: getBoardSignalDeliveryStatus\(\)\.emailConfigured/);
+  assert.match(identityConfirmation, /sendBoardSignalEmail/);
 });
-test('76 missing Resend configuration does not invalidate approval', () => {
-  assert.match(approval, /if \(!delivery\.emailConfigured\) accessEmailDelivery = "not_configured"/);
-  assert.match(approval, /return \{[\s\S]*magicLink/);
+
+test("76 missing email configuration never invalidates the committed identity decision", () => {
+  const committedAt = approval.indexOf('await ref.set({ status: "approved"');
+  const deliveryAt = approval.indexOf('deliverFoundingBetaIdentityConfirmation', committedAt);
+  assert.ok(committedAt > 0 && deliveryAt > committedAt);
+  assert.match(approval, /identityConfirmationDelivery\.status === "not_configured" \? "not_configured"/);
+  assert.match(identityConfirmation, /getBoardSignalDeliveryStatus\(\)\.emailConfigured/);
 });
+
 test('77 Discord and Telegram get a copy-ready access message', () => {
   assert.match(betaRequests, /Your BoardSignal is ready — open your private Player Room here/);
   assert.match(adminUi, /Copy access message/);
@@ -330,9 +367,12 @@ test('79 duplicate request does not reissue possession credential from username+
   assert.doesNotMatch(duplicate, /createBetaPreviewStatusCredential/);
   assert.match(duplicate, /Never issue a new claim-capable status credential/);
 });
-test('80 founder request alert is sent only on new request path', () => {
-  assert.equal((submission.match(/notifyFounderOfBetaRequest/g) || []).length, 1);
+test("80 new legacy requests materialize Founder queue state without making Founder delivery a request gate", () => {
+  assert.match(requestRoute, /upsertFounderPendingRequestSummary/);
+  assert.match(requestRoute, /\.catch\(\(\) => undefined\)/);
+  assert.doesNotMatch(submission, /notifyFounderOfBetaRequest/);
 });
+
 test('81 founder notification deep-links to exact request', () => assert.match(serverActivation, /\/admin\/players\?request=\$\{encodeURIComponent\(input\.requestId\)\}/));
 test('82 founder notification excludes private contact detail', () => {
   const alert = section(serverActivation, 'export async function notifyFounderOfBetaRequest');

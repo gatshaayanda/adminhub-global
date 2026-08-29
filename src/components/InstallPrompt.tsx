@@ -9,6 +9,7 @@ import {
   PWA_ENGAGED_KEY,
   PWA_INSTALL_REQUEST_EVENT,
   installDismissedRecently,
+  isIosInstallCandidate,
   isStandaloneBoardSignal,
 } from "@/lib/boardsignal/offline/install";
 
@@ -21,17 +22,20 @@ export default function InstallPrompt() {
   const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [iosCandidate, setIosCandidate] = useState(false);
   const [ready, setReady] = useState(false);
 
   const refreshEligibility = useCallback(() => {
-    if (isStandaloneBoardSignal()) { setInstalled(true); setReady(false); return; }
+    const standalone = isStandaloneBoardSignal();
+    setInstalled(standalone);
+    setIosCandidate(isIosInstallCandidate());
+    if (standalone) { setReady(false); return; }
     const engaged = Boolean(window.localStorage.getItem(PWA_ENGAGED_KEY));
     const eligiblePath = pathname.startsWith("/boardsignal/player-room");
     setReady(engaged && eligiblePath && !installDismissedRecently());
   }, [pathname]);
 
   useEffect(() => {
-    setInstalled(isStandaloneBoardSignal());
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
@@ -69,9 +73,26 @@ export default function InstallPrompt() {
     setReady(false);
   }
 
-  if (installed || !deferredPrompt || !ready) return null;
-  return <div className="install-card bs-surface-paper" role="region" aria-label="Install BoardSignal">
-    <div className="install-card-heading"><div><strong>Keep your Review close</strong><p>Install BoardSignal after your Player Room is ready for quicker access and offline continuity.</p></div><button type="button" onClick={dismiss} aria-label="Dismiss install prompt"><X size={16}/></button></div>
-    <button type="button" onClick={() => void handleInstall()} className="button button-dark install-card-action"><Download size={18}/> Install BoardSignal</button>
+  if (installed || !ready || (!deferredPrompt && !iosCandidate)) return null;
+
+  return <div className={`install-card bs-surface-paper ${iosCandidate ? "is-ios-install" : ""}`} role="region" aria-label="Install BoardSignal">
+    <div className="install-card-heading">
+      <div>
+        <strong>Keep BoardSignal on your device</strong>
+        <p>{iosCandidate ? "BoardSignal installs from this website on iPhone and iPad." : "Install BoardSignal from this website for quicker access to your Player Room and saved Review."}</p>
+      </div>
+      <button type="button" onClick={dismiss} aria-label="Dismiss install prompt"><X size={16}/></button>
+    </div>
+    {iosCandidate ? <>
+      <ol className="ios-install-steps">
+        <li>Tap the Share button in Safari.</li>
+        <li>Choose <strong>Add to Home Screen</strong>.</li>
+        <li>Confirm <strong>BoardSignal</strong>.</li>
+      </ol>
+      <p className="install-store-clarifier">You do not need the App Store or Play Store.</p>
+    </> : <>
+      <button type="button" onClick={() => void handleInstall()} className="button button-dark install-card-action"><Download size={18}/> Install BoardSignal</button>
+      <p className="install-store-clarifier">BoardSignal installs directly from this website. No app store is required.</p>
+    </>}
   </div>;
 }

@@ -1,14 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
-import "./boardsignal-foundation.css";
-import "./boardsignal-accessibility.css";
-import "./boardsignal-motion.css";
-import "./boardsignal-player-room-g3.css";
-import "./boardsignal-h1-hotfix.css";
-import "./boardsignal-g4-universe.css";
-import "./boardsignal-g41-weekly-truth.css";
-import "./boardsignal-f2-readability.css";
+import "./boardsignal-system.css";
 
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import TrustpilotInvitationBridge from "@/components/TrustpilotInvitationBridge";

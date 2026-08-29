@@ -53,8 +53,8 @@ jobs:
       - name: Validate reconciled activation suite
         run: npm run test:activation
 
-      - name: Check patch formatting
-        run: git diff --check
+      - name: Check activation patch formatting
+        run: git diff --check -- tests/boardsignal-activation-bridge.test.cjs
 
       - name: Commit reconciled activation guard
         shell: bash

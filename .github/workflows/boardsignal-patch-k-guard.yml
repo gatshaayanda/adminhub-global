@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - boardsignal-patch-k-instant-access-growth
+  pull_request:
+    branches:
+      - boardsignal-v10
   workflow_dispatch:
 
 permissions:

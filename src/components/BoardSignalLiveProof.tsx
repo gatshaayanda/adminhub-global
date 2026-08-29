@@ -14,52 +14,52 @@ function easeOutCubic(value: number) {
 }
 
 function AnimatedMetric({ value, label }: { value: number; label: string }) {
-  const [display, setDisplay] = useState(value);
-  const previous = useRef(value);
+  const target = Math.max(0, Math.round(value));
+  const [display, setDisplay] = useState(0);
   const spanRef = useRef<HTMLSpanElement | null>(null);
+  const hasAnimated = useRef(false);
 
   useEffect(() => {
-    const target = Math.max(0, Math.round(value));
-    const startValue = Math.max(0, Math.round(previous.current));
-    previous.current = target;
-
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced || startValue === target) {
+    if (reduced || target === 0) {
+      setDisplay(target);
+      hasAnimated.current = true;
+      return;
+    }
+
+    const element = spanRef.current;
+    if (!element || !("IntersectionObserver" in window)) {
       setDisplay(target);
       return;
     }
 
     let raf = 0;
-    let startedAt = 0;
-    const duration = 520;
-    const start = Math.min(startValue, target);
-
-    const tick = (now: number) => {
-      if (!startedAt) startedAt = now;
-      const progress = Math.min(1, (now - startedAt) / duration);
-      const next = Math.round(start + (target - start) * easeOutCubic(progress));
-      setDisplay(next);
-      if (progress < 1) raf = window.requestAnimationFrame(tick);
-    };
-
-    raf = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(raf);
-  }, [value]);
-
-  useEffect(() => {
-    const element = spanRef.current;
-    if (!element || !("IntersectionObserver" in window)) return;
     const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return;
+      if (!entries.some((entry) => entry.isIntersecting) || hasAnimated.current) return;
+      hasAnimated.current = true;
       element.classList.add("is-visible");
       observer.disconnect();
+
+      let startedAt = 0;
+      const duration = Math.min(720, Math.max(360, 320 + target * 4));
+      const tick = (now: number) => {
+        if (!startedAt) startedAt = now;
+        const progress = Math.min(1, (now - startedAt) / duration);
+        setDisplay(Math.round(target * easeOutCubic(progress)));
+        if (progress < 1) raf = window.requestAnimationFrame(tick);
+      };
+      raf = window.requestAnimationFrame(tick);
     }, { threshold: 0.35 });
+
     observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      observer.disconnect();
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [target]);
 
   return (
-    <span ref={spanRef} className="boardsignal-proof-metric" aria-label={`${value} ${label}`}>
+    <span ref={spanRef} className="boardsignal-proof-metric" aria-label={`${target} ${label}`}>
       <strong aria-hidden="true">{display}</strong>
       <span>{label}</span>
     </span>

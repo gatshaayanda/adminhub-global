@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import MagicBetaAccess from "@/components/MagicBetaAccess";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Open My Player Room", robots: { index: false, follow: false }, referrer: "no-referrer" };
+export const metadata: Metadata = { title: "Open My BoardSignal", robots: { index: false, follow: false }, referrer: "no-referrer" };
 export const dynamic = "force-dynamic";
 
-export default function BoardSignalMagicAccessPage() { return <MagicBetaAccess />; }
+export default function BoardSignalLegacyAccessPage() {
+  redirect("/boardsignal/player-room");
+}

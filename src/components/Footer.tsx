@@ -2,10 +2,10 @@ import Link from "next/link";
 import SignalMark from "@/components/SignalMark";
 
 const footerLinks = [
-  { label: "Get My BoardSignal", href: "/#get-my-boardsignal" },
-  { label: "BoardSignal Universe", href: "/feed" },
-  { label: "My Player Room", href: "/boardsignal/player-room" },
-  { label: "Founding Access terms", href: "/boardsignal/beta-terms" },
+  { label: "Open BoardSignal", href: "/#get-my-boardsignal" },
+  { label: "Universe", href: "/feed" },
+  { label: "My BoardSignal", href: "/boardsignal/player-room" },
+  { label: "Terms", href: "/boardsignal/beta-terms" },
   { label: "Privacy", href: "/boardsignal/privacy" },
 ];
 
@@ -17,7 +17,7 @@ export default function Footer() {
           <SignalMark className="footer-mark" />
           <div>
             <p className="brand-name">BoardSignal</p>
-            <p>One seven-day episode at a time.</p>
+            <p>Your games, understood — one seven-day Review at a time.</p>
           </div>
         </div>
 

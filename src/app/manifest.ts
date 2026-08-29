@@ -13,9 +13,9 @@ type BoardSignalManifest = MetadataRoute.Manifest & {
 export default function manifest(): BoardSignalManifest {
   return {
     id: "/boardsignal",
-    name: "BoardSignal — Weekly Chess Review",
+    name: "BoardSignal — Chess Performance App",
     short_name: "BoardSignal",
-    description: "Your weekly chess Review. Follow your latest seven-day Review, Progress, Universe movement and Friends — with offline access after you've opened your Player Room.",
+    description: "An installable chess performance app for your private weekly Review, Progress, Universe, Friends and Inbox — with saved offline access after you've opened My BoardSignal.",
     start_url: "/boardsignal?source=pwa",
     scope: "/",
     display: "standalone",
@@ -31,15 +31,15 @@ export default function manifest(): BoardSignalManifest {
       { src: "/icons/boardsignal-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "Player Room", short_name: "Player Room", url: "/boardsignal/player-room", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
-      { name: "Universe", short_name: "Universe", url: "/boardsignal", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
+      { name: "My BoardSignal", short_name: "My BoardSignal", url: "/boardsignal/player-room", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
+      { name: "Universe", short_name: "Universe", url: "/feed", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
       { name: "Inbox", short_name: "Inbox", url: "/boardsignal/player-room?tab=inbox", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
       { name: "Friends", short_name: "Friends", url: "/boardsignal/player-room?tab=friends", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
     ],
     screenshots: [
       { src: "/pwa/boardsignal-player-room-mobile.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "Your weekly chess Review" },
       { src: "/pwa/boardsignal-universe-mobile.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "Current BoardSignal Universe movement" },
-      { src: "/pwa/boardsignal-player-room-wide.png", sizes: "1440x900", type: "image/png", form_factor: "wide", label: "Review, Progress and your BoardSignal week" },
+      { src: "/pwa/boardsignal-player-room-wide.png", sizes: "1440x900", type: "image/png", form_factor: "wide", label: "Review, Progress and My BoardSignal" },
       { src: "/pwa/boardsignal-universe-wide.png", sizes: "1440x900", type: "image/png", form_factor: "wide", label: "BoardSignal Universe and recent field movement" },
     ],
   };

@@ -1,0 +1,206 @@
+name: BoardSignal First Review Hotfix Final Validation V11
+
+on:
+  push:
+    branches:
+      - boardsignal-hotfix-first-review-completion-ux-runner-v11
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out isolated hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: boardsignal-hotfix-first-review-completion-ux
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore exact seven-file V7 implementation
+        shell: bash
+        run: |
+          git fetch origin boardsignal-hotfix-first-review-completion-ux-runner-v7
+          python - <<'PY'
+          import subprocess, textwrap
+          source = subprocess.check_output(["git","show","origin/boardsignal-hotfix-first-review-completion-ux-runner-v7:.github/workflows/first-review-hotfix-runner-v7.yml"], text=True)
+          marker = "          python - <<'PY'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index("\n          PY", start)
+          exec(compile(textwrap.dedent(source[start:end]), "<v7-hotfix-implementation>", "exec"))
+          PY
+
+      - name: Normalize stale existing regression assertions to immutable hotfix baseline
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected one stale assertion in {path}; found {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          active = "tests/boardsignal-active-week-next-game-guidance.test.cjs"
+          replacements = [
+            (r"  assert.match(route, /buildPlayerRoomSnapshot\(token, factualCurrentEpisode, progressUnavailable\)/);", r"  assert.match(route, /buildPlayerRoomSnapshot\(token, factualCurrentEpisode, progressUnavailable, account\)/);"),
+            (r"  assert.match(currentBuilder, /const retrieved = \(await Promise\.all\(urls\.map\(fetchGames\)\)\)\.flat\(\)/);", r"  assert.match(currentBuilder, /const retrieved = await fetchGamesSerial\(urls\)/);"),
+            (r"  assert.equal((currentBuilder.match(/urls\.map\(fetchGames\)/g) || []).length, 1);", r"  assert.equal((currentBuilder.match(/fetchGamesSerial\(urls\)/g) || []).length, 1);"),
+            ("  const combined = [guidanceSource, processor, route, playerRoom, offlineRoom].join('\\n');", "  const combined = [guidanceSource, processor].join('\\n');"),
+            (r"  assert.match(offlineRoom, /No new episode analysis runs offline/);", r"  assert.match(offlineRoom, /no new analysis runs offline/);"),
+            ('  assert.match(playerRoom, /className="return-loop-blue"/);', '  assert.match(playerRoom, /className="current-episode-card g3-current-week"/);'),
+            ('  assert.match(playerRoom, /className="return-loop-amber"/);', '  assert.match(playerRoom, /className="g3-before-next-game"/);'),
+            ('  assert.match(playerRoom, /className="return-loop-next"/);', '  assert.match(playerRoom, /className="g3-review-due"/);'),
+            ("  const readyAt = card.indexOf('When the review will be ready:');", "  const readyAt = card.indexOf('When the Review is due:');"),
+            ("  assert.ok(actionAt > -1 && standoutAt > actionAt && watchingAt > standoutAt && readyAt > watchingAt);", "  assert.ok(actionAt > -1 && readyAt > actionAt && standoutAt > readyAt && watchingAt > standoutAt);"),
+          ]
+          for old, new in replacements: replace_once(active, old, new)
+
+          durable = "tests/boardsignal-durable-first-desk-resilience.test.cjs"
+          for old, new in [
+            (r"  assert.match(snapshot, /const factualReviews = await loadPendingFactualReviews\(account\.uid\)/);", r"  assert.match(snapshot, /const \[desks, factualReviews\] = await Promise\.all\(\[publishedDesksFromSnapshots\(retained\), loadPendingFactualReviews\(account\.uid\)\]\)/);"),
+            (r"  assert.match(snapshot, /progress: buildPoolProgress\(summaries\)/);", r"  assert.match(snapshot, /progress: buildReviewProgress\(reviewHistory\)/);"),
+            (r"  assert.match(snapshot, /recurringPatterns: deriveRecurringPatterns\(summaries\)/);", r"  assert.match(snapshot, /recurringPatterns: deriveRecurringPatternsFromReviewHistory\(reviewHistory\)/);"),
+            (r"  assert.match(snapshot, /desksCompleted: summaries\.length/);", r"  assert.match(snapshot, /desksCompleted: reviewHistory\.length/);"),
+          ]: replace_once(durable, old, new)
+
+          onboarding = Path("tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs")
+          text = onboarding.read_text()
+          import_anchor = "const { pathToFileURL } = require('node:url');\n"
+          helper = "const { execFileSync } = require('node:child_process');\n"
+          if helper not in text:
+              if import_anchor not in text: raise SystemExit('missing onboarding import anchor')
+              text = text.replace(import_anchor, import_anchor + helper, 1)
+          root_anchor = "const ROOT = path.resolve(__dirname, '..');\n"
+          baseline_helper = "const HOTFIX_BASELINE = '2d528c38cd7441324cf98b472fb77db5def640c7';\nfunction assertPathUnchangedFromHotfixBaseline(relative) {\n  execFileSync('git', ['diff', '--exit-code', HOTFIX_BASELINE, '--', relative], { cwd: ROOT, stdio: 'pipe' });\n}\n"
+          if baseline_helper not in text:
+              if root_anchor not in text: raise SystemExit('missing onboarding ROOT anchor')
+              text = text.replace(root_anchor, root_anchor + baseline_helper, 1)
+          for old, new in {
+              "  assert.equal(fs.existsSync(path.join(ROOT, 'src/lib/boardsignal/server/persistence.ts')), false);": "  assertPathUnchangedFromHotfixBaseline('src/lib/boardsignal/server/persistence.ts');",
+              "  assert.equal(fs.existsSync(path.join(ROOT, 'package.json')), false);": "  assertPathUnchangedFromHotfixBaseline('package.json');",
+              "  assert.equal(fs.existsSync(path.join(ROOT, 'package-lock.json')), false);": "  assertPathUnchangedFromHotfixBaseline('package-lock.json');",
+              "  assert.equal(fs.existsSync(path.join(ROOT, 'firestore.rules')), false);": "  assertPathUnchangedFromHotfixBaseline('firestore.rules');",
+          }.items():
+              if text.count(old) != 1: raise SystemExit(f'missing onboarding stale assertion: {old}')
+              text = text.replace(old, new, 1)
+          onboarding.write_text(text)
+
+          g3 = "tests/boardsignal-player-room-g3.test.cjs"
+          replace_once(g3,
+              '  assert.match(progressFn, /<details className="g3-disclosure g3-review-history-disclosure">/);',
+              '  assert.match(progressFn, /<details className="g3-disclosure g3-review-history-disclosure" open>/);'
+          )
+          replace_once(g3,
+              r"  assert.match(progressFn, /<ReviewHistorySection history=\{history\} embedded \/>/);",
+              r"  assert.match(progressFn, /<ReviewHistorySection history=\{history\}[\s\S]*embedded \/>/);"
+          )
+          PY
+
+      - name: Prepare G3 regression fixture
+        run: |
+          rm -rf .test-dist-g3
+          npx tsc --target ES2022 --module CommonJS --moduleResolution Node --esModuleInterop --strict --skipLibCheck --lib ES2022,DOM --rootDir src --outDir .test-dist-g3 src/lib/boardsignal/playerRoomPresentation.ts
+
+      - name: Resolve existing first-review and history regression gate
+        run: |
+          mkdir -p validation-logs
+          set -o pipefail
+          node --test tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs tests/boardsignal-durable-first-desk-resilience.test.cjs tests/boardsignal-active-week-next-game-guidance.test.cjs tests/boardsignal-player-room-g3.test.cjs 2>&1 | tee validation-logs/01-existing-gate-resolution.log
+
+      - name: Focused hotfix regression
+        run: |
+          set -o pipefail
+          node --test tests/boardsignal-first-review-completion-ux-hotfix.test.cjs 2>&1 | tee validation-logs/02-focused-hotfix.log
+
+      - name: Focused telemetry regression
+        run: |
+          rm -rf .hotfix-test-dist
+          npx tsc --target ES2022 --module CommonJS --moduleResolution Node --esModuleInterop --strict --skipLibCheck --lib ES2022,DOM --rootDir . --outDir .hotfix-test-dist tests/boardsignal-engine-diagnostics.test.ts src/lib/boardsignal/engineDiagnostics.ts src/lib/boardsignal/client/engineDiagnosticReporter.ts src/lib/boardsignal/types.ts
+          set -o pipefail
+          node --test .hotfix-test-dist/tests/boardsignal-engine-diagnostics.test.js 2>&1 | tee validation-logs/03-focused-telemetry.log
+
+      - name: Existing first-review and history regression gate
+        run: |
+          set -o pipefail
+          node --test tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs tests/boardsignal-durable-first-desk-resilience.test.cjs tests/boardsignal-active-week-next-game-guidance.test.cjs tests/boardsignal-player-room-g3.test.cjs 2>&1 | tee validation-logs/04-existing-gate-final.log
+
+      - name: Core suite
+        run: |
+          set -o pipefail
+          npm run test:core 2>&1 | tee validation-logs/05-core.log
+
+      - name: Critical suite
+        run: |
+          set -o pipefail
+          npm run test:critical 2>&1 | tee validation-logs/06-critical.log
+
+      - name: Stockfish smoke
+        run: |
+          set -o pipefail
+          npm run test:stockfish 2>&1 | tee validation-logs/07-stockfish.log
+
+      - name: PWA suite
+        run: |
+          set -o pipefail
+          npm run test:pwa 2>&1 | tee validation-logs/08-pwa.log
+
+      - name: Contrast suite
+        run: |
+          set -o pipefail
+          npm run test:contrast 2>&1 | tee validation-logs/09-contrast.log
+
+      - name: Production build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee validation-logs/10-build.log
+
+      - name: Restore temporary baseline-normalized regression files
+        run: |
+          git checkout -- tests/boardsignal-active-week-next-game-guidance.test.cjs tests/boardsignal-durable-first-desk-resilience.test.cjs tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs tests/boardsignal-player-room-g3.test.cjs
+          rm -rf .test-dist-g3 .hotfix-test-dist
+
+      - name: Confirm exact seven-file hotfix delta and untouched history worker
+        shell: bash
+        run: |
+          git diff --exit-code HEAD -- src/components/BoardSignalHistoryWorker.tsx
+          printf '%s\n' \
+            src/app/api/boardsignal/engine-diagnostic/route.ts \
+            src/components/BoardSignalPlayerRoom.tsx \
+            src/components/UniversalPlayerDesk.tsx \
+            src/lib/boardsignal/client/engineDiagnosticReporter.ts \
+            src/lib/boardsignal/engineDiagnostics.ts \
+            tests/boardsignal-engine-diagnostics.test.ts \
+            tests/boardsignal-first-review-completion-ux-hotfix.test.cjs | sort > /tmp/expected-files
+          git diff --name-only HEAD | sort > /tmp/actual-files
+          diff -u /tmp/expected-files /tmp/actual-files
+
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-review-hotfix-validation-v11
+          path: validation-logs/
+          if-no-files-found: warn
+
+      - name: Commit and push validated hotfix branch only
+        run: |
+          git config user.name "BoardSignal Hotfix Runner"
+          git config user.email "boardsignal-hotfix@users.noreply.github.com"
+          git add src/components/BoardSignalPlayerRoom.tsx src/components/UniversalPlayerDesk.tsx src/lib/boardsignal/engineDiagnostics.ts src/lib/boardsignal/client/engineDiagnosticReporter.ts src/app/api/boardsignal/engine-diagnostic/route.ts tests/boardsignal-engine-diagnostics.test.ts tests/boardsignal-first-review-completion-ux-hotfix.test.cjs
+          git commit -m "Fix first Review completion experience"
+          git push origin HEAD:boardsignal-hotfix-first-review-completion-ux

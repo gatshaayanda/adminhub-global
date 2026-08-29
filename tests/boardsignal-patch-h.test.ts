@@ -206,11 +206,13 @@ test("42-52 regression surfaces remain wired", () => {
 
 test("G.3 Player Room integration stays presentation-safe", () => {
   const page = read("src/app/boardsignal/player-room/page.tsx");
+  const gate = read("src/components/BoardSignalPlayerRoomGate.tsx");
   const room = read("src/components/BoardSignalPlayerRoom.tsx");
   const quickRead = read("src/components/PlayerRoomQuickRead.tsx");
   const worker = read("src/components/BoardSignalHistoryWorker.tsx");
-  assert.match(page, /BoardSignalPlayerRoom/);
-  assert.match(page, /BoardSignalHistoryWorker/);
+  assert.match(page, /BoardSignalPlayerRoomGate/);
+  assert.match(gate, /BoardSignalPlayerRoom/);
+  assert.match(gate, /BoardSignalHistoryWorker/);
   assert.match(quickRead, /YOUR WEEK IN 20 SECONDS/);
   assert.match(room, /presentationMode="player-room"/);
   assert.match(room, /embedded/);

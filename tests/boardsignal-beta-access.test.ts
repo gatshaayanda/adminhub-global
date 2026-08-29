@@ -91,15 +91,16 @@ test("returning Firebase sessions bypass the access form and open My Player Room
   assert.match(profile, /Sign out/);
 });
 
-test("public username to LIVE Desk remains available without authentication", () => {
+test("public LIVE Desk compatibility remains without turning username search into an access path", () => {
   const buildPage = readFileSync("src/app/boardsignal/build/[handle]/page.tsx", "utf8");
+  const homepage = readFileSync("src/app/page.tsx", "utf8");
   const usernameForm = readFileSync("src/components/UsernameDeskForm.tsx", "utf8");
   const liveRoute = readFileSync("src/app/api/boardsignal/[username]/route.ts", "utf8");
   assert.match(buildPage, /UniversalPlayerDesk/);
-  assert.match(usernameForm, /onSubmit=\{submit\}/);
-  assert.match(usernameForm, /name="username"/);
-  assert.match(usernameForm, /event\.preventDefault\(\)/);
-  assert.match(usernameForm, /const cleanUsername = username\.trim\(\)/);
+  assert.match(homepage, /EXPLORE THE UNIVERSE/);
+  assert.doesNotMatch(usernameForm, /public-universe-username-form|onSubmit=\{submit\}/);
+  assert.match(usernameForm, /action: "return"/);
+  assert.match(usernameForm, /Now connect your Chess\.com profile/);
   assert.match(liveRoute, /buildLiveDesk/);
   assert.doesNotMatch(liveRoute, /requirePlayerToken/);
 });

@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { browserLocalPersistence, setPersistence, signInWithCustomToken } from "firebase/auth";
 import { ArrowRight, LoaderCircle, ShieldCheck } from "lucide-react";
 import { auth } from "@/utils/firebaseConfig";
 import { rememberGoogleEmailPrefill, requestGoogleAccessCredential } from "@/lib/boardsignal/client/googleAccess";
+
+type IdentityConflictResult = {
+  recorded?: boolean;
+  caseId?: string;
+  manualProof?: {
+    challenge?: string;
+    founderChessComUsername?: string;
+    fallback?: "public_profile";
+  };
+};
 
 type GoogleAccessButtonProps = {
   expectedPlayerId?: number;
@@ -26,8 +36,12 @@ export default function GoogleAccessButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [showCaseForm, setShowCaseForm] = useState(false);
+  const [caseContactMethod, setCaseContactMethod] = useState<"email" | "discord">("email");
+  const [caseContactValue, setCaseContactValue] = useState("");
+  const [manualProof, setManualProof] = useState<IdentityConflictResult["manualProof"]>();
 
-  async function run() {
+  async function runReturn() {
     if (busy) return;
     setBusy(true);
     setError("");
@@ -38,24 +52,14 @@ export default function GoogleAccessButton({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify(mode === "identity_help"
-          ? { action: "identityHelp", googleIdToken: credential.googleIdToken, username }
-          : { action: "return", googleIdToken: credential.googleIdToken, expectedPlayerId }),
+        body: JSON.stringify({ action: "return", googleIdToken: credential.googleIdToken, expectedPlayerId }),
       });
       const body = await response.json() as {
         ok?: boolean;
         result?: { customToken?: string; verifiedEmail?: string };
-        message?: string;
         error?: string;
-        code?: string;
       };
       if (!response.ok || !body.ok) throw new Error(body.error ?? "Google access could not be completed.");
-
-      if (mode === "identity_help") {
-        setMessage(body.message ?? "Your access-help request was received. No private account was granted or changed.");
-        return;
-      }
-
       const customToken = body.result?.customToken;
       if (!customToken) throw new Error("Google was verified, but BoardSignal did not return a private access token.");
       rememberGoogleEmailPrefill(credential.email ?? body.result?.verifiedEmail);
@@ -70,12 +74,101 @@ export default function GoogleAccessButton({
     }
   }
 
-  const text = label ?? (mode === "identity_help" ? "I NEED ACCESS TO MY CHESS.COM PROFILE" : "CONTINUE WITH GOOGLE");
+  async function submitIdentityCase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || !username) return;
+    const contactValue = caseContactValue.trim();
+    if (!contactValue) {
+      setError(`Enter the ${caseContactMethod === "email" ? "email address" : "Discord contact"} BoardSignal should use for this identity case.`);
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setManualProof(undefined);
+    try {
+      const credential = await requestGoogleAccessCredential();
+      const response = await fetch("/api/boardsignal/google-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          action: "identityHelp",
+          googleIdToken: credential.googleIdToken,
+          username,
+          caseContactMethod,
+          caseContactValue: contactValue,
+        }),
+      });
+      const body = await response.json() as {
+        ok?: boolean;
+        result?: IdentityConflictResult;
+        message?: string;
+        error?: string;
+      };
+      if (!response.ok || !body.ok) throw new Error(body.error ?? "BoardSignal could not open this identity case.");
+      setMessage(body.message ?? "Your identity case was received. No private account was granted or changed.");
+      setManualProof(body.result?.manualProof);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "BoardSignal could not open this identity case.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (mode === "identity_help") {
+    if (!showCaseForm) {
+      return <div className={`google-access-action ${compact ? "is-compact" : ""}`}>
+        <button type="button" className="button button-quiet" onClick={() => setShowCaseForm(true)} disabled={!username}>
+          {label ?? "I NEED ACCESS TO THIS CHESS.COM PROFILE"} <ArrowRight size={15}/>
+        </button>
+        <small><ShieldCheck size={13}/> This starts an identity case only. It never grants, merges, transfers or exposes a private BoardSignal.</small>
+      </div>;
+    }
+
+    return <form className={`google-access-action identity-conflict-form ${compact ? "is-compact" : ""}`} onSubmit={submitIdentityCase}>
+      <div>
+        <strong>IDENTITY CONFLICT</strong>
+        <p>Authenticate with Google so BoardSignal has a stable requester identity, then choose how the Founder may contact you about this case.</p>
+      </div>
+      <label>Contact for this case
+        <select value={caseContactMethod} onChange={(event) => setCaseContactMethod(event.target.value as "email" | "discord")} disabled={busy}>
+          <option value="email">Email</option>
+          <option value="discord">Discord</option>
+        </select>
+      </label>
+      <label>{caseContactMethod === "email" ? "Email address" : "Discord username / handle"}
+        <input
+          value={caseContactValue}
+          onChange={(event) => setCaseContactValue(event.target.value)}
+          type={caseContactMethod === "email" ? "email" : "text"}
+          maxLength={160}
+          autoComplete={caseContactMethod === "email" ? "email" : "off"}
+          disabled={busy}
+          required
+        />
+      </label>
+      <p className="profile-helper">This contact is for this identity case only. It does not opt you into marketing, product notifications, Trustpilot invitations or ongoing BoardSignal contact.</p>
+      <div className="resolved-player-actions">
+        <button type="submit" className="button button-dark" disabled={busy || !username || !caseContactValue.trim()}>
+          {busy ? <><LoaderCircle className="button-spinner" size={15}/> Verifying Google</> : <>SUBMIT IDENTITY CASE <ArrowRight size={15}/></>}
+        </button>
+        <button type="button" className="button button-quiet" onClick={() => { setShowCaseForm(false); setError(""); setMessage(""); setManualProof(undefined); }} disabled={busy}>Cancel</button>
+      </div>
+      {manualProof?.challenge ? <div className="beta-universe-disclosure" role="status">
+        <strong>OWNERSHIP PROOF CHALLENGE</strong>
+        <p>Challenge: <code>{manualProof.challenge}</code></p>
+        {manualProof.founderChessComUsername ? <p>Send that exact challenge from the disputed Chess.com account to <strong>{manualProof.founderChessComUsername}</strong>. If direct messaging is unavailable, the Founder can use the public-profile challenge fallback.</p> : <p>The Founder will use this challenge for manual Chess.com ownership proof. A public-profile challenge is available as the fallback.</p>}
+      </div> : null}
+      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {message ? <p className="form-success" role="status">{message}</p> : null}
+    </form>;
+  }
+
   return <div className={`google-access-action ${compact ? "is-compact" : ""}`}>
-    <button type="button" className={mode === "identity_help" ? "button button-quiet" : "button button-outline"} onClick={() => void run()} disabled={busy || (mode === "identity_help" && !username)}>
-      {busy ? <><LoaderCircle className="button-spinner" size={15}/> Checking Google</> : <>{text} <ArrowRight size={15}/></>}
+    <button type="button" className="button button-outline" onClick={() => void runReturn()} disabled={busy}>
+      {busy ? <><LoaderCircle className="button-spinner" size={15}/> Checking Google</> : <>{label ?? "CONTINUE WITH GOOGLE"} <ArrowRight size={15}/></>}
     </button>
-    {mode === "identity_help" ? <small><ShieldCheck size={13}/> This creates an access-help request only. It never grants, merges or replaces a private BoardSignal.</small> : null}
     {error ? <p className="form-error" role="alert">{error}</p> : null}
     {message ? <p className="form-success" role="status">{message}</p> : null}
   </div>;

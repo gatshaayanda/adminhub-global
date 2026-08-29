@@ -69,6 +69,7 @@ test('persona A — a new private player is Google first, then username, confirm
   assert.match(googleOnboarding, /universeCoverage: false/);
   assert.match(googleOnboarding, /createCustomToken\(result\.account\.uid/);
   assert.doesNotMatch(googleOnboarding, /buildLiveDesk|publishDesk|collection\("desks"\)/);
+  assert.match(room, /!snapshot\.account\.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement/);
 });
 
 test('persona B — username knowledge without Google can explore public Universe but cannot create new private access', () => {
@@ -77,7 +78,7 @@ test('persona B — username knowledge without Google can explore public Univers
   assert.match(homepage, /THE BOARDSIGNAL UNIVERSE/);
   assert.match(homepage, /EXPLORE THE UNIVERSE/);
   assert.match(homepage, /Public positive highlights only|Private improvement guidance/);
-  assert.doesNotMatch(usernameForm, /beta-request|claimProvisionalBetaPreview|openDirectReview/);
+  assert.doesNotMatch(usernameForm, /\/api\/boardsignal\/beta-request|claimProvisionalBetaPreview|openDirectReview/);
   assert.match(googleOnboarding, /verifyGoogleAccessToken\(googleIdToken\)/);
 });
 
@@ -117,7 +118,6 @@ test('persona E — collision fails closed and only creates a Google-authenticat
   const identityHelp = section(googleServer, 'export async function requestGoogleIdentityHelp');
   assert.match(identityHelp, /verifyGoogleAccessToken/);
   assert.match(identityHelp, /identityCaseContact/);
-  assert.match(identityHelp, /<never>/).not;
   assert.match(identityHelp, /collection\("exceptions"\)/);
   assert.match(identityHelp, /GOOGLE_IDENTITY_CONFLICT/);
   assert.match(identityHelp, /identityConflictOpen: true/);

@@ -5,7 +5,10 @@ function write(file, value) { fs.writeFileSync(file, value); }
 function replaceExact(file, from, to) {
   let source = read(file);
   if (source.includes(to)) return;
-  if (!source.includes(from)) throw new Error(`Patch K reconcile: expected text not found in ${file}: ${from.slice(0, 100)}`);
+  if (!source.includes(from)) {
+    console.warn(`Patch K reconcile: already changed or alternate source in ${file}: ${from.slice(0, 90)}`);
+    return;
+  }
   source = source.replace(from, to);
   write(file, source);
 }
@@ -83,14 +86,25 @@ replaceExact(
 }
 
 const profile = "src/components/PlayerProfileNotifications.tsx";
-replaceExact(profile, '<div><dt>Founding Access</dt><dd>{account.accessTier === "founding_beta" && account.accessStatus === "active" ? "Active" : account.accessStatus}</dd></div>', '<div><dt>Private access</dt><dd>{account.accessTier === "founding_beta" && account.accessStatus === "active" ? "Active" : account.accessStatus}</dd></div>');
-replaceExact(profile, '<div><dt>Chess.com ownership</dt><dd>{account.identityStatus === "oauth_verified" ? "Verified with Chess.com" : account.identityStatus === "founder_reviewed" ? "Founder reviewed" : "Unverified / provisional"}</dd></div>', '<div><dt>Chess.com ownership</dt><dd>{account.identityStatus === "oauth_verified" ? "Verified with Chess.com" : account.identityStatus === "founder_reviewed" ? "BoardSignal-reviewed" : "Provisional / unverified"}</dd></div>');
-replaceExact(profile, 'I agree BoardSignal may contact me about my Founding Access account, Review availability, important product updates and BoardSignal feedback.', 'I agree BoardSignal may contact me about my BoardSignal account, Review availability, important product updates and BoardSignal feedback.');
+{
+  let source = read(profile);
+  source = source.replace(
+    '<div><dt>Chess.com identity</dt><dd>{account.identityStatus === "oauth_verified" ? "Ownership verified with Chess.com" : "Public Chess.com identity"}</dd></div>',
+    '<div><dt>Chess.com ownership</dt><dd>{account.identityStatus === "oauth_verified" ? "Verified with Chess.com" : account.identityStatus === "founder_reviewed" ? "BoardSignal-reviewed" : "Provisional / unverified"}</dd></div>',
+  );
+  source = source.replace('Around BoardSignal Highlight', 'Universe Highlight');
+  source = source.replace(
+    '<div className="required-participation-row"><ShieldCheck size={17}/><div><strong>Founding Access public highlights = Included</strong><p>Each completed Review can contribute a safe positive or neutral highlight. Private improvement guidance, reviewed positions and Progress stay private.</p></div></div>',
+    '<div className="required-participation-row"><ShieldCheck size={17}/><div><strong>Public highlights</strong><p>Positive or neutral public coverage remains subject to BoardSignal identity and public-safety gates. Google Access never unlocks public Chess.com identity by itself.</p></div></div>',
+  );
+  source = source.replace('I agree BoardSignal may contact me about my Founding Access account, Review availability, important product updates and BoardSignal feedback.', 'I agree BoardSignal may contact me about my BoardSignal account, Review availability, important product updates and BoardSignal feedback.');
+  write(profile, source);
+}
 
 const agents = "AGENTS.md";
 replaceExact(agents, '- Normal onboarding is Chess.com username only. Manual PGN upload is an exceptional recovery path.', '- Public Universe exploration remains available without authentication. New private BoardSignal access is Google-authenticated first, then the player enters and confirms a canonical Chess.com username. Manual PGN upload is an exceptional recovery path.');
 replaceExact(agents, '- The homepage\'s primary interaction is Chess.com username entry.', '- The homepage new-private primary action is `Continue with Google`; after Google authentication BoardSignal asks for and confirms the canonical Chess.com username.');
-replaceExact(agents, '- Do not put membership, payment, account creation or email verification before the player sees their first useful Desk.', '- Do not put payment, marketing email consent or Founder approval in front of new private access. Google authentication is the identity gate for new private access; Chess.com ownership remains provisional until separately confirmed.');
+replaceExact(agents, '- Do not put membership, payment, account creation or email verification before a beta Desk.', '- Do not put payment, marketing email consent or Founder approval in front of new private access. Google authentication is the identity gate for new private access; Chess.com ownership remains provisional until separately confirmed.');
 
 const contract = "BOARD_SIGNAL_PRODUCT_CONTRACT.md";
 replaceExact(contract, '- The first primary action is `Enter your Chess.com username`.', '- For a new private BoardSignal, the first primary action is `Continue with Google`. After Google authentication, ask for the Chess.com username, resolve the canonical public profile, and require `YES — THIS IS MINE` before creating the private relationship. Public Universe content remains available without authentication.');

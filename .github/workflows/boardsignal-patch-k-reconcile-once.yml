@@ -1,0 +1,146 @@
+name: BoardSignal Patch K Reconcile Once
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-k-instant-access-growth
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout isolated Patch K branch
+        uses: actions/checkout@v4
+        with:
+          ref: boardsignal-patch-k-instant-access-growth
+          fetch-depth: 0
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Apply final Patch K product reconciliation
+        run: node scripts/patch-k-final-reconcile.mjs
+
+      - name: Commit Google-first Player Room agreement compatibility
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/BoardSignalPlayerRoom.tsx')
+          s = p.read_text()
+          old = 'if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;'
+          new = 'if (!snapshot.account.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;'
+          if old in s:
+              s = s.replace(old, new, 1)
+          if new not in s:
+              raise SystemExit('Google-first agreement compatibility target was not reconciled')
+          p.write_text(s)
+          PY
+
+      - name: Reconcile Patch K product assertions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tests/boardsignal-patch-k-universal-access.test.cjs')
+          s = p.read_text()
+          old = 'assert.doesNotMatch(usernameForm, /PREVIEW|FOUNDING BETA|enter\\(username\\)|BOARDING PASS|ACCESS CODE/i);'
+          new = 'assert.doesNotMatch(usernameForm, /BOARD SIGNAL PREVIEW|CONTINUE PREVIEW|FOUNDING BETA|enter\\(username\\)|BOARDING PASS|ACCESS CODE/i);'
+          if old in s:
+              s = s.replace(old, new, 1)
+          if new not in s:
+              raise SystemExit('Normal-onboarding compatibility assertion was not reconciled')
+          p.write_text(s)
+          PY
+
+      - name: Apply intended legacy compatibility correction
+        run: node scripts/patch-k-legacy-compat-reconcile.mjs
+
+      - name: Install event-consistent read-only release guard
+        run: |
+          cat > .github/workflows/boardsignal-patch-k-guard.yml <<'YAML'
+          name: BoardSignal Patch K Guard
+
+          on:
+            push:
+              branches:
+                - boardsignal-patch-k-instant-access-growth
+            pull_request:
+              branches:
+                - boardsignal-v10
+            workflow_dispatch:
+
+          permissions:
+            contents: read
+
+          jobs:
+            patch-k-guard:
+              runs-on: ubuntu-latest
+              timeout-minutes: 45
+              steps:
+                - name: Checkout Patch K candidate
+                  uses: actions/checkout@v4
+
+                - name: Use Node 20
+                  uses: actions/setup-node@v4
+                  with:
+                    node-version: 20
+                    cache: npm
+
+                - name: Check formatting safety
+                  run: git diff --check
+
+                - name: Install dependencies
+                  run: npm ci
+
+                - name: Patch K universal access guard
+                  run: npm run test:patch-k
+
+                - name: Core regressions
+                  run: npm run test:core
+
+                - name: Critical regressions
+                  run: npm run test:critical
+
+                - name: Beta-access regressions
+                  run: npm run test:beta-access
+
+                - name: Activation regressions
+                  run: npm run test:activation
+
+                - name: Preview-return regressions
+                  run: npm run test:preview-return
+
+                - name: Contrast and dark-mode regressions
+                  run: npm run test:contrast
+
+                - name: PWA/offline regressions
+                  run: npm run test:pwa
+
+                - name: TypeScript
+                  run: npx tsc --noEmit
+
+                - name: Production build
+                  run: npm run build
+          YAML
+
+      - name: Remove temporary reconciliation machinery
+        run: |
+          rm scripts/patch-k-final-reconcile.mjs
+          rm scripts/patch-k-legacy-compat-reconcile.mjs
+          rm .github/workflows/boardsignal-patch-k-reconcile-once.yml
+
+      - name: Commit permanently reconciled Patch K candidate
+        run: |
+          git diff --check
+          git status --short
+          git config user.name "boardsignal-patch-k-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Commit Patch K final reconciled candidate"
+          git push origin HEAD:boardsignal-patch-k-instant-access-growth

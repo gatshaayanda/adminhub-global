@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { requirePlayerToken } from "@/lib/boardsignal/server/persistence";
 import {
   linkGoogleAccess,
-  requestGoogleIdentityHelp,
   returnWithGoogle,
 } from "@/lib/boardsignal/server/googleAccess";
+import {
+  claimGoogleOnboardingProfile,
+  requestGoogleIdentityHelp,
+  resolveGoogleOnboardingProfile,
+} from "@/lib/boardsignal/server/googleOnboarding";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,8 +31,8 @@ export async function POST(request: Request) {
       googleIdToken?: unknown;
       expectedPlayerId?: unknown;
       username?: unknown;
-      caseContactMethod?: unknown;
-      caseContactValue?: unknown;
+      contactMethod?: unknown;
+      contactValue?: unknown;
     };
     const action = String(body.action ?? "return");
 
@@ -41,18 +45,21 @@ export async function POST(request: Request) {
       const result = await returnWithGoogle(body.googleIdToken, body.expectedPlayerId);
       return response({ ok: true, result });
     }
+    if (action === "resolveProfile") {
+      const result = await resolveGoogleOnboardingProfile(body.googleIdToken, body.username);
+      return response({ ok: true, result });
+    }
+    if (action === "claimProfile") {
+      const result = await claimGoogleOnboardingProfile(body.googleIdToken, body.username);
+      return response({ ok: true, result }, result.created ? 201 : 200);
+    }
     if (action === "identityHelp") {
-      const result = await requestGoogleIdentityHelp(
-        body.googleIdToken,
-        body.username,
-        body.caseContactMethod,
-        body.caseContactValue,
-      );
+      await requestGoogleIdentityHelp(body.googleIdToken, body.username, body.contactMethod, body.contactValue);
+      // Deliberately generic: do not reveal additional private account state.
       return response({
         ok: true,
         status: "received",
-        result,
-        message: "Your identity case was received. This did not grant, replace, merge, transfer or expose a private BoardSignal account.",
+        message: "Your ownership-review request was received. This did not grant, replace, merge or expose a private BoardSignal account.",
       });
     }
 

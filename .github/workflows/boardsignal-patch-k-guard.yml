@@ -108,7 +108,7 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add AGENTS.md BOARD_SIGNAL_PRODUCT_CONTRACT.md src/components/BoardSignalPlayerRoom.tsx src/components/PlayerProfileNotifications.tsx src/components/UsernameDeskForm.tsx tests/boardsignal-beta-access.test.ts tests/boardsignal-communications-onboarding.test.ts tests/boardsignal-patch-k-universal-access.test.cjs
+            git add AGENTS.md BOARD_SIGNAL_PRODUCT_CONTRACT.md src/components/BoardSignalPlayerRoom.tsx src/components/PlayerProfileNotifications.tsx src/components/UsernameDeskForm.tsx tests/boardsignal-beta-access.test.ts tests/boardsignal-communications-onboarding.test.ts tests/boardsignal-patch-k-universal-access.test.cjs tests/boardsignal-activation-bridge.test.cjs
             git commit -m "Reconcile Patch K final access and Universe UX"
             git push origin HEAD:boardsignal-patch-k-instant-access-growth
           fi

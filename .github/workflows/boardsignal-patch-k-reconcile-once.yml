@@ -61,86 +61,16 @@ jobs:
       - name: Apply intended legacy compatibility correction
         run: node scripts/patch-k-legacy-compat-reconcile.mjs
 
-      - name: Install event-consistent read-only release guard
-        run: |
-          cat > .github/workflows/boardsignal-patch-k-guard.yml <<'YAML'
-          name: BoardSignal Patch K Guard
-
-          on:
-            push:
-              branches:
-                - boardsignal-patch-k-instant-access-growth
-            pull_request:
-              branches:
-                - boardsignal-v10
-            workflow_dispatch:
-
-          permissions:
-            contents: read
-
-          jobs:
-            patch-k-guard:
-              runs-on: ubuntu-latest
-              timeout-minutes: 45
-              steps:
-                - name: Checkout Patch K candidate
-                  uses: actions/checkout@v4
-
-                - name: Use Node 20
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: 20
-                    cache: npm
-
-                - name: Check formatting safety
-                  run: git diff --check
-
-                - name: Install dependencies
-                  run: npm ci
-
-                - name: Patch K universal access guard
-                  run: npm run test:patch-k
-
-                - name: Core regressions
-                  run: npm run test:core
-
-                - name: Critical regressions
-                  run: npm run test:critical
-
-                - name: Beta-access regressions
-                  run: npm run test:beta-access
-
-                - name: Activation regressions
-                  run: npm run test:activation
-
-                - name: Preview-return regressions
-                  run: npm run test:preview-return
-
-                - name: Contrast and dark-mode regressions
-                  run: npm run test:contrast
-
-                - name: PWA/offline regressions
-                  run: npm run test:pwa
-
-                - name: TypeScript
-                  run: npx tsc --noEmit
-
-                - name: Production build
-                  run: npm run build
-          YAML
-
-      - name: Remove temporary reconciliation machinery
-        run: |
-          rm scripts/patch-k-final-reconcile.mjs
-          rm scripts/patch-k-legacy-compat-reconcile.mjs
-          rm .github/workflows/boardsignal-patch-k-reconcile-once.yml
-
-      - name: Commit permanently reconciled Patch K candidate
+      - name: Commit permanently reconciled product and tests
         run: |
           git diff --check
           git status --short
           git config user.name "boardsignal-patch-k-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git commit -m "Commit Patch K final reconciled candidate"
+          git add AGENTS.md BOARD_SIGNAL_PRODUCT_CONTRACT.md src/components/BoardSignalPlayerRoom.tsx src/components/PlayerProfileNotifications.tsx src/components/UsernameDeskForm.tsx tests/boardsignal-activation-bridge.test.cjs tests/boardsignal-beta-access.test.ts tests/boardsignal-communications-onboarding.test.ts tests/boardsignal-patch-k-universal-access.test.cjs
+          if git diff --cached --quiet; then
+            echo "Reconciled product state is already committed."
+            exit 0
+          fi
+          git commit -m "Commit Patch K final reconciled product state"
           git push origin HEAD:boardsignal-patch-k-instant-access-growth

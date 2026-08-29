@@ -1,0 +1,86 @@
+name: BoardSignal Patch L Universe Recapture b1e99c9
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-l-final-qa-b1e99c9
+
+permissions:
+  contents: read
+
+jobs:
+  universe-recapture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchLGuard000000000000000000000
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-l-ci.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-l-ci
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: patch-l-ci.appspot.com
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+      NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+      NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: b1e99c923ee8f2f3a09963b8c624a1a4916768f8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm install --prefix /tmp/patch-l-qa-driver playwright-core@1.55.0
+      - name: Start exact candidate
+        shell: bash
+        run: |
+          npm run dev -- -H 127.0.0.1 -p 3000 > /tmp/boardsignal-universe.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:3000/feed >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/boardsignal-universe.log
+          exit 1
+      - name: Recapture Universe after transition
+        shell: bash
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"; export CHROME
+          mkdir -p patch-l-universe-recapture
+          cat > /tmp/universe-recapture.cjs <<'NODE'
+          const fs=require('fs');
+          const {chromium}=require('/tmp/patch-l-qa-driver/node_modules/playwright-core');
+          const modes=[['desktop-light',{width:1440,height:1000},false,'light'],['desktop-dark',{width:1440,height:1000},false,'dark'],['mobile-light',{width:390,height:844},true,'light'],['mobile-dark',{width:390,height:844},true,'dark']];
+          function rgb(s){const m=String(s||'').match(/rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);return m?[+m[1],+m[2],+m[3]]:null}
+          function lum(c){const v=c.map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4});return .2126*v[0]+.7152*v[1]+.0722*v[2]}
+          function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+          (async()=>{
+            const browser=await chromium.launch({executablePath:process.env.CHROME,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const report=[];
+            for(const [name,viewport,isMobile,scheme] of modes){
+              const context=await browser.newContext({viewport,isMobile,hasTouch:isMobile,colorScheme:scheme});
+              const page=await context.newPage(); const pageErrors=[]; page.on('pageerror',e=>pageErrors.push(String(e)));
+              await page.goto('http://127.0.0.1:3000/feed',{waitUntil:'domcontentloaded',timeout:45000});
+              await page.evaluate(theme=>{document.documentElement.dataset.bsTheme=theme},scheme);
+              await page.waitForTimeout(5000);
+              const data=await page.evaluate(()=>{
+                const hero=document.querySelector('.g4-public-field-hero');
+                const h1=hero?.querySelector('h1'); const p=hero?.querySelector('p'); const kicker=hero?.querySelector('.kicker');
+                const sample=e=>{if(!e)return null;const s=getComputedStyle(e);let parent=e;let bg=s.backgroundColor;while(parent&&(!bg||bg==='rgba(0, 0, 0, 0)'||bg==='transparent')){parent=parent.parentElement;if(parent)bg=getComputedStyle(parent).backgroundColor}return {text:(e.textContent||'').trim(),color:s.color,bg,display:s.display,visibility:s.visibility,opacity:s.opacity,rect:e.getBoundingClientRect().toJSON()}};
+                const loadingText=document.body.innerText.includes('PREPARING THE DESK');
+                return {loadingText,hero:sample(hero),h1:sample(h1),p:sample(p),kicker:sample(kicker),overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,body:document.body.innerText.slice(0,2500)};
+              });
+              for(const key of ['h1','p','kicker']){const s=data[key];const a=s&&rgb(s.color),b=s&&rgb(s.bg);if(a&&b)s.ratio=+ratio(a,b).toFixed(2)}
+              const file=`patch-l-universe-recapture/universe-${name}.jpg`;await page.screenshot({path:file,fullPage:true,type:'jpeg',quality:82});
+              report.push({mode:name,pageErrors,...data,file}); await context.close();
+            }
+            await browser.close(); fs.writeFileSync('patch-l-universe-recapture/report.json',JSON.stringify(report,null,2));
+            const bad=report.filter(x=>x.loadingText||x.overflow||x.pageErrors.length||!x.hero||!x.h1||x.h1.ratio<4.5||x.p.ratio<4.5||x.kicker.ratio<3);
+            if(bad.length){console.error(JSON.stringify(bad,null,2));process.exitCode=1}else console.log(JSON.stringify(report,null,2));
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+          node /tmp/universe-recapture.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: patch-l-universe-recapture-b1e99c9
+          path: patch-l-universe-recapture/
+          if-no-files-found: error

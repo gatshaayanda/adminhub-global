@@ -58,13 +58,13 @@ export default function LiveDataUnavailablePlayerRoom({
     return <div id="main" className="desk-processing-page">
       <section className="container desk-processing-card error-card" role="status">
         <ShieldCheck />
-        <p className="kicker">{quotaExhausted ? "DAILY LIVE-DATA LIMIT REACHED" : "LIVE DATA UNAVAILABLE"}</p>
+        <p className="kicker">{quotaExhausted ? "LIVE DATA PAUSED FOR TODAY" : "LIVE DATA UNAVAILABLE"}</p>
         <h1>{quotaExhausted
-          ? "BoardSignal has used today's free live-data allowance."
+          ? "BoardSignal has reached today's live-data allowance."
           : "BoardSignal is online, but live account data is temporarily unavailable."}</h1>
         <p>{quotaExhausted
-          ? `This Founding Beta currently uses Firestore's free daily allowance. Live account data, new Review generation, Universe movement, messages and account changes will return after the daily reset around midnight Pacific time — approximately ${resetLabel} for you. Nothing has been deleted.`
-          : "No saved My BoardSignal snapshot is available on this device yet. Your account has not been presented as offline and BoardSignal is not fabricating live data."}</p>
+          ? `New Review generation, Universe movement, messages and account changes will return after the daily reset — approximately ${resetLabel} for you. Nothing has been deleted.`
+          : "No saved My BoardSignal copy is available on this device yet. Your account has not been presented as offline and BoardSignal is not fabricating live data."}</p>
         {quotaExhausted ? <FounderHelp /> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
           <RefreshCcw size={15} /> {retrying ? "Retrying…" : "Retry live data"}
         </button>}
@@ -79,19 +79,15 @@ export default function LiveDataUnavailablePlayerRoom({
         <span>MY BOARDSIGNAL · SAVED</span>
         <h1>{initialSnapshot.canonicalUsername}</h1>
         <p><ShieldCheck size={14} /> {quotaExhausted
-          ? `Today's free live-data allowance has been used. Your saved BoardSignal remains available. Live updates are expected back around ${resetLabel}.`
+          ? `Today's live-data allowance has been used. Your saved BoardSignal remains available. Live updates are expected back around ${resetLabel}.`
           : `Live BoardSignal data is temporarily unavailable. Showing your saved BoardSignal from ${savedLabel(initialSnapshot.lastSyncedAt)}.`}</p>
       </div>
     </header>
-    <div
-      className="container offline-room-truth"
-      role="status"
-      style={{ background: "var(--bs-surface-dark)", color: "var(--bs-text-on-dark)" }}
-    >
-      <strong style={{ color: "var(--bs-text-on-dark)" }}>{quotaExhausted ? "DAILY DATA LIMIT · SAVED" : "LIVE DATA UNAVAILABLE · SAVED"}</strong>
-      <span style={{ color: "var(--bs-text-on-dark)" }}>{quotaExhausted
-        ? `Saved Reviews remain read-only and safe on this device. BoardSignal has paused live database work until the free Firestore allowance resets around midnight Pacific time. It will check again automatically after ${resetLabel}.`
-        : `New games, Pulse movement, messages and account changes may not be current after ${savedLabel(initialSnapshot.lastSyncedAt)}. Saved content is read-only until live data returns.`}</span>
+    <div className="container offline-room-truth" role="status">
+      <strong>{quotaExhausted ? "LIVE DATA PAUSED · SAVED" : "LIVE DATA UNAVAILABLE · SAVED"}</strong>
+      <span>{quotaExhausted
+        ? `Saved Reviews remain read-only and safe on this device. BoardSignal has paused live work until the daily allowance resets. It will check again automatically after ${resetLabel}.`
+        : `New games, Universe movement, messages and account changes may not be current after ${savedLabel(initialSnapshot.lastSyncedAt)}. Saved content is read-only until live data returns.`}</span>
     </div>
     <div className="container player-room-memory">
       {quotaExhausted ? <FounderHelp /> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>

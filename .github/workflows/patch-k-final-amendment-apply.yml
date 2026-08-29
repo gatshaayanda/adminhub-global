@@ -1,0 +1,64 @@
+name: Patch K final amendment apply
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-k-instant-access-growth
+    paths:
+      - .github/workflows/patch-k-final-amendment-apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: boardsignal-patch-k-instant-access-growth
+          fetch-depth: 0
+
+      - name: Apply bounded final amendment
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          beta_path = Path('src/lib/boardsignal/server/betaRequests.ts')
+          beta = beta_path.read_text()
+          old_import = '''  createBetaPreviewStatusCredential,\n  notifyFounderOfBetaRequest,\n  verifyBetaPreviewStatusCredential,'''
+          new_import = '''  createBetaPreviewStatusCredential,\n  verifyBetaPreviewStatusCredential,'''
+          if old_import not in beta:
+              raise SystemExit('betaRequests import shape changed; refusing automatic edit')
+          beta = beta.replace(old_import, new_import, 1)
+
+          old_alert = '''  const founderAlertAttemptedAt = new Date().toISOString();\n  const founderAlert = await notifyFounderOfBetaRequest({ requestId: id, canonicalUsername: identity.canonicalUsername, previewReady: Boolean(generated.preview) }).catch(() => ({ delivered: 0, failed: 1, eligible: true }));\n  const founderAlertRequest = {\n    status: (founderAlert.delivered > 0 ? "delivered" : founderAlert.eligible ? "failed" : "not_eligible") as "delivered" | "failed" | "not_eligible",\n    attemptedAt: founderAlertAttemptedAt,\n  };\n  await ref.set({ founderAlertRequest, ...(founderAlert.delivered > 0 ? { founderAlertSentAt: founderAlertAttemptedAt } : {}) }, { merge: true }).catch(() => undefined);\n  const finalRecord = { ...record, founderAlertRequest, previewSnapshot: generated.preview, previewGeneratedAt: generated.preview?.generatedAt, previewError: generated.previewError };'''
+          new_alert = '''  const finalRecord = { ...record, previewSnapshot: generated.preview, previewGeneratedAt: generated.preview?.generatedAt, previewError: generated.previewError };'''
+          if old_alert not in beta:
+              raise SystemExit('betaRequests normal founder-alert block changed; refusing automatic edit')
+          beta = beta.replace(old_alert, new_alert, 1)
+          beta_path.write_text(beta)
+
+          activation_path = Path('src/lib/boardsignal/server/activation.ts')
+          activation = activation_path.read_text()
+          old_claim_alert = '''\n  if (claim.firstClaim) {\n    const attemptedAt = new Date().toISOString();\n    const result = await notifyFounderOfProvisionalClaim({ requestId, canonicalUsername: claim.canonicalUsername })\n      .catch(() => ({ eligible: true, delivered: 0, failed: 1 }));\n    await verified.ref.set({ founderAlertProvisionalClaim: founderAlertState(result, attemptedAt) }, { merge: true }).catch(() => undefined);\n  }\n  return { ...claim, customToken, provisional: true as const };'''
+          new_claim_alert = '''\n  return { ...claim, customToken, provisional: true as const };'''
+          if old_claim_alert not in activation:
+              raise SystemExit('activation normal founder-alert block changed; refusing automatic edit')
+          activation = activation.replace(old_claim_alert, new_claim_alert, 1)
+          activation_path.write_text(activation)
+          PY
+
+      - name: Run Patch K regression guard
+        run: node --test tests/boardsignal-patch-k-universal-access.test.cjs
+
+      - name: Commit bounded amendment and remove helper workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/patch-k-final-amendment-apply.yml
+          git add src/lib/boardsignal/server/betaRequests.ts src/lib/boardsignal/server/activation.ts tests/boardsignal-patch-k-universal-access.test.cjs
+          git commit -m "Finalize Patch K onboarding amendment"
+          git push origin HEAD:boardsignal-patch-k-instant-access-growth

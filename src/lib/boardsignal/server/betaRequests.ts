@@ -12,7 +12,6 @@ import {
   betaMagicAccessCredential,
   buildSafeBetaPreview,
   createBetaPreviewStatusCredential,
-  notifyFounderOfBetaRequest,
   verifyBetaPreviewStatusCredential,
 } from "./activation";
 import { createFoundingBetaAccessForIdentity, loadExistingFoundingBetaAccess, refreshFounderDirectoryRequest } from "./betaAccess";
@@ -218,14 +217,7 @@ export async function submitFoundingBetaRequest(input: {
   };
   await ref.set(clean(record));
   const generated = await generateAndStorePreview(ref, identity);
-  const founderAlertAttemptedAt = new Date().toISOString();
-  const founderAlert = await notifyFounderOfBetaRequest({ requestId: id, canonicalUsername: identity.canonicalUsername, previewReady: Boolean(generated.preview) }).catch(() => ({ delivered: 0, failed: 1, eligible: true }));
-  const founderAlertRequest = {
-    status: (founderAlert.delivered > 0 ? "delivered" : founderAlert.eligible ? "failed" : "not_eligible") as "delivered" | "failed" | "not_eligible",
-    attemptedAt: founderAlertAttemptedAt,
-  };
-  await ref.set({ founderAlertRequest, ...(founderAlert.delivered > 0 ? { founderAlertSentAt: founderAlertAttemptedAt } : {}) }, { merge: true }).catch(() => undefined);
-  const finalRecord = { ...record, founderAlertRequest, previewSnapshot: generated.preview, previewGeneratedAt: generated.preview?.generatedAt, previewError: generated.previewError };
+  const finalRecord = { ...record, previewSnapshot: generated.preview, previewGeneratedAt: generated.preview?.generatedAt, previewError: generated.previewError };
   await refreshFounderDirectoryRequest(id).catch(() => undefined);
   return { request: finalRecord, statusToken: credential.token, preview: generated.preview, previewError: generated.previewError };
 }

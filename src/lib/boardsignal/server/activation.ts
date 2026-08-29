@@ -380,12 +380,6 @@ export async function claimProvisionalBetaPreview(requestId: string, statusToken
     boardsignalIdentityStatus: "provisional",
   });
 
-  if (claim.firstClaim) {
-    const attemptedAt = new Date().toISOString();
-    const result = await notifyFounderOfProvisionalClaim({ requestId, canonicalUsername: claim.canonicalUsername })
-      .catch(() => ({ eligible: true, delivered: 0, failed: 1 }));
-    await verified.ref.set({ founderAlertProvisionalClaim: founderAlertState(result, attemptedAt) }, { merge: true }).catch(() => undefined);
-  }
   return { ...claim, customToken, provisional: true as const };
 }
 

@@ -12,7 +12,7 @@ test("Patch L homepage has one obvious Google-first access path and no beta-pass
   const gateway = read("src/components/UsernameDeskForm.tsx");
 
   assert.match(page, /THE CHESS APP THAT REVIEWS YOUR WEEK/);
-  assert.match(page, /BoardSignal is an installable chess performance app|It is an app/);
+  assert.match(page, /It is an app/);
   assert.doesNotMatch(page, /ChessComLoginPanel/);
   assert.doesNotMatch(page, /FoundingBetaAccessPanel/);
   assert.match(gateway, /Start or return with Google/);
@@ -30,6 +30,16 @@ test("Patch L Google entry returns existing players before asking new players fo
   assert.match(gateway, /GOOGLE SIGN-IN COMPLETE/);
   assert.match(gateway, /Now connect your Chess\.com profile/);
   assert.match(gateway, /This is profile connection, not Chess\.com login/);
+});
+
+test("Patch L Player Room entry also exposes only Google-first normal access", () => {
+  const page = read("src/app/boardsignal/player-room/page.tsx");
+  const gate = read("src/components/BoardSignalPlayerRoomGate.tsx");
+  assert.match(page, /BoardSignalPlayerRoomGate/);
+  assert.match(gate, /UsernameDeskForm/);
+  assert.match(gate, /No beta password and no Chess\.com password/);
+  assert.doesNotMatch(gate, /ChessComLoginPanel/);
+  assert.doesNotMatch(gate, /FoundingBetaAccessPanel/);
 });
 
 test("Patch L install experience is obvious, optional, discoverable and cross-platform", () => {

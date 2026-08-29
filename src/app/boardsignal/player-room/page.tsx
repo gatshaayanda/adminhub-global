@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import BoardSignalHistoryWorker from "@/components/BoardSignalHistoryWorker";
-import BoardSignalPlayerRoom from "@/components/BoardSignalPlayerRoom";
+import BoardSignalPlayerRoomGate from "@/components/BoardSignalPlayerRoomGate";
 
-export const metadata: Metadata = { title: "My Player Room", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "My BoardSignal", robots: { index: false, follow: false } };
 
 export default function PlayerRoomPage() {
-  return <><BoardSignalPlayerRoom /><BoardSignalHistoryWorker /></>;
+  return <BoardSignalPlayerRoomGate />;
 }

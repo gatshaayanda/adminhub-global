@@ -1,0 +1,73 @@
+name: BoardSignal Patch L Guard
+
+on:
+  push:
+    branches:
+      - boardsignal-patch-l-product-experience
+  pull_request:
+    branches:
+      - boardsignal-v10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  patch-l-release-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout Patch L candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Check formatting safety
+        run: git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Patch L focused experience guard
+        run: npx tsc -p tsconfig.tests.json && node --test .test-dist/tests/boardsignal-patch-l-experience.test.js
+
+      - name: Core regressions
+        run: npm run test:core
+
+      - name: Critical regressions
+        run: npm run test:critical
+
+      - name: Beta access regressions
+        run: npm run test:beta-access
+
+      - name: Activation regressions
+        run: npm run test:activation
+
+      - name: Preview return regressions
+        run: npm run test:preview-return
+
+      - name: Contrast and dark-mode regressions
+        run: npm run test:contrast
+
+      - name: PWA and offline regressions
+        run: npm run test:pwa
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchLGuard000000000000000000000
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-l-ci.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-l-ci
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: patch-l-ci.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+        run: npm run build

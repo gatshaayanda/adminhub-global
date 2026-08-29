@@ -11,7 +11,7 @@ permissions:
 jobs:
   visual-qa:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchLGuard000000000000000000000
       NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-l-ci.firebaseapp.com
@@ -21,10 +21,10 @@ jobs:
       NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
       NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
     steps:
-      - name: Checkout frozen Patch L candidate
+      - name: Checkout exact Patch L candidate
         uses: actions/checkout@v4
         with:
-          ref: b2be2e9ce1871ff3963b6d698eaf0999e0362de9
+          ref: b1e99c923ee8f2f3a09963b8c624a1a4916768f8
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -35,27 +35,104 @@ jobs:
       - name: Install candidate dependencies
         run: npm ci
 
-      - name: Build frozen candidate
+      - name: Build exact candidate
         run: npm run build
 
       - name: Install runner-only browser driver
         run: npm install --no-save --package-lock=false playwright-core@1.55.0
 
-      - name: Start exact candidate locally
+      - name: Start exact production candidate locally
         shell: bash
         run: |
           npm start -- -H 127.0.0.1 -p 3000 > /tmp/boardsignal-next.log 2>&1 &
           echo $! > /tmp/boardsignal-next.pid
           for i in {1..60}; do
-            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then
-              exit 0
-            fi
+            if curl -fsS http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
             sleep 1
           done
           cat /tmp/boardsignal-next.log
           exit 1
 
-      - name: Capture desktop mobile light dark QA
+      - name: Create ephemeral authenticated-state visual fixtures
+        shell: bash
+        run: |
+          mkdir -p src/app/__patch-l-qa
+          cat > src/app/__patch-l-qa/page.tsx <<'TSX'
+          "use client";
+          // @ts-nocheck -- disposable visual-QA route, never committed to Patch L.
+          import { useSearchParams } from "next/navigation";
+          import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
+          import LiveDataUnavailablePlayerRoom from "@/components/LiveDataUnavailablePlayerRoom";
+          import PlayerInbox from "@/components/PlayerInbox";
+          import PlayerFriends from "@/components/PlayerFriends";
+          import PlayerProfileNotifications from "@/components/PlayerProfileNotifications";
+          import { findSeededDesk } from "@/data/seededDesks";
+
+          const desk = findSeededDesk("Ayandakopano")!;
+          const deskKey = desk.episodeKey ?? `${desk.player.username}:${desk.period.start}:${desk.period.end}`;
+          const summary = {
+            deskKey,
+            periodStart: desk.period.start,
+            periodEnd: desk.period.end,
+            periodLabel: desk.period.label,
+            games: desk.games,
+            wins: desk.wins,
+            draws: desk.draws,
+            losses: desk.losses,
+            scorePct: desk.score,
+            pools: desk.pools.map((p) => ({ pool:p.pool, games:p.games, ratingStart:p.firstRecordedRating, ratingEnd:p.lastRecordedRating, ratingDelta:p.firstRecordedRating !== undefined && p.lastRecordedRating !== undefined ? p.lastRecordedRating-p.firstRecordedRating : undefined })),
+            longestWinRun: desk.longestWinStreak,
+            longestLossRun: desk.longestLossStreak,
+            signalFamilies: {},
+          };
+          const snapshot = {
+            version: 1,
+            uid: "qa-user",
+            canonicalUsername: "Ayandakopano",
+            savedAt: "2026-08-29T15:00:00.000Z",
+            lastSyncedAt: "2026-08-29T15:00:00.000Z",
+            desks: [{ desk, engineResults: {}, summary }],
+            progress: [{ pool: "rapid", points: [{ deskKey, periodLabel: desk.period.label, games: desk.games, scorePct: desk.score, ratingDelta: -35 }] }],
+            recurringPatterns: [],
+            personalRecords: { desksCompleted: 1, personalBestWinRun: desk.longestWinStreak, largestPoolSpecificRatingClimb: {} },
+            currentEpisode: { status:"forming", periodStart:"2026-08-27", periodEnd:"2026-09-02", periodLabel:"27 Aug–2 Sep 2026", checkedAt:"2026-08-29T15:00:00.000Z", daysComplete:3, daysRemaining:4, games:6, wins:4, draws:0, losses:2, currentWinRun:2, currentLossRun:0, sessions:2, pools:[{pool:"rapid",games:6,wins:4,draws:0,losses:2,ratingStart:809,ratingEnd:827,ratingDelta:18}], nextDeskDueAt:"2026-09-03T00:00:00.000Z" },
+            shareMoments: [],
+            reviewJournal: { version:1, notes:[{ noteId:"qa-note-1", reviewKey:deskKey, periodStart:desk.period.start, periodEnd:desk.period.end, periodLabel:desk.period.label, type:"try_next", body:"Before moving my queen, name every enemy piece attacking the landing square.", createdAt:"2026-08-29T14:00:00.000Z", updatedAt:"2026-08-29T14:00:00.000Z" }] },
+          };
+          const account = {
+            uid:"qa-user", role:"player", accessTier:"founding_beta", accessStatus:"active", billingRequired:false, maxActiveDesks:4,
+            chessCom:{ playerId:46574228, canonicalUsername:"Ayandakopano", profileUrl:"https://www.chess.com/member/ayandakopano" },
+            identityStatus:"founder_reviewed", identityReviewStatus:"confirmed", preferencesConfirmedAt:"2026-08-01T00:00:00.000Z",
+            preferredContactMethod:"email", preferredContactValue:"player@example.com", betaContactConsent:true,
+            privacy:{ publicPlayerPage:true, universeCoverage:true, additionalPositiveHighlights:true, publicGameLinks:false, expandedPublicProfile:false },
+            notificationPreferences:{ email:true,browserPush:false,deskReady:true,episodeProgress:true,blueReminder:true,amberWatch:false,universeAchievement:true,founderUpdates:true },
+            eligibleCoverageKeys:[],
+          };
+
+          export default function PatchLQaFixture() {
+            const state = useSearchParams().get("state") ?? "offline";
+            if (state === "offline") return <OfflinePlayerRoom uid="qa-user" initialSnapshot={snapshot} />;
+            if (state === "service") return <LiveDataUnavailablePlayerRoom initialSnapshot={snapshot} reasonCode="FIRESTORE_QUOTA_EXHAUSTED" onRetry={async()=>false} />;
+            if (state === "inbox") return <main id="main" className="container player-inbox-section page-shell"><div className="room-section-heading"><div><p className="kicker">INBOX</p><h2>Your BoardSignal messages.</h2></div></div><PlayerInbox token="qa-token" /></main>;
+            if (state === "friends") return <main id="main" className="container page-shell"><PlayerFriends uid="qa-user" token="qa-token" /></main>;
+            if (state === "profile") return <main id="main" className="container player-profile-section page-shell"><div className="room-section-heading"><div><p className="kicker">PROFILE</p><h2>Your BoardSignal settings.</h2></div></div><PlayerProfileNotifications account={account} uid="qa-user" token="qa-token" onSaved={async()=>{}} onSignOut={()=>{}} /></main>;
+            return null;
+          }
+          TSX
+
+      - name: Start ephemeral fixture renderer
+        shell: bash
+        run: |
+          npm run dev -- -H 127.0.0.1 -p 3001 > /tmp/boardsignal-qa-dev.log 2>&1 &
+          echo $! > /tmp/boardsignal-qa-dev.pid
+          for i in {1..90}; do
+            if curl -fsS 'http://127.0.0.1:3001/__patch-l-qa?state=offline' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/boardsignal-qa-dev.log
+          exit 1
+
+      - name: Capture comprehensive desktop mobile light dark QA
         shell: bash
         run: |
           CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
@@ -64,93 +141,108 @@ jobs:
           cat > patch-l-visual-qa.cjs <<'NODE'
           const fs = require('fs');
           const { chromium } = require('playwright-core');
-
-          const routes = [
-            ['home', '/'],
-            ['player-room', '/boardsignal/player-room'],
-            ['universe', '/feed'],
-          ];
           const modes = [
-            ['desktop-light', { width: 1440, height: 1000 }, false, 'light'],
-            ['desktop-dark', { width: 1440, height: 1000 }, false, 'dark'],
-            ['mobile-light', { width: 390, height: 844 }, true, 'light'],
-            ['mobile-dark', { width: 390, height: 844 }, true, 'dark'],
+            ['desktop-light', {width:1440,height:1000}, false, 'light'],
+            ['desktop-dark', {width:1440,height:1000}, false, 'dark'],
+            ['mobile-light', {width:390,height:844}, true, 'light'],
+            ['mobile-dark', {width:390,height:844}, true, 'dark'],
           ];
+          const report = [];
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-          (async () => {
-            const browser = await chromium.launch({
-              executablePath: process.env.CHROME,
-              headless: true,
-              args: ['--no-sandbox', '--disable-dev-shm-usage'],
-            });
-            const report = [];
-            for (const [routeName, route] of routes) {
-              for (const [modeName, viewport, isMobile, scheme] of modes) {
-                const context = await browser.newContext({
-                  viewport,
-                  isMobile,
-                  hasTouch: isMobile,
-                  colorScheme: scheme,
-                  deviceScaleFactor: 1,
-                });
-                const page = await context.newPage();
-                const consoleErrors = [];
-                const pageErrors = [];
-                page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
-                page.on('pageerror', err => pageErrors.push(String(err)));
-                const response = await page.goto(`http://127.0.0.1:3000${route}`, {
-                  waitUntil: 'networkidle',
-                  timeout: 60000,
-                });
-                await page.evaluate((theme) => {
-                  if (theme === 'dark') document.documentElement.dataset.bsTheme = 'dark';
-                  else document.documentElement.removeAttribute('data-bs-theme');
-                }, scheme);
-                await page.waitForTimeout(500);
-                const metrics = await page.evaluate(() => ({
-                  title: document.title,
-                  bodyText: document.body.innerText.slice(0, 5000),
-                  htmlTheme: document.documentElement.dataset.bsTheme || null,
-                  bodyBg: getComputedStyle(document.body).backgroundColor,
-                  bodyColor: getComputedStyle(document.body).color,
-                  viewportWidth: innerWidth,
-                  viewportHeight: innerHeight,
-                  scrollWidth: document.documentElement.scrollWidth,
-                  scrollHeight: document.documentElement.scrollHeight,
-                  horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-                  headings: Array.from(document.querySelectorAll('h1,h2,h3')).slice(0, 30).map(el => el.textContent?.trim()).filter(Boolean),
-                  buttons: Array.from(document.querySelectorAll('button')).slice(0, 30).map(el => el.textContent?.trim()).filter(Boolean),
-                  links: Array.from(document.querySelectorAll('a')).slice(0, 40).map(el => el.textContent?.trim()).filter(Boolean),
-                }));
-                const screenshot = `patch-l-visual-qa/${routeName}-${modeName}.png`;
-                await page.screenshot({ path: screenshot, fullPage: true });
-                report.push({
-                  routeName,
-                  route,
-                  modeName,
-                  status: response?.status() ?? null,
-                  finalUrl: page.url(),
-                  ...metrics,
-                  consoleErrors,
-                  pageErrors,
-                  screenshot,
-                });
-                await context.close();
-              }
+          async function capture(browser, spec, mode) {
+            const [modeName, viewport, isMobile, scheme] = mode;
+            const context = await browser.newContext({ viewport, isMobile, hasTouch:isMobile, colorScheme:scheme, deviceScaleFactor:1, ...(spec.userAgent?{userAgent:spec.userAgent}:{}) });
+            const page = await context.newPage();
+            const consoleErrors=[]; const pageErrors=[];
+            page.on('console', m=>{ if(m.type()==='error') consoleErrors.push(m.text()); });
+            page.on('pageerror', e=>pageErrors.push(String(e)));
+            if (spec.mockInbox) {
+              await page.route('**/api/boardsignal/inbox**', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,inbox:{unreadCount:1,messages:[{id:'qa-m1',userId:'qa-user',type:'desk_ready',title:'Your Review is ready',body:'Your completed Review is ready to open.',link:'/boardsignal/player-room',actionLabel:'Open Review',createdAt:'2026-08-29T14:00:00.000Z',senderType:'system',allowReply:false}]}})}));
             }
+            if (spec.mockFriends) {
+              await page.route('**/api/boardsignal/social?view=overview*', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,overview:{friends:[{playerId:2,canonicalUsername:'snoopyissocute',relationshipStatus:'friends',latestDeskPeriod:'18–24 Aug 2026',primaryPool:'rapid',safeHighlight:'Three-game winning run',universePlacement:'#3 in Winning Run'}],incoming:[{playerId:3,canonicalUsername:'NewRival',relationshipStatus:'incoming',latestDeskPeriod:'18–24 Aug 2026'}],outgoing:[],rivalWatch:[],socialPulse:[]}})}));
+              await page.route('**/api/boardsignal/social?view=suggested*', route => route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true,players:[{playerId:4,canonicalUsername:'FriendlyKnight',latestDeskPeriod:'18–24 Aug 2026',safeHighlight:'A strong comeback week'}]})}));
+            }
+            if (spec.forming) {
+              await page.route('**/api/boardsignal/Ayandakopano**', async route => { await sleep(12000); await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({ok:false,error:'QA hold'})}); });
+            }
+            const response = await page.goto(spec.url, { waitUntil: spec.forming?'domcontentloaded':'networkidle', timeout:60000 });
+            await page.evaluate(theme => { document.documentElement.dataset.bsTheme = theme; }, scheme);
+            if (spec.install === 'chromium') {
+              await page.evaluate(() => {
+                localStorage.setItem('boardsignal:pwa-engaged-at', new Date().toISOString());
+                const ev = new Event('beforeinstallprompt', {cancelable:true});
+                Object.defineProperty(ev,'prompt',{value:async()=>{}});
+                Object.defineProperty(ev,'userChoice',{value:Promise.resolve({outcome:'dismissed',platform:'web'})});
+                window.dispatchEvent(ev);
+                window.dispatchEvent(new CustomEvent('boardsignal:pwa-engaged'));
+              });
+            }
+            if (spec.install === 'ios') {
+              await page.evaluate(() => { localStorage.setItem('boardsignal:pwa-engaged-at', new Date().toISOString()); window.dispatchEvent(new CustomEvent('boardsignal:pwa-engaged')); });
+            }
+            if (spec.clickText) {
+              const button = page.getByRole('button',{name:spec.clickText}).first();
+              if (await button.count()) await button.click();
+            }
+            if (spec.openAsk) {
+              const launch = page.getByRole('button',{name:'Open Ask BoardSignal'});
+              if (await launch.count()) await launch.click();
+            }
+            await sleep(spec.forming?900:700);
+            const metrics = await page.evaluate(() => ({
+              title:document.title, bodyText:document.body.innerText.slice(0,8000), htmlTheme:document.documentElement.dataset.bsTheme||null,
+              bodyBg:getComputedStyle(document.body).backgroundColor, bodyColor:getComputedStyle(document.body).color,
+              viewportWidth:innerWidth, viewportHeight:innerHeight, scrollWidth:document.documentElement.scrollWidth, scrollHeight:document.documentElement.scrollHeight,
+              horizontalOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth,
+              headings:Array.from(document.querySelectorAll('h1,h2,h3')).slice(0,50).map(e=>e.textContent?.trim()).filter(Boolean),
+              buttons:Array.from(document.querySelectorAll('button')).slice(0,60).map(e=>e.textContent?.trim()).filter(Boolean),
+              badges:Array.from(document.querySelectorAll('.unread-badge,[aria-label*="unread" i],[aria-label*="request" i]')).map(e=>e.textContent?.trim()).filter(Boolean),
+            }));
+            const file=`patch-l-visual-qa/${spec.name}-${modeName}.png`;
+            await page.screenshot({path:file,fullPage:true});
+            report.push({name:spec.name,mode:modeName,status:response?.status()??null,finalUrl:page.url(),...metrics,consoleErrors,pageErrors,screenshot:file});
+            await context.close();
+          }
+
+          (async()=>{
+            const browser=await chromium.launch({executablePath:process.env.CHROME,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const productionSpecs=[
+              {name:'homepage',url:'http://127.0.0.1:3000/'},
+              {name:'first-run-onboarding',url:'http://127.0.0.1:3000/join'},
+              {name:'google-return-entry',url:'http://127.0.0.1:3000/boardsignal/player-room'},
+              {name:'completed-review',url:'http://127.0.0.1:3000/boardsignal/build/Ayandakopano?mode=seed'},
+              {name:'review-forming',url:'http://127.0.0.1:3000/boardsignal/build/Ayandakopano',forming:true},
+              {name:'universe',url:'http://127.0.0.1:3000/feed'},
+              {name:'offline-entry',url:'http://127.0.0.1:3000/offline/player-room'},
+              {name:'install-web',url:'http://127.0.0.1:3000/boardsignal/player-room',install:'chromium'},
+              {name:'ask-board-signal',url:'http://127.0.0.1:3000/',openAsk:true},
+            ];
+            const fixtureSpecs=[
+              {name:'saved-review-journal',url:'http://127.0.0.1:3001/__patch-l-qa?state=offline'},
+              {name:'progress-first-review',url:'http://127.0.0.1:3001/__patch-l-qa?state=offline',clickText:'Progress'},
+              {name:'saved-universe',url:'http://127.0.0.1:3001/__patch-l-qa?state=offline',clickText:'Universe'},
+              {name:'saved-friends',url:'http://127.0.0.1:3001/__patch-l-qa?state=offline',clickText:'Friends'},
+              {name:'inbox',url:'http://127.0.0.1:3001/__patch-l-qa?state=inbox',mockInbox:true},
+              {name:'friends',url:'http://127.0.0.1:3001/__patch-l-qa?state=friends',mockFriends:true},
+              {name:'profile',url:'http://127.0.0.1:3001/__patch-l-qa?state=profile'},
+              {name:'service-unavailable',url:'http://127.0.0.1:3001/__patch-l-qa?state=service'},
+            ];
+            for(const spec of [...productionSpecs,...fixtureSpecs]) for(const mode of modes) await capture(browser,spec,mode);
+            const iphoneUA='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1';
+            for(const mode of modes.filter(m=>m[2])) await capture(browser,{name:'install-ios',url:'http://127.0.0.1:3000/boardsignal/player-room',install:'ios',userAgent:iphoneUA},mode);
             await browser.close();
-            fs.writeFileSync('patch-l-visual-qa/report.json', JSON.stringify(report, null, 2));
-          })().catch(err => {
-            console.error(err);
-            process.exit(1);
-          });
+            fs.writeFileSync('patch-l-visual-qa/report.json',JSON.stringify(report,null,2));
+          })().catch(e=>{console.error(e);process.exit(1)});
           NODE
           node patch-l-visual-qa.cjs
           cp /tmp/boardsignal-next.log patch-l-visual-qa/server.log
+          cp /tmp/boardsignal-qa-dev.log patch-l-visual-qa/fixture-server.log
 
       - name: Upload Patch L visual QA evidence
         uses: actions/upload-artifact@v4
         with:
-          name: patch-l-visual-qa-b2be2e9
+          name: patch-l-visual-qa-b1e99c9
           path: patch-l-visual-qa/
           if-no-files-found: error

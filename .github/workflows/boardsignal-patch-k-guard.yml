@@ -33,7 +33,7 @@ jobs:
         run: npm ci
 
       - name: Patch K universal access guard
-        run: npm run test:patch-k
+        run: node --test tests/boardsignal-patch-k-universal-access.test.cjs
 
       - name: Core regressions
         run: npm run test:core

@@ -49,8 +49,8 @@ jobs:
           from pathlib import Path
           p = Path('tests/boardsignal-patch-k-universal-access.test.cjs')
           s = p.read_text()
-          old = 'assert.doesNotMatch(usernameForm, /PREVIEW|FOUNDING BETA|enter\\(username\\)|BOARDING PASS|ACCESS CODE/i);'
-          new = 'assert.doesNotMatch(usernameForm, /BOARD SIGNAL PREVIEW|CONTINUE PREVIEW|FOUNDING BETA|enter\\(username\\)|BOARDING PASS|ACCESS CODE/i);'
+          old = 'assert.doesNotMatch(usernameForm, /PREVIEW|FOUNDER REVIEW|WAITING FOR APPROVAL|CONTINUE WITHOUT GOOGLE/i);'
+          new = 'assert.doesNotMatch(usernameForm, /BOARD SIGNAL PREVIEW|CONTINUE PREVIEW|FOUNDER REVIEW|WAITING FOR APPROVAL|CONTINUE WITHOUT GOOGLE/i);'
           if old in s:
               s = s.replace(old, new, 1)
           if new not in s:

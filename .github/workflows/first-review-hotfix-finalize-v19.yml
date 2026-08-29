@@ -1,0 +1,64 @@
+name: BoardSignal First Review Hotfix Finalize V19
+
+on:
+  push:
+    branches:
+      - boardsignal-hotfix-first-review-completion-ux-runner-v19
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out isolated hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: boardsignal-hotfix-first-review-completion-ux
+          fetch-depth: 0
+
+      - name: Restore exact validated seven-file hotfix implementation
+        shell: bash
+        run: |
+          git fetch origin boardsignal-hotfix-first-review-completion-ux-runner-v7
+          python - <<'PY'
+          import subprocess, textwrap
+          workflow_source = subprocess.check_output(["git","show","origin/boardsignal-hotfix-first-review-completion-ux-runner-v7:.github/workflows/first-review-hotfix-runner-v7.yml"], text=True)
+          marker = "          python - <<'PY'\n"
+          start = workflow_source.index(marker) + len(marker)
+          end = workflow_source.index("\n          PY", start)
+          exec(compile(textwrap.dedent(workflow_source[start:end]), "<validated-hotfix-implementation>", "exec"), {})
+          PY
+
+      - name: Verify untouched historical onboarding and exact staged delta
+        shell: bash
+        run: |
+          git diff --exit-code HEAD -- src/components/BoardSignalHistoryWorker.tsx
+          git add \
+            src/app/api/boardsignal/engine-diagnostic/route.ts \
+            src/components/BoardSignalPlayerRoom.tsx \
+            src/components/UniversalPlayerDesk.tsx \
+            src/lib/boardsignal/client/engineDiagnosticReporter.ts \
+            src/lib/boardsignal/engineDiagnostics.ts \
+            tests/boardsignal-engine-diagnostics.test.ts \
+            tests/boardsignal-first-review-completion-ux-hotfix.test.cjs
+          printf '%s\n' \
+            src/app/api/boardsignal/engine-diagnostic/route.ts \
+            src/components/BoardSignalPlayerRoom.tsx \
+            src/components/UniversalPlayerDesk.tsx \
+            src/lib/boardsignal/client/engineDiagnosticReporter.ts \
+            src/lib/boardsignal/engineDiagnostics.ts \
+            tests/boardsignal-engine-diagnostics.test.ts \
+            tests/boardsignal-first-review-completion-ux-hotfix.test.cjs | sort > /tmp/expected-staged
+          git diff --cached --name-only | sort > /tmp/actual-staged
+          diff -u /tmp/expected-staged /tmp/actual-staged
+          test "$(git diff --cached --name-only | wc -l)" -eq 7
+
+      - name: Commit and push validated hotfix branch only
+        run: |
+          git config user.name "BoardSignal Hotfix Runner"
+          git config user.email "boardsignal-hotfix@users.noreply.github.com"
+          git commit -m "Fix first Review completion experience"
+          git push origin HEAD:boardsignal-hotfix-first-review-completion-ux

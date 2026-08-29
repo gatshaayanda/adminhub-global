@@ -1,0 +1,219 @@
+/* ==========================================================
+   BoardSignal visual system entrypoint
+
+   Patch L consolidates player-facing presentation behind this single
+   layout import. The imported files below are retained responsibility
+   modules, not independent cascade generations:
+
+   foundation     semantic colour/theme contracts
+   accessibility  focus, contrast, forced-colours and target hardening
+   motion         reduced-motion-safe state transitions
+   player-room    current authenticated room structures
+   universe       current live-field structures
+   weekly-truth   current report-period structures
+
+   Patch F.2 and H.1 are retired as separate cascade layers. Their still-live
+   semantic contracts are consolidated below.
+   ========================================================== */
+
+@import "./boardsignal-foundation.css";
+@import "./boardsignal-accessibility.css";
+@import "./boardsignal-motion.css";
+@import "./boardsignal-player-room-g3.css";
+@import "./boardsignal-g4-universe.css";
+@import "./boardsignal-g41-weekly-truth.css";
+
+/* ----------------------------------------------------------
+   Consolidated compatibility contracts from retired F.2/H.1
+   ---------------------------------------------------------- */
+
+:root {
+  --bs-learning-card: #172e50;
+}
+
+.beta-preview-access-cta,
+.universal-section.universe-learning-section,
+.universal-section.pocket-card {
+  border-color: var(--bs-border-strong);
+  background: var(--bs-surface-inverse);
+  color: var(--bs-text-on-inverse);
+}
+
+.beta-preview-access-cta :is(h1, h2, h3, h4, strong, label),
+.universal-section.universe-learning-section :is(h1, h2, h3, h4, strong, label),
+.universal-section.pocket-card :is(h1, h2, h3, h4, strong, label) {
+  color: var(--bs-text-on-inverse);
+}
+
+.beta-preview-access-cta :is(p, small),
+.universal-section.universe-learning-section :is(p, small),
+.universal-section.pocket-card :is(p, small, .pocket-actions > span) {
+  color: var(--bs-text-on-inverse-secondary);
+}
+
+.beta-preview-access-cta .kicker,
+.universal-section.universe-learning-section .kicker,
+.universal-section.pocket-card .kicker { color: var(--bs-lime); }
+
+.beta-preview-access-cta .button-lime,
+.beta-preview-access-cta .button-lime :is(span, strong, svg) { color: var(--bs-on-lime); }
+
+.beta-preview-next.bs-surface-paper,
+.beta-preview-approval-alert,
+.player-profile-section .profile-settings-card {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+
+.beta-preview-next.bs-surface-paper :is(h1, h2, h3, h4, strong, label),
+.beta-preview-approval-alert :is(h1, h2, h3, h4, strong, label),
+.player-profile-section .profile-settings-card :is(h3, dt, dd, label, strong) { color: var(--bs-text-primary); }
+
+.beta-preview-next.bs-surface-paper :is(p, small),
+.beta-preview-approval-alert :is(p, small),
+.player-profile-section .profile-settings-card :is(p, small, .profile-helper) { color: var(--bs-text-secondary); }
+
+.beta-preview-next.bs-surface-paper .kicker,
+.beta-preview-next.bs-surface-paper .text-link,
+.beta-preview-approval-alert .kicker { color: var(--bs-blue-readable); }
+
+.beta-preview-alert-response { padding-left: .75rem; border-left: 4px solid var(--bs-blue-readable); }
+.beta-preview-approval-alert .state-pill { max-width: min(100%, 34rem); overflow-wrap: anywhere; }
+.beta-preview-approval-alert .beta-return-options button { min-height: 52px; }
+
+.universe-learning-grid > a,
+.universe-learning-grid > article {
+  border: 1px solid var(--bs-border-strong);
+  background: var(--bs-learning-card);
+  color: var(--bs-text-on-inverse);
+}
+.universe-learning-grid > article > a,
+.universe-learning-grid > :is(a, article) :is(h1, h2, h3, h4, strong) { color: var(--bs-text-on-inverse); }
+.universe-learning-grid > :is(a, article) p { color: var(--bs-text-on-inverse-secondary); }
+.universe-learning-grid > :is(a, article) :is(span, small) { color: var(--bs-text-on-inverse-muted); }
+
+.beta-universe-disclosure,
+.agreement-universe-required,
+.required-participation-row {
+  border-left-color: var(--bs-blue-readable);
+  background: var(--bs-blue-soft);
+  color: var(--bs-text-primary);
+}
+.beta-universe-disclosure strong,
+.agreement-universe-required strong,
+.required-participation-row strong { color: var(--bs-text-primary); }
+.beta-universe-disclosure p,
+.agreement-universe-required p,
+.required-participation-row p { color: var(--bs-text-secondary); }
+.required-participation-row svg { color: var(--bs-blue-readable); }
+
+.player-profile-section .profile-toggle { border-color: var(--bs-border); color: var(--bs-text-primary); }
+.player-profile-section .profile-toggle small { color: var(--bs-text-muted); }
+.player-profile-section .profile-settings-card :is(input[type="text"], input[type="email"], select) {
+  border-color: var(--bs-ui-border);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+}
+
+/* ----------------------------------------------------------
+   Patch L component-state contracts
+   ---------------------------------------------------------- */
+
+.boardsignal-entry-primary {
+  display: grid;
+  gap: .85rem;
+}
+
+.return-recovery-details {
+  margin-top: .7rem;
+  border-top: 1px solid var(--bs-border);
+  padding-top: .7rem;
+}
+.return-recovery-details > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--bs-text-secondary);
+  font-weight: 750;
+}
+.return-recovery-details[open] > summary { color: var(--bs-text-primary); }
+.return-recovery-options { display: grid; gap: .65rem; padding-top: .65rem; }
+.return-recovery-options > p { color: var(--bs-text-muted); font-size: .82rem; }
+
+.bs-state-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  margin-block: .8rem;
+  padding: .9rem 1rem;
+  border: 1px solid var(--bs-border);
+  border-left-width: 5px;
+  border-radius: var(--bs-radius-sm);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+.bs-state-banner p { color: var(--bs-text-secondary); }
+.bs-state-banner.is-success { border-left-color: var(--bs-positive); background: var(--bs-positive-surface); }
+.bs-state-banner.is-warning { border-left-color: var(--bs-warning); background: var(--bs-warning-surface); }
+.bs-state-banner.is-error { border-left-color: var(--bs-danger); background: var(--bs-danger-surface); }
+.bs-state-banner.is-info { border-left-color: var(--bs-brand-primary); background: var(--bs-blue-soft); }
+
+.review-ready-banner {
+  animation: bs-state-arrive .38s ease-out both;
+}
+@keyframes bs-state-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.progress-start-state {
+  margin-top: 1rem;
+  padding: clamp(1rem, 2.5vw, 1.4rem);
+  border: 1px solid var(--bs-border);
+  border-left: 5px solid var(--bs-brand-primary);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-blue-soft);
+}
+.progress-start-state h3 { color: var(--bs-text-primary); }
+.progress-start-state p { margin-top: .35rem; color: var(--bs-text-secondary); }
+.progress-start-state small { display: block; margin-top: .55rem; color: var(--bs-text-muted); }
+
+.install-card.is-ios-install .install-card-action { display: none; }
+.install-card .ios-install-steps {
+  margin: .65rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--bs-text-secondary);
+}
+.install-card .ios-install-steps li + li { margin-top: .28rem; }
+.install-card .install-store-clarifier { margin-top: .55rem; color: var(--bs-text-muted); font-size: .78rem; }
+
+/* Neutral counts remain visually neutral. Alert treatment belongs only to
+   unread/actionable state classes already emitted by the product. */
+.bs-neutral-count {
+  color: var(--bs-text-secondary);
+  background: var(--bs-bg-subtle);
+  border: 1px solid var(--bs-border);
+}
+
+@media (max-width: 680px) {
+  .beta-preview-approval-alert { margin-top: .75rem; }
+  .beta-preview-access-cta { border-radius: 22px; }
+  .beta-preview-approval-alert .beta-return-options { grid-template-columns: 1fr; }
+  .return-recovery-details > summary { min-height: 48px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-ready-banner { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .bs-state-banner,
+  .progress-start-state,
+  .return-recovery-details { border-color: CanvasText; }
+  .bs-state-banner.is-success,
+  .bs-state-banner.is-warning,
+  .bs-state-banner.is-error,
+  .bs-state-banner.is-info { border-left-color: Highlight; }
+}

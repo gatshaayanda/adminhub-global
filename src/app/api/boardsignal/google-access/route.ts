@@ -27,6 +27,8 @@ export async function POST(request: Request) {
       googleIdToken?: unknown;
       expectedPlayerId?: unknown;
       username?: unknown;
+      caseContactMethod?: unknown;
+      caseContactValue?: unknown;
     };
     const action = String(body.action ?? "return");
 
@@ -40,12 +42,17 @@ export async function POST(request: Request) {
       return response({ ok: true, result });
     }
     if (action === "identityHelp") {
-      await requestGoogleIdentityHelp(body.googleIdToken, body.username);
-      // Deliberately generic: do not reveal whether a private BoardSignal exists.
+      const result = await requestGoogleIdentityHelp(
+        body.googleIdToken,
+        body.username,
+        body.caseContactMethod,
+        body.caseContactValue,
+      );
       return response({
         ok: true,
         status: "received",
-        message: "Your access-help request was received. This did not grant, replace, merge or expose a private BoardSignal account.",
+        result,
+        message: "Your identity case was received. This did not grant, replace, merge, transfer or expose a private BoardSignal account.",
       });
     }
 

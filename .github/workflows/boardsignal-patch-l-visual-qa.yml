@@ -61,7 +61,7 @@ jobs:
           CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
           export CHROME
           mkdir -p patch-l-visual-qa
-          cat > /tmp/patch-l-visual-qa.cjs <<'NODE'
+          cat > patch-l-visual-qa.cjs <<'NODE'
           const fs = require('fs');
           const { chromium } = require('playwright-core');
 
@@ -145,7 +145,7 @@ jobs:
             process.exit(1);
           });
           NODE
-          node /tmp/patch-l-visual-qa.cjs
+          node patch-l-visual-qa.cjs
           cp /tmp/boardsignal-next.log patch-l-visual-qa/server.log
 
       - name: Upload Patch L visual QA evidence

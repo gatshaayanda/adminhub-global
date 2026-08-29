@@ -1,0 +1,161 @@
+name: BoardSignal First Review Hotfix Runner V3
+
+on:
+  push:
+    branches:
+      - boardsignal-hotfix-first-review-completion-ux-runner-v3
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out isolated hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: boardsignal-hotfix-first-review-completion-ux
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply exact-source guarded emergency hotfix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          import textwrap
+
+          def replace_once(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one guarded match in {path}, found {count}: {old[:160]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "src/components/BoardSignalPlayerRoom.tsx",
+              '    }));\n    if (user) await loadRoom(user);\n  }, [connectivity.online, loadRoom, token, user]);',
+              '    }));\n    if (user) await loadRoom(user, true);\n  }, [connectivity.online, loadRoom, token, user]);',
+          )
+          replace_once(
+              "src/components/BoardSignalPlayerRoom.tsx",
+              "{snapshot.currentEpisode ? (",
+              "{snapshot.currentEpisode && (snapshot.account.cadenceAnchor || !snapshot.pendingFactualReview) ? (",
+          )
+
+          universal = Path("src/components/UniversalPlayerDesk.tsx")
+          text = universal.read_text()
+          import_anchor = 'import { validateDeskForPublication } from "@/lib/boardsignal/quality";'
+          if text.count(import_anchor) != 1:
+              raise SystemExit(f"Could not uniquely locate UniversalPlayerDesk quality import; matches={text.count(import_anchor)}")
+          text = text.replace(
+              import_anchor,
+              'import { reportEngineDiagnostic } from "@/lib/boardsignal/client/engineDiagnosticReporter";\n' + import_anchor,
+              1,
+          )
+          console_line = '      console.error("[BoardSignal engine]", item);'
+          if text.count(console_line) != 1:
+              raise SystemExit(f"Could not uniquely locate engine diagnostic console line; matches={text.count(console_line)}")
+          text = text.replace(console_line, console_line + "\n      void reportEngineDiagnostic(item);", 1)
+          raw_primary = '<p className="quality-reference">Position check: {codes.join(" · ")}</p>'
+          friendly_primary = '<p className="quality-reference">{recoveryState === "manual" ? "The position check did not finish on this device. Try the position check again." : recoveryState === "blocked" ? "The position check cannot finish on this device. Position-based guidance remains withheld." : "Position checks are still in progress."}</p>'
+          if text.count(raw_primary) != 1:
+              raise SystemExit(f"Could not uniquely locate primary engine quality-code copy; matches={text.count(raw_primary)}")
+          universal.write_text(text.replace(raw_primary, friendly_primary, 1))
+
+          template = subprocess.check_output(
+              ["git", "show", "origin/boardsignal-hotfix-first-review-completion-ux-runner:.github/workflows/first-review-hotfix-runner.yml"],
+              text=True,
+          )
+          generated = [
+              "src/lib/boardsignal/engineDiagnostics.ts",
+              "src/lib/boardsignal/client/engineDiagnosticReporter.ts",
+              "src/app/api/boardsignal/engine-diagnostic/route.ts",
+              "tests/boardsignal-engine-diagnostics.test.ts",
+              "tests/boardsignal-first-review-completion-ux-hotfix.test.cjs",
+          ]
+          for path in generated:
+              marker = f"          cat > {path} <<'EOF'\n"
+              start = template.find(marker)
+              if start < 0:
+                  raise SystemExit(f"Missing generated-file template for {path}")
+              start += len(marker)
+              end = template.find("\n          EOF", start)
+              if end < 0:
+                  raise SystemExit(f"Missing generated-file terminator for {path}")
+              content = textwrap.dedent(template[start:end]) + "\n"
+              p = Path(path)
+              p.parent.mkdir(parents=True, exist_ok=True)
+              p.write_text(content)
+
+          cjs = Path("tests/boardsignal-first-review-completion-ux-hotfix.test.cjs")
+          cjs_text = cjs.read_text()
+          old_history = '  assert.match(historyWorker, /maxTargetReviews/);\n  assert.match(historyWorker, /importedReviewCount/);'
+          new_history = '  assert.match(historyWorker, /for\\(let slot=0;slot<4/);\n  assert.match(historyWorker, /reviewLifecycle:"historical_backfill"/);'
+          if old_history not in cjs_text:
+              raise SystemExit("Could not locate focused history assertions for correction")
+          cjs.write_text(cjs_text.replace(old_history, new_history, 1))
+          PY
+
+      - name: Focused hotfix regression
+        run: node --test tests/boardsignal-first-review-completion-ux-hotfix.test.cjs
+
+      - name: Focused telemetry regression
+        run: npx tsc -p tsconfig.tests.json && node --test .test-dist/tests/boardsignal-engine-diagnostics.test.js
+
+      - name: Existing first-review and history regressions
+        run: node --test tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs tests/boardsignal-durable-first-desk-resilience.test.cjs tests/boardsignal-active-week-next-game-guidance.test.cjs tests/boardsignal-player-room-g3.test.cjs
+
+      - name: Core suite
+        run: npm run test:core
+
+      - name: Critical suite
+        run: npm run test:critical
+
+      - name: Stockfish smoke
+        run: npm run test:stockfish
+
+      - name: PWA suite
+        run: npm run test:pwa
+
+      - name: Contrast suite
+        run: npm run test:contrast
+
+      - name: Production build
+        run: npm run build
+
+      - name: Confirm isolated diff and untouched history worker
+        shell: bash
+        run: |
+          git diff --exit-code HEAD -- src/components/BoardSignalHistoryWorker.tsx
+          printf '%s\n' \
+            src/app/api/boardsignal/engine-diagnostic/route.ts \
+            src/components/BoardSignalPlayerRoom.tsx \
+            src/components/UniversalPlayerDesk.tsx \
+            src/lib/boardsignal/client/engineDiagnosticReporter.ts \
+            src/lib/boardsignal/engineDiagnostics.ts \
+            tests/boardsignal-engine-diagnostics.test.ts \
+            tests/boardsignal-first-review-completion-ux-hotfix.test.cjs | sort > /tmp/expected-files
+          git status --short
+          git diff --name-only HEAD | sort > /tmp/actual-files
+          diff -u /tmp/expected-files /tmp/actual-files
+
+      - name: Commit validated hotfix
+        run: |
+          git config user.name "BoardSignal Hotfix Runner"
+          git config user.email "boardsignal-hotfix@users.noreply.github.com"
+          git add src/components/BoardSignalPlayerRoom.tsx src/components/UniversalPlayerDesk.tsx src/lib/boardsignal/engineDiagnostics.ts src/lib/boardsignal/client/engineDiagnosticReporter.ts src/app/api/boardsignal/engine-diagnostic/route.ts tests/boardsignal-engine-diagnostics.test.ts tests/boardsignal-first-review-completion-ux-hotfix.test.cjs
+          git commit -m "Fix first Review completion experience"
+          git push origin HEAD:boardsignal-hotfix-first-review-completion-ux

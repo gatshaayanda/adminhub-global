@@ -29,14 +29,14 @@ export default function FoundingBetaAccessPanel({ oauthAvailable = false }: { oa
         body: JSON.stringify({ username: username.trim(), accessCode: accessCode.trim() }),
       });
       const body = await response.json() as { ok: boolean; customToken?: string; error?: string };
-      if (!response.ok || !body.ok || !body.customToken) throw new Error(body.error ?? "Founding Access could not be completed.");
+      if (!response.ok || !body.ok || !body.customToken) throw new Error(body.error ?? "Private access could not be completed.");
       await setPersistence(auth, browserLocalPersistence);
       await signInWithCustomToken(auth, body.customToken);
       setAccessCode("");
       router.replace("/boardsignal/player-room");
       router.refresh();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Founding Access could not be completed.");
+      setError(reason instanceof Error ? reason.message : "Private access could not be completed.");
     } finally {
       setBusy(false);
     }
@@ -46,7 +46,7 @@ export default function FoundingBetaAccessPanel({ oauthAvailable = false }: { oa
     <form className="beta-access-form" onSubmit={signIn}>
       <div className="beta-access-heading">
         <KeyRound size={18} />
-        <div><span>FOUNDING ACCESS</span><strong>{oauthAvailable ? "Use your privately issued access." : "Enter your private Player Room."}</strong></div>
+        <div><span>PRIVATE ACCESS</span><strong>{oauthAvailable ? "Use your existing private access code." : "Enter your private Player Room."}</strong></div>
       </div>
       <label htmlFor="beta-chess-username">Chess.com username</label>
       <input
@@ -78,7 +78,7 @@ export default function FoundingBetaAccessPanel({ oauthAvailable = false }: { oa
       <button className="button button-lime" type="submit" disabled={busy}>
         {busy ? <><LoaderCircle className="button-spinner" size={16} /> Opening Player Room</> : <>Enter My Player Room <ArrowRight size={16} /></>}
       </button>
-      <p className="beta-access-safety"><ShieldCheck size={14} /> Your access code was issued privately by BoardSignal. It does not use or expose your Chess.com password.</p>
+      <p className="beta-access-safety"><ShieldCheck size={14} /> This is a BoardSignal private access code. It does not use or expose your Chess.com password.</p>
       {error ? <p className="form-error" role="alert">{error}</p> : null}
     </form>
   );

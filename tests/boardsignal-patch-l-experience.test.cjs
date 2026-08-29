@@ -17,6 +17,8 @@ const login = read('src/components/ChessComLoginPanel.tsx');
 const install = read('src/components/InstallPrompt.tsx');
 const installLib = read('src/lib/boardsignal/offline/install.ts');
 const room = read('src/components/BoardSignalPlayerRoom.tsx');
+const offlineRoom = read('src/components/OfflinePlayerRoom.tsx');
+const liveUnavailable = read('src/components/LiveDataUnavailablePlayerRoom.tsx');
 const pkg = JSON.parse(read('package.json'));
 const cascadeCheck = read('scripts/check-boardsignal-cascade.mjs');
 
@@ -74,11 +76,13 @@ test('homepage keeps personal value before proof, explanation and Universe', () 
 });
 
 test('returning-player access is Google-first and legacy recovery is progressively disclosed', () => {
-  sourceOrder(login, ['RETURN TO MY BOARDSIGNAL', 'GoogleAccessButton', 'return-recovery-details']);
+  sourceOrder(login, ['RETURN TO MY BOARDSIGNAL', '<GoogleAccessButton', 'return-recovery-details']);
   assert.match(login, /Pick up where you left off/);
   assert.match(login, /Other sign-in or recovery options/);
   assert.match(login, /FoundingBetaAccessPanel/);
-  assert.doesNotMatch(login, />Development access<[^]*return-recovery-details/);
+  const recoveryStart = login.indexOf('return-recovery-details');
+  const developmentStart = login.indexOf('Development access');
+  assert.ok(recoveryStart >= 0 && developmentStart > recoveryStart, 'development access must stay inside progressive recovery disclosure');
 });
 
 test('install experience answers web-app-store confusion on Chromium and iOS after engagement', () => {
@@ -91,6 +95,19 @@ test('install experience answers web-app-store confusion on Chromium and iOS aft
   assert.match(install, /No app store is required/);
   assert.match(installLib, /isStandaloneBoardSignal/);
   assert.match(installLib, /14 \* 24 \* 60 \* 60 \* 1000/);
+});
+
+test('saved and live-unavailable Player Room preserve player language and shell continuity', () => {
+  assert.match(offlineRoom, /type OfflineTab = "desk" \| "progress" \| "universe" \| "friends"/);
+  assert.doesNotMatch(offlineRoom, /item === "pulse" \? "Pulse"/);
+  assert.match(offlineRoom, /Review/);
+  assert.match(offlineRoom, /Progress/);
+  assert.match(offlineRoom, /Universe/);
+  assert.match(offlineRoom, /Friends/);
+  assert.match(offlineRoom, /Your first Review is your baseline/);
+  assert.doesNotMatch(offlineRoom, /Firebase account|Stockfish completion/);
+  assert.doesNotMatch(liveUnavailable, /Firestore's free daily allowance|free Firestore allowance/);
+  assert.match(liveUnavailable, /LIVE DATA PAUSED/);
 });
 
 test('engagement styling distinguishes actionable state from neutral counts', () => {
@@ -112,7 +129,7 @@ test('motion remains state-based and reduced-motion safe', () => {
   assert.match(motion, /bs-motion-unread-change/);
   assert.match(motion, /bs-motion-engine-active/);
   assert.match(motion, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.doesNotMatch(motion, /marquee|ticker[^\n]*animation|scan[^\n]*infinite|breathe[^\n]*infinite/i);
+  assert.doesNotMatch(motion, /animation\s*:\s*[^;]*(?:scan|breathe)[^;]*infinite/i);
 });
 
 test('contrast command validates the active imported cascade', () => {

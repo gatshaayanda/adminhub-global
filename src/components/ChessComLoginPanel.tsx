@@ -44,27 +44,35 @@ export default function ChessComLoginPanel({ compact = false }: { compact?: bool
     }
   }
 
+  const hasRecoveryOptions = status?.enabled === true || status?.devIdentityEnabled === true || status !== null;
+
   return (
     <section className={`chesscom-login-panel ${compact ? "is-compact" : ""}`}>
       <div className="chesscom-login-icon"><LockKeyhole size={20} /></div>
       <div className="chesscom-login-copy">
         <span>RETURN TO MY BOARDSIGNAL</span>
-        <h2>Open the exact BoardSignal you already use.</h2>
-        <p>Continue with Google if you connected it as your return key. Existing private access and recovery remain available.</p>
+        <h2>Pick up where you left off.</h2>
+        <p>If you connected Google to BoardSignal, use it to return to your exact Player Room, Reviews, Progress and Journal.</p>
         <small><ShieldCheck size={14} /> Google signs you into BoardSignal only. It does not prove ownership of a Chess.com profile.</small>
       </div>
-      <div className="chesscom-login-actions">
-        <GoogleAccessButton compact={compact} />
-        {status?.enabled ? (
-          <a className="button button-outline" href="/api/auth/chesscom/start">Continue with Chess.com <ArrowRight size={16} /></a>
-        ) : null}
-        <FoundingBetaAccessPanel oauthAvailable={status?.enabled === true} />
-        {status?.devIdentityEnabled ? (
-          <button className="button button-quiet" type="button" onClick={developmentSignIn} disabled={busy}>
-            {busy ? <><LoaderCircle className="button-spinner" size={15} /> Signing in</> : "Use controlled development identity"}
-          </button>
-        ) : null}
-        {error ? <p className="form-error">{error}</p> : null}
+      <div className="chesscom-login-actions boardsignal-entry-primary">
+        <GoogleAccessButton compact={compact} label="CONTINUE WITH GOOGLE" />
+        {hasRecoveryOptions ? <details className="return-recovery-details">
+          <summary>Other sign-in or recovery options</summary>
+          <div className="return-recovery-options">
+            <p>Use these only if your BoardSignal was set up with an earlier access method or you need recovery.</p>
+            {status?.enabled ? (
+              <a className="button button-outline" href="/api/auth/chesscom/start">Continue with Chess.com <ArrowRight size={16} /></a>
+            ) : null}
+            <FoundingBetaAccessPanel oauthAvailable={status?.enabled === true} />
+            {status?.devIdentityEnabled ? (
+              <button className="button button-quiet" type="button" onClick={developmentSignIn} disabled={busy}>
+                {busy ? <><LoaderCircle className="button-spinner" size={15} /> Signing in</> : "Development access"}
+              </button>
+            ) : null}
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
+          </div>
+        </details> : null}
       </div>
     </section>
   );

@@ -1,0 +1,432 @@
+name: BoardSignal First Review Hotfix Runner
+
+on:
+  push:
+    branches:
+      - boardsignal-hotfix-first-review-completion-ux-runner
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out isolated hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: boardsignal-hotfix-first-review-completion-ux
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply minimal emergency hotfix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "src/components/BoardSignalPlayerRoom.tsx",
+              "  if (user) await loadRoom(user);",
+              "  if (user) await loadRoom(user, true);",
+          )
+          replace_once(
+              "src/components/BoardSignalPlayerRoom.tsx",
+              "{snapshot.currentEpisode ? (",
+              "{snapshot.currentEpisode && (snapshot.account.cadenceAnchor || !snapshot.pendingFactualReview) ? (",
+          )
+
+          universal = Path("src/components/UniversalPlayerDesk.tsx")
+          text = universal.read_text()
+          import_anchor = 'import { type DeskQualityCode, validateDeskForPublication } from "@/lib/boardsignal/quality";'
+          if text.count(import_anchor) != 1:
+              raise SystemExit("Could not locate UniversalPlayerDesk quality import")
+          text = text.replace(
+              import_anchor,
+              'import { reportEngineDiagnostic } from "@/lib/boardsignal/client/engineDiagnosticReporter";\n' + import_anchor,
+              1,
+          )
+          old_record = '''    const recordDiagnostic = (item: EngineDiagnostic) => {
+              if (cancelled) return;
+              setEngineDiagnostic(item);
+              console.error("[BoardSignal engine]", item);
+            };'''
+          new_record = '''    const recordDiagnostic = (item: EngineDiagnostic) => {
+              if (cancelled) return;
+              setEngineDiagnostic(item);
+              console.error("[BoardSignal engine]", item);
+              void reportEngineDiagnostic(item);
+            };'''
+          if text.count(old_record) != 1:
+              raise SystemExit(f"Could not locate engine recordDiagnostic block; matches={text.count(old_record)}")
+          text = text.replace(old_record, new_record, 1)
+          raw_primary = '<p className="quality-reference">Position check: {codes.join(" · ")}</p>'
+          friendly_primary = '<p className="quality-reference">{recoveryState === "manual" ? "The position check did not finish on this device. Try the position check again." : recoveryState === "blocked" ? "The position check cannot finish on this device. Position-based guidance remains withheld." : "Position checks are still in progress."}</p>'
+          if text.count(raw_primary) != 1:
+              raise SystemExit(f"Could not locate primary engine quality code copy; matches={text.count(raw_primary)}")
+          text = text.replace(raw_primary, friendly_primary, 1)
+          universal.write_text(text)
+          PY
+
+          mkdir -p src/lib/boardsignal/client src/app/api/boardsignal/engine-diagnostic tests
+
+          cat > src/lib/boardsignal/engineDiagnostics.ts <<'EOF'
+          import type { EngineDiagnostic, EngineDiagnosticCode } from "./types";
+
+          export type EngineDiagnosticTelemetry = Pick<
+            EngineDiagnostic,
+            | "code"
+            | "stage"
+            | "userAgentCategory"
+            | "attempt"
+            | "workerSupported"
+            | "webAssemblySupported"
+            | "crossOriginIsolated"
+            | "timestamp"
+          >;
+
+          const CODES = new Set<EngineDiagnosticCode>([
+            "ENGINE_UNSUPPORTED",
+            "ENGINE_ASSET_404",
+            "ENGINE_WORKER_START_FAILED",
+            "ENGINE_WASM_LOAD_FAILED",
+            "ENGINE_UCI_TIMEOUT",
+            "ENGINE_POSITION_TIMEOUT",
+            "ENGINE_RUNTIME_ERROR",
+          ]);
+          const STAGES = new Set<EngineDiagnostic["stage"]>([
+            "capability",
+            "asset",
+            "worker",
+            "uci",
+            "ready",
+            "position",
+            "runtime",
+          ]);
+          const USER_AGENT_CATEGORIES = new Set<EngineDiagnostic["userAgentCategory"]>([
+            "android",
+            "ios",
+            "mobile",
+            "desktop",
+            "unknown",
+          ]);
+
+          export function toEngineDiagnosticTelemetry(item: EngineDiagnostic): EngineDiagnosticTelemetry {
+            return {
+              code: item.code,
+              stage: item.stage,
+              userAgentCategory: item.userAgentCategory,
+              attempt: item.attempt,
+              workerSupported: item.workerSupported,
+              webAssemblySupported: item.webAssemblySupported,
+              crossOriginIsolated: item.crossOriginIsolated,
+              timestamp: item.timestamp,
+            };
+          }
+
+          export function sanitizeEngineDiagnosticTelemetry(input: unknown): EngineDiagnosticTelemetry | null {
+            if (!input || typeof input !== "object") return null;
+            const value = input as Record<string, unknown>;
+            if (typeof value.code !== "string" || !CODES.has(value.code as EngineDiagnosticCode)) return null;
+            if (typeof value.stage !== "string" || !STAGES.has(value.stage as EngineDiagnostic["stage"])) return null;
+            if (
+              typeof value.userAgentCategory !== "string" ||
+              !USER_AGENT_CATEGORIES.has(value.userAgentCategory as EngineDiagnostic["userAgentCategory"])
+            ) return null;
+            if (typeof value.attempt !== "number" || !Number.isInteger(value.attempt) || value.attempt < 1 || value.attempt > 20) return null;
+            if (typeof value.workerSupported !== "boolean") return null;
+            if (typeof value.webAssemblySupported !== "boolean") return null;
+            if (typeof value.crossOriginIsolated !== "boolean") return null;
+            if (
+              typeof value.timestamp !== "string" ||
+              value.timestamp.length > 64 ||
+              Number.isNaN(Date.parse(value.timestamp))
+            ) return null;
+
+            return {
+              code: value.code as EngineDiagnosticCode,
+              stage: value.stage as EngineDiagnostic["stage"],
+              userAgentCategory: value.userAgentCategory as EngineDiagnostic["userAgentCategory"],
+              attempt: value.attempt,
+              workerSupported: value.workerSupported,
+              webAssemblySupported: value.webAssemblySupported,
+              crossOriginIsolated: value.crossOriginIsolated,
+              timestamp: value.timestamp,
+            };
+          }
+          EOF
+
+          cat > src/lib/boardsignal/client/engineDiagnosticReporter.ts <<'EOF'
+          import { toEngineDiagnosticTelemetry } from "../engineDiagnostics";
+          import type { EngineDiagnostic } from "../types";
+
+          export type EngineDiagnosticSender = (url: string, init: RequestInit) => Promise<unknown>;
+
+          const defaultSender: EngineDiagnosticSender = (url, init) => fetch(url, init);
+
+          export async function reportEngineDiagnostic(
+            diagnostic: EngineDiagnostic,
+            send: EngineDiagnosticSender = defaultSender,
+          ): Promise<void> {
+            try {
+              await send("/api/boardsignal/engine-diagnostic", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                cache: "no-store",
+                keepalive: true,
+                body: JSON.stringify(toEngineDiagnosticTelemetry(diagnostic)),
+              });
+            } catch {
+              // Observability is deliberately non-blocking for Review generation and publication.
+            }
+          }
+          EOF
+
+          cat > src/app/api/boardsignal/engine-diagnostic/route.ts <<'EOF'
+          import { NextResponse } from "next/server";
+          import { sanitizeEngineDiagnosticTelemetry } from "@/lib/boardsignal/engineDiagnostics";
+
+          export const dynamic = "force-dynamic";
+          export const runtime = "nodejs";
+
+          const noStore = { "Cache-Control": "no-store" };
+
+          export async function POST(request: Request) {
+            try {
+              const diagnostic = sanitizeEngineDiagnosticTelemetry(await request.json());
+              if (!diagnostic) {
+                return NextResponse.json({ error: "Invalid engine diagnostic." }, { status: 400, headers: noStore });
+              }
+              console.warn("[BoardSignal] position-review diagnostic", diagnostic);
+              return NextResponse.json({ ok: true }, { headers: noStore });
+            } catch {
+              return NextResponse.json({ error: "Invalid engine diagnostic." }, { status: 400, headers: noStore });
+            }
+          }
+          EOF
+
+          cat > tests/boardsignal-engine-diagnostics.test.ts <<'EOF'
+          import assert from "node:assert/strict";
+          import test from "node:test";
+          import { reportEngineDiagnostic } from "../src/lib/boardsignal/client/engineDiagnosticReporter";
+          import {
+            sanitizeEngineDiagnosticTelemetry,
+            toEngineDiagnosticTelemetry,
+            type EngineDiagnosticTelemetry,
+          } from "../src/lib/boardsignal/engineDiagnostics";
+          import type { EngineDiagnostic } from "../src/lib/boardsignal/types";
+
+          const diagnostic: EngineDiagnostic = {
+            code: "ENGINE_POSITION_TIMEOUT",
+            stage: "position",
+            consumerMessage: "Position analysis timed out.",
+            detail: "Private implementation detail that must not leave the browser.",
+            assetUrl: "/stockfish/private-example",
+            eventMessage: "worker detail",
+            filename: "worker.js",
+            lineno: 42,
+            workerSupported: true,
+            webAssemblySupported: true,
+            crossOriginIsolated: false,
+            userAgentCategory: "android",
+            attempt: 2,
+            timestamp: "2026-08-29T11:22:00.000Z",
+          };
+
+          const expected: EngineDiagnosticTelemetry = {
+            code: "ENGINE_POSITION_TIMEOUT",
+            stage: "position",
+            userAgentCategory: "android",
+            attempt: 2,
+            workerSupported: true,
+            webAssemblySupported: true,
+            crossOriginIsolated: false,
+            timestamp: "2026-08-29T11:22:00.000Z",
+          };
+
+          test("engine telemetry serializer returns only the privacy-safe allowlist", () => {
+            const contaminated = {
+              ...diagnostic,
+              pgn: "1. e4 e5",
+              fen: "private-fen",
+              engineLine: "private-pv",
+              privateReview: "private review text",
+              red: "private red guidance",
+              blue: "private blue guidance",
+              journalContent: "private journal",
+              gameUrl: "https://www.chess.com/game/live/1",
+              contactInformation: "private@example.com",
+            } as EngineDiagnostic;
+            const payload = toEngineDiagnosticTelemetry(contaminated);
+            assert.deepEqual(payload, expected);
+            assert.deepEqual(Object.keys(payload).sort(), Object.keys(expected).sort());
+          });
+
+          test("server sanitizer drops chess evidence and private content even when submitted", () => {
+            const payload = sanitizeEngineDiagnosticTelemetry({
+              ...expected,
+              pgn: "1. e4 e5",
+              fen: "private-fen",
+              pv: ["e2e4"],
+              privateReview: "private review text",
+              journalContent: "private journal",
+              gameUrl: "https://www.chess.com/game/live/1",
+              contactInformation: "private@example.com",
+            });
+            assert.deepEqual(payload, expected);
+          });
+
+          test("server sanitizer rejects malformed diagnostics", () => {
+            assert.equal(sanitizeEngineDiagnosticTelemetry({ ...expected, code: "ENGINE_REVIEW_INCOMPLETE" }), null);
+            assert.equal(sanitizeEngineDiagnosticTelemetry({ ...expected, attempt: 0 }), null);
+            assert.equal(sanitizeEngineDiagnosticTelemetry({ ...expected, timestamp: "not-a-date" }), null);
+          });
+
+          test("client reporter sends exactly the sanitized diagnostic envelope", async () => {
+            let sentUrl = "";
+            let sentBody = "";
+            await reportEngineDiagnostic(diagnostic, async (url, init) => {
+              sentUrl = url;
+              sentBody = String(init.body ?? "");
+              return { ok: true };
+            });
+            assert.equal(sentUrl, "/api/boardsignal/engine-diagnostic");
+            assert.deepEqual(JSON.parse(sentBody), expected);
+          });
+
+          test("diagnostic reporting failure cannot block Review completion", async () => {
+            await assert.doesNotReject(() => reportEngineDiagnostic(diagnostic, async () => {
+              throw new Error("telemetry unavailable");
+            }));
+          });
+          EOF
+
+          cat > tests/boardsignal-first-review-completion-ux-hotfix.test.cjs <<'EOF'
+          const assert = require("node:assert/strict");
+          const { readFileSync } = require("node:fs");
+          const { join } = require("node:path");
+          const test = require("node:test");
+
+          const root = join(__dirname, "..");
+          const room = readFileSync(join(root, "src/components/BoardSignalPlayerRoom.tsx"), "utf8");
+          const desk = readFileSync(join(root, "src/components/UniversalPlayerDesk.tsx"), "utf8");
+          const route = readFileSync(join(root, "src/app/api/boardsignal/player-room/route.ts"), "utf8");
+          const historyWorker = readFileSync(join(root, "src/components/BoardSignalHistoryWorker.tsx"), "utf8");
+          const reporter = readFileSync(join(root, "src/lib/boardsignal/client/engineDiagnosticReporter.ts"), "utf8");
+          const diagnosticRoute = readFileSync(join(root, "src/app/api/boardsignal/engine-diagnostic/route.ts"), "utf8");
+
+          test("successful publication reconciles through the quiet Player Room refresh", () => {
+            assert.match(room, /publishedDeskKeyThisSessionRef\.current = deskKeyFor\(desk\);\s+if \(user\) await loadRoom\(user, true\);/);
+            assert.doesNotMatch(room, /publishedDeskKeyThisSessionRef\.current = deskKeyFor\(desk\);\s+if \(user\) await loadRoom\(user\);/);
+          });
+
+          test("quiet reconciliation cannot remount the global RoomLoading state", () => {
+            assert.match(room, /async \(firebaseUser: User, quiet = false\)/);
+            assert.match(room, /if \(!quiet\) setLoading\(true\)/);
+            assert.match(room, /if \(!quiet\) setLoading\(false\)/);
+            assert.match(room, /if \(!authReady \|\| loading\) return <RoomLoading \/>/);
+            assert.match(room, /await loadRoom\(user, true\)/);
+          });
+
+          test("pending first factual Review suppresses the provisional Current Episode until cadence exists", () => {
+            assert.match(room, /snapshot\.currentEpisode && \(snapshot\.account\.cadenceAnchor \|\| !snapshot\.pendingFactualReview\) \? \(/);
+          });
+
+          test("once cadenceAnchor exists the server continues to build the Current Episode from that anchor", () => {
+            assert.match(route, /buildCurrentEpisodeSummary\([\s\S]*anchorStart: account\.cadenceAnchor[\s\S]*\)/);
+            assert.match(room, /snapshot\.account\.cadenceAnchor \|\| !snapshot\.pendingFactualReview/);
+          });
+
+          test("engine-incomplete state still withholds unsupported position guidance", () => {
+            assert.match(desk, /codes=\{\["ENGINE_REVIEW_INCOMPLETE"\]\}/);
+            assert.match(desk, /!interpretation\.complete/);
+            assert.match(desk, /return <DeskQualityHold/);
+            assert.match(desk, /const quality = validateDeskForPublication\(shown, engineResults\)/);
+          });
+
+          test("retryable engine failure still exposes the manual position retry", () => {
+            assert.match(desk, /recoveryState === "manual"/);
+            assert.match(desk, /onClick=\{onRetry\}>TRY POSITION CHECK AGAIN<\/button>/);
+          });
+
+          test("ENGINE_REVIEW_INCOMPLETE is not rendered as primary player-facing copy", () => {
+            const start = desk.indexOf("if (engineUnavailable)");
+            const end = desk.indexOf("return (", desk.indexOf("return (", start) + 1);
+            const engineHold = desk.slice(start, end > start ? end : start + 7000);
+            assert.match(engineHold, /The position check did not finish on this device\. Try the position check again\./);
+            assert.doesNotMatch(engineHold, /Position check: \{codes\.join/);
+            assert.match(engineHold, /<details className="quality-reference" data-engine-code=\{diagnostic\.code\}>/);
+          });
+
+          test("engine diagnostic reporting is fire-and-forget and server logs only sanitized data", () => {
+            assert.match(desk, /void reportEngineDiagnostic\(item\)/);
+            assert.match(reporter, /catch \{[\s\S]*Observability is deliberately non-blocking/);
+            assert.match(diagnosticRoute, /sanitizeEngineDiagnosticTelemetry\(await request\.json\(\)\)/);
+            assert.match(diagnosticRoute, /console\.warn\("\[BoardSignal\] position-review diagnostic", diagnostic\)/);
+            assert.doesNotMatch(diagnosticRoute, /console\.(?:log|warn|error)\([^\n]*request/);
+          });
+
+          test("historical onboarding worker remains wired to the bounded history-backfill path", () => {
+            assert.match(historyWorker, /\/api\/boardsignal\/history-backfill/);
+            assert.match(historyWorker, /maxTargetReviews/);
+            assert.match(historyWorker, /importedReviewCount/);
+          });
+          EOF
+
+      - name: Focused hotfix regression
+        run: node --test tests/boardsignal-first-review-completion-ux-hotfix.test.cjs
+
+      - name: Focused telemetry regression
+        run: npx tsc -p tsconfig.tests.json && node --test .test-dist/tests/boardsignal-engine-diagnostics.test.js
+
+      - name: Existing first-review and history regressions
+        run: node --test tests/boardsignal-first-review-onboarding-loop-hotfix.test.cjs tests/boardsignal-durable-first-desk-resilience.test.cjs tests/boardsignal-active-week-next-game-guidance.test.cjs tests/boardsignal-player-room-g3.test.cjs
+
+      - name: Core suite
+        run: npm run test:core
+
+      - name: Critical suite
+        run: npm run test:critical
+
+      - name: Stockfish smoke
+        run: npm run test:stockfish
+
+      - name: PWA suite
+        run: npm run test:pwa
+
+      - name: Contrast suite
+        run: npm run test:contrast
+
+      - name: Production build
+        run: npm run build
+
+      - name: Confirm isolated diff and untouched history worker
+        run: |
+          git diff --exit-code HEAD -- src/components/BoardSignalHistoryWorker.tsx
+          git status --short
+          git diff --name-only HEAD | sort
+
+      - name: Commit validated hotfix
+        run: |
+          git config user.name "BoardSignal Hotfix Runner"
+          git config user.email "boardsignal-hotfix@users.noreply.github.com"
+          git add src/components/BoardSignalPlayerRoom.tsx src/components/UniversalPlayerDesk.tsx src/lib/boardsignal/engineDiagnostics.ts src/lib/boardsignal/client/engineDiagnosticReporter.ts src/app/api/boardsignal/engine-diagnostic/route.ts tests/boardsignal-engine-diagnostics.test.ts tests/boardsignal-first-review-completion-ux-hotfix.test.cjs
+          git commit -m "Fix first Review completion experience"
+          git push origin HEAD:boardsignal-hotfix-first-review-completion-ux

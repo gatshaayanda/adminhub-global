@@ -48,7 +48,7 @@ type ReviewPeriod = { periodStart: string; periodEnd: string; periodLabel?: stri
 
 function clean<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function normalize(value?: string) { return String(value ?? "").trim().replace(/^@/, "").toLowerCase(); }
-function identityConflict(account: OperationsAccount) { return account.identityStatus === "revoked" || account.identityReviewStatus === "rejected"; }
+function identityConflict(account: OperationsAccount) { return account.identityConflictOpen === true || account.identityStatus === "revoked" || account.identityReviewStatus === "rejected"; }
 function cadenceWeekForming(account: OperationsAccount) { return account.accessStatus === "active" && Boolean(account.cadenceAnchor); }
 function historicalPublishedPeriods(account: OperationsAccount) {
   return Object.values(account.reviewHistoryBackfill?.evaluated ?? {}).filter((evaluation) => evaluation?.status === "published").length;

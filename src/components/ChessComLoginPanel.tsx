@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signInWithCustomToken } from "firebase/auth";
 import { ArrowRight, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
 import FoundingBetaAccessPanel from "@/components/FoundingBetaAccessPanel";
+import GoogleAccessButton from "@/components/GoogleAccessButton";
 import { auth } from "@/utils/firebaseConfig";
 
 type ProviderStatus = {
@@ -47,12 +48,13 @@ export default function ChessComLoginPanel({ compact = false }: { compact?: bool
     <section className={`chesscom-login-panel ${compact ? "is-compact" : ""}`}>
       <div className="chesscom-login-icon"><LockKeyhole size={20} /></div>
       <div className="chesscom-login-copy">
-        <span>{status?.enabled ? "CHESS.COM ACCOUNT ACCESS" : "FOUNDING ACCESS"}</span>
+        <span>RETURN TO MY BOARDSIGNAL</span>
         <h2>Keep your latest four reviews together.</h2>
-        <p>{status?.enabled ? status.message : "Official Chess.com sign-in is awaiting approval. Founding Access players can open My BoardSignal securely now."}</p>
-        <small><ShieldCheck size={14} /> BoardSignal never asks for or stores your Chess.com password.</small>
+        <p>Google is the easiest return key once you connect it from your Player Room. Existing Chess.com, Preview, magic and fallback access stay available.</p>
+        <small><ShieldCheck size={14} /> Google signs you into BoardSignal only. It does not prove ownership of a Chess.com profile.</small>
       </div>
       <div className="chesscom-login-actions">
+        <GoogleAccessButton compact={compact} />
         {status?.enabled ? (
           <a className="button button-outline" href="/api/auth/chesscom/start">Continue with Chess.com <ArrowRight size={16} /></a>
         ) : null}

@@ -3,10 +3,13 @@ import { LockKeyhole, ShieldCheck, Target } from "lucide-react";
 import ChessComLoginPanel from "@/components/ChessComLoginPanel";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { betaProof, coverageStories } from "@/data/boardsignal";
+import { BOARDSIGNAL_SUPPORT_DISCORD_URL } from "@/lib/boardsignal/client/firestoreQuota";
+import { loadPublicBoardSignalProof } from "@/lib/boardsignal/server/publicProof";
 
 const secondaryStories = coverageStories.slice(0, 3);
 
-export default function HomePage() {
+export default async function HomePage() {
+  const liveProof = await loadPublicBoardSignalProof();
   return (
     <div id="main" className="personal-home">
       <section className="personal-hero">
@@ -18,6 +21,16 @@ export default function HomePage() {
             <div id="get-my-boardsignal" className="hero-username-card">
               <UsernameDeskForm />
             </div>
+            {liveProof ? <div className="boardsignal-live-proof" aria-label="Live BoardSignal product proof">
+              <p className="kicker">LIVE BOARDSIGNAL PROOF</p>
+              <div className="boardsignal-live-proof-grid">
+                <span><strong>{liveProof.playersServed}</strong> Players served</span>
+                <span><strong>{liveProof.reviewsProduced}</strong> Reviews produced</span>
+                <span><strong>{liveProof.reviewsForming}</strong> Reviews forming</span>
+                <span><strong>{liveProof.returningPlayers}</strong> Returning players</span>
+              </div>
+              <small>Product activity only — not site visitors or live-viewer theatre.</small>
+            </div> : null}
             <div className="first-value-preview">
               <p className="kicker">WHAT BOARDSIGNAL GIVES YOU</p>
               <div>
@@ -63,6 +76,10 @@ export default function HomePage() {
         <div className="secondary-footer">
           <p><LockKeyhole size={15} /> Public highlights. Private improvement guidance.</p>
           <Link href="/feed" className="text-link">See what&apos;s happening around BoardSignal</Link>
+        </div>
+        <div className="boardsignal-community-entry">
+          <div><p className="kicker">BOARDSIGNAL COMMUNITY</p><strong>Want to compare notes with other players or talk to the founder?</strong><p>Discord is optional and never required for access or identity.</p></div>
+          <a className="button button-outline" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener">JOIN THE BOARDSIGNAL DISCORD</a>
         </div>
       </section>
     </div>

@@ -51,8 +51,11 @@ export type BoardSignalAccount = {
   maxActiveDesks: 4;
   chessCom: StableChessComIdentity;
   chessComOAuthLinkedAt?: string;
+  googleAccessConnectedAt?: string;
   identityStatus?: BoardSignalIdentityStatus;
   identityReviewStatus?: BoardSignalIdentityReviewStatus;
+  identityConflictOpen?: boolean;
+  identityConflictOpenedAt?: string;
   founderReviewedAt?: string;
   betaAgreementVersion?: string;
   betaAgreementAcceptedAt?: string;

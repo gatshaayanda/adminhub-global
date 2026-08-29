@@ -11,7 +11,7 @@ import { BOARDSIGNAL_FOUNDER_DEVICE_EVENT, BOARDSIGNAL_FOUNDER_DEVICE_KEY } from
 
 const primaryNav = [
   { label: "Home", href: "/" },
-  { label: "Around BoardSignal", href: "/feed" },
+  { label: "Universe", href: "/feed" },
   { label: "My BoardSignal", href: "/boardsignal/player-room" },
 ];
 
@@ -31,7 +31,6 @@ export default function Header() {
     return () => window.removeEventListener(BOARDSIGNAL_FOUNDER_DEVICE_EVENT, refresh);
   }, []);
 
-
   const active = (href: string) => href === "/" ? pathname === "/" : pathname?.startsWith(href);
   const insideOwnerFlow = pathname?.startsWith("/boardsignal/player-room") || pathname?.startsWith("/boardsignal/build/");
 
@@ -48,15 +47,15 @@ export default function Header() {
         </nav>
         <div className="header-actions">
           <BoardSignalThemeControl className="bs-theme-control-desktop" />
-          {!insideOwnerFlow ? <Link href="/#get-my-boardsignal" className="button button-dark header-join">Get My BoardSignal</Link> : null}
+          {!insideOwnerFlow ? <Link href="/#get-my-boardsignal" className="button button-dark header-join">Open BoardSignal</Link> : null}
           <button type="button" className="menu-button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={open ? "Close menu" : "Open menu"}>{open ? <X size={22} /> : <Menu size={22} />}</button>
         </div>
       </div>
       {open ? <nav className="mobile-nav container" aria-label="Mobile navigation">
         <BoardSignalThemeControl className="bs-theme-control-mobile" />
         {primaryNav.map((item) => <Link key={item.href} href={item.href} className={active(item.href) ? "active" : ""}>{item.label}</Link>)}
-        {founderEntry ? <Link href="/admin">Founder Newsroom</Link> : null}
-        {!insideOwnerFlow ? <Link href="/#get-my-boardsignal" className="button button-lime">Get My BoardSignal</Link> : null}
+        {founderEntry ? <Link href="/admin">Founder Command Center</Link> : null}
+        {!insideOwnerFlow ? <Link href="/#get-my-boardsignal" className="button button-lime">Open BoardSignal</Link> : null}
       </nav> : null}
     </header>
   );

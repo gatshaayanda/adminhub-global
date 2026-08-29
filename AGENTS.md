@@ -40,7 +40,7 @@ Do not replace the stack or delete a legacy system merely because it is not yet 
 - Public highlight, private weakness. Public coverage may show positive evidence anonymously. Red, Amber, Blue guidance, private reflections and detailed positions remain private unless the player deliberately shares them.
 - Do not persistently service-worker-cache private `/app` or founder `/admin` responses.
 - The base weekly loop is stateless: one fixed completed seven-day period produces one episode. A Blue Signal is advice, not a cross-week mission to grade.
-- Normal onboarding is Chess.com username only. Manual PGN upload is an exceptional recovery path.
+- Public Universe exploration remains available without authentication. New private BoardSignal access is Google-authenticated first, then the player enters and confirms a canonical Chess.com username. Manual PGN upload is an exceptional recovery path.
 
 ## Data rules
 
@@ -53,8 +53,8 @@ Do not replace the stack or delete a legacy system merely because it is not yet 
 
 The first useful flow is `PLAYER → THEIR WEEK → THEIR SIGNALS → THEIR ACTION`.
 
-- The homepage's primary interaction is Chess.com username entry.
-- Do not put membership, payment, account creation or email verification before a beta Desk.
+- The homepage new-private primary action is `Continue with Google`; after Google authentication BoardSignal asks for and confirms the canonical Chess.com username.
+- Do not put payment, marketing email consent or Founder approval in front of new private access. Google authentication is the identity gate for new private access; Chess.com ownership remains provisional until separately confirmed.
 - Every approved beta username must open its own real seeded Desk. `Ayandakopano` is one complete example, not the app's default player or product centre.
 - A username outside the seed set must confirm the canonical Chess.com profile, retrieve public archives, select the latest completed Monday–Sunday block (or disclose the last-active fallback), build factual statistics, legally reconstruct selected positions and request browser-side Stockfish review.
 - Other-player stories prove the world is alive, but never become the homepage's main subject.

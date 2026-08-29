@@ -84,6 +84,8 @@ export default function BoardSignalPlayerRoom() {
   const [tab, setTab] = useState<RoomTab>("desk");
   const [unreadCount, setUnreadCount] = useState(0);
   const [socialPlayers, setSocialPlayers] = useState<Record<string, SocialSummaryPlayer>>({});
+  const [incomingFriendRequests, setIncomingFriendRequests] = useState(0);
+  const [suggestedPlayerCount, setSuggestedPlayerCount] = useState(0);
   const [friendCompareTarget, setFriendCompareTarget] = useState<number | undefined>();
   const [offlineSnapshot, setOfflineSnapshot] = useState<OfflinePlayerRoomSnapshot | null>(null);
   // null = normal live/offline routing; undefined = live service unavailable with no saved snapshot.
@@ -173,6 +175,8 @@ export default function BoardSignalPlayerRoom() {
       setLiveDataUnavailableSnapshot(null);
       setToken("");
       setSocialPlayers({});
+      setIncomingFriendRequests(0);
+      setSuggestedPlayerCount(0);
       setUnreadCount(0);
       void clearBoardSignalAppBadge();
       void clearBoardSignalPrivateOfflineData(previousUid);
@@ -277,17 +281,26 @@ export default function BoardSignalPlayerRoom() {
 
   const refreshSocialSummary = useCallback(async () => {
     if (!token) return;
-    const response = await fetch("/api/boardsignal/social?view=overview", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-    const body = await response.json() as { ok?: boolean; overview?: { friends?: SocialSummaryPlayer[]; incoming?: SocialSummaryPlayer[]; outgoing?: SocialSummaryPlayer[] } };
-    if (!response.ok || !body.ok || !body.overview) return;
-    const players = [...(body.overview.friends ?? []), ...(body.overview.incoming ?? []), ...(body.overview.outgoing ?? [])];
-    setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player])));
+    const headers = { Authorization: `Bearer ${token}` };
+    const [overviewResponse, suggestedResponse] = await Promise.all([
+      fetch("/api/boardsignal/social?view=overview", { headers, cache: "no-store" }),
+      fetch("/api/boardsignal/social?view=suggested", { headers, cache: "no-store" }),
+    ]);
+    const overviewBody = await overviewResponse.json() as { ok?: boolean; overview?: { friends?: SocialSummaryPlayer[]; incoming?: SocialSummaryPlayer[]; outgoing?: SocialSummaryPlayer[] } };
+    if (overviewResponse.ok && overviewBody.ok && overviewBody.overview) {
+      const players = [...(overviewBody.overview.friends ?? []), ...(overviewBody.overview.incoming ?? []), ...(overviewBody.overview.outgoing ?? [])];
+      setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player])));
+      setIncomingFriendRequests(overviewBody.overview.incoming?.length ?? 0);
+    }
+    const suggestedBody = await suggestedResponse.json().catch(() => ({})) as { ok?: boolean; players?: SocialSummaryPlayer[] };
+    if (suggestedResponse.ok && suggestedBody.ok) setSuggestedPlayerCount(suggestedBody.players?.length ?? 0);
   }, [token]);
 
   useEffect(() => { if (token && snapshot?.account.preferencesConfirmedAt) void refreshSocialSummary(); }, [refreshSocialSummary, snapshot?.account.preferencesConfirmedAt, token]);
   const handleFriendsChanged = useCallback((overview: { friends: SocialSummaryPlayer[]; incoming: SocialSummaryPlayer[]; outgoing: SocialSummaryPlayer[] }) => {
     const players = [...overview.friends, ...overview.incoming, ...overview.outgoing];
     setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player])));
+    setIncomingFriendRequests(overview.incoming.length);
   }, []);
 
   const socialActionFromUniverse = useCallback(async (username: string) => {
@@ -427,38 +440,29 @@ export default function BoardSignalPlayerRoom() {
     <div id="main" className="container player-room-entry">
       <p className="kicker">MY BOARDSIGNAL</p><h1>Your games, your review, your progress.</h1>
       <ChessComLoginPanel />
-      <div className="oauth-pending-divider"><span>Need Founding Access?</span></div>
+      <div className="oauth-pending-divider"><span>New to BoardSignal?</span></div>
       <UsernameDeskForm />
     </div>
   );
   if (liveDataUnavailableSnapshot !== null && user) return <LiveDataUnavailablePlayerRoom initialSnapshot={liveDataUnavailableSnapshot} reasonCode={liveDataUnavailableCode} onRetry={() => loadRoom(user, false)} />;
   if (offlineSnapshot && user) return <OfflinePlayerRoom uid={user.uid} initialSnapshot={offlineSnapshot} embedded />;
   if (error || !snapshot) return <RoomError error={error || "My BoardSignal could not be loaded."} />;
-  if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;
+  if (!snapshot.account.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;
   if (!snapshot.account.preferencesConfirmedAt || !snapshot.account.contactConfirmedAt) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<PlayerPreferencesGate account={snapshot.account} onContinue={confirmPreferences} /></>;
-
-  if (automaticGenerationRequired && !hasOriginalHistory) {
-    return (
-      <div id="main" className="player-room-authenticated">
-        <RoomIdentity account={snapshot.account} />
-        <div className="container member-first-desk-note"><p className="kicker">REVIEW 1 · PERSISTENT ACCOUNT</p><h2>Your first review belongs here.</h2><p>{connectivity.online ? "BoardSignal is building the latest completed week for your Chess.com identity. When the evidence checks are complete, the review is saved here in My BoardSignal." : "You're offline. BoardSignal will not retrieve new Chess.com games or build a review until you reconnect."}</p><button className="button button-quiet" type="button" onClick={signOutPlayer}>Sign out</button></div>
-        {connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : <div className="container offline-network-action"><strong>Building a new review needs a connection.</strong><p>Your account is unchanged. Reconnect and BoardSignal will continue your review.</p></div>}
-      </div>
-    );
-  }
 
   return (
     <div id="main" className="player-room-authenticated">
       <RoomIdentity account={snapshot.account} />
-      <RoomNav tab={tab} setTab={setTab} unreadCount={unreadCount} />
+      <RoomNav tab={tab} setTab={setTab} unreadCount={unreadCount} friendRequestCount={incomingFriendRequests} />
       {offlineReadyNotice ? <div className="container offline-ready-note" role="status">Your latest BoardSignal is available offline on this device.</div> : null}
 
       {tab === "desk" ? <section id="player-room-panel-desk" role="tabpanel" aria-labelledby="player-room-tab-desk" className="g3-room-panel g3-review-tab">
         <div className="container player-room-memory g3-review-flow">
           {quickRead ? <PlayerRoomQuickRead quickRead={quickRead} /> : null}
           {snapshot.currentEpisode ? <CurrentEpisodeCard episode={snapshot.currentEpisode} uid={user.uid} online={connectivity.online} /> : <div className="founding-field-note"><CalendarDays size={18} /><div><strong>This week's check is unavailable</strong><p>{snapshot.progressUnavailable ?? "Your last completed review remains unchanged."}</p></div></div>}
+          {!latest ? <FirstRoomDiscovery suggestedPlayerCount={suggestedPlayerCount} setTab={setTab} /> : null}
         </div>
-        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : latest ? <><AuthenticatedUniverseProvider pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable}><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} presentationMode="player-room" embedded /></AuthenticatedUniverseProvider><div className="container player-room-memory g3-review-journal-slot"><PlayerReviewJournal review={{ reviewKey: latest.summary.deskKey, periodStart: latest.summary.periodStart, periodEnd: latest.summary.periodEnd, periodLabel: latest.summary.periodLabel }} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} /></div><div className="container player-room-memory g3-post-review">{latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}<DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : automaticGenerationRequired && hasOriginalHistory ? <div className="container player-room-memory"><div className="founding-field-note"><CalendarDays size={18}/><div><strong>Your original Review is already here.</strong><p>{connectivity.online ? "BoardSignal is building the next eligible LIVE Review from your preserved seven-day cadence." : "Reconnect before BoardSignal retrieves new Chess.com games for your next Review."}</p></div></div>{connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={originalCadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : null}</div> : null}
+        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : latest ? <><AuthenticatedUniverseProvider pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable}><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} presentationMode="player-room" embedded /></AuthenticatedUniverseProvider><div className="container player-room-memory g3-review-journal-slot"><PlayerReviewJournal review={{ reviewKey: latest.summary.deskKey, periodStart: latest.summary.periodStart, periodEnd: latest.summary.periodEnd, periodLabel: latest.summary.periodLabel }} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} /></div><div className="container player-room-memory g3-post-review">{latest ? <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} /> : null}<DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div></> : automaticGenerationRequired ? <div className="container player-room-memory"><div className="founding-field-note"><CalendarDays size={18}/><div><strong>{hasOriginalHistory ? "Your original Review is already here." : "Your Review is forming."}</strong><p>{connectivity.online ? (hasOriginalHistory ? "BoardSignal is building the next eligible LIVE Review from your preserved seven-day cadence." : "BoardSignal is building your first completed Review. You can use Universe, Friends, Inbox and Profile while it forms.") : "Reconnect before BoardSignal retrieves new Chess.com games for this Review."}</p></div></div>{connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={originalCadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : null}</div> : null}
       </section> : null}
 
       {tab === "progress" ? <section id="player-room-panel-progress" role="tabpanel" aria-labelledby="player-room-tab-progress" className="g3-room-panel"><div className="container player-room-memory"><ProgressSection history={reviewHistory} reportPeriods={reportPeriods} coverage={snapshot.historyCoverage} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} /></div></section> : null}
@@ -475,14 +479,14 @@ function OriginalBetaWelcome() {
 }
 
 function RoomIdentity({ account }: { account: BoardSignalAccount }) {
-  return <header className="container player-room-identity"><div className="universal-avatar">{account.chessCom.canonicalUsername.slice(0, 2).toUpperCase()}</div><div><span>MY BOARDSIGNAL</span><h1>{account.chessCom.canonicalUsername}</h1><p>Founding Access · Private Review</p></div></header>;
+  return <header className="container player-room-identity"><div className="universal-avatar">{account.chessCom.canonicalUsername.slice(0, 2).toUpperCase()}</div><div><span>MY BOARDSIGNAL</span><h1>{account.chessCom.canonicalUsername}</h1><p>Private access · Personal Review</p></div></header>;
 }
 
-function RoomNav({ tab, setTab, unreadCount }: { tab: RoomTab; setTab: (tab: RoomTab) => void; unreadCount: number }) {
+function RoomNav({ tab, setTab, unreadCount, friendRequestCount }: { tab: RoomTab; setTab: (tab: RoomTab) => void; unreadCount: number; friendRequestCount: number }) {
   const items: Array<{ id: RoomTab; label: string }> = [
     { id: "desk", label: "Review" },
     { id: "progress", label: "Progress" },
-    { id: "universe", label: "Around BoardSignal" },
+    { id: "universe", label: "Universe" },
     { id: "friends", label: "Friends" },
     { id: "inbox", label: "Inbox" },
     { id: "profile", label: "Profile" },
@@ -512,7 +516,21 @@ function RoomNav({ tab, setTab, unreadCount }: { tab: RoomTab; setTab: (tab: Roo
     if (nextIndex === undefined) return;
     event.preventDefault();
     focusTab(nextIndex);
-  }}>{item.label}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span> : null}</button>)}</div></nav>;
+  }}>{item.label}{item.id === "friends" && friendRequestCount > 0 ? <span className="unread-badge" aria-label={`${friendRequestCount} incoming friend request${friendRequestCount === 1 ? "" : "s"}`}>{friendRequestCount}</span> : null}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span> : null}</button>)}</div></nav>;
+}
+
+function FirstRoomDiscovery({ suggestedPlayerCount, setTab }: { suggestedPlayerCount: number; setTab: (tab: RoomTab) => void }) {
+  return <section className="first-value-preview" aria-label="My BoardSignal is live">
+    <p className="kicker">MY BOARDSIGNAL IS LIVE</p>
+    <h2>Your Review can form without turning the rest of BoardSignal into a waiting room.</h2>
+    <div className="boardsignal-live-proof-grid">
+      <span><strong>YOUR REVIEW</strong> Forming from the current truthful state.</span>
+      <span><strong>THE UNIVERSE</strong> See what is happening across BoardSignal.</span>
+      <span><strong>DISCOVER PLAYERS</strong> {suggestedPlayerCount > 0 ? `${suggestedPlayerCount} available` : "Open discovery"}.</span>
+      <span><strong>STAY CONNECTED</strong> Browser alerts, explicit email and Discord are optional.</span>
+    </div>
+    <div className="resolved-player-actions"><button type="button" className="button button-outline" onClick={() => setTab("universe")}>OPEN UNIVERSE</button><button type="button" className="button button-quiet" onClick={() => setTab("friends")}>DISCOVER PLAYERS</button><button type="button" className="button button-quiet" onClick={() => setTab("profile")}>STAY CONNECTED</button><a className="button button-quiet" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener">DISCORD</a></div>
+  </section>;
 }
 
 function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeWithNextGameGuidance; uid: string; online: boolean }) {
@@ -664,13 +682,13 @@ function UniverseRoomPanel({ account, pulse, unavailable, socialPlayers, onSocia
   const whatsHot = (pulse?.whatsHot ?? []).filter((event) => !justInIds.has(event.eventId) && !fieldEventIds.has(event.eventId));
   const fromField = groups.flatMap((group) => group.boards.flatMap((board) => board.entries.slice(0, 1).map((entry) => ({ group, board, entry })))).filter(({ entry }) => entry.player.toLowerCase() !== account.chessCom.canonicalUsername.toLowerCase()).filter((item, index, all) => all.findIndex((other) => other.entry.stablePlayerId ? other.entry.stablePlayerId === item.entry.stablePlayerId && other.board.categoryId === item.board.categoryId : other.entry.player.toLowerCase() === item.entry.player.toLowerCase() && other.board.categoryId === item.board.categoryId) === index).slice(0, 6);
 
-  if (!pulse) return <section className="player-universe-panel g4-universe-panel"><div className="g4-live-field-header"><p className="kicker">AROUND BOARDSIGNAL</p><h2>LIVE FIELD</h2><p>Current official field state is temporarily unavailable. {unavailable ?? "Your completed Review and private progress remain unchanged."}</p></div><div className="g4-universe-unavailable" role="status"><strong>CURRENT FIELD TEMPORARILY UNAVAILABLE</strong><p>BoardSignal will not substitute the old founding field as if it were current.</p></div></section>;
+  if (!pulse) return <section className="player-universe-panel g4-universe-panel"><div className="g4-live-field-header"><p className="kicker">THE BOARDSIGNAL UNIVERSE</p><h2>LIVE FIELD</h2><p>Current official field state is temporarily unavailable. {unavailable ?? "Your completed Review and private progress remain unchanged."}</p></div><div className="g4-universe-unavailable" role="status"><strong>CURRENT FIELD TEMPORARILY UNAVAILABLE</strong><p>BoardSignal will not substitute the old founding field as if it were current.</p></div></section>;
 
   return <section className="player-universe-panel g4-universe-panel">
     <header className="g4-live-field-header">
-      <p className="kicker">AROUND BOARDSIGNAL</p>
+      <p className="kicker">THE BOARDSIGNAL UNIVERSE</p>
       <div className="g4-live-field-title"><h2>LIVE FIELD</h2><span>{pulse.officialPlayerCount} player{pulse.officialPlayerCount === 1 ? "" : "s"} represented</span></div>
-      <p>Official standings from each player&apos;s latest eligible completed Review. Current-week comparisons stay private and provisional until the Review closes.</p>
+      <p>See what&apos;s happening across BoardSignal, discover players, and connect around the chess you&apos;re already playing. Official standings use each player&apos;s latest eligible completed Review; current-week comparisons stay private and provisional until the Review closes.</p>
       <Link href={`/player/${encodeURIComponent(account.chessCom.canonicalUsername)}`} className="button button-outline">Open my highlights</Link>
     </header>
 

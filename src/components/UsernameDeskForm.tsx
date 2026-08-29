@@ -34,6 +34,15 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
   const [caseContactValue, setCaseContactValue] = useState("");
   const [caseSubmitted, setCaseSubmitted] = useState(false);
 
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanUsername = username.trim();
+    const publicUsername = cleanUsername.replace(/^@/, "");
+    if (!publicUsername) { setError("Enter a Chess.com username to explore public BoardSignal."); return; }
+    setError("");
+    router.push(`/boardsignal/build/${encodeURIComponent(publicUsername)}`);
+  }
+
   async function startGoogle() {
     if (busy) return;
     setBusy("google");
@@ -168,6 +177,14 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
         <button className="button button-lime activation-request-submit" type="button" onClick={() => void startGoogle()} disabled={busy === "google"}>{busy === "google" ? <><LoaderCircle className="button-spinner" size={17}/> Opening Google</> : <>CONTINUE WITH GOOGLE <ArrowRight size={17}/></>}</button>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <p className="username-privacy"><ShieldCheck size={14}/> Google identifies you to BoardSignal. It does not verify ownership of a Chess.com profile.</p>
+        <div className="oauth-pending-divider"><span>OR EXPLORE THE PUBLIC UNIVERSE</span></div>
+        <form className="public-universe-username-form" onSubmit={submit}>
+          <label htmlFor={compact ? "public-username-compact" : "public-username"}>Chess.com username
+            <div className="username-entry-row activation-username-row"><span className="username-prefix" aria-hidden="true"><Search size={19}/></span><input id={compact ? "public-username-compact" : "public-username"} name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Chess.com username" autoComplete="off" spellCheck={false}/></div>
+          </label>
+          <div className="beta-universe-disclosure"><strong>SEE YOUR GAMES TOGETHER</strong><p>Explore the public LIVE BoardSignal built from public Chess.com games. This does not create or open a private Player Room.</p></div>
+          <button className="button button-outline" type="submit">EXPLORE PUBLIC BOARDSIGNAL <ArrowRight size={17}/></button>
+        </form>
       </div>
     </section>;
   }

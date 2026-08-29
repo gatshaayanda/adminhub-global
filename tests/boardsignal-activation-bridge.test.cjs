@@ -66,12 +66,19 @@ test('06 request resolves canonical stable Chess.com identity', () => {
   assert.match(submission, /resolveChessComPlayer\(requestedUsername\)/);
   assert.match(betaRequests, /playerId: resolved\.playerId, canonicalUsername: resolved\.username/);
 });
-test('07 request is one username-only submit before return-channel choice', () => {
-  assert.match(requestForm, /See My BoardSignal/);
-  assert.doesNotMatch(requestForm, /preferredContactMethod:|preferredContactValue:|betaContactConsent:/);
-  assert.doesNotMatch(requestForm, /Is this you\?/i);
+test('07 new private access is Google-first before a Chess.com identity is claimed', () => {
+  assert.match(requestForm, /CONTINUE WITH GOOGLE/);
+  assert.match(requestForm, /Continue with Google before connecting a Chess\.com username/);
+  assert.match(requestForm, /FIND MY CHESS\.COM PROFILE/);
+  assert.doesNotMatch(requestForm, /CONTINUE WITHOUT GOOGLE|CONTINUE PREVIEW/i);
 });
-test('08 request redirects immediately to Preview Room with fragment credential', () => assert.match(requestForm, /\/boardsignal\/preview\/\$\{encodeURIComponent\(requestId\)\}#status=/));
+test('08 public username exploration stays public-Universe only', () => {
+  assert.match(requestForm, /EXPLORE PUBLIC BOARDSIGNAL/);
+  assert.match(requestForm, /\/boardsignal\/build\//);
+  assert.match(requestForm, /encodeURIComponent\(publicUsername\)/);
+  assert.match(requestForm, /does not create or open a private Player Room/);
+  assert.doesNotMatch(requestForm, /\/boardsignal\/preview\//);
+});
 test('09 request is persisted before preview generation', () => {
   const setAt = submission.indexOf('await ref.set(clean(record))');
   const previewAt = submission.indexOf('generateAndStorePreview', setAt);

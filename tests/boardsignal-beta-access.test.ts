@@ -84,10 +84,11 @@ test("player A access cannot authenticate against player B record", () => {
 test("returning Firebase sessions bypass the access form and open My Player Room", () => {
   const room = readFileSync("src/components/BoardSignalPlayerRoom.tsx", "utf8");
   const form = readFileSync("src/components/FoundingBetaAccessPanel.tsx", "utf8");
+  const profile = readFileSync("src/components/PlayerProfileNotifications.tsx", "utf8");
   assert.match(room, /onAuthStateChanged\(auth/);
   assert.match(room, /if \(!user\)/);
   assert.match(form, /browserLocalPersistence/);
-  assert.match(room, /Sign out/);
+  assert.match(profile, /Sign out/);
 });
 
 test("public username to LIVE Desk remains available without authentication", () => {

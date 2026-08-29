@@ -39,7 +39,8 @@ test("3. approval reuses stable identity instead of creating a duplicate player"
 test("4. first member Desk is published into the persistent owner account", () => {
   const room = read("src/components/BoardSignalPlayerRoom.tsx");
   const persistence = read("src/lib/boardsignal/server/persistence.ts");
-  assert.match(room, /REVIEW 1/);
+  assert.match(room, /MY BOARDSIGNAL IS LIVE/);
+  assert.match(room, /Your Review is forming/);
   assert.match(room, /ownerToken=/);
   assert.match(room, /onDeskPublished=/);
   assert.match(persistence, /collection\("users"\)\.doc\(account\.uid\)\.collection\("desks"\)/);
@@ -52,7 +53,8 @@ test("5. required Universe participation is disclosed and cannot be falsely togg
   assert.match(form, /className="beta-universe-disclosure"/);
   assert.match(form, /SEE YOUR GAMES TOGETHER/);
   assert.match(gate, /Included with Founding Access/);
-  assert.match(profile, /Founding Access public highlights = Included/);
+  assert.match(profile, /Public highlights/);
+  assert.match(profile, /Google Access never unlocks public Chess.com identity by itself/);
   assert.match(profile, /privacy: \{ \.\.\.privacy, publicPlayerPage: true, universeCoverage: true \}/);
   assert.doesNotMatch(profile, /Allow safe positive Universe coverage/);
 });

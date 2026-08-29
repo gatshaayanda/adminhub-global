@@ -193,7 +193,7 @@ test('Journal and Progress remain on the stable BoardSignal UID across Google li
 
 test('normal copy no longer presents Preview or Founder approval as the new-user journey', () => {
   const ordinaryCopy = [usernameForm, homepage, login, profile, room].join('\n');
-  assert.doesNotMatch(usernameForm, /PREVIEW|FOUNDER REVIEW|WAITING FOR APPROVAL|CONTINUE WITHOUT GOOGLE/i);
+  assert.doesNotMatch(usernameForm, /BOARD SIGNAL PREVIEW|CONTINUE PREVIEW|FOUNDER REVIEW|WAITING FOR APPROVAL|CONTINUE WITHOUT GOOGLE/i);
   assert.doesNotMatch(ordinaryCopy, /PROVISIONAL PLAYER|PENDING FOUNDER REVIEW|PREVIEW ACTIVE|WAITING FOR APPROVAL|FOUNDER WILL REVIEW YOU/i);
   assert.match(activation, /export async function verifyBetaPreviewStatusCredential/);
   assert.match(activation, /export async function claimProvisionalBetaPreview/);

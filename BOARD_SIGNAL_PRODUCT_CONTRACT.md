@@ -16,8 +16,8 @@ The brand, other players, product proof, pricing, and community features must ne
 
 ### 1. Find me
 
-- The first primary action is `Enter your Chess.com username`.
-- Ask for no Chess.com password, API key, PGN file, email address, or payment before the player sees their first useful Desk.
+- For a new private BoardSignal, the first primary action is `Continue with Google`. After Google authentication, ask for the Chess.com username, resolve the canonical public profile, and require `YES — THIS IS MINE` before creating the private relationship. Public Universe content remains available without authentication.
+- Never ask for a Chess.com password, API key or routine PGN upload. Google identifies the BoardSignal requester but does not prove Chess.com ownership. Do not infer email, marketing, notification or Trustpilot consent from Google authentication.
 - Confirm Chess.com's canonical username and stable player ID when available.
 - Surface ambiguous-character corrections for confirmation; never silently assume identity.
 
@@ -140,7 +140,7 @@ When a game sequence ID is useful to a player, render `Game 8`, not unexplained 
 
 ## Commercial boundary
 
-Membership, account creation, payments, and email claiming belong after the username-to-beta-quality-Desk loop is reliable. They remain part of the planned full product, but they do not interrupt the first useful experience.
+Payments remain after the core Review experience is reliable. Patch K makes Google authentication the required identity gate for a brand-new private BoardSignal before the Chess.com username is claimed; public Universe exploration remains available without authentication. Google is not Chess.com ownership proof and does not imply contact, marketing, notification or Trustpilot consent.
 
 ## Definition of a complete core
 
@@ -165,7 +165,7 @@ Termination counts, streaks, volume, rating movement, openings, and opponent ban
 
 ## Identity, ownership and four-Desk memory
 
-- Official Chess.com OAuth is the ownership proof when its real credentials and documentation are available. Until then, the provider remains disabled and the public-username LIVE builder remains available. BoardSignal never fakes an OAuth success or asks for a Chess.com password.
+- Official Chess.com OAuth is the ownership proof when its real credentials and documentation are available. Until then, the provider remains disabled and BoardSignal never fakes an OAuth success or asks for a Chess.com password. New private access uses Google to identify the BoardSignal person, then a confirmed canonical Chess.com profile remains provisional/unverified for ownership until Founder-reviewed or future Chess.com OAuth verified.
 - While official OAuth approval is pending, an approved player may use a privately issued Founding Beta Access code. BoardSignal resolves the submitted username through Chess.com, verifies a salted server-only credential against the stable player ID, and signs into the same `chesscom_<playerId>` Firebase account OAuth will use later. No raw access code is persisted.
 - A verified account is keyed by stable Chess.com player ID plus canonical username and bridges into Firebase custom authentication through a server-only, short-lived, one-use completion ticket.
 - Founding beta players use the normal entitlement model: `role: player`, `accessTier: founding_beta`, `accessStatus: active`, `billingRequired: false`, `maxActiveDesks: 4`.

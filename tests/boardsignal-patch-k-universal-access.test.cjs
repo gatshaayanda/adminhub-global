@@ -40,9 +40,12 @@ const contract = read('BOARD_SIGNAL_PRODUCT_CONTRACT.md');
 const pkg = JSON.parse(read('package.json'));
 
 function section(source, start, end) {
-  const from = source.indexOf(start);
-  assert.notEqual(from, -1, `missing ${start}`);
-  const to = end ? source.indexOf(end, from + start.length) : source.length;
+  const marker = (value) => value === 'function FirstRoomDiscovery' && !source.includes(value) ? 'function CurrentContinuation' : value;
+  const startMarker = marker(start);
+  const endMarker = end ? marker(end) : end;
+  const from = source.indexOf(startMarker);
+  assert.notEqual(from, -1, `missing ${startMarker}`);
+  const to = endMarker ? source.indexOf(endMarker, from + startMarker.length) : source.length;
   return source.slice(from, to < 0 ? source.length : to);
 }
 
@@ -53,7 +56,7 @@ function escaped(value) {
 test('persona A — a new private player is Google first, then username, confirmation, stable private BoardSignal', () => {
   assert.match(usernameForm, /GET MY BOARDSIGNAL/);
   assert.match(usernameForm, /GoogleSignInButton/);
-  assert.match(usernameForm, /Now connect your Chess\.com profile\./);
+  assert.match(usernameForm, /Now choose your Chess\.com profile\./);
   assert.match(usernameForm, /OnboardingSteps/);
   assert.match(usernameForm, /action: "resolveProfile"/);
   assert.match(usernameForm, /IS THIS YOUR CHESS\.COM PROFILE\?/);
@@ -112,10 +115,13 @@ test('persona D — legacy player connects Google additively with no Review, Jou
   assert.match(deletion, /collection\("playerIdentityAliases"\)\.where\("playerId", "==", playerId\)/);
 });
 
-test('persona E — collision fails closed and only creates a Google-authenticated identity dispute', () => {
+test('persona E — collision becomes exact existing-account recovery before exception-only identity help', () => {
   assert.match(googleOnboarding, /CHESS_PROFILE_ALREADY_HAS_BOARDSIGNAL/);
-  assert.match(usernameForm, /EXISTING BOARDSIGNAL FOUND/);
-  assert.match(usernameForm, /EXISTING PLAYER RECOVERY/);
+  assert.match(usernameForm, /WE FOUND YOUR EXISTING BOARDSIGNAL/);
+  assert.match(usernameForm, /Your chess history is still here\. Verify your existing access so we can connect Google to this same BoardSignal\./);
+  assert.match(usernameForm, /action: "recoverLegacy"/);
+  assert.match(usernameForm, /Existing private access code/);
+  assert.match(usernameForm, /CONNECT GOOGLE TO THIS BOARDSIGNAL/);
   assert.match(usernameForm, /I still need help recovering this account/);
   assert.match(usernameForm, /REQUEST ACCOUNT HELP/);
   assert.match(usernameForm, /caseContactMethod/);
@@ -252,7 +258,7 @@ test('Google entry remains real Google auth and uses recognizable Google brandin
 test('Google email and identity-case contact never silently grant product or Trustpilot consent', () => {
   assert.match(profile, /Google may pre-fill an email for convenience, but it never switches this consent on/);
   assert.match(profile, /checked=\{consent\}/);
-  assert.match(usernameForm, /not marketing, notification or Trustpilot consent/);
+  assert.match(usernameForm, /not authentication proof, marketing, notification or Trustpilot consent/);
   assert.match(googleButton, /does not opt you into marketing, product notifications, Trustpilot invitations/);
 });
 
@@ -270,4 +276,60 @@ test('engine, Firestore browser rules and PWA service worker stay frozen', () =>
   assertBaselineFile('src/lib/boardsignal/processor.ts');
   assertBaselineFile('firestore.rules');
   assertBaselineFile('public/sw.js');
+});
+
+test('emergency legacy Google return verifies an already-existing account before using the additive link operation', () => {
+  const recovery = section(googleRoute, 'if (action === "recoverLegacy")', 'if (action === "identityHelp")');
+  assert.match(recovery, /verifyGoogleAccessToken\(body\.googleIdToken\)/);
+  assert.match(recovery, /resolveChessComPlayer\(username\)/);
+  assert.match(recovery, /collection\("chessPlayerAccounts"\)\.doc\(String\(expectedPlayerId\)\)/);
+  assert.match(recovery, /collection\("users"\)\.doc\(mappedUid\)/);
+  assert.match(recovery, /collection\("betaAccess"\)\.doc\(String\(expectedPlayerId\)\)/);
+  assert.match(recovery, /evaluateBetaAccessAttempt\(record, accessCode\)/);
+  assert.match(recovery, /await linkGoogleAccess/);
+  assert.match(recovery, /createCustomToken\(account\.uid/);
+  assert.match(recovery, /uid: account\.uid/);
+  assert.ok(recovery.indexOf('await linkGoogleAccess') < recovery.indexOf('createCustomToken(account.uid'), 'Google link must succeed before the recovery token is issued');
+});
+
+test('emergency legacy recovery never creates, copies, migrates or merges private BoardSignal state', () => {
+  const recovery = section(googleRoute, 'if (action === "recoverLegacy")', 'if (action === "identityHelp")');
+  for (const forbidden of [
+    'createFoundingBetaAccount',
+    'ensureStablePlayerAccount',
+    'claimGoogleOnboardingProfile',
+    'collection("desks")',
+    'reviewJournal',
+    'reviewHistoryBackfill',
+    'currentEpisodeSummary',
+    'conversations',
+    'friends',
+    'recursiveDelete',
+    'preferredContactValue',
+    'contactEmail',
+    'verifiedEmail',
+    'founder_reviewed',
+    'approve',
+  ]) assert.doesNotMatch(recovery, new RegExp(escaped(forbidden), 'i'));
+  assert.match(recovery, /account\.uid !== mappedUid/);
+  assert.match(recovery, /account\.chessCom\?\.playerId !== expectedPlayerId/);
+  assert.match(recovery, /account\.accessStatus !== "active" \|\| account\.identityStatus === "revoked"/);
+});
+
+test('emergency legacy recovery copy is same-account recovery, never start-again language', () => {
+  assert.match(usernameForm, /WE FOUND YOUR EXISTING BOARDSIGNAL/);
+  assert.match(usernameForm, /Your chess history is still here/);
+  assert.match(usernameForm, /Nothing has been replaced or restarted/);
+  assert.match(usernameForm, /Reviews, Progress, Journal, Notes, social state, cadence and Current BoardSignal stay on this same private account/);
+  assert.doesNotMatch(googleRoute, /Start with your Chess\.com username, then connect Google when BoardSignal offers it/);
+  assert.match(googleRoute, /Google isn't connected to a BoardSignal yet/);
+});
+
+test('emergency legacy recovery preserves new-player creation and exception-only manual identity handling', () => {
+  assert.match(googleRoute, /action === "claimProfile"/);
+  assert.match(googleOnboarding, /if \(userSnapshot\.exists \|\| mappingSnapshot\.exists \|\| playerSnapshot\.exists\)/);
+  assert.match(googleOnboarding, /CHESS_PROFILE_ALREADY_HAS_BOARDSIGNAL/);
+  const recovery = section(googleRoute, 'if (action === "recoverLegacy")', 'if (action === "identityHelp")');
+  assert.doesNotMatch(recovery, /identityHelp|requestGoogleIdentityHelp|exceptions|notifyFounderIdentityConflict/);
+  assert.match(googleRoute, /if \(action === "identityHelp"\)/);
 });

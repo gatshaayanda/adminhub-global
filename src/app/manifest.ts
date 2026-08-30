@@ -13,9 +13,9 @@ type BoardSignalManifest = MetadataRoute.Manifest & {
 export default function manifest(): BoardSignalManifest {
   return {
     id: "/boardsignal",
-    name: "BoardSignal — Weekly Chess Review",
+    name: "BoardSignal — Chess Improvement Companion",
     short_name: "BoardSignal",
-    description: "Your weekly chess Review. Follow your latest seven-day Review, Progress, Universe movement and Friends — with offline access after you've opened your Player Room.",
+    description: "Your personal chess improvement companion. Follow Current BoardSignal, next-game Guidance, completed Reviews, Progress, Universe and Friends — with saved access after you've opened your Player Room.",
     start_url: "/boardsignal?source=pwa",
     scope: "/",
     display: "standalone",
@@ -37,9 +37,9 @@ export default function manifest(): BoardSignalManifest {
       { name: "Friends", short_name: "Friends", url: "/boardsignal/player-room?tab=friends", icons: [{ src: "/icons/boardsignal-192.png", sizes: "192x192", type: "image/png" }] },
     ],
     screenshots: [
-      { src: "/pwa/boardsignal-player-room-mobile.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "Your weekly chess Review" },
-      { src: "/pwa/boardsignal-universe-mobile.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "Current BoardSignal Universe movement" },
-      { src: "/pwa/boardsignal-player-room-wide.png", sizes: "1440x900", type: "image/png", form_factor: "wide", label: "Review, Progress and your BoardSignal week" },
+      { src: "/pwa/boardsignal-player-room-mobile.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "Current BoardSignal, Guidance and completed Review history" },
+      { src: "/pwa/boardsignal-universe-mobile.png", sizes: "1080x1920", type: "image/png", form_factor: "narrow", label: "The BoardSignal Universe around your improvement" },
+      { src: "/pwa/boardsignal-player-room-wide.png", sizes: "1440x900", type: "image/png", form_factor: "wide", label: "Current BoardSignal, completed Reviews and Progress" },
       { src: "/pwa/boardsignal-universe-wide.png", sizes: "1440x900", type: "image/png", form_factor: "wide", label: "BoardSignal Universe and recent field movement" },
     ],
   };

@@ -21,9 +21,9 @@ export default async function HomePage() {
       <section className="personal-hero">
         <div className={`container personal-hero-grid ${styles.heroGrid}`}>
           <div className={`personal-hero-copy motion-enter ${styles.heroCopy}`}>
-            <p className="kicker">Personal chess performance review</p>
-            <h1>See what your games are actually telling you.</h1>
-            <p className="hero-deck">BoardSignal reviews your recent Chess.com games together to show what changed, what&apos;s costing you games, and what to focus on next.</p>
+            <p className="kicker">BOARD SIGNAL</p>
+            <h1>Your personal chess improvement companion.</h1>
+            <p className="hero-deck">Understand what&apos;s happening in your chess as you play — and know what to work on next. BoardSignal keeps your current picture, guidance and completed Review history together as your chess develops.</p>
             <div id="get-my-boardsignal" className="hero-username-card">
               <UsernameDeskForm />
             </div>
@@ -45,8 +45,8 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <aside className={`player-preview pipeline-preview motion-enter motion-delay-1 ${styles.preview}`} aria-label="Example BoardSignal review">
-            <div className="pipeline-preview-top"><span>Example review</span><strong>34 games · 23W · 10L · 1D</strong></div>
+          <aside className={`player-preview pipeline-preview motion-enter motion-delay-1 ${styles.preview}`} aria-label="Example completed BoardSignal Review">
+            <div className="pipeline-preview-top"><span>Example completed Review</span><strong>34 games · 23W · 10L · 1D</strong></div>
             <div className="coverage-stat"><strong>+92</strong><span>rating</span></div>
             <p><strong>WHAT STOOD OUT</strong><br />Seven straight wins changed the week.</p>
             <p><strong>BIGGEST OPPORTUNITY</strong><br />Several losses came after good positions had already been reached.</p>
@@ -59,7 +59,7 @@ export default async function HomePage() {
         <div className="secondary-heading">
           <div>
             <p className="kicker">THE BOARDSIGNAL UNIVERSE</p>
-            <h2>See the weeks players are having, the performances moving the field, and the people around the chess already being played.</h2>
+            <h2>See public highlights, performances moving the field, and the people around the chess already being played.</h2>
           </div>
           <p>Public positive highlights only. Private guidance and weaknesses stay private.</p>
         </div>

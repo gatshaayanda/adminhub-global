@@ -40,7 +40,7 @@ export default async function CoverageFeedPage() {
         <div className="container">
           <p className="kicker"><Radio size={15} /> BoardSignal Universe</p>
           <h1>LIVE FIELD</h1>
-          <p className="standfirst">Official standings use each player&apos;s latest eligible completed Review. Current-week comparisons stay private and provisional until a Review closes.</p>
+          <p className="standfirst">The wider BoardSignal world around your improvement. Official standings use each player&apos;s latest eligible completed Review; current-period comparisons stay private and provisional until a Review closes.</p>
           {!fieldUnavailable ? <p className="g4-field-scale">{officialPlayerCount} player{officialPlayerCount === 1 ? "" : "s"} represented in the current official field.</p> : null}
         </div>
       </header>
@@ -76,7 +76,7 @@ export default async function CoverageFeedPage() {
             </article>
           ))}
         </div>
-        <div className="interior-actions"><Link href="/#get-my-boardsignal" className="button button-lime">Show me my review <ArrowRight size={17} /></Link></div>
+        <div className="interior-actions"><Link href="/#get-my-boardsignal" className="button button-lime">Start my BoardSignal <ArrowRight size={17} /></Link></div>
       </section>
     </div>
   );

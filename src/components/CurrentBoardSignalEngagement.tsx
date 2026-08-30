@@ -45,7 +45,7 @@ function MomentCard({ moment, feedback, online, busy, error, onReact }: {
     <h3>{moment.headline}</h3>
     <p className={styles.evidence}>{moment.evidence}</p>
     {moment.carry ? <div className={styles.carry}><span>{moment.carry.label}</span><b>{moment.carry.title}</b>{moment.carry.copy ? <p>{moment.carry.copy}</p> : null}</div> : null}
-    {moment.around ? <div className={styles.around}><span>AROUND BOARDSIGNAL</span><b>{moment.around.headline}</b><p>{moment.around.supportingFact}</p></div> : null}
+    {moment.around ? <div className={styles.around}><span>AROUND THE UNIVERSE</span><b>{moment.around.headline}</b><p>{moment.around.supportingFact}</p></div> : null}
     <div className={`${styles.helpful} ${settled ? styles.settled : ""}`}>
       {settled ? <p className={styles.acknowledgement} role="status">{feedback?.reaction === "helpful" ? "Got it — we'll keep leaning into what helps." : "Got it — that's useful for BoardSignal to know."}</p> : <>
         <strong>Helpful?</strong>

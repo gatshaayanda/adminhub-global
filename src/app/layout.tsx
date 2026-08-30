@@ -26,16 +26,16 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "BoardSignal — Your weekly chess Review",
+    default: "BoardSignal — Your personal chess improvement companion",
     template: "%s | BoardSignal",
   },
-  description: "BoardSignal turns a fixed seven days of your Chess.com games into a factual Review, a clear signal and a plan you can use.",
+  description: "BoardSignal is your personal chess improvement companion: understand what's happening in your chess as you play, know what to work on next, and keep completed Reviews as your history.",
   applicationName: "BoardSignal",
-  keywords: ["chess improvement", "Chess.com analysis", "weekly chess report", "chess insights", "BoardSignal"],
+  keywords: ["chess improvement", "Chess.com analysis", "personal chess improvement companion", "chess guidance", "chess progress", "BoardSignal"],
   manifest: "/manifest.webmanifest",
   openGraph: {
-    title: "BoardSignal — Your games, covered like sport",
-    description: "Personal sports coverage and private performance guidance for everyday chess players.",
+    title: "BoardSignal — Your personal chess improvement companion",
+    description: "Understand what's happening in your chess as you play — and know what to work on next.",
     siteName: "BoardSignal",
     type: "website",
   },

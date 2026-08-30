@@ -63,7 +63,7 @@ export default function LiveDataUnavailablePlayerRoom({
           ? "BoardSignal has reached today's live-data allowance."
           : "BoardSignal is online, but live account data is temporarily unavailable."}</h1>
         <p>{quotaExhausted
-          ? `New Review generation, Universe movement, messages and account changes will return after the daily reset — approximately ${resetLabel} for you. Nothing has been deleted.`
+          ? `Current BoardSignal updates, completed Review generation, Universe movement, messages and account changes will return after the daily reset — approximately ${resetLabel} for you. Nothing has been deleted.`
           : "No saved My BoardSignal copy is available on this device yet. Your account has not been presented as offline and BoardSignal is not fabricating live data."}</p>
         {quotaExhausted ? <FounderHelp /> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
           <RefreshCcw size={15} /> {retrying ? "Retrying…" : "Retry live data"}
@@ -86,14 +86,14 @@ export default function LiveDataUnavailablePlayerRoom({
     <div className="container offline-room-truth" role="status">
       <strong>{quotaExhausted ? "LIVE DATA PAUSED · SAVED" : "LIVE DATA UNAVAILABLE · SAVED"}</strong>
       <span>{quotaExhausted
-        ? `Saved Reviews remain read-only and safe on this device. BoardSignal has paused live work until the daily allowance resets. It will check again automatically after ${resetLabel}.`
+        ? `Your saved BoardSignal and completed Reviews remain read-only and safe on this device. Live BoardSignal work resumes after the daily allowance resets, with another check after ${resetLabel}.`
         : `New games, Universe movement, messages and account changes may not be current after ${savedLabel(initialSnapshot.lastSyncedAt)}. Saved content is read-only until live data returns.`}</span>
     </div>
     <div className="container player-room-memory">
       {quotaExhausted ? <FounderHelp /> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
         <RefreshCcw size={15} /> {retrying ? "Retrying…" : "Retry live data"}
       </button>}
-      {latest ? <div className="founding-field-note"><ShieldCheck size={18}/><div><strong>Latest saved Review</strong><p>{latest.summary.periodLabel}</p></div></div> : <div className="universe-empty"><p>No completed Review was saved on this device yet.</p></div>}
+      {latest ? <div className="founding-field-note"><ShieldCheck size={18}/><div><strong>Latest saved completed Review</strong><p>{latest.summary.periodLabel}</p></div></div> : <div className="universe-empty"><p>No completed Review was saved on this device yet.</p></div>}
     </div>
     {latest ? <div aria-label="Saved Review read only">
       <UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} presentationMode="player-room" embedded />

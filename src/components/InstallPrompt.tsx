@@ -79,7 +79,7 @@ export default function InstallPrompt() {
     <div className="install-card-heading">
       <div>
         <strong>Keep BoardSignal on your device</strong>
-        <p>{iosCandidate ? "BoardSignal installs from this website on iPhone and iPad." : "Install BoardSignal from this website for quicker access to your Player Room and saved Review."}</p>
+        <p>{iosCandidate ? "BoardSignal installs from this website on iPhone and iPad." : "Install BoardSignal from this website for quicker access to your Player Room and saved BoardSignal."}</p>
       </div>
       <button type="button" onClick={dismiss} aria-label="Dismiss install prompt"><X size={16}/></button>
     </div>

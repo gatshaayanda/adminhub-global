@@ -1,0 +1,104 @@
+name: BoardSignal Patch M6 Guard
+
+on:
+  push:
+    branches:
+      - boardsignal-v10
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  patch-m6-release-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout M6 candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Check patch formatting safety
+        run: git diff --check HEAD^ HEAD
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M6 branding language guard
+        run: node --test tests/boardsignal-patch-m6-branding-language.test.cjs tests/boardsignal-language-information-hierarchy.test.cjs
+
+      - name: M4 engagement and M3 visit semantics
+        run: node --test tests/boardsignal-patch-m4-founder-engagement.test.cjs
+
+      - name: M5 contextual Ask guard
+        run: node --test tests/boardsignal-patch-m5-contextual-ask.test.cjs
+
+      - name: Founder access semantics
+        run: node --test tests/boardsignal-patch-l-founder-access-semantics.test.cjs
+
+      - name: Core regressions
+        run: npm run test:core
+
+      - name: Critical regressions
+        run: npm run test:critical
+
+      - name: Ask BoardSignal regressions
+        run: npm run test:ask
+
+      - name: Delivery regressions
+        run: npm run test:delivery
+
+      - name: PWA and offline regressions
+        run: npm run test:pwa
+
+      - name: Active contrast and state regressions
+        run: npm run test:contrast
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Render homepage and onboarding in real Chrome at desktop and mobile widths
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchM6Guard000000000000000000000
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-m6-ci.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-m6-ci
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: patch-m6-ci.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+        run: |
+          set -euo pipefail
+          npm run dev -- -p 3100 > /tmp/boardsignal-patch-m6-dev.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/onboarding?state=google&theme=light" >/dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/boardsignal-patch-m6-dev.log
+            exit 1
+          fi
+          node --experimental-websocket scripts/check-boardsignal-onboarding-render.mjs
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchM6Guard000000000000000000000
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-m6-ci.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-m6-ci
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: patch-m6-ci.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+        run: npm run build

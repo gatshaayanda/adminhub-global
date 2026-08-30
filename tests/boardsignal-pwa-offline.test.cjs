@@ -40,9 +40,10 @@ function installHandlerSource() {
   return sw.slice(start, end);
 }
 
-test('manifest keeps the standalone BoardSignal identity, icons and shortcuts', () => {
+test('manifest keeps the standalone BoardSignal companion identity, icons and shortcuts', () => {
   for (const pattern of [
-    /name:\s*"BoardSignal — Weekly Chess Review"/,
+    /name:\s*"BoardSignal — Chess Improvement Companion"/,
+    /description:\s*"Your personal chess improvement companion\./,
     /short_name:\s*"BoardSignal"/,
     /id:\s*"\/boardsignal"/,
     /start_url:\s*"\/boardsignal\?source=pwa"/,

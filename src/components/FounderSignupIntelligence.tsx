@@ -17,6 +17,9 @@ type AccountRow = {
   playerRoomUsed: boolean;
   reviewCount: number;
   latestReview?: { periodLabel?: string; publishedAt?: string };
+  reviewOpened: boolean;
+  latestReviewOpened: boolean;
+  latestReviewOpenedAt?: string;
   returnedAfterReview: boolean;
   retentionDepth: number;
   forming: boolean;
@@ -51,6 +54,8 @@ type Intelligence = {
     claimedLast7d: number;
     playerRoomUsed: number;
     reviewAvailable: number;
+    reviewOpened: number;
+    latestReviewOpened: number;
     returnedAfterReview: number;
     r2Plus: number;
     reviewsForming: number;
@@ -112,14 +117,16 @@ export default function FounderSignupIntelligence() {
     ["GOOGLE CLAIMED", data.funnel.googleClaimed, `${data.funnel.claimedLast24h} in 24h · ${data.funnel.claimedLast7d} in 7d`],
     ["PLAYER ROOM USED", data.funnel.playerRoomUsed, "Post-claim private use"],
     ["REVIEW AVAILABLE", data.funnel.reviewAvailable, "At least one Review exists"],
-    ["RETURNED AFTER REVIEW", data.funnel.returnedAfterReview, "Later visit after publication"],
+    ["REVIEW OPENED", data.funnel.reviewOpened, `${data.funnel.latestReviewOpened} opened latest · tracked from this update`],
+    ["RETURNED AFTER REVIEW", data.funnel.returnedAfterReview, "Historical later-visit signal"],
     ["R2+", data.funnel.r2Plus, "Returned for another Review"],
     ["FORMING NOW", data.funnel.reviewsForming, "Next Review in progress"],
+    ["EMAIL UPDATES", data.funnel.emailUpdatesEnabled, "Player-enabled email/contact channel"],
   ] as const;
 
   return <section className={styles.shell} aria-labelledby="founder-signup-intelligence-heading">
     <div className={styles.heading}>
-      <div><p className="kicker">FOUNDER SIGNAL</p><h2 id="founder-signup-intelligence-heading">Who signed up — and what happened next.</h2><p>Google claim → private use → Review availability → return. Account emails are Founder-only account data; they are not treated as marketing consent.</p></div>
+      <div><p className="kicker">FOUNDER SIGNAL</p><h2 id="founder-signup-intelligence-heading">Who signed up — and what happened next.</h2><p>Google claim → private use → Review availability/open → return. Account emails are Founder-only account data; they are not treated as marketing consent.</p></div>
       <button className="button button-quiet" type="button" onClick={() => void load()} disabled={loading}>{loading ? <LoaderCircle className="button-spinner" size={15}/> : <RefreshCcw size={15}/>} Refresh</button>
     </div>
     {error ? <p className="form-error" role="alert">{error}</p> : null}
@@ -129,7 +136,7 @@ export default function FounderSignupIntelligence() {
 
     <details className={styles.details} open>
       <summary>Google-linked account map · {data.accounts.length} player{data.accounts.length === 1 ? "" : "s"}</summary>
-      <p className={styles.explainer}>This joins Firebase Google identity to the BoardSignal/Chess.com player mapping, so you do not need Firebase Authentication just to work out who a signup belongs to. “Returned after Review” is a later Player Room visit after publication; BoardSignal did not historically record a separate Review-read event.</p>
+      <p className={styles.explainer}>This joins Firebase Google identity to the BoardSignal/Chess.com player mapping, so you do not need Firebase Authentication just to work out who a signup belongs to. Dedicated Review-open tracking starts with this update; older history is not fabricated. “Returned after Review” remains the historical signal for a later Player Room visit after publication.</p>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr><th>PLAYER</th><th>GOOGLE ACCOUNT</th><th>CLAIMED</th><th>PRODUCT USE</th><th>REVIEW / RETURN</th><th>EMAIL STATUS</th><th></th></tr></thead>
@@ -138,7 +145,7 @@ export default function FounderSignupIntelligence() {
             <td><strong>{row.email ?? "Email unavailable"}</strong><small>{row.email ? (row.emailVerified ? "Google email verified" : "Google account email") : "No matching Google email found"}</small></td>
             <td><strong>{displayDate(row.linkedAt)}</strong><small>{relative(row.linkedAt)}</small></td>
             <td><strong>{row.playerRoomUsed ? "Player Room used" : "Claimed only"}</strong><small>Last seen {relative(row.lastSeenAt)}</small></td>
-            <td><strong>{row.activityStage}</strong><small>{row.reviewCount} Review{row.reviewCount === 1 ? "" : "s"}{row.forming ? " · next forming" : ""}</small></td>
+            <td><strong>{row.activityStage}</strong><small>{row.reviewCount} Review{row.reviewCount === 1 ? "" : "s"}{row.latestReviewOpenedAt ? ` · opened ${relative(row.latestReviewOpenedAt)}` : ""}{row.forming ? " · next forming" : ""}</small></td>
             <td><strong>{row.emailUpdatesEnabled ? "Updates enabled" : "Account email only"}</strong><small>{row.emailUpdatesEnabled ? "Player enabled an email/contact channel" : "Do not treat Google sign-in as marketing consent"}</small></td>
             <td><Link className="button button-quiet" href={`/admin/players?player=${encodeURIComponent(String(row.playerId ?? row.username))}`}>Manage</Link></td>
           </tr>)}</tbody>

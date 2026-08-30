@@ -21,6 +21,7 @@ type AccountData = {
   preferredContactMethod?: string;
   preferredContactValue?: string;
   notificationPreferences?: { email?: boolean };
+  reviewEngagement?: { latestOpenedReviewKey?: string; latestOpenedAt?: string; latestOpenedPeriodLabel?: string };
   chessCom?: { playerId?: number; canonicalUsername?: string; profileUrl?: string };
 };
 
@@ -147,15 +148,22 @@ export async function GET() {
       const retentionDepth = Math.max(0, Number(summary?.validation?.retentionDepth) || 0);
       const email = alias.providerUidHash ? googleEmailByHash.get(alias.providerUidHash) : undefined;
       const emailUpdatesEnabled = account?.notificationPreferences?.email === true || account?.betaContactConsent === true;
+      const reviewOpened = Boolean(account?.reviewEngagement?.latestOpenedAt);
+      const latestReviewOpened = Boolean(
+        row?.latestReview?.deskKey
+        && account?.reviewEngagement?.latestOpenedReviewKey === row.latestReview.deskKey,
+      );
       const activityStage = retentionDepth >= 2
         ? "Returned for another Review"
-        : returnedAfterReview
-          ? "Returned after latest Review"
-          : reviewCount > 0
-            ? "Review available"
-            : playerRoomUsed
-              ? "Player Room used"
-              : "Claimed only";
+        : latestReviewOpened
+          ? "Latest Review opened"
+          : returnedAfterReview
+            ? "Returned after latest Review"
+            : reviewCount > 0
+              ? "Review available"
+              : playerRoomUsed
+                ? "Player Room used"
+                : "Claimed only";
 
       return {
         uid,
@@ -169,6 +177,9 @@ export async function GET() {
         playerRoomUsed,
         reviewCount,
         latestReview: row?.latestReview,
+        reviewOpened,
+        latestReviewOpened,
+        latestReviewOpenedAt: account?.reviewEngagement?.latestOpenedAt,
         returnedAfterReview,
         retentionDepth,
         forming: row?.forming === true,
@@ -223,6 +234,8 @@ export async function GET() {
           claimedLast7d: linkedAccounts.filter((item) => item.claimedLast7d).length,
           playerRoomUsed: linkedAccounts.filter((item) => item.playerRoomUsed).length,
           reviewAvailable: linkedAccounts.filter((item) => item.reviewCount > 0).length,
+          reviewOpened: linkedAccounts.filter((item) => item.reviewOpened).length,
+          latestReviewOpened: linkedAccounts.filter((item) => item.latestReviewOpened).length,
           returnedAfterReview: linkedAccounts.filter((item) => item.returnedAfterReview).length,
           r2Plus: linkedAccounts.filter((item) => item.retentionDepth >= 2).length,
           reviewsForming: linkedAccounts.filter((item) => item.forming).length,

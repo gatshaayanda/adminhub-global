@@ -97,28 +97,30 @@ test('homepage has one obvious private entry followed by compact proof, explanat
   assert.doesNotMatch(homepage, /Founder beta|Fact Pack|Data Lab|seeded Desk/i);
 });
 
-test('homepage credibility uses strong product proof, separately labelled anonymous traffic and transparent Trustpilot reputation', () => {
+test('homepage credibility uses every strong public stat while keeping product and audience truth distinct', () => {
   assert.match(homepage, /loadPublicBoardSignalProof/);
   assert.match(homepage, /loadPublicBoardSignalTrafficProof/);
   assert.match(homepage, /HomeProofRail/);
   assert.match(homeProofRail, /PUBLIC_PROOF_MINIMUM = 20/);
   assert.match(homeProofRail, /proof\.activePlayers/);
+  assert.match(homeProofRail, /proof\.reviewsForming/);
   assert.match(homeProofRail, /proof\.reviewsProduced/);
   assert.match(homeProofRail, /proof\.playersServed/);
   assert.match(homeProofRail, /proof\.retentionReviews/);
-  assert.doesNotMatch(homeProofRail, /proof\.reviewsForming|Reviews forming now/i);
   assert.match(homeProofRail, /active player accounts/);
+  assert.match(homeProofRail, /Reviews are forming now/);
   assert.match(homeProofRail, /Reviews completed across/);
-  assert.match(homeProofRail, /retention Reviews from later player cycles/);
+  assert.match(homeProofRail, /retention Review records from ongoing player history/);
   assert.match(homeProofRail, /site visitors/);
   assert.match(homeProofRail, /page views/);
   assert.match(homeProofRail, /last 30 days/);
-  assert.match(homeProofRail, /anonymous aggregated Vercel Web Analytics/);
+  assert.match(homeProofRail, /anonymous aggregated Vercel Web Analytics — not player accounts/);
   assert.match(homeProofRail, /BoardSignal is on Trustpilot through Admin Hub/);
   assert.match(homeProofRail, /CHECK OUR TRUSTPILOT PROFILE/);
   assert.match(homeProofRail, /not filtered by rating or sentiment/);
   assert.match(homeProofRail, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
   assert.match(publicProof, /activePlayers: count\(metrics\.activePlayers\)/);
+  assert.match(publicProof, /reviewsForming: count\(metrics\.reviewsForming\)/);
   assert.match(publicProof, /reviewsProduced: count\(validation\.totalReviewsProduced\)/);
   assert.match(publicProof, /playersServed: count\(validation\.playersServed\)/);
   assert.match(publicProof, /retentionReviews: count\(validation\.verifiedReviews\)/);
@@ -131,7 +133,7 @@ test('homepage credibility uses strong product proof, separately labelled anonym
   assert.doesNotMatch([homepage, homeProofRail].join('\n'), /\b87\b|\b72\b|\b49\b|\b41\b|\b44\b|\b365\b|\b2335\b|2,335/);
 });
 
-test('homepage proof is editorial rather than a dashboard of stat tiles', () => {
+test('homepage proof stays editorial instead of cloning the Founder dashboard', () => {
   assert.match(homeProofRail, /storyList/);
   assert.match(homeProofRail, /data-proof-story/);
   assert.match(homeProofRail, /trustPanel/);
@@ -145,6 +147,7 @@ test('homepage proof motion is compositor-safe, one-shot and reduced-motion safe
   assert.match(homeProofStyles, /@keyframes proofTrustEnter/);
   assert.match(homeProofStyles, /opacity/);
   assert.match(homeProofStyles, /transform/);
+  assert.match(homeProofStyles, /--proof-delay/);
   assert.match(homeProofStyles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(homeProofStyles, /animation[^;]*infinite/i);
   assert.doesNotMatch(homeProofStyles, /@keyframes[^}]*\b(?:width|height|top|left|margin|padding)\s*:/i);
@@ -196,7 +199,7 @@ test('real Chrome QA covers proof plus every onboarding state at desktop and pho
   assert.match(qaPage, /QA_PROOF/);
   assert.match(qaPage, /QA_TRAFFIC/);
   assert.match(qaProbe, /data-boardsignal-home-proof/);
-  assert.match(qaProbe, /proof-collapsed-text|inspectReadableBox\(proof/);
+  assert.match(qaProbe, /inspectReadableBox\(proof/);
   for (const state of ['google', 'username', 'profile', 'collision']) assert.match(renderQa, new RegExp(state));
   for (const width of ['320', '360', '375', '390', '412', '430', '1365']) assert.match(renderQa, new RegExp(width));
   assert.match(renderQa, /BOARD_SIGNAL_ONBOARDING_RENDER_PASS/);

@@ -1,5 +1,7 @@
+import type { CSSProperties } from "react";
 import { Activity, BarChart3, BookOpenCheck, ExternalLink, Radio, UsersRound } from "lucide-react";
 import type { PublicBoardSignalProof } from "@/lib/boardsignal/server/publicProof";
+import type { PublicBoardSignalTrafficProof } from "@/lib/boardsignal/server/publicTrafficProof";
 import styles from "./HomeProofRail.module.css";
 
 const TRUSTPILOT_PROFILE_URL = "https://www.trustpilot.com/review/adminhub-global.com";
@@ -22,8 +24,14 @@ type ProofMetric = {
   icon: typeof Activity;
 };
 
-export default function HomeProofRail({ proof }: { proof: PublicBoardSignalProof }) {
-  const metrics: ProofMetric[] = [
+export default function HomeProofRail({
+  proof,
+  traffic,
+}: {
+  proof?: PublicBoardSignalProof;
+  traffic?: PublicBoardSignalTrafficProof;
+}) {
+  const metrics: ProofMetric[] = proof ? [
     qualifies(proof.activePlayers) ? {
       key: "active-players",
       label: "Active players",
@@ -54,17 +62,17 @@ export default function HomeProofRail({ proof }: { proof: PublicBoardSignalProof
       detail: "Current cadence-aligned Review weeks.",
       icon: Radio,
     } : undefined,
-  ].filter((item): item is ProofMetric => Boolean(item));
+  ].filter((item): item is ProofMetric => Boolean(item)) : [];
 
-  const hasTraffic = qualifies(proof.siteVisitors30d) || qualifies(proof.sitePageViews30d);
+  const hasTraffic = qualifies(traffic?.visitors30d) || qualifies(traffic?.pageviews30d);
   if (metrics.length === 0 && !hasTraffic) return null;
 
   return (
-    <section className={styles.rail} data-boardsignal-home-proof aria-label="BoardSignal usage and product proof">
+    <section className={styles.rail} data-boardsignal-home-proof aria-label="Real BoardSignal product and audience activity">
       <div className={styles.heading}>
         <div>
           <span className={styles.liveLabel}><span aria-hidden="true" /> BOARD SIGNAL IN USE</span>
-          <p>Real product activity and durable Review history.</p>
+          <p>Real product activity, durable Review records, and separately labelled site audience.</p>
         </div>
         <a className={styles.trustLink} href={TRUSTPILOT_PROFILE_URL} target="_blank" rel="noreferrer noopener">
           Read independent reviews on Trustpilot <ExternalLink size={13} aria-hidden="true" />
@@ -74,7 +82,7 @@ export default function HomeProofRail({ proof }: { proof: PublicBoardSignalProof
       {metrics.length > 0 ? <div className={styles.metrics}>
         {metrics.map((metric, index) => {
           const Icon = metric.icon;
-          return <article className={styles.metric} data-proof-metric={metric.key} style={{ "--proof-index": index } as React.CSSProperties} key={metric.key}>
+          return <article className={styles.metric} data-proof-metric={metric.key} style={{ "--proof-index": index } as CSSProperties} key={metric.key}>
             <div className={styles.metricTop}><Icon size={16} aria-hidden="true" /><span>{metric.label}</span></div>
             <strong>{format(metric.value)}</strong>
             <p>{metric.detail}</p>
@@ -82,12 +90,12 @@ export default function HomeProofRail({ proof }: { proof: PublicBoardSignalProof
         })}
       </div> : null}
 
-      {hasTraffic ? <div className={styles.traffic} data-proof-metric="traffic-30d">
+      {hasTraffic && traffic ? <div className={styles.traffic} data-proof-metric="traffic-30d">
         <div className={styles.trafficLabel}><BarChart3 size={16} aria-hidden="true" /><span>LAST 30 DAYS · VERCEL WEB ANALYTICS</span></div>
         <p>
-          {qualifies(proof.siteVisitors30d) ? <strong>{format(proof.siteVisitors30d!)} site visitors</strong> : null}
-          {qualifies(proof.siteVisitors30d) && qualifies(proof.sitePageViews30d) ? <span aria-hidden="true"> · </span> : null}
-          {qualifies(proof.sitePageViews30d) ? <strong>{format(proof.sitePageViews30d!)} page views</strong> : null}
+          {qualifies(traffic.visitors30d) ? <strong>{format(traffic.visitors30d)} site visitors</strong> : null}
+          {qualifies(traffic.visitors30d) && qualifies(traffic.pageviews30d) ? <span aria-hidden="true"> · </span> : null}
+          {qualifies(traffic.pageviews30d) ? <strong>{format(traffic.pageviews30d)} page views</strong> : null}
         </p>
         <small>Anonymous aggregated site activity — not player accounts.</small>
       </div> : null}

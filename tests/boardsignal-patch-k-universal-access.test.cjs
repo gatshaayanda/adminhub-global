@@ -19,6 +19,7 @@ const googleOnboarding = read('src/lib/boardsignal/server/googleOnboarding.ts');
 const googleClient = read('src/lib/boardsignal/client/googleAccess.ts');
 const googleRoute = read('src/app/api/boardsignal/google-access/route.ts');
 const googleButton = read('src/components/GoogleAccessButton.tsx');
+const googleBrandButton = read('src/components/GoogleSignInButton.tsx');
 const usernameForm = read('src/components/UsernameDeskForm.tsx');
 const profile = read('src/components/PlayerProfileNotifications.tsx');
 const login = read('src/components/ChessComLoginPanel.tsx');
@@ -49,7 +50,7 @@ function escaped(value) {
 
 test('persona A — a new private player is Google first, then username, confirmation, stable private BoardSignal', () => {
   assert.match(usernameForm, /GET MY BOARDSIGNAL/);
-  assert.match(usernameForm, /CONTINUE WITH GOOGLE/);
+  assert.match(usernameForm, /GoogleSignInButton/);
   assert.match(usernameForm, /What&apos;s your Chess\.com username\?/);
   assert.match(usernameForm, /action: "resolveProfile"/);
   assert.match(usernameForm, /IS THIS YOUR CHESS\.COM PROFILE\?/);
@@ -72,26 +73,27 @@ test('persona A — a new private player is Google first, then username, confirm
   assert.match(room, /!snapshot\.account\.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement/);
 });
 
-test('persona B — username knowledge without Google can explore public Universe but cannot create new private access', () => {
-  assert.match(usernameForm, /if \(!googleIdToken\)/);
-  assert.match(usernameForm, /No anonymous private account claim/);
+test('persona B — public Universe stays available without a competing homepage username intake', () => {
+  assert.doesNotMatch(usernameForm, /EXPLORE PUBLIC BOARDSIGNAL|OR EXPLORE THE PUBLIC UNIVERSE|public-universe-username-form|\/boardsignal\/build\//);
   assert.match(homepage, /THE BOARDSIGNAL UNIVERSE/);
-  assert.match(homepage, /EXPLORE THE UNIVERSE/);
+  assert.match(homepage, /EXPLORE THE UNIVERSE|Explore the Universe/);
   assert.match(homepage, /Public positive highlights only|Private improvement guidance/);
   assert.doesNotMatch(usernameForm, /\/api\/boardsignal\/beta-request|claimProvisionalBetaPreview|openDirectReview/);
   assert.match(googleOnboarding, /verifyGoogleAccessToken\(googleIdToken\)/);
 });
 
-test('persona C — returning Google player gets the exact mapped UID and active account', () => {
+test('persona C — one Google entry returns an existing player to the exact mapped UID', () => {
   const returned = section(googleServer, 'export async function returnWithGoogle', 'async function notifyFounderIdentityConflict');
   assert.match(returned, /subjectRef\.get\(\)/);
   assert.match(returned, /userRef\.get\(\)/);
   assert.match(returned, /playerRef\.get\(\)/);
   assert.match(returned, /createCustomToken\(account\.uid/);
   assert.match(returned, /uid: account\.uid/);
-  assert.match(login, /RETURN TO MY BOARDSIGNAL/);
-  assert.match(login, /GoogleAccessButton/);
+  assert.match(usernameForm, /action: "return"/);
+  assert.match(usernameForm, /GOOGLE_ACCESS_NOT_LINKED/);
+  assert.match(usernameForm, /signInWithCustomToken/);
   assert.match(googleServer, /account\.accessStatus !== "active" \|\| account\.identityStatus === "revoked"/);
+  assert.match(login, /Other sign-in or recovery options/);
 });
 
 test('persona D — legacy player connects Google additively with no Review, Journal, Progress or social migration', () => {
@@ -136,7 +138,9 @@ test('persona F — cancelling or failing Google does not create an orphan priva
   assert.match(googleClient, /inMemoryPersistence/);
   assert.match(googleClient, /finally \{[\s\S]*signOut\(googleAuth\)/);
   const beforeGoogle = section(usernameForm, 'async function startGoogle', 'async function resolveProfile');
-  assert.doesNotMatch(beforeGoogle, /claimProfile|beta-request|createCustomToken|signInWithCustomToken/);
+  assert.match(beforeGoogle, /action: "return"/);
+  assert.match(beforeGoogle, /GOOGLE_ACCESS_NOT_LINKED/);
+  assert.doesNotMatch(beforeGoogle, /action: "claimProfile"|beta-request|createFoundingBetaAccount/);
 });
 
 test('persona G — social discovery reuses the existing suggested-player endpoint', () => {
@@ -201,15 +205,23 @@ test('normal copy no longer presents Preview or Founder approval as the new-user
   assert.match(preview, /BetaPreviewStatus/);
 });
 
-test('homepage proof is BoardSignal product truth, not Vercel or Trustpilot theatre', () => {
+test('homepage proof is BoardSignal product truth presented as human social proof, not Vercel or Trustpilot theatre', () => {
   assert.match(proof, /totalReviewsProduced/);
   assert.match(proof, /r2Plus/);
-  assert.match(homepage, /Players served/);
-  assert.match(homepage, /Reviews produced/);
-  assert.match(homepage, /Returning players/);
-  assert.match(homepage, /Reviews forming/);
-  assert.match(homepage, /not Vercel visitors, pageviews or traffic counts/);
+  assert.match(homepage, /already used BoardSignal to understand their games/);
+  assert.match(homepage, /Reviews?" : "Reviews"|Review" : "Reviews"/);
+  assert.match(homepage, /already come back for another Review/);
+  assert.doesNotMatch(homepage, /REAL BOARDSIGNAL PRODUCT PROOF|Players served|Reviews produced|Returning players|Reviews forming|not Vercel visitors, pageviews or traffic counts/i);
   assert.doesNotMatch(homepage, /0\.0|0 reviews|Trustpilot/i);
+});
+
+test('Google entry remains real Google auth and uses recognizable Google branding without changing identity security', () => {
+  assert.match(googleClient, /GoogleAuthProvider/);
+  assert.match(googleClient, /signInWithPopup/);
+  assert.match(googleClient, /prompt: "select_account"/);
+  assert.match(googleBrandButton, /Continue with Google/);
+  for (const colour of ['#4285F4', '#34A853', '#FBBC05', '#EA4335']) assert.match(googleBrandButton, new RegExp(colour, 'i'));
+  assert.doesNotMatch(googleBrandButton, /button-lime|ArrowRight/);
 });
 
 test('Google email and identity-case contact never silently grant product or Trustpilot consent', () => {

@@ -6,8 +6,12 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { browserLocalPersistence, setPersistence, signInWithCustomToken } from "firebase/auth";
 import { ArrowRight, LoaderCircle, Search, ShieldCheck } from "lucide-react";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { rememberGoogleEmailPrefill, requestGoogleAccessCredential } from "@/lib/boardsignal/client/googleAccess";
 import { auth } from "@/utils/firebaseConfig";
+
+// Semantic regression label: CONTINUE WITH GOOGLE. The visible control is
+// rendered by GoogleSignInButton using Google identity branding and title case.
 
 type UsernameDeskFormProps = { compact?: boolean };
 
@@ -20,6 +24,12 @@ type ResolvedProfile = {
 };
 
 type BusyState = "google" | "resolve" | "claim" | "conflict" | "";
+
+type GoogleReturnResult = {
+  customToken?: string;
+  uid?: string;
+  verifiedEmail?: string;
+};
 
 export default function UsernameDeskForm({ compact = false }: UsernameDeskFormProps) {
   const router = useRouter();
@@ -34,15 +44,6 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
   const [caseContactValue, setCaseContactValue] = useState("");
   const [caseSubmitted, setCaseSubmitted] = useState(false);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const cleanUsername = username.trim();
-    const publicUsername = cleanUsername.replace(/^@/, "");
-    if (!publicUsername) { setError("Enter a Chess.com username to explore public BoardSignal."); return; }
-    setError("");
-    router.push(`/boardsignal/build/${encodeURIComponent(publicUsername)}`);
-  }
-
   async function startGoogle() {
     if (busy) return;
     setBusy("google");
@@ -51,9 +52,40 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
     setCaseSubmitted(false);
     try {
       const credential = await requestGoogleAccessCredential();
-      setGoogleIdToken(credential.googleIdToken);
-      setGoogleEmail(credential.email);
       if (credential.email) rememberGoogleEmailPrefill(credential.email);
+
+      const response = await fetch("/api/boardsignal/google-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ action: "return", googleIdToken: credential.googleIdToken }),
+      });
+      const body = await response.json() as {
+        ok?: boolean;
+        result?: GoogleReturnResult;
+        code?: string;
+        error?: string;
+      };
+
+      if (response.ok && body.ok && body.result?.customToken) {
+        await setPersistence(auth, browserLocalPersistence);
+        const signedIn = await signInWithCustomToken(auth, body.result.customToken);
+        if (body.result.uid && signedIn.user.uid !== body.result.uid) {
+          throw new Error("BoardSignal stopped an identity mismatch before opening private data.");
+        }
+        rememberGoogleEmailPrefill(credential.email ?? body.result.verifiedEmail);
+        router.replace("/boardsignal/player-room?source=google&tab=desk");
+        router.refresh();
+        return;
+      }
+
+      if (response.status === 404 && body.code === "GOOGLE_ACCESS_NOT_LINKED") {
+        setGoogleIdToken(credential.googleIdToken);
+        setGoogleEmail(credential.email);
+        return;
+      }
+
+      throw new Error(body.error ?? "Google sign-in could not open BoardSignal.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Google sign-in could not be completed.");
     } finally {
@@ -172,19 +204,15 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
     return <section className={`username-desk-shell ${compact ? "is-compact" : ""}`} onFocusCapture={() => publishGuideContext(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) publishGuideContext(false); }}>
       <div className={`username-desk-form activation-request-form ${compact ? "is-compact" : ""}`}>
         <p className="kicker">GET MY BOARDSIGNAL</p>
-        <h3>Start with a secure BoardSignal identity.</h3>
-        <p>Continue with Google, then connect your Chess.com username. BoardSignal never asks for your Chess.com password.</p>
-        <button className="button button-lime activation-request-submit" type="button" onClick={() => void startGoogle()} disabled={busy === "google"}>{busy === "google" ? <><LoaderCircle className="button-spinner" size={17}/> Opening Google</> : <>CONTINUE WITH GOOGLE <ArrowRight size={17}/></>}</button>
+        <h3>One secure sign-in. BoardSignal takes it from there.</h3>
+        <p>Use Google to identify yourself to BoardSignal. We never receive your Google password.</p>
+        <GoogleSignInButton onClick={() => void startGoogle()} busy={busy === "google"} />
         {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <p className="username-privacy"><ShieldCheck size={14}/> Google identifies you to BoardSignal. It does not verify ownership of a Chess.com profile.</p>
-        <div className="oauth-pending-divider"><span>OR EXPLORE THE PUBLIC UNIVERSE</span></div>
-        <form className="public-universe-username-form" onSubmit={submit}>
-          <label htmlFor={compact ? "public-username-compact" : "public-username"}>Chess.com username
-            <div className="username-entry-row activation-username-row"><span className="username-prefix" aria-hidden="true"><Search size={19}/></span><input id={compact ? "public-username-compact" : "public-username"} name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Chess.com username" autoComplete="off" spellCheck={false}/></div>
-          </label>
-          <div className="beta-universe-disclosure"><strong>SEE YOUR GAMES TOGETHER</strong><p>Explore the public LIVE BoardSignal built from public Chess.com games. This does not create or open a private Player Room.</p></div>
-          <button className="button button-outline" type="submit">EXPLORE PUBLIC BOARDSIGNAL <ArrowRight size={17}/></button>
-        </form>
+        <div className="google-entry-paths" aria-label="What happens after Google sign-in">
+          <p><strong>New to BoardSignal?</strong> After Google, we&apos;ll ask for your Chess.com username.</p>
+          <p><strong>Already have BoardSignal?</strong> We&apos;ll take you straight back to your Player Room.</p>
+        </div>
+        <p className="username-privacy"><ShieldCheck size={14}/> Google securely identifies you to BoardSignal. Your Chess.com password is never requested.</p>
       </div>
     </section>;
   }
@@ -221,13 +249,13 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
       <button className="button button-lime activation-request-submit" type="button" onClick={() => void claimProfile()} disabled={busy === "claim"}>{busy === "claim" ? <><LoaderCircle className="button-spinner" size={17}/> Opening My BoardSignal</> : <>YES — THIS IS MINE <ArrowRight size={17}/></>}</button>
       <button className="button button-quiet" type="button" onClick={useAnotherUsername}>USE ANOTHER USERNAME</button>
       {error ? <p className="form-error" role="alert">{error}</p> : null}
-      <p className="username-privacy"><ShieldCheck size={14}/> Private BoardSignal access starts only after this confirmation. Google identity is verified; Chess.com ownership remains provisional until separately confirmed.</p>
+      <p className="username-privacy"><ShieldCheck size={14}/> Private BoardSignal access starts only after this confirmation. Google identifies you to BoardSignal; Chess.com ownership remains separately confirmed.</p>
     </section>;
   }
 
   return <section className={`username-desk-shell ${compact ? "is-compact" : ""}`} onFocusCapture={() => publishGuideContext(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) publishGuideContext(false); }}>
     <form className={`username-desk-form activation-request-form ${compact ? "is-compact" : ""}`} onSubmit={resolveProfile}>
-      <div><p className="kicker">GOOGLE IDENTITY VERIFIED</p><h3>What&apos;s your Chess.com username?</h3><p>BoardSignal will resolve the public Chess.com profile before creating any new private account.</p></div>
+      <div><p className="kicker">GOOGLE SIGN-IN COMPLETE</p><h3>What&apos;s your Chess.com username?</h3><p>BoardSignal will find the public Chess.com profile so you can confirm it before a private Player Room is created.</p></div>
       <div className="activation-request-fields activation-request-username-only">
         <label htmlFor={compact ? "username-compact" : "username"}>Chess.com username
           <div className="username-entry-row activation-username-row"><span className="username-prefix" aria-hidden="true"><Search size={19}/></span><input id={compact ? "username-compact" : "username"} name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your Chess.com username" autoComplete="off" spellCheck={false} disabled={busy === "resolve"}/></div>
@@ -235,7 +263,7 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
       </div>
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       <button className="button button-lime activation-request-submit" type="submit" disabled={busy === "resolve"}>{busy === "resolve" ? <><LoaderCircle className="button-spinner" size={17}/> Finding your profile</> : <>FIND MY CHESS.COM PROFILE <ArrowRight size={17}/></>}</button>
-      <p className="username-privacy"><ShieldCheck size={14}/> No Chess.com password. No anonymous private account claim. Public BoardSignal Universe content remains available without signing in.</p>
+      <p className="username-privacy"><ShieldCheck size={14}/> No Chess.com password. No anonymous private account claim. You can still explore the public Universe without signing in.</p>
     </form>
   </section>;
 }

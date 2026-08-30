@@ -91,15 +91,14 @@ test("returning Firebase sessions bypass the access form and open My Player Room
   assert.match(profile, /Sign out/);
 });
 
-test("public username to LIVE Desk remains available without authentication", () => {
+test("public LIVE Desk route remains available without competing with homepage Google acquisition", () => {
   const buildPage = readFileSync("src/app/boardsignal/build/[handle]/page.tsx", "utf8");
   const usernameForm = readFileSync("src/components/UsernameDeskForm.tsx", "utf8");
+  const homepage = readFileSync("src/app/page.tsx", "utf8");
   const liveRoute = readFileSync("src/app/api/boardsignal/[username]/route.ts", "utf8");
   assert.match(buildPage, /UniversalPlayerDesk/);
-  assert.match(usernameForm, /onSubmit=\{submit\}/);
-  assert.match(usernameForm, /name="username"/);
-  assert.match(usernameForm, /event\.preventDefault\(\)/);
-  assert.match(usernameForm, /const cleanUsername = username\.trim\(\)/);
+  assert.doesNotMatch(usernameForm, /onSubmit=\{submit\}|public-universe-username-form|EXPLORE PUBLIC BOARDSIGNAL|\/boardsignal\/build\//);
+  assert.match(homepage, /EXPLORE THE UNIVERSE|Explore the Universe/);
   assert.match(liveRoute, /buildLiveDesk/);
   assert.doesNotMatch(liveRoute, /requirePlayerToken/);
 });

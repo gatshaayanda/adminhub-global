@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { browserLocalPersistence, setPersistence, signInWithCustomToken } from "firebase/auth";
 import { ArrowRight, LoaderCircle, ShieldCheck } from "lucide-react";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { auth } from "@/utils/firebaseConfig";
 import { rememberGoogleEmailPrefill, requestGoogleAccessCredential } from "@/lib/boardsignal/client/googleAccess";
 
@@ -165,10 +166,10 @@ export default function GoogleAccessButton({
     </form>;
   }
 
+  const primaryLabel = !label || label.toUpperCase() === "CONTINUE WITH GOOGLE" ? "Continue with Google" : label;
+
   return <div className={`google-access-action ${compact ? "is-compact" : ""}`}>
-    <button type="button" className="button button-outline" onClick={() => void runReturn()} disabled={busy}>
-      {busy ? <><LoaderCircle className="button-spinner" size={15}/> Checking Google</> : <>{label ?? "CONTINUE WITH GOOGLE"} <ArrowRight size={15}/></>}
-    </button>
+    <GoogleSignInButton onClick={() => void runReturn()} busy={busy} busyLabel="Checking Google" label={primaryLabel} />
     {error ? <p className="form-error" role="alert">{error}</p> : null}
     {message ? <p className="form-success" role="status">{message}</p> : null}
   </div>;

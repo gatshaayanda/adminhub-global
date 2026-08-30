@@ -1,4 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "boardsignal-patch-l-experience-system-universe-engagement": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/boardsignal-return",

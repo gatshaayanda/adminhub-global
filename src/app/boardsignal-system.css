@@ -123,29 +123,167 @@
 .boardsignal-entry-primary {
   display: grid;
   gap: .85rem;
+  min-width: 0;
 }
 
-/* Consumer credibility stays close to the primary entry without becoming
-   founder telemetry, a dashboard or a second visual CTA. */
-.boardsignal-social-proof {
-  max-width: 52rem;
-  margin-top: 1rem;
-  padding: .85rem .15rem 0;
-  border-top: 1px solid var(--bs-border);
+/* Google authentication remains Firebase-backed, but its visible control
+   follows Google's current identity-button proportions instead of inheriting
+   BoardSignal CTA styling. */
+.google-signin-button {
+  width: min(100%, 24rem);
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid #747775;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f1f1f;
+  font-family: "Google Sans", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
-.boardsignal-social-proof-primary {
-  color: var(--bs-text-primary);
-  font-size: .92rem;
-  font-weight: 760;
+.google-signin-button:hover:not(:disabled) {
+  background: #f8faff;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, .22);
+}
+.google-signin-button:active:not(:disabled) { background: #f1f4f9; }
+.google-signin-button:focus-visible {
+  outline: 3px solid var(--bs-focus);
+  outline-offset: 3px;
+}
+.google-signin-button:disabled { opacity: .65; cursor: wait; }
+.google-signin-mark-shell,
+.google-signin-spacer {
+  width: 20px;
+  height: 20px;
+}
+.google-signin-mark-shell {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1f1f1f;
+}
+.google-signin-mark { width: 18px; height: 18px; }
+.google-signin-label { min-width: 0; text-align: center; white-space: normal; }
+.google-access-action { min-width: 0; max-width: 100%; }
+.google-access-action .google-signin-button { width: 100%; }
+
+html[data-bs-theme="dark"] .google-signin-button {
+  border-color: #8e918f;
+  background: #131314;
+  color: #e3e3e3;
+}
+html[data-bs-theme="dark"] .google-signin-button:hover:not(:disabled) { background: #1f1f20; }
+html[data-bs-theme="dark"] .google-signin-button:active:not(:disabled) { background: #28282a; }
+
+.google-entry-paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .6rem;
+  margin-top: .9rem;
+}
+.google-entry-paths p {
+  min-width: 0;
+  padding: .72rem .8rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-sm);
+  background: var(--bs-bg-subtle);
+  color: var(--bs-text-secondary);
+  font-size: .76rem;
   line-height: 1.45;
 }
+.google-entry-paths strong { color: var(--bs-text-primary); }
+
+/* Consumer credibility is real usage evidence, presented as a human signal
+   rather than founder telemetry. The sheen runs once on entry: it is not a
+   fake live/pulsing counter. */
+.boardsignal-social-proof {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem;
+  align-items: center;
+  max-width: 52rem;
+  margin-top: 1rem;
+  padding: .9rem 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--bs-blue-soft) 70%, var(--bs-surface)) 0%, var(--bs-surface) 56%, color-mix(in srgb, var(--bs-lime-soft) 64%, var(--bs-surface)) 100%);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--bs-text-primary) 10%, transparent);
+}
+.boardsignal-social-proof::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -55%;
+  bottom: -55%;
+  left: -32%;
+  width: 22%;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bs-surface-elevated) 78%, transparent), transparent);
+  animation: bs-proof-sheen 1.1s ease-out .3s 1 both;
+  pointer-events: none;
+}
+@keyframes bs-proof-sheen {
+  from { left: -32%; opacity: 0; }
+  20% { opacity: .72; }
+  to { left: 118%; opacity: 0; }
+}
+.boardsignal-social-proof-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--bs-border);
+  border-radius: 14px;
+  background: var(--bs-blue-soft);
+  color: var(--bs-blue-readable);
+}
+.boardsignal-social-proof-copy { min-width: 0; }
+.boardsignal-social-proof-primary {
+  color: var(--bs-text-primary);
+  font-size: .94rem;
+  font-weight: 780;
+  line-height: 1.42;
+}
 .boardsignal-social-proof-secondary {
-  margin-top: .24rem;
+  margin-top: .22rem;
   color: var(--bs-text-muted);
-  font-size: .76rem;
+  font-size: .77rem;
   font-weight: 680;
   line-height: 1.45;
 }
+
+.homepage-universe-entry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .55rem .8rem;
+  margin-top: .85rem;
+}
+.home-universe-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+  min-height: 44px;
+  color: var(--bs-blue-readable);
+  font-size: .78rem;
+  font-weight: 800;
+}
+.home-universe-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.homepage-universe-entry > span { color: var(--bs-text-muted); font-size: .72rem; }
 
 .return-recovery-details {
   margin-top: .7rem;
@@ -161,8 +299,38 @@
   font-weight: 750;
 }
 .return-recovery-details[open] > summary { color: var(--bs-text-primary); }
-.return-recovery-options { display: grid; gap: .65rem; padding-top: .65rem; }
+.return-recovery-options { display: grid; gap: .65rem; padding-top: .65rem; min-width: 0; }
 .return-recovery-options > p { color: var(--bs-text-muted); font-size: .82rem; }
+
+/* Prevent the old return/recovery grid from starving its copy column. This is
+   the release-blocking one-character-per-line regression guard. */
+.chesscom-login-panel {
+  grid-template-columns: auto minmax(16rem, 1fr) minmax(15rem, 23rem);
+  width: 100%;
+  min-width: 0;
+}
+.chesscom-login-copy,
+.chesscom-login-actions,
+.chesscom-login-actions > *,
+.username-desk-shell,
+.username-desk-form,
+.activation-request-form,
+.hero-username-card {
+  min-width: 0;
+  max-width: 100%;
+}
+.chesscom-login-copy :is(h1, h2, h3, p, small),
+.google-access-action :is(p, small),
+.return-recovery-options :is(p, small, label) {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+.chesscom-login-actions {
+  width: 100%;
+  max-width: 23rem;
+  justify-self: end;
+}
 
 .bs-state-banner {
   display: flex;
@@ -219,26 +387,45 @@
   border: 1px solid var(--bs-border);
 }
 
+@media (max-width: 980px) {
+  .chesscom-login-panel { grid-template-columns: auto minmax(0, 1fr); }
+  .chesscom-login-actions {
+    grid-column: 1 / -1;
+    max-width: none;
+    justify-self: stretch;
+  }
+}
+
 @media (max-width: 680px) {
   .beta-preview-approval-alert { margin-top: .75rem; }
   .beta-preview-access-cta { border-radius: 22px; }
   .beta-preview-approval-alert .beta-return-options { grid-template-columns: 1fr; }
   .return-recovery-details > summary { min-height: 48px; }
-  .boardsignal-social-proof { margin-top: .85rem; padding-top: .75rem; }
+  .google-entry-paths { grid-template-columns: 1fr; }
+  .google-signin-button { width: 100%; }
+  .boardsignal-social-proof { grid-template-columns: auto minmax(0, 1fr); margin-top: .85rem; padding: .82rem .85rem; }
   .boardsignal-social-proof-primary { font-size: .88rem; }
+  .boardsignal-social-proof-mark { width: 38px; height: 38px; border-radius: 12px; }
+  .homepage-universe-entry { align-items: flex-start; flex-direction: column; gap: .12rem; }
+  .chesscom-login-panel { grid-template-columns: minmax(0, 1fr); }
+  .chesscom-login-icon { display: none; }
+  .chesscom-login-actions { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .review-ready-banner { animation: none; }
+  .boardsignal-social-proof::after { display: none; animation: none; }
 }
 
 @media (forced-colors: active) {
   .bs-state-banner,
   .progress-start-state,
-  .return-recovery-details { border-color: CanvasText; }
+  .return-recovery-details,
+  .boardsignal-social-proof,
+  .google-signin-button { border-color: CanvasText; }
   .bs-state-banner.is-success,
   .bs-state-banner.is-warning,
   .bs-state-banner.is-error,
   .bs-state-banner.is-info { border-left-color: Highlight; }
-  .boardsignal-social-proof { border-top-color: CanvasText; }
+  .boardsignal-social-proof-mark { border-color: CanvasText; color: LinkText; }
 }

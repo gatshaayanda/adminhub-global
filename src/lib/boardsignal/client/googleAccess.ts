@@ -27,16 +27,13 @@ function googleAccessAuth() {
 export function googleAccessErrorMessage(reason: unknown) {
   const error = reason as FirebaseAuthError;
   const code = String(error?.code ?? "");
-  if (code === "auth/popup-blocked") return "Google sign-in was blocked by this browser. Allow popups for this BoardSignal hostname and try again. Your existing BoardSignal access is unchanged.";
+  if (code === "auth/popup-blocked") return "Google sign-in was blocked by this browser. Allow popups for BoardSignal and try again. Your existing BoardSignal access is unchanged.";
   if (code === "auth/popup-closed-by-user") return "Google sign-in was cancelled. Your existing BoardSignal access is unchanged.";
   if (code === "auth/cancelled-popup-request") return "That Google sign-in attempt was cancelled before it finished. Try again when you're ready; your BoardSignal access is unchanged.";
-  if (code === "auth/unauthorized-domain") {
-    const hostname = typeof window !== "undefined" ? window.location.hostname : "this hostname";
-    return `Google sign-in is not authorised for ${hostname}. Add exactly ${hostname} under Firebase Authentication → Settings → Authorized domains, then try again.`;
-  }
-  if (code === "auth/operation-not-allowed") return "Google sign-in is not enabled in Firebase Authentication yet. Enable Google under Authentication → Sign-in method; your existing BoardSignal access is unchanged.";
-  if (code === "auth/network-request-failed") return "Google sign-in could not reach Firebase. Check the connection and try again; your existing BoardSignal access is unchanged.";
-  return error?.message || "Google sign-in could not be completed. Your existing BoardSignal access is unchanged.";
+  if (code === "auth/unauthorized-domain") return "Google sign-in is temporarily unavailable on this address. Open BoardSignal from its main site and try again.";
+  if (code === "auth/operation-not-allowed") return "Google sign-in is temporarily unavailable. Try again later or use account recovery if you already have BoardSignal.";
+  if (code === "auth/network-request-failed") return "Google sign-in could not connect. Check your connection and try again; your existing BoardSignal access is unchanged.";
+  return "Google sign-in could not be completed. Your existing BoardSignal access is unchanged.";
 }
 
 export async function requestGoogleAccessCredential() {

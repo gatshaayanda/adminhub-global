@@ -18,6 +18,7 @@ const accessPage = read('src/app/boardsignal/access/page.tsx');
 const previewRoom = read('src/components/BetaPreviewRoom.tsx');
 const magicAccess = read('src/components/MagicBetaAccess.tsx');
 const requestForm = read('src/components/UsernameDeskForm.tsx');
+const homepage = read('src/app/page.tsx');
 const adminRoute = read('src/app/api/admin/boardsignal/beta-access/route.ts');
 const adminUi = read('src/components/FoundingBetaPlayersAdmin.tsx');
 const founderAlerts = read('src/components/FounderBetaRequestAlerts.tsx');
@@ -67,17 +68,17 @@ test('06 request resolves canonical stable Chess.com identity', () => {
   assert.match(submission, /resolveChessComPlayer\(requestedUsername\)/);
   assert.match(betaRequests, /playerId: resolved\.playerId, canonicalUsername: resolved\.username/);
 });
-test('07 new private access is Google-first before a Chess.com identity is claimed', () => {
-  assert.match(requestForm, /CONTINUE WITH GOOGLE/);
+test('07 new private access is one Google-first entry before a Chess.com identity is claimed', () => {
+  assert.match(requestForm, /GoogleSignInButton/);
+  assert.match(requestForm, /action: "return"/);
   assert.match(requestForm, /Continue with Google before connecting a Chess\.com username/);
   assert.match(requestForm, /FIND MY CHESS\.COM PROFILE/);
   assert.doesNotMatch(requestForm, /CONTINUE WITHOUT GOOGLE|CONTINUE PREVIEW/i);
 });
-test('08 public username exploration stays public-Universe only', () => {
-  assert.match(requestForm, /EXPLORE PUBLIC BOARDSIGNAL/);
-  assert.match(requestForm, /\/boardsignal\/build\//);
-  assert.match(requestForm, /encodeURIComponent\(publicUsername\)/);
-  assert.match(requestForm, /does not create or open a private Player Room/);
+test('08 public Universe remains accessible without a competing homepage username intake', () => {
+  assert.doesNotMatch(requestForm, /EXPLORE PUBLIC BOARDSIGNAL|OR EXPLORE THE PUBLIC UNIVERSE|public-universe-username-form|\/boardsignal\/build\//);
+  assert.match(homepage, /EXPLORE THE UNIVERSE|Explore the Universe/);
+  assert.match(homepage, /No sign-in required/);
   assert.doesNotMatch(requestForm, /\/boardsignal\/preview\//);
 });
 test('09 request is persisted before preview generation', () => {

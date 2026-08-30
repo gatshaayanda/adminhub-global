@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { LockKeyhole, ShieldCheck, Target } from "lucide-react";
-import ChessComLoginPanel from "@/components/ChessComLoginPanel";
+import { ArrowRight, LockKeyhole, ShieldCheck, Target, UsersRound } from "lucide-react";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { coverageStories } from "@/data/boardsignal";
 import { BOARDSIGNAL_SUPPORT_DISCORD_URL } from "@/lib/boardsignal/client/firestoreQuota";
@@ -41,10 +40,17 @@ export default async function HomePage() {
             <div id="get-my-boardsignal" className="hero-username-card">
               <UsernameDeskForm />
             </div>
-            {liveProof && (playersServed > 0 || secondaryProof) ? <div className="boardsignal-social-proof" aria-label="BoardSignal usage by real players">
-              {playersServed > 0 ? <p className="boardsignal-social-proof-primary">{playersServedCopy(playersServed)}</p> : null}
-              {secondaryProof ? <p className="boardsignal-social-proof-secondary">{secondaryProof}</p> : null}
+            {liveProof && (playersServed > 0 || secondaryProof) ? <div className="boardsignal-social-proof motion-enter motion-delay-1" aria-label="BoardSignal usage by real players">
+              <div className="boardsignal-social-proof-mark" aria-hidden="true"><UsersRound size={21} /></div>
+              <div className="boardsignal-social-proof-copy">
+                {playersServed > 0 ? <p className="boardsignal-social-proof-primary">{playersServedCopy(playersServed)}</p> : null}
+                {secondaryProof ? <p className="boardsignal-social-proof-secondary">{secondaryProof}</p> : null}
+              </div>
             </div> : null}
+            <div className="homepage-universe-entry">
+              <Link href="/feed" className="home-universe-link">Explore the Universe <ArrowRight size={15} /></Link>
+              <span>Public positive highlights. No sign-in required.</span>
+            </div>
             <div className="first-value-preview">
               <p className="kicker">WHAT BOARDSIGNAL GIVES YOU</p>
               <div>
@@ -64,10 +70,6 @@ export default async function HomePage() {
             <p><strong>FOCUS NEXT</strong><br />When you&apos;re ahead, check your opponent&apos;s forcing reply before committing.</p>
           </aside>
         </div>
-      </section>
-
-      <section className="container home-player-room-entry">
-        <ChessComLoginPanel compact />
       </section>
 
       <section className="container secondary-coverage">

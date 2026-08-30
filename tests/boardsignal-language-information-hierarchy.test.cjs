@@ -16,11 +16,13 @@ const feed = read('src/app/feed/page.tsx');
 const header = read('src/components/Header.tsx');
 const types = read('src/lib/boardsignal/types.ts');
 
-test('homepage explains the consumer value before mechanics', () => {
+test('homepage explains the consumer value and one Google entry before mechanics', () => {
   assert.match(home, /See what your games are actually telling you\./);
   assert.match(home, /BoardSignal reviews your recent Chess\.com games together to show what changed, what&apos;s costing you games, and what to focus on next\./);
-  assert.match(username, /SHOW ME MY REVIEW/);
-  assert.match(username, /No password\. No uploads\./);
+  assert.match(username, /GoogleSignInButton/);
+  assert.match(username, /Already have BoardSignal\?/);
+  assert.match(username, /New to BoardSignal\?/);
+  assert.doesNotMatch(username, /OR EXPLORE THE PUBLIC UNIVERSE|EXPLORE PUBLIC BOARDSIGNAL/);
   assert.match(home, /Know what happened\./);
   assert.match(home, /See what keeps repeating\./);
   assert.match(home, /Know what to work on next\./);
@@ -80,12 +82,12 @@ test('Preview leads from found games to private My BoardSignal', () => {
   assert.match(preview, /Private improvement guidance and reviewed position evidence stay inside My BoardSignal\./);
 });
 
-test('public surfaces use highlights and Around BoardSignal without private weakness vocabulary', () => {
+test('public surfaces use highlights and Universe without private weakness vocabulary', () => {
   assert.match(publicPlayer, /BOARD SIGNAL HIGHLIGHTS/);
   assert.match(publicPlayer, /THIS WEEK'S STANDOUTS/);
-  assert.match(feed, /Around BoardSignal/);
-  assert.match(feed, /HIGHLIGHTS/);
-  assert.match(feed, /THIS WEEK&apos;S STANDOUTS/);
+  assert.match(header, /label: "Universe", href: "\/feed"/);
+  assert.match(feed, /BoardSignal Universe/);
+  assert.match(feed, /HIGHLIGHTS|LIVE FIELD/);
   for (const source of [publicPlayer, feed]) {
     assert.doesNotMatch(source, /Signal Board|Blue Signal|Red Signal|Amber Signal/);
   }

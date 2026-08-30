@@ -8,7 +8,7 @@ import { boardSignalPresentationLabel } from "@/lib/boardsignal/presentationLang
 import type { PublicUniverseEvent } from "@/lib/boardsignal/pulse";
 import type { UniverseCategoryGroup } from "@/lib/boardsignal/universe";
 
-export const metadata = { title: "Around BoardSignal" };
+export const metadata = { title: "BoardSignal Universe" };
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ export default async function CoverageFeedPage() {
     <div id="main" className="interior-page g4-public-universe">
       <header className="interior-hero feed-hero g4-public-field-hero">
         <div className="container">
-          <p className="kicker"><Radio size={15} /> Around BoardSignal</p>
+          <p className="kicker"><Radio size={15} /> BoardSignal Universe</p>
           <h1>LIVE FIELD</h1>
           <p className="standfirst">Official standings use each player&apos;s latest eligible completed Review. Current-week comparisons stay private and provisional until a Review closes.</p>
           {!fieldUnavailable ? <p className="g4-field-scale">{officialPlayerCount} player{officialPlayerCount === 1 ? "" : "s"} represented in the current official field.</p> : null}

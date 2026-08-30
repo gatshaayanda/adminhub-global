@@ -11,7 +11,7 @@ import { BOARDSIGNAL_FOUNDER_DEVICE_EVENT, BOARDSIGNAL_FOUNDER_DEVICE_KEY } from
 
 const primaryNav = [
   { label: "Home", href: "/" },
-  { label: "Around BoardSignal", href: "/feed" },
+  { label: "Universe", href: "/feed" },
   { label: "My BoardSignal", href: "/boardsignal/player-room" },
 ];
 
@@ -30,7 +30,6 @@ export default function Header() {
     window.addEventListener(BOARDSIGNAL_FOUNDER_DEVICE_EVENT, refresh);
     return () => window.removeEventListener(BOARDSIGNAL_FOUNDER_DEVICE_EVENT, refresh);
   }, []);
-
 
   const active = (href: string) => href === "/" ? pathname === "/" : pathname?.startsWith(href);
   const insideOwnerFlow = pathname?.startsWith("/boardsignal/player-room") || pathname?.startsWith("/boardsignal/build/");

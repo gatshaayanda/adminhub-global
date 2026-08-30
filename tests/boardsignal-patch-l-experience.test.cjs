@@ -97,20 +97,19 @@ test('homepage has one obvious private entry followed by compact proof, explanat
   assert.doesNotMatch(homepage, /Founder beta|Fact Pack|Data Lab|seeded Desk/i);
 });
 
-test('homepage credibility uses every strong public stat while keeping product and audience truth distinct', () => {
+test('homepage credibility uses strong consumer proof while keeping operational pipeline and audience truth distinct', () => {
   assert.match(homepage, /loadPublicBoardSignalProof/);
   assert.match(homepage, /loadPublicBoardSignalTrafficProof/);
   assert.match(homepage, /HomeProofRail/);
   assert.match(homeProofRail, /PUBLIC_PROOF_MINIMUM = 20/);
   assert.match(homeProofRail, /proof\.activePlayers/);
-  assert.match(homeProofRail, /proof\.reviewsForming/);
   assert.match(homeProofRail, /proof\.reviewsProduced/);
   assert.match(homeProofRail, /proof\.playersServed/);
   assert.match(homeProofRail, /proof\.retentionReviews/);
+  assert.doesNotMatch(homeProofRail, /proof\.reviewsForming|Reviews are forming now/i);
   assert.match(homeProofRail, /active player accounts/);
-  assert.match(homeProofRail, /Reviews are forming now/);
   assert.match(homeProofRail, /Reviews completed across/);
-  assert.match(homeProofRail, /retention Review records from ongoing player history/);
+  assert.match(homeProofRail, /retention Reviews from later player cycles/);
   assert.match(homeProofRail, /site visitors/);
   assert.match(homeProofRail, /page views/);
   assert.match(homeProofRail, /last 30 days/);

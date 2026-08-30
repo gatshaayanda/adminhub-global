@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -18,8 +18,11 @@ function findChrome() {
   throw new Error("Chrome/Chromium was not found on the QA runner.");
 }
 
-const chrome = findChrome();
+function sleep(ms) {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
 
+const chrome = findChrome();
 const desktopStates = ["google", "username", "profile", "collision"];
 const mobileWidths = [320, 360, 375, 390, 412, 430];
 const cases = [];
@@ -38,68 +41,207 @@ for (const state of ["google", "username"]) {
   cases.push({ state, theme: "light", width: 390, height: 900 });
 }
 
-function runChrome(testCase, attempt) {
+async function waitForDevTools(profileDir, chromeProcess) {
+  const portFile = join(profileDir, "DevToolsActivePort");
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (chromeProcess.exitCode !== null) throw new Error(`Chrome exited before DevTools became available (${chromeProcess.exitCode}).`);
+    if (existsSync(portFile)) {
+      const [portText, browserPath] = readFileSync(portFile, "utf8").trim().split(/\r?\n/);
+      const port = Number(portText);
+      if (Number.isFinite(port) && browserPath) return `ws://127.0.0.1:${port}${browserPath}`;
+    }
+    await sleep(50);
+  }
+  throw new Error("Chrome DevTools endpoint did not become available.");
+}
+
+async function openCdp(webSocketUrl) {
+  if (typeof WebSocket !== "function") {
+    throw new Error("Node WebSocket support is unavailable. Run this script with --experimental-websocket on Node 20.");
+  }
+
+  const socket = new WebSocket(webSocketUrl);
+  await new Promise((resolveOpen, rejectOpen) => {
+    const timer = setTimeout(() => rejectOpen(new Error("Timed out connecting to Chrome DevTools.")), 10000);
+    socket.addEventListener("open", () => {
+      clearTimeout(timer);
+      resolveOpen();
+    }, { once: true });
+    socket.addEventListener("error", () => {
+      clearTimeout(timer);
+      rejectOpen(new Error("Could not connect to Chrome DevTools."));
+    }, { once: true });
+  });
+
+  let nextId = 0;
+  const pending = new Map();
+
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(String(event.data));
+    if (!message.id) return;
+    const request = pending.get(message.id);
+    if (!request) return;
+    pending.delete(message.id);
+    clearTimeout(request.timer);
+    if (message.error) request.reject(new Error(`${message.error.code}: ${message.error.message}`));
+    else request.resolve(message.result ?? {});
+  });
+
+  socket.addEventListener("close", () => {
+    for (const request of pending.values()) {
+      clearTimeout(request.timer);
+      request.reject(new Error("Chrome DevTools connection closed unexpectedly."));
+    }
+    pending.clear();
+  });
+
+  function command(method, params = {}, sessionId) {
+    return new Promise((resolveCommand, rejectCommand) => {
+      const id = ++nextId;
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        rejectCommand(new Error(`Chrome DevTools command timed out: ${method}`));
+      }, 15000);
+      pending.set(id, { resolve: resolveCommand, reject: rejectCommand, timer });
+      socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+    });
+  }
+
+  return {
+    command,
+    close() {
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) socket.close();
+    },
+  };
+}
+
+async function inspectCase(cdp, testCase) {
   const { state, theme, width, height } = testCase;
   const slug = `${state}-${theme}-${width}x${height}`;
   const screenshot = join(artifactDir, `${slug}.png`);
-  const profileDir = mkdtempSync(join(tmpdir(), `boardsignal-chrome-${slug}-`));
   const url = `${baseUrl}/boardsignal/qa/onboarding?state=${encodeURIComponent(state)}&theme=${encodeURIComponent(theme)}`;
-  const args = [
-    "--headless=new",
-    "--no-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-gpu",
-    "--hide-scrollbars",
-    "--force-device-scale-factor=1",
-    `--window-size=${width},${height}`,
-    `--user-data-dir=${profileDir}`,
-    "--virtual-time-budget=2500",
-    `--screenshot=${screenshot}`,
-    "--dump-dom",
-    url,
-  ];
-  const result = spawnSync(chrome, args, { encoding: "utf8", maxBuffer: 24 * 1024 * 1024, timeout: 45000 });
-  rmSync(profileDir, { recursive: true, force: true });
+  const { targetId } = await cdp.command("Target.createTarget", { url: "about:blank" });
 
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`${slug}: Chrome exited ${result.status}. ${String(result.stderr || "").slice(-1400)}`);
-  }
-
-  const dom = result.stdout || "";
-  const passed = /data-result="pass"/.test(dom) && dom.includes("BOARD_SIGNAL_ONBOARDING_RENDER_PASS");
-  const widthMatch = dom.match(/data-viewport-width="(\d+)"/);
-  const measuredWidth = widthMatch ? Number(widthMatch[1]) : undefined;
-
-  if (!passed || measuredWidth !== width) {
-    if (attempt < 2) return runChrome(testCase, attempt + 1);
-    const failure = dom.match(/BOARD_SIGNAL_ONBOARDING_RENDER_FAIL:[^<]*/)?.[0] || "render probe did not report PASS";
-    throw new Error(`${slug}: ${failure}; requested viewport ${width}, measured ${measuredWidth ?? "unknown"}. Screenshot: ${screenshot}`);
-  }
-
-  if (!existsSync(screenshot)) throw new Error(`${slug}: Chrome did not create ${screenshot}`);
-  return slug;
-}
-
-console.log(`BoardSignal rendered onboarding QA using ${chrome}`);
-console.log(`Base URL: ${baseUrl}`);
-console.log(`Cases: ${cases.length}`);
-
-const failures = [];
-for (const testCase of cases) {
   try {
-    const slug = runChrome(testCase, 1);
-    console.log(`PASS ${slug}`);
-  } catch (error) {
-    failures.push(error instanceof Error ? error.message : String(error));
-    console.error(`FAIL ${failures.at(-1)}`);
+    const { sessionId } = await cdp.command("Target.attachToTarget", { targetId, flatten: true });
+    await cdp.command("Page.enable", {}, sessionId);
+    await cdp.command("Emulation.setDeviceMetricsOverride", {
+      width,
+      height,
+      deviceScaleFactor: 1,
+      mobile: width < 500,
+      screenWidth: width,
+      screenHeight: height,
+      positionX: 0,
+      positionY: 0,
+      dontSetVisibleSize: false,
+    }, sessionId);
+    await cdp.command("Page.navigate", { url }, sessionId);
+
+    const deadline = Date.now() + 12000;
+    let probe;
+    while (Date.now() < deadline) {
+      try {
+        const evaluated = await cdp.command("Runtime.evaluate", {
+          expression: `(() => {
+            const result = document.getElementById("boardsignal-onboarding-qa-result");
+            return {
+              state: result?.dataset.result ?? null,
+              width: window.innerWidth,
+              height: window.innerHeight,
+              text: result?.textContent ?? "",
+            };
+          })()`,
+          returnByValue: true,
+        }, sessionId);
+        probe = evaluated?.result?.value;
+        if (probe?.state === "pass" || probe?.state === "fail") break;
+      } catch {
+        // Navigation can replace the execution context between polls. Retry until the probe settles.
+      }
+      await sleep(100);
+    }
+
+    const captured = await cdp.command("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+      captureBeyondViewport: false,
+    }, sessionId);
+    if (captured?.data) writeFileSync(screenshot, Buffer.from(captured.data, "base64"));
+
+    if (!probe || (probe.state !== "pass" && probe.state !== "fail")) {
+      throw new Error(`${slug}: render probe did not settle. Screenshot: ${screenshot}`);
+    }
+    if (probe.width !== width) {
+      throw new Error(`${slug}: requested viewport ${width}, measured ${probe.width ?? "unknown"}. Screenshot: ${screenshot}`);
+    }
+    if (probe.state !== "pass") {
+      throw new Error(`${slug}: ${probe.text || "render probe reported failure"}. Screenshot: ${screenshot}`);
+    }
+    if (!existsSync(screenshot)) throw new Error(`${slug}: Chrome did not create ${screenshot}`);
+    return slug;
+  } finally {
+    await cdp.command("Target.closeTarget", { targetId }).catch(() => undefined);
   }
 }
 
-if (failures.length) {
-  console.error(`\nBoardSignal rendered onboarding QA failed ${failures.length}/${cases.length} cases:`);
-  for (const failure of failures) console.error(`- ${failure}`);
-  process.exit(1);
+async function runCase(cdp, testCase) {
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await inspectCase(cdp, testCase);
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await sleep(200);
+    }
+  }
+  throw lastError;
 }
 
-console.log(`\nBoardSignal rendered onboarding QA passed ${cases.length}/${cases.length} cases.`);
+const profileDir = mkdtempSync(join(tmpdir(), "boardsignal-chrome-cdp-"));
+const chromeProcess = spawn(chrome, [
+  "--headless=new",
+  "--no-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-gpu",
+  "--hide-scrollbars",
+  "--remote-debugging-address=127.0.0.1",
+  "--remote-debugging-port=0",
+  `--user-data-dir=${profileDir}`,
+  "about:blank",
+], { stdio: ["ignore", "ignore", "ignore"] });
+
+let cdp;
+try {
+  const webSocketUrl = await waitForDevTools(profileDir, chromeProcess);
+  cdp = await openCdp(webSocketUrl);
+
+  console.log(`BoardSignal rendered onboarding QA using ${chrome}`);
+  console.log(`Base URL: ${baseUrl}`);
+  console.log(`Cases: ${cases.length}`);
+
+  const failures = [];
+  for (const testCase of cases) {
+    try {
+      const slug = await runCase(cdp, testCase);
+      console.log(`PASS ${slug}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      failures.push(message);
+      console.error(`FAIL ${message}`);
+    }
+  }
+
+  if (failures.length) {
+    console.error(`\nBoardSignal rendered onboarding QA failed ${failures.length}/${cases.length} cases:`);
+    for (const failure of failures) console.error(`- ${failure}`);
+    process.exitCode = 1;
+  } else {
+    console.log(`\nBoardSignal rendered onboarding QA passed ${cases.length}/${cases.length} cases.`);
+    console.log("BOARD_SIGNAL_ONBOARDING_RENDER_PASS");
+  }
+} finally {
+  cdp?.close();
+  if (chromeProcess.exitCode === null) chromeProcess.kill("SIGTERM");
+  rmSync(profileDir, { recursive: true, force: true });
+}

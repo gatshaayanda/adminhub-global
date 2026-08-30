@@ -99,7 +99,7 @@ jobs:
             cat /tmp/boardsignal-patch-l-dev.log
             exit 1
           fi
-          node scripts/check-boardsignal-onboarding-render.mjs
+          node --experimental-websocket scripts/check-boardsignal-onboarding-render.mjs
 
       - name: Production build
         env:

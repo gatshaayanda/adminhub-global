@@ -10,7 +10,7 @@ const BASELINE_SHA = 'b24191dca59c0ce5c33631c414745df4f17d02d7';
 const normalizeText = (value) => value.replace(/\r\n/g, '\n');
 const assertBaselineFile = (file) => {
   const current = normalizeText(read(file));
-  const baseline = normalizeText(execFileSync('git', ['show', `${BASELINE_SHA}:${file}`], { cwd: root, encoding: 'utf8'));
+  const baseline = normalizeText(execFileSync('git', ['show', `${BASELINE_SHA}:${file}`], { cwd: root, encoding: 'utf8' }));
   assert.equal(current, baseline, `${file} changed from locked baseline ${BASELINE_SHA}`);
 };
 const pkg = JSON.parse(read('package.json'));

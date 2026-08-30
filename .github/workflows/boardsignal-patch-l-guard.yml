@@ -73,6 +73,34 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
 
+      - name: Render onboarding in real Chrome at desktop and mobile widths
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchLGuard000000000000000000000
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-l-ci.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-l-ci
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: patch-l-ci.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+        run: |
+          set -euo pipefail
+          npm run dev -- -p 3100 > /tmp/boardsignal-patch-l-dev.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/onboarding?state=google&theme=light" >/dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/boardsignal-patch-l-dev.log
+            exit 1
+          fi
+          node scripts/check-boardsignal-onboarding-render.mjs
+
       - name: Production build
         env:
           NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchLGuard000000000000000000000

@@ -1,22 +1,24 @@
 import Link from "next/link";
-import { ArrowRight, LockKeyhole, ShieldCheck, Target, UsersRound } from "lucide-react";
+import { ArrowRight, ExternalLink, LockKeyhole, ShieldCheck, Target, UsersRound } from "lucide-react";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { coverageStories } from "@/data/boardsignal";
 import { BOARDSIGNAL_SUPPORT_DISCORD_URL } from "@/lib/boardsignal/client/firestoreQuota";
 import { loadPublicBoardSignalProof } from "@/lib/boardsignal/server/publicProof";
 
 const secondaryStories = coverageStories.slice(0, 3);
+const TRUSTPILOT_PROFILE_URL = "https://www.trustpilot.com/review/adminhub-global.com";
+const RETURNING_PLAYER_PROOF_THRESHOLD = 20;
 
-function playersServedCopy(count: number) {
-  return `${count} ${count === 1 ? "player has" : "players have"} already used BoardSignal to understand their games.`;
-}
-
-function reviewsCompletedCopy(count: number) {
-  return `${count} ${count === 1 ? "Review" : "Reviews"} completed`;
+function usageProofCopy(players: number, reviews: number) {
+  if (players > 0 && reviews > 0) {
+    return `${reviews} ${reviews === 1 ? "Review" : "Reviews"} completed across ${players} ${players === 1 ? "player" : "players"}.`;
+  }
+  if (players > 0) return `${players} ${players === 1 ? "player has" : "players have"} used BoardSignal to understand their games.`;
+  return `${reviews} ${reviews === 1 ? "BoardSignal Review has" : "BoardSignal Reviews have"} been completed.`;
 }
 
 function returningPlayersCopy(count: number) {
-  return `${count} ${count === 1 ? "player has" : "players have"} already come back for another Review`;
+  return `${count} ${count === 1 ? "player has" : "players have"} come back for another Review.`;
 }
 
 export default async function HomePage() {
@@ -24,10 +26,7 @@ export default async function HomePage() {
   const playersServed = liveProof?.playersServed ?? 0;
   const reviewsProduced = liveProof?.reviewsProduced ?? 0;
   const returningPlayers = liveProof?.returningPlayers ?? 0;
-  const secondaryProof = [
-    reviewsProduced > 0 ? reviewsCompletedCopy(reviewsProduced) : "",
-    returningPlayers > 0 ? returningPlayersCopy(returningPlayers) : "",
-  ].filter(Boolean).join(" · ");
+  const showReturningProof = returningPlayers >= RETURNING_PLAYER_PROOF_THRESHOLD;
 
   return (
     <div id="main" className="personal-home">
@@ -40,11 +39,12 @@ export default async function HomePage() {
             <div id="get-my-boardsignal" className="hero-username-card">
               <UsernameDeskForm />
             </div>
-            {liveProof && (playersServed > 0 || secondaryProof) ? <div className="boardsignal-social-proof motion-enter motion-delay-1" aria-label="BoardSignal usage by real players">
+            {liveProof && (playersServed > 0 || reviewsProduced > 0) ? <div className="boardsignal-social-proof motion-enter motion-delay-1" aria-label="BoardSignal usage by real players">
               <div className="boardsignal-social-proof-mark" aria-hidden="true"><UsersRound size={21} /></div>
               <div className="boardsignal-social-proof-copy">
-                {playersServed > 0 ? <p className="boardsignal-social-proof-primary">{playersServedCopy(playersServed)}</p> : null}
-                {secondaryProof ? <p className="boardsignal-social-proof-secondary">{secondaryProof}</p> : null}
+                <p className="boardsignal-social-proof-primary">{usageProofCopy(playersServed, reviewsProduced)}</p>
+                {showReturningProof ? <p className="boardsignal-social-proof-secondary">{returningPlayersCopy(returningPlayers)}</p> : null}
+                <a className="boardsignal-social-proof-trust" href={TRUSTPILOT_PROFILE_URL} target="_blank" rel="noreferrer noopener">Read independent reviews on Trustpilot <ExternalLink size={13} /></a>
               </div>
             </div> : null}
             <div className="homepage-universe-entry">

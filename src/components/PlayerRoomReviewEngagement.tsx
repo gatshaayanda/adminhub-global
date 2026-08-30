@@ -13,7 +13,7 @@ export default function PlayerRoomReviewEngagement() {
     if (requestedTab && requestedTab !== "desk") return;
 
     let activeUser: User | null = null;
-    let timer: ReturnType<typeof window.setTimeout> | undefined;
+    let timer: number | undefined;
 
     const ping = (user: User) => {
       if (timer) window.clearTimeout(timer);

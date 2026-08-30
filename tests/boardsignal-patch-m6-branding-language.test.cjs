@@ -102,10 +102,14 @@ test('9. Google-first access semantics remain intact and Founder approval is not
   assert.doesNotMatch(username, /Founder approval|wait for Founder|approve access/i);
 });
 
-test('10. Trustpilot eligibility still requires genuine completed Review production', () => {
+test('10. M3 Trustpilot visit rhythm and neutral invitation boundary remain intact', () => {
   assert.match(trustpilotRoute, /account\.accessStatus !== "active"/);
-  assert.match(trustpilotRoute, /reviewProduction\?\.totalReviews \?\? 0\) < 1/);
+  assert.match(trustpilotRoute, /count === 3/);
+  assert.match(trustpilotRoute, /count === 6/);
+  assert.doesNotMatch(trustpilotRoute, /reviewProduction/);
   assert.doesNotMatch(trustpilotRoute, /starRating|trustScore|positiveExperience|negativeExperience|sentiment|feedbackScore/i);
+  assert.match(playerRoomEngagement, /if \(count === 3\) return "first"/);
+  assert.match(playerRoomEngagement, /if \(count === 6\) return "final"/);
 });
 
 test('11. PWA/offline architecture stays intact while its identity copy follows M6', () => {

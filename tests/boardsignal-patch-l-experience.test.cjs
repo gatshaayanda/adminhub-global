@@ -12,7 +12,9 @@ const foundation = read('src/app/boardsignal-foundation.css');
 const accessibility = read('src/app/boardsignal-accessibility.css');
 const motion = read('src/app/boardsignal-motion.css');
 const homepage = read('src/app/page.tsx');
+const homepageStyles = read('src/app/page.module.css');
 const username = read('src/components/UsernameDeskForm.tsx');
+const usernameStyles = read('src/components/UsernameDeskForm.module.css');
 const login = read('src/components/ChessComLoginPanel.tsx');
 const googleButton = read('src/components/GoogleSignInButton.tsx');
 const googleClient = read('src/lib/boardsignal/client/googleAccess.ts');
@@ -78,23 +80,26 @@ test('homepage has one obvious private entry before proof, explanation and Unive
   assert.match(username, /GoogleSignInButton/);
   assert.match(username, /action: "return"/);
   assert.match(username, /Already have BoardSignal\?/);
-  assert.match(username, /New to BoardSignal\?/);
+  assert.match(username, /New here\?/);
   assert.doesNotMatch(username, /OR EXPLORE THE PUBLIC UNIVERSE|EXPLORE PUBLIC BOARDSIGNAL|public-universe-username-form|\/boardsignal\/build\//);
   assert.doesNotMatch(homepage, /ChessComLoginPanel|home-player-room-entry/);
   assert.match(homepage, /Explore the Universe/);
   assert.doesNotMatch(homepage, /Founder beta|Fact Pack|Data Lab|seeded Desk/i);
 });
 
-test('homepage credibility uses truthful aggregate values as styled human social proof', () => {
+test('homepage credibility leads with meaningful proof and masks weak returning-player counts', () => {
   assert.match(homepage, /liveProof\?\.playersServed/);
   assert.match(homepage, /liveProof\?\.reviewsProduced/);
   assert.match(homepage, /liveProof\?\.returningPlayers/);
-  assert.match(homepage, /already used BoardSignal to understand their games/);
-  assert.match(homepage, /Review" : "Reviews"/);
-  assert.match(homepage, /already come back for another Review/);
+  assert.match(homepage, /RETURNING_PLAYER_PROOF_THRESHOLD = 20/);
+  assert.match(homepage, /Reviews?[^\n]*completed across/);
+  assert.match(homepage, /Read independent reviews on Trustpilot/);
+  assert.match(homepage, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
   assert.match(homepage, /UsersRound/);
   assert.match(system, /\.boardsignal-social-proof/);
   assert.match(system, /bs-proof-sheen/);
+  assert.match(homepageStyles, /\.proofSentence/);
+  assert.match(homepageStyles, /\.trustLink/);
   assert.doesNotMatch(system.slice(system.indexOf('@keyframes bs-proof-sheen'), system.indexOf('.boardsignal-social-proof-mark')), /infinite/i);
   assert.match(system, /prefers-reduced-motion[\s\S]*boardsignal-social-proof::after/);
   assert.doesNotMatch(homepage, /liveProof\.reviewsForming|REAL BOARDSIGNAL PRODUCT PROOF|Players served|Reviews produced|Returning players|Reviews forming|BoardSignal product activity only|Vercel visitors|pageviews/i);
@@ -106,13 +111,28 @@ test('one Google action resolves returning players before starting new-player us
   assert.match(username, /GOOGLE_ACCESS_NOT_LINKED/);
   assert.match(username, /signInWithCustomToken/);
   assert.match(username, /router\.replace\("\/boardsignal\/player-room\?source=google&tab=desk"\)/);
-  assert.match(username, /What&apos;s your Chess\.com username\?/);
+  assert.match(username, /Now connect your Chess\.com profile\./);
   assert.match(username, /YES — THIS IS MINE/);
   assert.match(login, /Other sign-in or recovery options/);
   assert.match(login, /FoundingBetaAccessPanel/);
   const recoveryStart = login.indexOf('return-recovery-details');
   const developmentStart = login.indexOf('Development access');
   assert.ok(recoveryStart >= 0 && developmentStart > recoveryStart, 'development access must stay inside progressive recovery disclosure');
+});
+
+test('new-player confirmation and identity-conflict states use a dedicated responsive app layout', () => {
+  assert.match(username, /OnboardingSteps/);
+  assert.match(username, /EXISTING BOARDSIGNAL FOUND/);
+  assert.match(username, /I still need help recovering this account/);
+  assert.match(username, /details className=\{styles\.helpDetails\}/);
+  assert.doesNotMatch(username, /beta-request-success|boardsignal-inline-confirmation|activation-request-form|beta-universe-disclosure/);
+  assert.match(usernameStyles, /\.card\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(usernameStyles, /\.steps\s*\{[\s\S]*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(usernameStyles, /\.actions\s*\{[\s\S]*flex-wrap:\s*wrap/);
+  assert.match(usernameStyles, /\.helpForm\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(usernameStyles, /@media \(max-width: 680px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(homepageStyles, /\.heroGrid\s*\{[\s\S]*minmax\(0, 1\.08fr\)[\s\S]*minmax\(20rem, \.92fr\)/);
+  assert.match(homepageStyles, /@media \(max-width: 980px\)[\s\S]*\.heroGrid[\s\S]*minmax\(0, 1fr\)/);
 });
 
 test('Google entry uses a recognizable Google identity button instead of BoardSignal CTA styling', () => {
@@ -146,6 +166,8 @@ test('return and recovery layout cannot collapse into a one-character column', (
   assert.match(system, /@media \(max-width: 680px\)[\s\S]*\.chesscom-login-panel \{ grid-template-columns: minmax\(0, 1fr\); \}/);
   assert.match(system, /overflow-wrap:\s*break-word/);
   assert.match(system, /word-break:\s*normal/);
+  assert.match(usernameStyles, /overflow:\s*hidden/);
+  assert.match(usernameStyles, /max-width:\s*100%/);
 });
 
 test('install experience answers web-app-store confusion on Chromium and iOS after engagement', () => {

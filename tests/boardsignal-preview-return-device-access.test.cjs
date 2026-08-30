@@ -45,8 +45,9 @@ const openRoom = section(previewRoom, 'async function openPlayerRoom', 'async fu
 const previewType = section(activation, 'export type BoardSignalBetaPreview', 'export type BetaActivationReturnMethod');
 
 test('Patch K normal private entry is one Google action while public Universe remains open', () => {
-  assert.ok(all(requestForm, ['GoogleSignInButton', 'action: "return"', 'New to BoardSignal?', 'Already have BoardSignal?', 'What&apos;s your Chess.com username?']));
+  assert.ok(all(requestForm, ['GoogleSignInButton', 'action: "return"', 'New here?', 'Already have BoardSignal?', 'Now connect your Chess.com profile.']));
   assert.ok(requestForm.includes('GOOGLE_ACCESS_NOT_LINKED'));
+  assert.ok(requestForm.includes('OnboardingSteps'));
   assert.ok(!/OR EXPLORE THE PUBLIC UNIVERSE|EXPLORE PUBLIC BOARDSIGNAL|public-universe-username-form|\/boardsignal\/build\//.test(requestForm));
   assert.ok(all(homepage, ['Explore the Universe', 'No sign-in required.']));
   assert.ok(!requestForm.includes('/boardsignal/preview/${encodeURIComponent(requestId)}'));

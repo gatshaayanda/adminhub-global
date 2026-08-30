@@ -222,9 +222,9 @@ test('homepage proof combines product truth, anonymous traffic and restrained in
   assert.match(homepage, /HomeProofRail/);
   assert.match(proofRail, /PUBLIC_PROOF_MINIMUM = 20/);
   assert.match(proofRail, /active player accounts/);
-  assert.match(proofRail, /Reviews are forming now/);
+  assert.doesNotMatch(proofRail, /proof\.reviewsForming|Reviews are forming now/i);
   assert.match(proofRail, /Reviews completed across/);
-  assert.match(proofRail, /retention Review records from ongoing player history/);
+  assert.match(proofRail, /retention Reviews from later player cycles/);
   assert.match(proofRail, /site visitors/);
   assert.match(proofRail, /page views/);
   assert.match(proofRail, /last 30 days/);

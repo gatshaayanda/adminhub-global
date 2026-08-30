@@ -64,10 +64,11 @@ test('7. Founder operations API strips legacy request rows and request attention
   assert.match(route, /Preview activity is useful Founder context, but it is/);
 });
 
-test('8. Founder Attention Now no longer displays New requests', () => {
+test('8. Founder operations no longer treats New requests or normal sign-in as attention work', () => {
   assert.doesNotMatch(operations, /\["New requests"/);
   assert.doesNotMatch(operations, /\["new_requests","NEW REQUESTS"\]/);
-  assert.match(operations, /Preview activity and normal private sign-in are not Founder tasks/);
+  assert.match(operations, /Exceptions and support, not the product score\./);
+  assert.match(operations, /These remain operational queues\. They do not define whether the product is engaging\./);
 });
 
 test('9. Founder browser alerts describe identity-review entry rather than Preview approval', () => {

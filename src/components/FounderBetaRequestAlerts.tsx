@@ -26,7 +26,7 @@ export default function FounderBetaRequestAlerts() {
   }, []);
 
   async function enable() {
-    if (!configured) { setError("Add BoardSignal's public Web Push key before enabling Founder request alerts."); return; }
+    if (!configured) { setError("Add BoardSignal's public Web Push key before enabling Founder identity-review alerts."); return; }
     setBusy(true); setError("");
     try {
       const nextPermission = await Notification.requestPermission();
@@ -39,10 +39,10 @@ export default function FounderBetaRequestAlerts() {
       if (!fcmToken) throw new Error("This browser did not return a push registration token.");
       const response = await fetch("/api/admin/boardsignal/beta-access", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store", body: JSON.stringify({ action: "registerFounderPush", fcmToken, userAgent: navigator.userAgent }) });
       const body = await response.json() as { ok?: boolean; error?: string };
-      if (!response.ok || !body.ok) throw new Error(body.error ?? "Founder request alerts could not be enabled.");
+      if (!response.ok || !body.ok) throw new Error(body.error ?? "Founder identity-review alerts could not be enabled.");
       window.localStorage.setItem(LOCAL_KEY, "enabled");
       setEnabled(true);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Founder request alerts could not be enabled."); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Founder identity-review alerts could not be enabled."); }
     finally { setBusy(false); }
   }
 
@@ -60,7 +60,7 @@ export default function FounderBetaRequestAlerts() {
   }
 
   return <section className="founder-beta-alerts bs-surface-paper">
-    {enabled ? <Bell size={18}/> : <BellOff size={18}/>}<div><span>FOUNDER REQUEST ALERTS</span><strong>{enabled ? "Enabled on this browser" : configured ? "Available" : "Configuration required"}</strong><p>New requests can alert this founder device and deep-link straight to the exact request. This never changes /admin authentication.</p>{error ? <p className="form-error" role="alert">{error}</p> : null}</div>
-    {permission === "denied" ? <span className="state-pill">BLOCKED BY BROWSER</span> : permission === "unsupported" ? <span className="state-pill">UNSUPPORTED</span> : enabled ? <button className="button button-quiet" type="button" disabled={busy} onClick={disable}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : null} Disable alerts</button> : <button className="button button-outline" type="button" disabled={busy || !configured} onClick={enable}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : <Bell size={14}/>} Enable founder request alerts</button>}
+    {enabled ? <Bell size={18}/> : <BellOff size={18}/>}<div><span>FOUNDER IDENTITY-REVIEW ALERTS</span><strong>{enabled ? "Enabled on this browser" : configured ? "Available" : "Configuration required"}</strong><p>Alerts are for players who have entered private provisional access and may need optional public identity review. Preview-only activity is not an approval alert.</p>{error ? <p className="form-error" role="alert">{error}</p> : null}</div>
+    {permission === "denied" ? <span className="state-pill">BLOCKED BY BROWSER</span> : permission === "unsupported" ? <span className="state-pill">UNSUPPORTED</span> : enabled ? <button className="button button-quiet" type="button" disabled={busy} onClick={disable}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : null} Disable alerts</button> : <button className="button button-outline" type="button" disabled={busy || !configured} onClick={enable}>{busy ? <LoaderCircle className="button-spinner" size={14}/> : <Bell size={14}/>} Enable identity-review alerts</button>}
   </section>;
 }

@@ -16,7 +16,23 @@ export async function GET(request: Request) {
     // Amendment G.4.2: normal Founder landing/refresh is aggregate-only O(1).
     // Individual summaries are read only when the cohort/detail view explicitly asks for rows.
     const includeRows = url.searchParams.get("view") === "rows";
-    return response({ ok: true, operations: await founderOperationsSnapshot(new Date(), includeRows) });
+    const operations = await founderOperationsSnapshot(new Date(), includeRows);
+
+    // Patch L access semantics: Preview activity is useful Founder context, but it is
+    // not an approval request and must never appear in the Founder action queue.
+    // Optional identity review lives on /admin/players after private access starts.
+    const rows = includeRows
+      ? operations.rows.filter((row) => !String(row.uid ?? "").startsWith("request:"))
+      : operations.rows;
+
+    return response({
+      ok: true,
+      operations: {
+        ...operations,
+        attention: { ...operations.attention, newRequests: 0 },
+        rows,
+      },
+    });
   } catch (error) {
     const classified = classifyBoardSignalHttpError(error);
     return response({ ok: false, code: classified.code, error: classified.message }, classified.status, classified.retryAfterSeconds);

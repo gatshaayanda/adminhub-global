@@ -33,17 +33,20 @@ export default function HomeProofRail({
   const stories: ProofStory[] = [];
 
   if (proof && qualifies(proof.activePlayers)) {
+    const formingDetail = qualifies(proof.reviewsForming)
+      ? ` ${format(proof.reviewsForming)} Reviews are forming now.`
+      : "";
     stories.push({
       key: "active-players",
       lead: `${format(proof.activePlayers)} active player accounts`,
-      detail: "are currently in BoardSignal's live player lifecycle.",
+      detail: `are currently in BoardSignal's live player lifecycle.${formingDetail}`,
       icon: Activity,
     });
   }
 
   if (proof && qualifies(proof.reviewsProduced) && qualifies(proof.playersServed)) {
     const retentionDetail = qualifies(proof.retentionReviews)
-      ? ` ${format(proof.retentionReviews)} of those are retention Reviews from later player cycles.`
+      ? ` ${format(proof.retentionReviews)} of those are retention Review records from ongoing player history.`
       : "";
     stories.push({
       key: "review-history",
@@ -64,7 +67,7 @@ export default function HomeProofRail({
     stories.push({
       key: "audience-30d",
       lead: audienceLead,
-      detail: "in the last 30 days, from anonymous aggregated Vercel Web Analytics.",
+      detail: "in the last 30 days, from anonymous aggregated Vercel Web Analytics — not player accounts.",
       icon: BarChart3,
     });
   }
@@ -81,7 +84,7 @@ export default function HomeProofRail({
       <div className={styles.storyList}>
         {stories.map((story, index) => {
           const Icon = story.icon;
-          return <article className={styles.story} data-proof-story={story.key} style={{ "--proof-index": index } as CSSProperties} key={story.key}>
+          return <article className={styles.story} data-proof-story={story.key} style={{ "--proof-delay": `${index * 60}ms` } as CSSProperties} key={story.key}>
             <Icon size={17} aria-hidden="true" />
             <p><strong>{story.lead}</strong> <span>{story.detail}</span></p>
           </article>;

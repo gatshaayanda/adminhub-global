@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Activity, BarChart3, BookOpenCheck, ExternalLink, Radio, UsersRound } from "lucide-react";
+import { Activity, BarChart3, BadgeCheck, BookOpenCheck, ExternalLink } from "lucide-react";
 import type { PublicBoardSignalProof } from "@/lib/boardsignal/server/publicProof";
 import type { PublicBoardSignalTrafficProof } from "@/lib/boardsignal/server/publicTrafficProof";
 import styles from "./HomeProofRail.module.css";
@@ -16,10 +16,9 @@ function format(value: number) {
   return numberFormatter.format(Math.max(0, Math.round(value)));
 }
 
-type ProofMetric = {
+type ProofStory = {
   key: string;
-  label: string;
-  value: number;
+  lead: string;
   detail: string;
   icon: typeof Activity;
 };
@@ -31,74 +30,75 @@ export default function HomeProofRail({
   proof?: PublicBoardSignalProof;
   traffic?: PublicBoardSignalTrafficProof;
 }) {
-  const metrics: ProofMetric[] = proof ? [
-    qualifies(proof.activePlayers) ? {
-      key: "active-players",
-      label: "Active players",
-      value: proof.activePlayers,
-      detail: "Current BoardSignal player lifecycle.",
-      icon: Activity,
-    } : undefined,
-    qualifies(proof.reviewsProduced) ? {
-      key: "reviews-completed",
-      label: "Reviews completed",
-      value: proof.reviewsProduced,
-      detail: qualifies(proof.retentionReviews)
-        ? `${format(proof.retentionReviews)} retention Review records in the durable history.`
-        : "Cumulative BoardSignal Review output.",
-      icon: BookOpenCheck,
-    } : undefined,
-    qualifies(proof.playersServed) ? {
-      key: "players-served",
-      label: "Players served",
-      value: proof.playersServed,
-      detail: "Players represented in durable BoardSignal Review history.",
-      icon: UsersRound,
-    } : undefined,
-    qualifies(proof.reviewsForming) ? {
-      key: "reviews-forming",
-      label: "Reviews forming now",
-      value: proof.reviewsForming,
-      detail: "Current cadence-aligned Review weeks.",
-      icon: Radio,
-    } : undefined,
-  ].filter((item): item is ProofMetric => Boolean(item)) : [];
+  const stories: ProofStory[] = [];
 
-  const hasTraffic = qualifies(traffic?.visitors30d) || qualifies(traffic?.pageviews30d);
-  if (metrics.length === 0 && !hasTraffic) return null;
+  if (proof && qualifies(proof.activePlayers)) {
+    stories.push({
+      key: "active-players",
+      lead: `${format(proof.activePlayers)} active player accounts`,
+      detail: "are currently in BoardSignal's live player lifecycle.",
+      icon: Activity,
+    });
+  }
+
+  if (proof && qualifies(proof.reviewsProduced) && qualifies(proof.playersServed)) {
+    const retentionDetail = qualifies(proof.retentionReviews)
+      ? ` ${format(proof.retentionReviews)} of those are retention Reviews from later player cycles.`
+      : "";
+    stories.push({
+      key: "review-history",
+      lead: `${format(proof.reviewsProduced)} Reviews completed across ${format(proof.playersServed)} players`,
+      detail: `in BoardSignal's durable Review history.${retentionDetail}`,
+      icon: BookOpenCheck,
+    });
+  }
+
+  const hasVisitors = qualifies(traffic?.visitors30d);
+  const hasPageviews = qualifies(traffic?.pageviews30d);
+  if (traffic && (hasVisitors || hasPageviews)) {
+    const audienceLead = hasVisitors && hasPageviews
+      ? `${format(traffic.visitors30d)} site visitors · ${format(traffic.pageviews30d)} page views`
+      : hasVisitors
+        ? `${format(traffic.visitors30d)} site visitors`
+        : `${format(traffic.pageviews30d)} page views`;
+    stories.push({
+      key: "audience-30d",
+      lead: audienceLead,
+      detail: "in the last 30 days, from anonymous aggregated Vercel Web Analytics.",
+      icon: BarChart3,
+    });
+  }
+
+  if (stories.length === 0) return null;
 
   return (
-    <section className={styles.rail} data-boardsignal-home-proof aria-label="Real BoardSignal product and audience activity">
+    <section className={styles.rail} data-boardsignal-home-proof aria-label="Real BoardSignal activity and independent reputation">
       <div className={styles.heading}>
-        <div>
-          <span className={styles.liveLabel}><span aria-hidden="true" /> BOARD SIGNAL IN USE</span>
-          <p>Real product activity, durable Review records, and separately labelled site audience.</p>
-        </div>
-        <a className={styles.trustLink} href={TRUSTPILOT_PROFILE_URL} target="_blank" rel="noreferrer noopener">
-          Read independent reviews on Trustpilot <ExternalLink size={13} aria-hidden="true" />
-        </a>
+        <span className={styles.liveLabel}><span aria-hidden="true" /> BOARD SIGNAL IN USE</span>
+        <p>Real product and audience evidence — no signup counter, no fabricated activity.</p>
       </div>
 
-      {metrics.length > 0 ? <div className={styles.metrics}>
-        {metrics.map((metric, index) => {
-          const Icon = metric.icon;
-          return <article className={styles.metric} data-proof-metric={metric.key} style={{ "--proof-index": index } as CSSProperties} key={metric.key}>
-            <div className={styles.metricTop}><Icon size={16} aria-hidden="true" /><span>{metric.label}</span></div>
-            <strong>{format(metric.value)}</strong>
-            <p>{metric.detail}</p>
+      <div className={styles.storyList}>
+        {stories.map((story, index) => {
+          const Icon = story.icon;
+          return <article className={styles.story} data-proof-story={story.key} style={{ "--proof-index": index } as CSSProperties} key={story.key}>
+            <Icon size={17} aria-hidden="true" />
+            <p><strong>{story.lead}</strong> <span>{story.detail}</span></p>
           </article>;
         })}
-      </div> : null}
+      </div>
 
-      {hasTraffic && traffic ? <div className={styles.traffic} data-proof-metric="traffic-30d">
-        <div className={styles.trafficLabel}><BarChart3 size={16} aria-hidden="true" /><span>LAST 30 DAYS · VERCEL WEB ANALYTICS</span></div>
-        <p>
-          {qualifies(traffic.visitors30d) ? <strong>{format(traffic.visitors30d)} site visitors</strong> : null}
-          {qualifies(traffic.visitors30d) && qualifies(traffic.pageviews30d) ? <span aria-hidden="true"> · </span> : null}
-          {qualifies(traffic.pageviews30d) ? <strong>{format(traffic.pageviews30d)} page views</strong> : null}
-        </p>
-        <small>Anonymous aggregated site activity — not player accounts.</small>
-      </div> : null}
+      <div className={styles.trustPanel}>
+        <BadgeCheck size={21} aria-hidden="true" />
+        <div className={styles.trustCopy}>
+          <span>INDEPENDENT PUBLIC REVIEWS</span>
+          <strong>BoardSignal is on Trustpilot through Admin Hub.</strong>
+          <p>Eligible players can be invited after a genuine BoardSignal Review. Invitations are not filtered by rating or sentiment.</p>
+        </div>
+        <a className={styles.trustLink} href={TRUSTPILOT_PROFILE_URL} target="_blank" rel="noreferrer noopener">
+          CHECK OUR TRUSTPILOT PROFILE <ExternalLink size={13} aria-hidden="true" />
+        </a>
+      </div>
     </section>
   );
 }

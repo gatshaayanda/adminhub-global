@@ -13,6 +13,9 @@ export default function OnboardingQaProbe({ theme }: { theme: "light" | "dark" }
       const issues: string[] = [];
 
       if (!result || !host || !card || !preview) return;
+      result.dataset.viewportWidth = String(window.innerWidth);
+      result.dataset.viewportHeight = String(window.innerHeight);
+      result.dataset.theme = theme;
 
       if (document.documentElement.scrollWidth > window.innerWidth + 2) {
         issues.push(`page-overflow:${document.documentElement.scrollWidth}>${window.innerWidth}`);

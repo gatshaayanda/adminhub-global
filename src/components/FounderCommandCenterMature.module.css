@@ -1,0 +1,456 @@
+.shell {
+  --cc-bg: #101418;
+  --cc-panel: #151b21;
+  --cc-panel-2: #1b2229;
+  --cc-line: #303942;
+  --cc-text: #eef2f5;
+  --cc-muted: #a7b0b8;
+  --cc-green: #81c59b;
+  --cc-cyan: #91a9c3;
+  --cc-amber: #d4ab67;
+  --cc-red: #d98383;
+  min-height: 100vh;
+  background: #101418 !important;
+  color: var(--cc-text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.shell :global(.founder-newsroom-v2) {
+  width: min(1460px, calc(100% - 36px));
+  padding-top: 28px;
+}
+
+.shell :global([class*="commandHeader"]),
+.shell :global([class*="changeSection"]),
+.shell :global([class*="pulseSection"]),
+.shell :global([class*="actionSection"]),
+.shell :global([class*="retentionSection"]),
+.shell :global([class*="workspaceSection"]),
+.shell :global([class*="secondaryWorkspace"]) {
+  border-color: var(--cc-line) !important;
+  border-radius: 14px !important;
+  background: #151b21 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16) !important;
+}
+
+.shell :global([class*="commandHeader"])::after,
+.shell :global([class*="pulseSection"])::after {
+  display: none !important;
+  animation: none !important;
+}
+
+.shell :global([class*="normal"] [class*="statusLed"]),
+.shell :global([class*="statusLed"]),
+.shell :global([class*="actionLed"]) {
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+.shell :global([class*="commandHeader"]) {
+  border-top-width: 1px !important;
+}
+
+.shell :global([class*="commandHeader"] h1) {
+  max-width: 820px;
+  font-size: clamp(2.1rem, 4vw, 3.8rem) !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.04em !important;
+}
+
+.shell :global([class*="commandEyebrow"]),
+.shell :global([class*="sectionNumber"]),
+.shell :global([class*="telemetryPanel"] span),
+.shell :global([class*="telemetryPanel"] strong),
+.shell :global([class*="changeCard"] span),
+.shell :global([class*="pulseTop"] span),
+.shell :global([class*="actionCard"] span),
+.shell :global([class*="actionCard"] small),
+.shell :global([class*="retentionNode"] span),
+.shell :global([class*="pulseFooter"]) {
+  font-family: inherit !important;
+  letter-spacing: 0.025em !important;
+}
+
+.shell :global([class*="commandEyebrow"]),
+.shell :global([class*="sectionNumber"]) {
+  color: #aab7c4 !important;
+  font-size: 0.72rem !important;
+}
+
+.shell :global([class*="telemetryPanel"]),
+.shell :global([class*="changeGrid"]),
+.shell :global([class*="pulseGrid"]) {
+  border-color: var(--cc-line) !important;
+  background: var(--cc-line) !important;
+}
+
+.shell :global([class*="changeCard"]),
+.shell :global([class*="pulseCard"]),
+.shell :global([class*="actionCard"]) {
+  background: #171e25 !important;
+  border-color: var(--cc-line) !important;
+}
+
+.shell :global([class*="pulseCard"]) {
+  min-height: 190px !important;
+}
+
+.shell :global([class*="signalGlyph"]) {
+  border-color: #41505e !important;
+  border-radius: 9px !important;
+  color: #a7b9cc !important;
+}
+
+.shell :global(button),
+.shell :global(a.button),
+.shell :global([class*="workspaceGrid"] a),
+.shell :global([class*="workspaceGrid"] button),
+.shell :global([class*="actionCard"]) {
+  border-radius: 9px !important;
+}
+
+.shell :global([class*="actionCard"]):hover,
+.shell :global([class*="workspaceGrid"] a):hover,
+.shell :global([class*="workspaceGrid"] button):hover {
+  transform: none !important;
+  border-color: #536271 !important;
+  background: #1b232b !important;
+}
+
+.shell :global([class*="sparkline"]) {
+  color: #8ea8c2 !important;
+}
+
+.shell :global([class*="refreshButton"]),
+.shell :global([class*="inlineAction"]) {
+  color: #b8c9dc !important;
+  border-color: #4a5b6b !important;
+  background: #182028 !important;
+  font-family: inherit !important;
+  letter-spacing: 0.02em !important;
+}
+
+.shell :global(.founder-live-directory),
+.shell :global(.founder-ops-row),
+.shell :global(.founder-ops-details),
+.shell :global(.newsroom-old-tools) {
+  border-radius: 12px;
+}
+
+.decisionBrief {
+  display: grid;
+  gap: 18px;
+  margin: 0 0 20px;
+  padding: clamp(20px, 3vw, 30px);
+  border: 1px solid #303942;
+  border-radius: 14px;
+  background: #151b21;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+  color: #eef2f5;
+}
+
+.loadingBrief {
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #b8c0c8;
+}
+
+.loadingBrief svg {
+  animation: spin 0.9s linear infinite;
+}
+
+.briefHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 28px;
+  align-items: flex-start;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #303942;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 7px;
+  color: #a7b0b8;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.briefHeader h2,
+.actionBriefHeading h3 {
+  margin: 0;
+  color: #f4f6f8;
+  letter-spacing: -0.025em;
+}
+
+.briefHeader h2 {
+  font-size: clamp(1.45rem, 2.8vw, 2.25rem);
+}
+
+.briefHeader p {
+  max-width: 760px;
+  margin: 9px 0 0;
+  color: #b4bdc5;
+  line-height: 1.55;
+}
+
+.statusGood,
+.statusAttention {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border: 1px solid #38434d;
+  border-radius: 9px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.statusGood {
+  color: #a9d8b8;
+  background: #17231c;
+}
+
+.statusAttention {
+  color: #e3c58f;
+  background: #262117;
+}
+
+.adoptionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adoptionGrid article {
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px;
+  border: 1px solid #303942;
+  border-radius: 10px;
+  background: #181f26;
+}
+
+.adoptionGrid span {
+  color: #a7b0b8;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.adoptionGrid strong {
+  color: #f4f6f8;
+  font-size: clamp(1.8rem, 3vw, 2.65rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.adoptionGrid p {
+  margin: auto 0 0;
+  color: #aeb7bf;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.valueGood {
+  color: #9fd2af !important;
+  font-size: 1.3rem !important;
+  letter-spacing: -0.01em !important;
+}
+
+.valueAttention {
+  color: #e0be7e !important;
+  font-size: 1.3rem !important;
+  letter-spacing: -0.01em !important;
+}
+
+.actionBrief {
+  display: grid;
+  gap: 14px;
+}
+
+.actionBriefHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: end;
+}
+
+.actionBriefHeading h3 {
+  font-size: 1.25rem;
+}
+
+.freshness {
+  color: #929ca5;
+  font-size: 0.78rem;
+}
+
+.actionList {
+  display: grid;
+  gap: 8px;
+}
+
+.actionCritical,
+.actionAttention {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #303942;
+  border-radius: 10px;
+  background: #181f26;
+}
+
+.actionCritical {
+  border-left: 3px solid #bd6f72;
+}
+
+.actionAttention {
+  border-left: 3px solid #b69159;
+}
+
+.actionCount {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #202831;
+  color: #f4f6f8;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.actionList h4 {
+  margin: 0 0 4px;
+  color: #f2f5f7;
+  font-size: 0.98rem;
+}
+
+.actionList p {
+  margin: 0;
+  color: #aeb7bf;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.actionList strong {
+  display: block;
+  margin-top: 6px;
+  color: #d3d9df;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.actionList a {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid #44515d;
+  border-radius: 8px;
+  color: #e0e6eb;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.actionList a:hover {
+  background: #202831;
+}
+
+.clearState,
+.deletionNote {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid #303942;
+  border-radius: 10px;
+  background: #181f26;
+}
+
+.clearState {
+  color: #a8d5b6;
+}
+
+.clearState strong {
+  color: #e8f0eb;
+}
+
+.clearState p,
+.deletionNote p {
+  margin: 3px 0 0;
+  color: #aeb7bf;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.deletionNote {
+  color: #a7b9c9;
+}
+
+.deletionNote strong {
+  color: #dce3e8;
+}
+
+@media (max-width: 1050px) {
+  .adoptionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .shell :global(.founder-newsroom-v2) {
+    width: min(100% - 20px, 1460px);
+  }
+
+  .briefHeader,
+  .actionBriefHeading {
+    display: grid;
+  }
+
+  .statusGood,
+  .statusAttention {
+    width: fit-content;
+    white-space: normal;
+  }
+
+  .adoptionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionCritical,
+  .actionAttention {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .actionList a {
+    grid-column: 2;
+    width: fit-content;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell *,
+  .shell *::before,
+  .shell *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

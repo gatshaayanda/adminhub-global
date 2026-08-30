@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { refreshFounderPlayerSummaryByUid } from "@/lib/boardsignal/server/founderOperations";
+import { rebuildFounderAggregateFromSummaries } from "@/lib/boardsignal/server/founderMaterialized";
 import { getAdminDb } from "@/utils/firebaseAdmin";
 
 export const runtime = "nodejs";
@@ -175,12 +176,26 @@ export async function GET() {
       }
     }
 
-    if (repairedSummaries > 0) revalidatePath("/");
-
-    const aggregateSnapshot = await db.collection("founderOperationsState").doc("current").get();
-    const aggregate = aggregateSnapshot.data() as { metrics?: { activePlayers?: number } } | undefined;
-    const activePlayers = Math.max(0, Number(aggregate?.metrics?.activePlayers) || 0);
     const canonicalPlayers = canonicalByPlayerId.size;
+    const canonicalActivePlayers = [...canonicalByPlayerId.values()].filter(({ account }) => account.accessStatus === "active").length;
+
+    let aggregateSnapshot = await db.collection("founderOperationsState").doc("current").get();
+    let aggregate = aggregateSnapshot.data() as { metrics?: { activePlayers?: number } } | undefined;
+    let activePlayers = Math.max(0, Number(aggregate?.metrics?.activePlayers) || 0);
+    let aggregateRebuilt = false;
+
+    // Reconciliation must finish by rebuilding from authoritative summaries.
+    // Delta updates cannot repair an aggregate that was already stale before
+    // the missing player summaries were discovered.
+    if (repairedSummaries > 0 || activePlayers !== canonicalActivePlayers) {
+      const rebuilt = await rebuildFounderAggregateFromSummaries();
+      aggregateRebuilt = true;
+      activePlayers = Math.max(0, Number(rebuilt.metrics.activePlayers) || 0);
+      aggregateSnapshot = await db.collection("founderOperationsState").doc("current").get();
+      aggregate = aggregateSnapshot.data() as { metrics?: { activePlayers?: number } } | undefined;
+      activePlayers = Math.max(0, Number(aggregate?.metrics?.activePlayers) || activePlayers);
+      revalidatePath("/");
+    }
 
     return response({
       ok: true,
@@ -196,6 +211,7 @@ export async function GET() {
           googleLinkedTotal: newViaGoogle + existingGoogleLinked,
           googleReturns,
           repairedSummaries,
+          aggregateRebuilt,
           unresolvedPlayerRecords,
         },
         players: playerGoogle,

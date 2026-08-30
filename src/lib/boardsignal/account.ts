@@ -45,6 +45,32 @@ export type BoardSignalCurrentFeedback = {
   items: BoardSignalCurrentFeedbackItem[];
 };
 
+export type BoardSignalPlayerRoomEngagement = {
+  roomVisitCount: number;
+  firstRoomVisitAt?: string;
+  latestRoomVisitAt?: string;
+  lastActiveAt?: string;
+  lastCountedSessionId?: string;
+  latestSessionEnteredAt?: string;
+  latestSummarySessionId?: string;
+  latestSessionEndedAt?: string;
+  latestSessionForegroundEngagedSeconds?: number;
+};
+
+export type BoardSignalTrustpilotResolution = "reviewed" | "declined" | "not_yet";
+
+export type BoardSignalTrustpilotReviewInvitation = {
+  referenceId?: string;
+  reservedAt?: string;
+  confirmedAt?: string;
+  source?: "InvitationScript";
+  firstAskShownAt?: string;
+  finalAskShownAt?: string;
+  resolution?: BoardSignalTrustpilotResolution;
+  resolvedAt?: string;
+  automaticCycleCompletedAt?: string;
+};
+
 export type BoardSignalNotificationPreferences = {
   email: boolean;
   browserPush: boolean;
@@ -94,6 +120,8 @@ export type BoardSignalAccount = {
   previousAmber?: { title: string; copy: string };
   currentEpisodeSummary?: import("./memory").CurrentEpisodeSummary;
   currentBoardSignalFeedback?: BoardSignalCurrentFeedback;
+  playerRoomEngagement?: BoardSignalPlayerRoomEngagement;
+  trustpilotReviewInvitation?: BoardSignalTrustpilotReviewInvitation;
   lastNotificationAt?: string;
   eligibleCoverageKeys: string[];
   reviewProduction?: import("./reviewProduction").ReviewProductionStats;

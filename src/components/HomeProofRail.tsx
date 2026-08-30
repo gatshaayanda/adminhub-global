@@ -93,7 +93,7 @@ export default function HomeProofRail({
         <div className={styles.trustCopy}>
           <span>INDEPENDENT PUBLIC REVIEWS</span>
           <strong>BoardSignal is on Trustpilot through Admin Hub.</strong>
-          <p>Eligible players can be invited after a genuine BoardSignal Review. Invitations are not filtered by rating or sentiment.</p>
+          <p>Eligible returning players may be invited at the same Player Room visit rhythm. Invitations are not filtered by rating, sentiment or chess results.</p>
         </div>
         <a className={styles.trustLink} href={TRUSTPILOT_PROFILE_URL} target="_blank" rel="noreferrer noopener">
           CHECK OUR TRUSTPILOT PROFILE <ExternalLink size={13} aria-hidden="true" />

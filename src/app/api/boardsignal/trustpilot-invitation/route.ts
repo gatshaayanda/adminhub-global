@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { BoardSignalAccount } from "@/lib/boardsignal/account";
+import type { BoardSignalAccount, BoardSignalTrustpilotReviewInvitation } from "@/lib/boardsignal/account";
 import { requirePlayerToken } from "@/lib/boardsignal/server/persistence";
 import { classifyBoardSignalHttpError } from "@/lib/boardsignal/server/firestoreService";
 import { getAdminDb } from "@/utils/firebaseAdmin";
@@ -16,15 +16,8 @@ const RESERVATION_RETRY_MS = 24 * 60 * 60 * 1000;
 const BOARD_SIGNAL_ROLLING_INVITATION_LIMIT = 45;
 const FOUNDER_USERNAME = (process.env.BOARDSIGNAL_FOUNDER_CHESS_USERNAME ?? "ayandakopano").trim().toLowerCase();
 
-type TrustpilotInvitationState = {
-  referenceId: string;
-  reservedAt: string;
-  confirmedAt?: string;
-  source: typeof INVITATION_SOURCE;
-};
-
 type TrustpilotUser = BoardSignalAccount & {
-  trustpilotReviewInvitation?: TrustpilotInvitationState;
+  trustpilotReviewInvitation?: BoardSignalTrustpilotReviewInvitation;
 };
 
 type InvitationLedger = {
@@ -61,6 +54,13 @@ function invitationPayload(account: TrustpilotUser, email: string, referenceId: 
   };
 }
 
+function m3InvitationEligible(account: TrustpilotUser) {
+  const count = Math.max(0, Math.floor(Number(account.playerRoomEngagement?.roomVisitCount) || 0));
+  if (count === 3) return Boolean(account.trustpilotReviewInvitation?.firstAskShownAt);
+  if (count === 6) return Boolean(account.trustpilotReviewInvitation?.finalAskShownAt);
+  return false;
+}
+
 export async function POST(request: Request) {
   try {
     const token = await requirePlayerToken(request);
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     if (action === "confirm") {
       const now = new Date().toISOString();
       const snapshot = await userRef.get();
-      const invitation = snapshot.data()?.trustpilotReviewInvitation as TrustpilotInvitationState | undefined;
+      const invitation = snapshot.data()?.trustpilotReviewInvitation as BoardSignalTrustpilotReviewInvitation | undefined;
       if (!snapshot.exists || !invitation?.referenceId) return response({ ok: false, status: "not_reserved" }, 409);
       await userRef.update({ "trustpilotReviewInvitation.confirmedAt": now });
       return response({ ok: true, status: "confirmed" });
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
       if (account.chessCom?.canonicalUsername?.trim().toLowerCase() === FOUNDER_USERNAME) {
         return { status: "excluded" as const };
       }
-      if ((account.reviewProduction?.totalReviews ?? 0) < 1) return { status: "not_eligible" as const };
+      if (!m3InvitationEligible(account)) return { status: "not_eligible" as const };
 
       const existing = account.trustpilotReviewInvitation;
       if (existing?.confirmedAt) return { status: "already_queued" as const };
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
           };
         }
         transaction.set(userRef, {
-          trustpilotReviewInvitation: { ...existing, reservedAt: nowIso },
+          trustpilotReviewInvitation: { ...existing, reservedAt: nowIso, source: INVITATION_SOURCE },
         }, { merge: true });
         return {
           status: "ready" as const,
@@ -132,8 +132,9 @@ export async function POST(request: Request) {
         };
       }
 
-      const referenceId = `boardsignal-${account.chessCom.playerId}-first-review`;
-      const invitation: TrustpilotInvitationState = {
+      const referenceId = `boardsignal-${account.chessCom.playerId}-player-room-engagement-v1`;
+      const invitation: BoardSignalTrustpilotReviewInvitation = {
+        ...existing,
         referenceId,
         reservedAt: nowIso,
         source: INVITATION_SOURCE,

@@ -153,11 +153,12 @@ function JournalNotesList({ notes, token, online, onJournalChanged, showPeriod =
   </div>;
 }
 
-export default function PlayerReviewJournal({ review, token, online, journal, onJournalChanged, compact = false }: JournalMutationProps & { review: ReviewJournalReviewIdentity; compact?: boolean }) {
+export default function PlayerReviewJournal({ review, token, online, journal, onJournalChanged, compact = false, context = "review" }: JournalMutationProps & { review: ReviewJournalReviewIdentity; compact?: boolean; context?: "current" | "review" }) {
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const notes = sortReviewJournalNotes(journal.notes.filter((note) => note.reviewKey === review.reviewKey));
+  const current = context === "current";
+  const notes = sortReviewJournalNotes(journal.notes.filter((note) => note.reviewKey === review.reviewKey || (note.periodStart === review.periodStart && note.periodEnd === review.periodEnd)));
 
   async function add(type: ReviewJournalNoteType, body: string) {
     if (!online) return;
@@ -175,9 +176,9 @@ export default function PlayerReviewJournal({ review, token, online, journal, on
     }
   }
 
-  return <section className={`review-journal ${compact ? "is-compact" : ""}`} aria-label={`My notes for ${review.periodLabel}`}>
-    <div className="review-journal-heading"><div><p className="kicker">MY NOTES</p><h3>Keep something for your future self.</h3><p>Your notes stay private and do not change BoardSignal's Review.</p></div><span>PRIVATE</span></div>
-    {notes.length ? <JournalNotesList notes={notes} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} /> : <p className="review-journal-empty">No private notes saved for this Review yet.</p>}
+  return <section className={`review-journal ${compact ? "is-compact" : ""}`} aria-label={current ? `Your take for ${review.periodLabel}` : `My notes for ${review.periodLabel}`}>
+    <div className="review-journal-heading"><div><p className="kicker">{current ? "YOUR TAKE" : "MY NOTES"}</p><h3>{current ? "Add your view to the current picture." : "Keep something for your future self."}</h3><p>{current ? "What you noticed, what you'll try, and follow-ups stay private. They travel with this period when it closes into a completed Review." : "Your notes stay private and do not change BoardSignal's Review."}</p></div><span>PRIVATE</span></div>
+    {notes.length ? <JournalNotesList notes={notes} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} /> : <p className="review-journal-empty">{current ? "No private notes for your current BoardSignal yet." : "No private notes saved for this Review yet."}</p>}
     {!online ? <p className="review-journal-offline" role="status">Reconnect to update your notes. Saved notes remain readable while offline.</p> : null}
     {adding && online ? <JournalEditor saveLabel="Save note" busy={saving} onSave={add} onCancel={() => { setAdding(false); setError(""); }} /> : <button type="button" className="review-journal-add" disabled={!online} onClick={() => setAdding(true)}>+ ADD A NOTE{!online ? " — RECONNECT REQUIRED" : ""}</button>}
     {error ? <p className="review-journal-error" role="alert">{error}</p> : null}
@@ -189,7 +190,7 @@ export function PlayerReviewNotesTimeline({ token, online, journal, onJournalCha
   return <details className="review-journal-progress">
     <summary><span><strong>YOUR REVIEW NOTES</strong><small>Private reflections that can outlive the four full Review payloads.</small></span><b>{notes.length} note{notes.length === 1 ? "" : "s"}</b></summary>
     <div className="review-journal-progress-body">
-      {notes.length ? <JournalNotesList notes={notes} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} showPeriod /> : <p>You have not saved any Review notes yet. Add one from a completed Review when something is worth keeping for your future self.</p>}
+      {notes.length ? <JournalNotesList notes={notes} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} showPeriod /> : <p>You have not saved any BoardSignal notes yet. Add one from Current BoardSignal or a completed Review when something is worth keeping for your future self.</p>}
       {!online ? <p className="review-journal-offline" role="status">Reconnect to update your notes.</p> : null}
     </div>
   </details>;

@@ -4,7 +4,7 @@ import { withPreviousReviewGuidance } from "@/lib/boardsignal/activeWeekGuidance
 import { buildCurrentEpisodeSummary } from "@/lib/boardsignal/processor";
 import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
 import type { ReviewLifecycle } from "@/lib/boardsignal/historyBackfill";
-import { canonicalGenerationRequired, performanceEvidencePeriods } from "@/lib/boardsignal/reviewPeriods";
+import { canonicalGenerationRequired } from "@/lib/boardsignal/reviewPeriods";
 import { buildReviewProgress, deriveRecurringPatternsFromReviewHistory } from "@/lib/boardsignal/reviewHistory";
 import { acceptFoundingBetaAgreement, accountForToken, buildPlayerRoomSnapshot, publishPrivateDesk, savePendingFactualReview, requirePlayerToken, updatePlayerPreferences } from "@/lib/boardsignal/server/persistence";
 import { loadRecentReportPeriodTruth, recordReviewPeriodResult } from "@/lib/boardsignal/server/reviewPeriods";
@@ -31,13 +31,26 @@ export async function GET(request: Request) {
     // Account and retained Review history are passed through. No duplicate account/Review query is used to establish report truth.
     const snapshot = await buildPlayerRoomSnapshot(token, factualCurrentEpisode, progressUnavailable, account);
     const reportTruth = await loadRecentReportPeriodTruth(snapshot.account, new Date(), true, snapshot.reviewHistory);
-    snapshot.reviewHistory = performanceEvidencePeriods(reportTruth.periods, snapshot.reviewHistory);
+    // Retained Review payloads are already bounded to the latest four completed Reviews.
+    // NO ACTIVITY cadence periods remain report truth only and never consume or hide a retained Review slot.
     snapshot.progress = buildReviewProgress(snapshot.reviewHistory);
     snapshot.recurringPatterns = deriveRecurringPatternsFromReviewHistory(snapshot.reviewHistory);
     snapshot.personalRecords = { ...snapshot.personalRecords, desksCompleted: snapshot.reviewHistory.length };
     snapshot.generationRequired = canonicalGenerationRequired(snapshot.generationRequired, reportTruth.periods);
+    const retainedStarts = new Set(snapshot.reviewHistory.map((review) => review.periodStart));
+    const retainedReviewPeriods = snapshot.reviewHistory.map((review) => ({
+      periodStart: review.periodStart,
+      periodEnd: review.periodEnd,
+      periodLabel: review.periodLabel,
+      outcome: "review" as const,
+      reviewKey: review.reviewKey,
+      reviewLifecycle: review.reviewLifecycle,
+    }));
+    const recentCadenceContext = reportTruth.periods.filter((period) => period.outcome !== "review" && !retainedStarts.has(period.periodStart));
+    const reportPeriods = [...retainedReviewPeriods, ...recentCadenceContext].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
+    const historyCoverage = { evaluatedCount: reportPeriods.filter((period) => Boolean(period.outcome)).length, totalCount: reportPeriods.length };
     const reviewJournal = await loadReviewJournal(account.uid);
-    Object.assign(snapshot, { reportPeriods: reportTruth.periods, historyCoverage: reportTruth.coverage, reviewJournal });
+    Object.assign(snapshot, { reportPeriods, historyCoverage, reviewJournal });
     if (snapshot.currentEpisode && currentEpisode) {
       const previous = snapshot.reviewHistory[0];
       currentEpisode = { ...currentEpisode, nextGameGuidance: withPreviousReviewGuidance(currentEpisode.nextGameGuidance, previous?.blue ? { title: previous.blue.title, copy: previous.blue.copy, family: previous.signalFamilies.blueFamily, sourcePeriod: previous.periodLabel } : undefined) };

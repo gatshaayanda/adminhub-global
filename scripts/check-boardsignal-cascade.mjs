@@ -176,7 +176,7 @@ for (const { file, source } of activeSources) {
 // than neutral population/discovery totals.
 const room = read('src/components/BoardSignalPlayerRoom.tsx');
 const navStart = room.indexOf('function RoomNav');
-const navEnd = room.indexOf('function FirstRoomDiscovery');
+const navEnd = room.indexOf('function CurrentContinuation');
 const nav = room.slice(navStart, navEnd > navStart ? navEnd : undefined);
 if (!/unreadCount > 0/.test(nav) || !/friendRequestCount > 0/.test(nav)) failures.push('Room navigation lost real actionable badge conditions');
 if (/suggestedPlayerCount|officialPlayerCount|reviewsProduced|playersServed/.test(nav)) failures.push('neutral counts are being used as navigation alert badges');

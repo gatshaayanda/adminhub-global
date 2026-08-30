@@ -52,6 +52,9 @@ type Intelligence = {
   partial: boolean;
   funnel: {
     totalPlayers: number;
+    sourceAccountRecords: number;
+    duplicateAccountRecords: number;
+    unresolvedPlayerRecords: number;
     googleLinked: number;
     googleLinkedLast24h: number;
     googleLinkedLast7d: number;
@@ -126,8 +129,14 @@ export default function FounderSignupIntelligence() {
   if (loading && !data) return <section className={styles.shell}><LoaderCircle className="button-spinner" size={18}/> Loading Founder player intelligence…</section>;
   if (!data) return <section className={styles.shell}><p className="form-error" role="alert">{error || "Founder player intelligence is unavailable."}</p><button className="button button-quiet" type="button" onClick={() => void load()}>Try again</button></section>;
 
+  const playerCountNote = [
+    "Unique Chess.com player IDs",
+    data.funnel.duplicateAccountRecords ? `${data.funnel.duplicateAccountRecords} duplicate access record${data.funnel.duplicateAccountRecords === 1 ? "" : "s"} folded` : "no duplicate access records counted",
+    data.funnel.unresolvedPlayerRecords ? `${data.funnel.unresolvedPlayerRecords} unresolved record${data.funnel.unresolvedPlayerRecords === 1 ? "" : "s"} excluded` : "",
+  ].filter(Boolean).join(" · ");
+
   const metrics = [
-    ["BOARDSIGNAL PLAYERS", data.funnel.totalPlayers, "Canonical private player accounts"],
+    ["BOARDSIGNAL PLAYERS", data.funnel.totalPlayers, playerCountNote],
     ["GOOGLE LINKED", data.funnel.googleLinked, `${data.funnel.googleLinkedLast24h} in 24h · ${data.funnel.googleLinkedLast7d} in 7d`],
     ["PRIVATE USE CONFIRMED", data.funnel.privateUseConfirmed, "Evidence beyond account creation"],
     ["HISTORY / REVIEW DATA", data.funnel.historyDataPresent, "History, forming Review or Review data exists"],
@@ -139,7 +148,7 @@ export default function FounderSignupIntelligence() {
 
   return <section className={styles.shell} aria-labelledby="founder-signup-intelligence-heading">
     <div className={styles.heading}>
-      <div><p className="kicker">FOUNDER SIGNAL</p><h2 id="founder-signup-intelligence-heading">Every player — access, activity and return.</h2><p>BoardSignal player accounts are canonical. Google is an optional return key attached to that player; it never defines whether the player exists.</p></div>
+      <div><p className="kicker">FOUNDER SIGNAL</p><h2 id="founder-signup-intelligence-heading">Every player — access, activity and return.</h2><p>One stable Chess.com player ID equals one BoardSignal player. Google, email, recovery and other access methods attach to that player and never increase the player count.</p></div>
       <button className="button button-quiet" type="button" onClick={() => void load()} disabled={loading}>{loading ? <LoaderCircle className="button-spinner" size={15}/> : <RefreshCcw size={15}/>} Refresh</button>
     </div>
     {error ? <p className="form-error" role="alert">{error}</p> : null}
@@ -148,13 +157,13 @@ export default function FounderSignupIntelligence() {
     <div className={styles.metrics}>{metrics.map(([label, value, note]) => <article key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>)}</div>
 
     <details className={styles.details} open>
-      <summary>BoardSignal player/account map · {data.accounts.length} player{data.accounts.length === 1 ? "" : "s"}</summary>
-      <p className={styles.explainer}>This starts with every BoardSignal player account, then adds Google/Firebase identity when a Google link exists. Existing players remain visible even when Google is not linked. Google account email is Founder-only account information and is not marketing consent.</p>
+      <summary>BoardSignal player/account map · {data.accounts.length} unique player{data.accounts.length === 1 ? "" : "s"}</summary>
+      <p className={styles.explainer}>Rows are deduplicated by stable Chess.com player ID first. Google/Firebase identity, contact details, Reviews and activity are then merged onto that one player. Google account email is Founder-only account information and is not marketing consent.</p>
       <label className={styles.search}><Search size={15}/><span className="sr-only">Search players or emails</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search username, Chess.com ID or email" /></label>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
           <thead><tr><th>PLAYER</th><th>ACCESS / GOOGLE</th><th>CONTACT</th><th>PRODUCT USE</th><th>REVIEW / RETURN</th><th>LAST SEEN</th><th></th></tr></thead>
-          <tbody>{visibleAccounts.map((row) => <tr key={row.uid}>
+          <tbody>{visibleAccounts.map((row) => <tr key={String(row.playerId ?? row.uid)}>
             <td><strong>{row.username}</strong><small>Chess.com {row.playerId ?? "ID unavailable"} · {row.accountStatus ?? "status unknown"}</small></td>
             <td><strong>{row.googleLinked ? (row.googleEmail ?? "Google linked · email unavailable") : "No Google link recorded"}</strong><small>{row.googleLinked ? `${row.googleEmailVerified ? "Verified Google email" : "Google return key"} · linked ${relative(row.googleLinkedAt)}` : row.accessPath}</small></td>
             <td><strong>{row.preferredContactEmail ?? (row.googleEmail ? "Google account email only" : "No email contact recorded")}</strong><small>{row.emailUpdatesEnabled ? "Player-enabled email/contact updates" : row.betaContactConsent ? "Contact consent recorded; email alerts not enabled" : "Do not infer contact/marketing consent"}</small></td>
@@ -180,6 +189,6 @@ export default function FounderSignupIntelligence() {
       </article>)}</div> : null}
     </details>
 
-    <p className={styles.generated}>Snapshot generated {displayDate(data.generatedAt)} · Email-update channels enabled: {data.funnel.emailUpdatesEnabled} · Review-open telemetry begins with the 30 Aug Founder update; older read history is not fabricated.</p>
+    <p className={styles.generated}>Snapshot generated {displayDate(data.generatedAt)} · Source account records: {data.funnel.sourceAccountRecords} · Email-update channels enabled: {data.funnel.emailUpdatesEnabled} · Review-open telemetry begins with the 30 Aug Founder update; older read history is not fabricated.</p>
   </section>;
 }

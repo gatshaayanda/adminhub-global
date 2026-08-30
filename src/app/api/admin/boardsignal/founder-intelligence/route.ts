@@ -70,6 +70,18 @@ function parsed(value?: string) {
   return Number.isFinite(time) ? time : undefined;
 }
 
+function latestIso(a?: string, b?: string) {
+  const at = parsed(a) ?? 0;
+  const bt = parsed(b) ?? 0;
+  return bt > at ? b : a;
+}
+
+function earliestIso(a?: string, b?: string) {
+  if (!a) return b;
+  if (!b) return a;
+  return (parsed(b) ?? Number.MAX_SAFE_INTEGER) < (parsed(a) ?? Number.MAX_SAFE_INTEGER) ? b : a;
+}
+
 function googleSubjectHash(providerSubject: string) {
   return createHash("sha256").update(`boardsignal-google:${providerSubject}`).digest("hex");
 }
@@ -134,7 +146,7 @@ export async function GET() {
     }
 
     const now = Date.now();
-    const accountRows = accounts.map(({ id, data: account }) => {
+    const rawAccountRows = accounts.map(({ id, data: account }) => {
       const uid = String(account.uid ?? id);
       const summary = summaryByUid.get(uid);
       const row = summary?.row;
@@ -207,7 +219,84 @@ export async function GET() {
         linkedLast7d: googleLinked && linkedTime !== undefined && now - linkedTime <= 7 * 24 * 60 * 60 * 1000,
         activityTime,
       };
-    }).sort((a, b) => b.activityTime - a.activityTime);
+    });
+
+    // One stable Chess.com player ID is one BoardSignal player. Google/access/auth
+    // records enrich that person and can never increase the player population.
+    const validPlayerRows = rawAccountRows.filter((item) => Number.isSafeInteger(item.playerId) && Number(item.playerId) > 0);
+    const unresolvedPlayerRecords = rawAccountRows.length - validPlayerRows.length;
+    const canonicalByPlayerId = new Map<number, (typeof rawAccountRows)[number]>();
+
+    for (const candidate of validPlayerRows) {
+      const playerId = Number(candidate.playerId);
+      const current = canonicalByPlayerId.get(playerId);
+      if (!current) {
+        canonicalByPlayerId.set(playerId, candidate);
+        continue;
+      }
+
+      const currentScore = current.retentionDepth * 1000 + current.reviewCount * 100 + (current.historyDataPresent ? 50 : 0) + (current.privateUseConfirmed ? 20 : 0) + (current.preferredContactEmail ? 5 : 0);
+      const candidateScore = candidate.retentionDepth * 1000 + candidate.reviewCount * 100 + (candidate.historyDataPresent ? 50 : 0) + (candidate.privateUseConfirmed ? 20 : 0) + (candidate.preferredContactEmail ? 5 : 0);
+      const primary = candidateScore > currentScore ? candidate : current;
+      const secondary = primary === candidate ? current : candidate;
+      const latestReview = parsed(candidate.latestReview?.publishedAt) > parsed(current.latestReview?.publishedAt)
+        ? candidate.latestReview
+        : current.latestReview;
+      const mergedRetentionDepth = Math.max(current.retentionDepth, candidate.retentionDepth);
+      const mergedReviewCount = Math.max(current.reviewCount, candidate.reviewCount);
+      const mergedHistoryData = current.historyDataPresent || candidate.historyDataPresent;
+      const mergedPrivateUse = current.privateUseConfirmed || candidate.privateUseConfirmed;
+      const mergedLatestReviewOpened = current.latestReviewOpened || candidate.latestReviewOpened;
+      const mergedReturnedAfterReview = current.returnedAfterReview || candidate.returnedAfterReview;
+      const mergedActivityStage = mergedRetentionDepth >= 2
+        ? "Returned for another Review"
+        : mergedLatestReviewOpened
+          ? "Latest Review opened"
+          : mergedReturnedAfterReview
+            ? "Returned after latest Review"
+            : mergedReviewCount > 0
+              ? "Review available"
+              : mergedHistoryData
+                ? "History / Review data present"
+                : mergedPrivateUse
+                  ? "Private use confirmed"
+                  : "Active account · no later-use signal";
+      const mergedGoogleLinked = current.googleLinked || candidate.googleLinked;
+
+      canonicalByPlayerId.set(playerId, {
+        ...secondary,
+        ...primary,
+        playerId,
+        accountStatus: current.accountStatus === "active" || candidate.accountStatus === "active" ? "active" : primary.accountStatus,
+        accessPath: mergedGoogleLinked ? "Google linked" : primary.accessPath,
+        googleLinked: mergedGoogleLinked,
+        googleEmail: current.googleEmail ?? candidate.googleEmail,
+        googleEmailVerified: current.googleEmailVerified || candidate.googleEmailVerified,
+        googleLinkedAt: earliestIso(current.googleLinkedAt, candidate.googleLinkedAt),
+        preferredContactEmail: primary.preferredContactEmail ?? secondary.preferredContactEmail,
+        betaContactConsent: primary.betaContactConsent || secondary.betaContactConsent,
+        emailUpdatesEnabled: primary.emailUpdatesEnabled || secondary.emailUpdatesEnabled,
+        lastSeenAt: latestIso(current.lastSeenAt, candidate.lastSeenAt),
+        privateUseConfirmed: mergedPrivateUse,
+        historyDataPresent: mergedHistoryData,
+        reviewCount: mergedReviewCount,
+        latestReview,
+        reviewOpened: current.reviewOpened || candidate.reviewOpened,
+        latestReviewOpened: mergedLatestReviewOpened,
+        latestReviewOpenedAt: latestIso(current.latestReviewOpenedAt, candidate.latestReviewOpenedAt),
+        returnedAfterReview: mergedReturnedAfterReview,
+        retentionDepth: mergedRetentionDepth,
+        forming: current.forming || candidate.forming,
+        readyNotSeen: current.readyNotSeen || candidate.readyNotSeen,
+        activityStage: mergedActivityStage,
+        linkedLast24h: current.linkedLast24h || candidate.linkedLast24h,
+        linkedLast7d: current.linkedLast7d || candidate.linkedLast7d,
+        activityTime: Math.max(current.activityTime, candidate.activityTime),
+      });
+    }
+
+    const accountRows = [...canonicalByPlayerId.values()].sort((a, b) => b.activityTime - a.activityTime);
+    const duplicateAccountRecords = Math.max(0, validPlayerRows.length - accountRows.length);
 
     const exceptionCases = summaries
       .filter((summary) => summary.active !== false && summary.row && ((summary.row.exceptionCount ?? 0) > 0 || summary.row.reviewCheckRequired === true))
@@ -241,6 +330,9 @@ export async function GET() {
         partial,
         funnel: {
           totalPlayers: accountRows.length,
+          sourceAccountRecords: rawAccountRows.length,
+          duplicateAccountRecords,
+          unresolvedPlayerRecords,
           googleLinked: accountRows.filter((item) => item.googleLinked).length,
           googleLinkedLast24h: accountRows.filter((item) => item.linkedLast24h).length,
           googleLinkedLast7d: accountRows.filter((item) => item.linkedLast7d).length,
@@ -254,7 +346,12 @@ export async function GET() {
           reviewsForming: accountRows.filter((item) => item.forming).length,
           emailUpdatesEnabled: accountRows.filter((item) => item.emailUpdatesEnabled).length,
         },
-        accounts: accountRows.map(({ activityTime: _activityTime, linkedLast24h: _linkedLast24h, linkedLast7d: _linkedLast7d, ...item }) => item),
+        accounts: accountRows.map(({ activityTime, linkedLast24h, linkedLast7d, ...item }) => {
+          void activityTime;
+          void linkedLast24h;
+          void linkedLast7d;
+          return item;
+        }),
         exceptions: {
           playersFlagged: exceptionCases.length,
           categories: [...categoryCounts.entries()].map(([category, count]) => ({ category, count })).sort((a, b) => b.count - a.count),

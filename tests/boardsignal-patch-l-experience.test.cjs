@@ -13,6 +13,8 @@ const accessibility = read('src/app/boardsignal-accessibility.css');
 const motion = read('src/app/boardsignal-motion.css');
 const homepage = read('src/app/page.tsx');
 const homepageStyles = read('src/app/page.module.css');
+const homeProofRail = read('src/components/HomeProofRail.tsx');
+const homeProofStyles = read('src/components/HomeProofRail.module.css');
 const publicProof = read('src/lib/boardsignal/server/publicProof.ts');
 const publicTrafficProof = read('src/lib/boardsignal/server/publicTrafficProof.ts');
 const trustpilotBridge = read('src/components/TrustpilotInvitationBridge.tsx');
@@ -28,6 +30,10 @@ const installLib = read('src/lib/boardsignal/offline/install.ts');
 const room = read('src/components/BoardSignalPlayerRoom.tsx');
 const offlineRoom = read('src/components/OfflinePlayerRoom.tsx');
 const liveUnavailable = read('src/components/LiveDataUnavailablePlayerRoom.tsx');
+const qaPage = read('src/app/boardsignal/qa/onboarding/page.tsx');
+const qaProbe = read('src/components/OnboardingQaProbe.tsx');
+const renderQa = read('scripts/check-boardsignal-onboarding-render.mjs');
+const workflow = read('.github/workflows/boardsignal-patch-l-guard.yml');
 const pkg = JSON.parse(read('package.json'));
 const contrastEntry = read('scripts/check-boardsignal-contrast.mjs');
 const cascadeCheck = read('scripts/check-boardsignal-cascade.mjs');
@@ -78,8 +84,8 @@ test('existing semantic theme and accessibility foundations are consolidated, no
   assert.doesNotMatch(system, /forced-color-adjust\s*:\s*none/i);
 });
 
-test('homepage has one obvious private entry before proof, explanation and Universe', () => {
-  sourceOrder(homepage, ['personal-hero', 'boardsignal-social-proof', 'homepage-universe-entry', 'first-value-preview', 'THE BOARDSIGNAL UNIVERSE']);
+test('homepage has one obvious private entry followed by compact proof, explanation and Universe', () => {
+  sourceOrder(homepage, ['personal-hero', 'hero-username-card', '<HomeProofRail', 'homepage-universe-entry', 'first-value-preview', 'THE BOARDSIGNAL UNIVERSE']);
   assert.match(username, /GET MY BOARDSIGNAL/);
   assert.match(username, /GoogleSignInButton/);
   assert.match(username, /action: "return"/);
@@ -91,36 +97,49 @@ test('homepage has one obvious private entry before proof, explanation and Unive
   assert.doesNotMatch(homepage, /Founder beta|Fact Pack|Data Lab|seeded Desk/i);
 });
 
-test('homepage credibility combines strong product proof, anonymous audience proof and independent reputation', () => {
+test('homepage credibility uses all strong product proof, separately labelled anonymous traffic and independent reputation', () => {
   assert.match(homepage, /loadPublicBoardSignalProof/);
   assert.match(homepage, /loadPublicBoardSignalTrafficProof/);
-  assert.match(homepage, /PUBLIC_PROOF_THRESHOLD = 20/);
-  assert.match(homepage, /liveProof\?\.activePlayers/);
-  assert.match(homepage, /liveProof\?\.playersServed/);
-  assert.match(homepage, /liveProof\?\.reviewsProduced/);
-  assert.match(homepage, /active player accounts/);
-  assert.match(homepage, /completed Reviews across/);
-  assert.match(homepage, /site visitors in the last 30 days/);
-  assert.match(homepage, /anonymous aggregate Vercel Web Analytics/);
-  assert.match(homepage, /BoardSignal is on Trustpilot through Admin Hub/);
-  assert.match(homepage, /SEE BOARDSIGNAL ON TRUSTPILOT/);
-  assert.match(homepage, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
+  assert.match(homepage, /HomeProofRail/);
+  assert.match(homeProofRail, /PUBLIC_PROOF_MINIMUM = 20/);
+  assert.match(homeProofRail, /proof\.activePlayers/);
+  assert.match(homeProofRail, /proof\.reviewsProduced/);
+  assert.match(homeProofRail, /proof\.playersServed/);
+  assert.match(homeProofRail, /proof\.reviewsForming/);
+  assert.match(homeProofRail, /proof\.retentionReviews/);
+  assert.match(homeProofRail, /Active players/);
+  assert.match(homeProofRail, /Reviews completed/);
+  assert.match(homeProofRail, /Players served/);
+  assert.match(homeProofRail, /Reviews forming now/);
+  assert.match(homeProofRail, /retention Review records/);
+  assert.match(homeProofRail, /LAST 30 DAYS · VERCEL WEB ANALYTICS/);
+  assert.match(homeProofRail, /site visitors/);
+  assert.match(homeProofRail, /page views/);
+  assert.match(homeProofRail, /Anonymous aggregated site activity — not player accounts/);
+  assert.match(homeProofRail, /Read independent reviews on Trustpilot/);
+  assert.match(homeProofRail, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
   assert.match(publicProof, /activePlayers: count\(metrics\.activePlayers\)/);
   assert.match(publicProof, /reviewsProduced: count\(validation\.totalReviewsProduced\)/);
   assert.match(publicProof, /playersServed: count\(validation\.playersServed\)/);
+  assert.match(publicProof, /reviewsForming: count\(metrics\.reviewsForming\)/);
+  assert.match(publicProof, /retentionReviews: count\(validation\.verifiedReviews\)/);
   assert.match(publicTrafficProof, /getFounderTraffic\(30\)/);
   assert.match(publicTrafficProof, /visitors30d/);
   assert.match(publicTrafficProof, /pageviews30d/);
   assert.doesNotMatch(publicTrafficProof, /BOARDSIGNAL_VERCEL_ANALYTICS_TOKEN/);
-  assert.match(system, /\.boardsignal-social-proof/);
-  assert.match(system, /bs-proof-sheen/);
-  assert.match(homepageStyles, /\.proofRows/);
-  assert.match(homepageStyles, /credibility-row-enter/);
-  assert.match(homepageStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.proofRow/);
-  assert.doesNotMatch(system.slice(system.indexOf('@keyframes bs-proof-sheen'), system.indexOf('.boardsignal-social-proof-mark')), /infinite/i);
-  assert.match(system, /prefers-reduced-motion[\s\S]*boardsignal-social-proof::after/);
-  assert.doesNotMatch(homepage, /returningPlayers|reviewsForming|R2\+|R3\+|R4\+/i);
-  assert.doesNotMatch(homepage, /\b87\b|\b72\b|\b49\b|\b365\b|\b2335\b|2,335/);
+  assert.doesNotMatch(homeProofRail, /returningPlayers|R2\+|R3\+|R4\+/i);
+  assert.doesNotMatch(homeProofRail, /TrustScore|Trustpilot rating|stars? out of|\b0\.0\b|\b0 reviews\b/i);
+  assert.doesNotMatch([homepage, homeProofRail].join('\n'), /\b87\b|\b72\b|\b49\b|\b41\b|\b44\b|\b365\b|\b2335\b|2,335/);
+});
+
+test('homepage proof motion is compositor-safe, one-shot and reduced-motion safe', () => {
+  assert.match(homeProofStyles, /@keyframes proofRailEnter/);
+  assert.match(homeProofStyles, /@keyframes proofMetricEnter/);
+  assert.match(homeProofStyles, /opacity/);
+  assert.match(homeProofStyles, /transform/);
+  assert.match(homeProofStyles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.doesNotMatch(homeProofStyles, /animation[^;]*infinite/i);
+  assert.doesNotMatch(homeProofStyles, /@keyframes[^}]*\b(?:width|height|top|left|margin|padding)\s*:/i);
 });
 
 test('Trustpilot invitation stays post-experience, fair and non-selective', () => {
@@ -162,6 +181,20 @@ test('new-player confirmation and identity-conflict states use a dedicated respo
   assert.match(usernameStyles, /@media \(max-width: 680px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.match(homepageStyles, /\.heroGrid\s*\{[\s\S]*minmax\(0, 1\.08fr\)[\s\S]*minmax\(20rem, \.92fr\)/);
   assert.match(homepageStyles, /@media \(max-width: 980px\)[\s\S]*\.heroGrid[\s\S]*minmax\(0, 1fr\)/);
+});
+
+test('real Chrome QA covers proof plus every onboarding state at desktop and phone widths', () => {
+  assert.match(qaPage, /HomeProofRail/);
+  assert.match(qaPage, /QA_PROOF/);
+  assert.match(qaPage, /QA_TRAFFIC/);
+  assert.match(qaProbe, /data-boardsignal-home-proof/);
+  assert.match(qaProbe, /proof-collapsed-text|inspectReadableBox\(proof/);
+  for (const state of ['google', 'username', 'profile', 'collision']) assert.match(renderQa, new RegExp(state));
+  for (const width of ['320', '360', '375', '390', '412', '430', '1365']) assert.match(renderQa, new RegExp(width));
+  assert.match(renderQa, /BOARD_SIGNAL_ONBOARDING_RENDER_PASS/);
+  assert.match(workflow, /Render onboarding in real Chrome at desktop and mobile widths/);
+  assert.match(workflow, /npm run dev -- -p 3100/);
+  assert.match(workflow, /check-boardsignal-onboarding-render\.mjs/);
 });
 
 test('Google entry uses a recognizable Google identity button instead of BoardSignal CTA styling', () => {
@@ -243,7 +276,7 @@ test('motion remains state-based and reduced-motion safe', () => {
   assert.match(motion, /bs-motion-unread-change/);
   assert.match(motion, /bs-motion-engine-active/);
   assert.match(motion, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(homepageStyles, /@keyframes credibility-row-enter/);
+  assert.match(homeProofStyles, /@keyframes proofMetricEnter/);
   assert.doesNotMatch(motion, /animation\s*:\s*[^;]*(?:scan|breathe)[^;]*infinite/i);
 });
 

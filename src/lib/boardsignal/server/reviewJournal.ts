@@ -12,6 +12,7 @@ import {
   type ReviewJournalReviewIdentity,
 } from "@/lib/boardsignal/reviewJournal";
 import { getAdminDb } from "@/utils/firebaseAdmin";
+import { recordFounderNoteActivityByUid } from "./founderEngagement";
 
 type StoredReviewJournal = {
   version?: number;
@@ -102,6 +103,16 @@ function journalFromMap(notes: Record<string, ReviewJournalNote>, updatedAt?: st
   return { version: 1, notes: sortReviewJournalNotes(Object.values(notes)), ...(updatedAt ? { updatedAt } : {}) };
 }
 
+async function projectJournal(uid: string, journal: ReviewJournal, created: boolean) {
+  if (!journal.updatedAt) return;
+  await recordFounderNoteActivityByUid({
+    uid,
+    noteCount: journal.notes.length,
+    created,
+    at: journal.updatedAt,
+  }).catch(() => undefined);
+}
+
 export async function loadReviewJournal(uid: string): Promise<ReviewJournal> {
   const snapshot = await journalRef(uid).get();
   if (!snapshot.exists) return { version: 1, notes: [] };
@@ -115,7 +126,7 @@ export async function addReviewJournalNote(uid: string, input: unknown) {
   const type = cleanType(bodyInput.type);
   const body = cleanBody(bodyInput.body);
   const ref = journalRef(uid);
-  return getAdminDb().runTransaction(async (transaction) => {
+  const journal = await getAdminDb().runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const stored = snapshot.exists ? snapshot.data() as StoredReviewJournal : undefined;
     const notes = noteMap(stored);
@@ -129,6 +140,8 @@ export async function addReviewJournalNote(uid: string, input: unknown) {
     transaction.set(ref, { version: 1, notes: next, updatedAt: now }, { merge: false });
     return journalFromMap(next, now);
   });
+  await projectJournal(uid, journal, true);
+  return journal;
 }
 
 export async function editReviewJournalNote(uid: string, input: unknown) {
@@ -137,7 +150,7 @@ export async function editReviewJournalNote(uid: string, input: unknown) {
   const type = cleanType(bodyInput.type);
   const body = cleanBody(bodyInput.body);
   const ref = journalRef(uid);
-  return getAdminDb().runTransaction(async (transaction) => {
+  const journal = await getAdminDb().runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const stored = snapshot.exists ? snapshot.data() as StoredReviewJournal : undefined;
     const notes = noteMap(stored);
@@ -148,13 +161,15 @@ export async function editReviewJournalNote(uid: string, input: unknown) {
     transaction.set(ref, { version: 1, notes: next, updatedAt: now }, { merge: false });
     return journalFromMap(next, now);
   });
+  await projectJournal(uid, journal, false);
+  return journal;
 }
 
 export async function deleteReviewJournalNote(uid: string, input: unknown) {
   const bodyInput = input && typeof input === "object" ? input as Record<string, unknown> : {};
   const noteId = cleanSingleLine(bodyInput.noteId, "Note ID", 80);
   const ref = journalRef(uid);
-  return getAdminDb().runTransaction(async (transaction) => {
+  const journal = await getAdminDb().runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const stored = snapshot.exists ? snapshot.data() as StoredReviewJournal : undefined;
     const notes = noteMap(stored);
@@ -165,4 +180,6 @@ export async function deleteReviewJournalNote(uid: string, input: unknown) {
     transaction.set(ref, { version: 1, notes: next, updatedAt: now }, { merge: false });
     return journalFromMap(next, now);
   });
+  await projectJournal(uid, journal, false);
+  return journal;
 }

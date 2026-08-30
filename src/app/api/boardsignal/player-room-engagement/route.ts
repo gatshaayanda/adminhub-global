@@ -30,7 +30,10 @@ export async function POST(request: Request) {
     const action = body.action;
 
     if (action === "enter") {
-      const engagement = await recordPlayerRoomEntry(token.uid, body);
+      const accessProvider = typeof token.boardsignalAuthProvider === "string"
+        ? token.boardsignalAuthProvider
+        : undefined;
+      const engagement = await recordPlayerRoomEntry(token.uid, { ...body, accessProvider });
       return response({ ok: true, engagement });
     }
     if (action === "summary") {

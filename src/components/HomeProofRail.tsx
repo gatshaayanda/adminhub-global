@@ -42,13 +42,10 @@ export default function HomeProofRail({
   }
 
   if (proof && qualifies(proof.reviewsProduced) && qualifies(proof.playersServed)) {
-    const retentionDetail = qualifies(proof.retentionReviews)
-      ? ` ${format(proof.retentionReviews)} of those are retention Reviews from later player cycles.`
-      : "";
     stories.push({
       key: "review-history",
       lead: `${format(proof.reviewsProduced)} Reviews completed across ${format(proof.playersServed)} players`,
-      detail: `in BoardSignal's durable Review history.${retentionDetail}`,
+      detail: "in BoardSignal's durable Review history.",
       icon: BookOpenCheck,
     });
   }

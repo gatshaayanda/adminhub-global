@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requirePlayerToken } from "@/lib/boardsignal/server/persistence";
 import { contextualGuideFeedbackFollowup, contextualGuideResponse, guideContextObservation } from "@/lib/boardsignal/server/askContext";
 import { createGuideHandoff, getGuideProfileState, guideResponse, recordGuideFeedback, saveGuidePreference, updateGuideState } from "@/lib/boardsignal/server/guide";
+import { recordFounderAskUsageByUid } from "@/lib/boardsignal/server/founderEngagement";
 import { weeklyHistoryGuideResponse } from "@/lib/boardsignal/server/weeklyGuide";
 
 export const runtime = "nodejs";
@@ -34,8 +35,6 @@ export async function POST(request: Request) {
         : await requirePlayerToken(request);
 
     if (action === "observe") {
-      // Server-side protection also covers old cached clients: authenticated
-      // ambient observation is ignored unless the Ask panel is explicitly open.
       if (body.mode !== "beta_preview" && body.panelOpen !== true) {
         return response({ ok: true, observation: undefined });
       }
@@ -54,6 +53,13 @@ export async function POST(request: Request) {
     }
 
     if (action === "ask") {
+      const finishAsk = async (answer: unknown) => {
+        if (token?.uid && body.mode !== "beta_preview") {
+          await recordFounderAskUsageByUid(token.uid).catch(() => undefined);
+        }
+        return response({ ok: true, response: answer });
+      };
+
       const feedbackFollowup = await contextualGuideFeedbackFollowup({
         token,
         message: body.message,
@@ -65,12 +71,12 @@ export async function POST(request: Request) {
         previewRequestId: body.previewRequestId,
         previewStatusToken: body.previewStatusToken,
       });
-      if (feedbackFollowup.handled && feedbackFollowup.response) return response({ ok: true, response: feedbackFollowup.response });
+      if (feedbackFollowup.handled && feedbackFollowup.response) return finishAsk(feedbackFollowup.response);
       if (body.mode === "beta_preview") {
-        return response({ ok: true, response: await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation, mode: "beta_preview", previewRequestId: body.previewRequestId, previewStatusToken: body.previewStatusToken }) });
+        return finishAsk(await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation, mode: "beta_preview", previewRequestId: body.previewRequestId, previewStatusToken: body.previewStatusToken }));
       }
       const weeklyHistory = await weeklyHistoryGuideResponse(token, body.message);
-      if (weeklyHistory) return response({ ok: true, response: weeklyHistory });
+      if (weeklyHistory) return finishAsk(weeklyHistory);
       const contextual = await contextualGuideResponse({
         token,
         message: body.message,
@@ -79,8 +85,8 @@ export async function POST(request: Request) {
         visibleEntityId: body.visibleEntityId,
         recentConversation: body.recentConversation,
       });
-      if (contextual) return response({ ok: true, response: contextual });
-      return response({ ok: true, response: await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation }) });
+      if (contextual) return finishAsk(contextual);
+      return finishAsk(await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation }));
     }
     if (action === "preference") return response({ ok: true, preferences: await saveGuidePreference(token!, body) });
     if (action === "state") return response({ ok: true, state: await updateGuideState(token!, body) });

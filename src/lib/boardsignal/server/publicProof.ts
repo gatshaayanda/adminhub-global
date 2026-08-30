@@ -8,7 +8,6 @@ export type PublicBoardSignalProof = {
   playersServed: number;
   reviewsProduced: number;
   reviewsForming: number;
-  retentionReviews: number;
   returningPlayers: number;
   generatedAt?: string;
 };
@@ -20,10 +19,6 @@ function count(value: unknown) {
 
 async function readPublicBoardSignalProof(): Promise<PublicBoardSignalProof | undefined> {
   try {
-    // Homepage product proof stays on one materialized aggregate read. Never scan
-    // players or Reviews to construct social proof. Anonymous Vercel traffic is
-    // loaded independently by publicTrafficProof.ts so product and audience truth
-    // remain clearly separated.
     const snapshot = await getAdminDb().collection("founderOperationsState").doc("current").get();
     if (!snapshot.exists) return undefined;
     const data = snapshot.data() as Record<string, unknown>;
@@ -34,7 +29,6 @@ async function readPublicBoardSignalProof(): Promise<PublicBoardSignalProof | un
       playersServed: count(validation.playersServed),
       reviewsProduced: count(validation.totalReviewsProduced),
       reviewsForming: count(metrics.reviewsForming),
-      retentionReviews: count(validation.verifiedReviews),
       returningPlayers: count(validation.r2Plus),
       generatedAt: typeof data.generatedAt === "string" ? data.generatedAt : undefined,
     };
@@ -43,7 +37,6 @@ async function readPublicBoardSignalProof(): Promise<PublicBoardSignalProof | un
       && proof.playersServed === 0
       && proof.reviewsProduced === 0
       && proof.reviewsForming === 0
-      && proof.retentionReviews === 0
       && proof.returningPlayers === 0
     ) return undefined;
     return proof;
@@ -54,6 +47,6 @@ async function readPublicBoardSignalProof(): Promise<PublicBoardSignalProof | un
 
 export const loadPublicBoardSignalProof = unstable_cache(
   readPublicBoardSignalProof,
-  ["boardsignal-public-home-proof-v2"],
+  ["boardsignal-public-home-proof-v3"],
   { revalidate: 900 },
 );

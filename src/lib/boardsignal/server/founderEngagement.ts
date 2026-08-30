@@ -1,0 +1,216 @@
+import "server-only";
+
+import { FieldValue } from "firebase-admin/firestore";
+import type {
+  BoardSignalAccount,
+  BoardSignalCurrentReaction,
+  BoardSignalTrustpilotReviewInvitation,
+} from "@/lib/boardsignal/account";
+import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
+import { getAdminDb } from "@/utils/firebaseAdmin";
+
+export type FounderAccessMethod = "google_onboarding" | "google_return" | "player_session";
+export type FounderAccessOrigin = "new_player_via_google" | "existing_player_linked_google";
+export type FounderTrustpilotStatus = "not_asked" | "asked_visit_3" | "final_ask" | "says_reviewed" | "declined" | "not_yet";
+
+export type FounderChessSnapshot = {
+  periodStart: string;
+  periodEnd: string;
+  checkedAt: string;
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+};
+
+export type FounderChessDelta = {
+  periodStart: string;
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+};
+
+export type FounderAccountEngagementProjection = {
+  latestAccessMethod?: FounderAccessMethod;
+  latestAccessAt?: string;
+  helpfulCount?: number;
+  notHelpfulCount?: number;
+  latestFeedbackAt?: string;
+  noteCount?: number;
+  notesCreated?: number;
+  latestNoteAt?: string;
+  askQuestionCount?: number;
+  latestAskAt?: string;
+  lastChessSnapshot?: FounderChessSnapshot;
+  chessSincePreviousVisit?: FounderChessDelta;
+};
+
+type AccountWithFounderProjection = BoardSignalAccount & {
+  googleAccessOrigin?: FounderAccessOrigin;
+  founderEngagementProjection?: FounderAccountEngagementProjection;
+};
+
+function aggregateRef() {
+  return getAdminDb().collection("founderOperationsState").doc("current");
+}
+
+function userRef(uid: string) {
+  return getAdminDb().collection("users").doc(uid);
+}
+
+function finiteCount(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.floor(number) : 0;
+}
+
+function accessMethod(value: unknown): FounderAccessMethod {
+  if (value === "google_onboarding" || value === "google_return") return value;
+  return "player_session";
+}
+
+export function founderTrustpilotStatus(invitation?: BoardSignalTrustpilotReviewInvitation): FounderTrustpilotStatus {
+  if (invitation?.resolution === "reviewed") return "says_reviewed";
+  if (invitation?.resolution === "declined") return "declined";
+  if (invitation?.resolution === "not_yet") return "not_yet";
+  if (invitation?.finalAskShownAt) return "final_ask";
+  if (invitation?.firstAskShownAt) return "asked_visit_3";
+  return "not_asked";
+}
+
+export function founderChessSnapshot(current?: CurrentEpisodeSummary): FounderChessSnapshot | undefined {
+  if (!current?.periodStart || !current.periodEnd) return undefined;
+  return {
+    periodStart: current.periodStart,
+    periodEnd: current.periodEnd,
+    checkedAt: current.checkedAt,
+    games: finiteCount(current.games),
+    wins: finiteCount(current.wins),
+    draws: finiteCount(current.draws),
+    losses: finiteCount(current.losses),
+  };
+}
+
+function chessDelta(previous: FounderChessSnapshot | undefined, current: FounderChessSnapshot | undefined): FounderChessDelta | undefined {
+  if (!previous || !current || previous.periodStart !== current.periodStart) return undefined;
+  if (
+    current.games < previous.games
+    || current.wins < previous.wins
+    || current.draws < previous.draws
+    || current.losses < previous.losses
+  ) return undefined;
+  return {
+    periodStart: current.periodStart,
+    games: current.games - previous.games,
+    wins: current.wins - previous.wins,
+    draws: current.draws - previous.draws,
+    losses: current.losses - previous.losses,
+  };
+}
+
+async function settle(writes: Array<Promise<unknown>>) {
+  await Promise.allSettled(writes);
+}
+
+export async function recordFounderRoomEntryProjection(input: {
+  account: AccountWithFounderProjection;
+  previousVisitCount: number;
+  nextVisitCount: number;
+  accessProvider?: unknown;
+  at: string;
+}) {
+  const previousProjection = input.account.founderEngagementProjection;
+  const currentChess = founderChessSnapshot(input.account.currentEpisodeSummary);
+  const sincePrevious = chessDelta(previousProjection?.lastChessSnapshot, currentChess);
+  const method = accessMethod(input.accessProvider);
+
+  const accountUpdate: Record<string, unknown> = {
+    "founderEngagementProjection.latestAccessMethod": method,
+    "founderEngagementProjection.latestAccessAt": input.at,
+  };
+  if (currentChess) accountUpdate["founderEngagementProjection.lastChessSnapshot"] = currentChess;
+  accountUpdate["founderEngagementProjection.chessSincePreviousVisit"] = sincePrevious ?? FieldValue.delete();
+
+  const aggregateUpdate: Record<string, unknown> = {
+    "engagement.roomVisits": FieldValue.increment(1),
+    "engagement.updatedAt": input.at,
+  };
+  if (input.previousVisitCount === 1 && input.nextVisitCount === 2) {
+    aggregateUpdate["engagement.playersReturning"] = FieldValue.increment(1);
+  }
+
+  await settle([
+    userRef(input.account.uid).update(accountUpdate),
+    aggregateRef().update(aggregateUpdate),
+  ]);
+}
+
+export async function recordFounderSessionProjection(input: {
+  foregroundEngagedSeconds: number;
+  at: string;
+}) {
+  const seconds = finiteCount(input.foregroundEngagedSeconds);
+  if (seconds <= 0) return;
+  await settle([
+    aggregateRef().update({
+      "engagement.foregroundEngagedSeconds": FieldValue.increment(seconds),
+      "engagement.updatedAt": input.at,
+    }),
+  ]);
+}
+
+export async function recordFounderFeedbackProjection(input: {
+  uid: string;
+  reaction: BoardSignalCurrentReaction;
+  previousReaction?: BoardSignalCurrentReaction;
+  at: string;
+}) {
+  const helpfulDelta = (input.reaction === "helpful" ? 1 : 0) - (input.previousReaction === "helpful" ? 1 : 0);
+  const notHelpfulDelta = (input.reaction === "not_helpful" ? 1 : 0) - (input.previousReaction === "not_helpful" ? 1 : 0);
+  const accountUpdate: Record<string, unknown> = {
+    "founderEngagementProjection.latestFeedbackAt": input.at,
+  };
+  const aggregateUpdate: Record<string, unknown> = {
+    "engagement.updatedAt": input.at,
+  };
+  if (helpfulDelta) {
+    accountUpdate["founderEngagementProjection.helpfulCount"] = FieldValue.increment(helpfulDelta);
+    aggregateUpdate["engagement.helpful"] = FieldValue.increment(helpfulDelta);
+  }
+  if (notHelpfulDelta) {
+    accountUpdate["founderEngagementProjection.notHelpfulCount"] = FieldValue.increment(notHelpfulDelta);
+    aggregateUpdate["engagement.notHelpful"] = FieldValue.increment(notHelpfulDelta);
+  }
+  await settle([userRef(input.uid).update(accountUpdate), aggregateRef().update(aggregateUpdate)]);
+}
+
+export async function recordFounderNoteActivityByUid(input: {
+  uid: string;
+  noteCount: number;
+  created: boolean;
+  at: string;
+}) {
+  const accountUpdate: Record<string, unknown> = {
+    "founderEngagementProjection.noteCount": finiteCount(input.noteCount),
+    "founderEngagementProjection.latestNoteAt": input.at,
+  };
+  const aggregateUpdate: Record<string, unknown> = { "engagement.updatedAt": input.at };
+  if (input.created) {
+    accountUpdate["founderEngagementProjection.notesCreated"] = FieldValue.increment(1);
+    aggregateUpdate["engagement.notesCreated"] = FieldValue.increment(1);
+  }
+  await settle([userRef(input.uid).update(accountUpdate), aggregateRef().update(aggregateUpdate)]);
+}
+
+export async function recordFounderAskUsageByUid(uid: string, at = new Date().toISOString()) {
+  await settle([
+    userRef(uid).update({
+      "founderEngagementProjection.askQuestionCount": FieldValue.increment(1),
+      "founderEngagementProjection.latestAskAt": at,
+    }),
+    aggregateRef().update({
+      "engagement.askQuestions": FieldValue.increment(1),
+      "engagement.updatedAt": at,
+    }),
+  ]);
+}

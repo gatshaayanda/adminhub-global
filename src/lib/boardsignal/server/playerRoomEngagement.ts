@@ -7,9 +7,17 @@ import type {
   BoardSignalTrustpilotReviewInvitation,
 } from "@/lib/boardsignal/account";
 import { getAdminDb } from "@/utils/firebaseAdmin";
+import {
+  recordFounderRoomEntryProjection,
+  recordFounderSessionProjection,
+} from "./founderEngagement";
 
 const MAX_FOREGROUND_SECONDS = 6 * 60 * 60;
 const FOUNDER_USERNAME = (process.env.BOARDSIGNAL_FOUNDER_CHESS_USERNAME ?? "ayandakopano").trim().toLowerCase();
+
+type EngagementWithTotal = BoardSignalPlayerRoomEngagement & {
+  totalForegroundEngagedSeconds?: number;
+};
 
 export type PlayerRoomTrustpilotPrompt = "first" | "final";
 
@@ -92,7 +100,7 @@ export async function recordPlayerRoomEntry(uid: string, input: unknown) {
   const db = getAdminDb();
   const ref = db.collection("users").doc(uid);
 
-  return db.runTransaction(async (transaction) => {
+  const outcome = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) {
       throw new PlayerRoomEngagementError("PLAYER_ROOM_ACCOUNT_NOT_FOUND", "This BoardSignal account could not be found.", 404);
@@ -109,7 +117,10 @@ export async function recordPlayerRoomEntry(uid: string, input: unknown) {
     const founder = isFounder(account);
 
     if (engagement?.lastCountedSessionId === sessionId) {
-      return resultFor("duplicate", count, invitation, founder);
+      return {
+        result: resultFor("duplicate", count, invitation, founder),
+        projection: undefined,
+      };
     }
 
     const nowIso = new Date().toISOString();
@@ -137,8 +148,22 @@ export async function recordPlayerRoomEntry(uid: string, input: unknown) {
     if (nextInvitation !== invitation) write.trustpilotReviewInvitation = nextInvitation;
     transaction.set(ref, write, { merge: true });
 
-    return resultFor("recorded", nextCount, nextInvitation, founder);
+    return {
+      result: resultFor("recorded", nextCount, nextInvitation, founder),
+      projection: {
+        account,
+        previousVisitCount: count,
+        nextVisitCount: nextCount,
+        accessProvider: body.accessProvider,
+        at: nowIso,
+      },
+    };
   });
+
+  if (outcome.projection) {
+    await recordFounderRoomEntryProjection(outcome.projection).catch(() => undefined);
+  }
+  return outcome.result;
 }
 
 export async function recordPlayerRoomSummary(uid: string, input: unknown) {
@@ -148,24 +173,35 @@ export async function recordPlayerRoomSummary(uid: string, input: unknown) {
   const db = getAdminDb();
   const ref = db.collection("users").doc(uid);
 
-  return db.runTransaction(async (transaction) => {
+  const outcome = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
-    if (!snapshot.exists) return { status: "ignored" as const };
+    if (!snapshot.exists) return { result: { status: "ignored" as const } };
     const account = snapshot.data() as BoardSignalAccount;
-    if (account.accessStatus !== "active") return { status: "ignored" as const };
-    const engagement = account.playerRoomEngagement;
-    if (!engagement || engagement.lastCountedSessionId !== sessionId) return { status: "stale" as const };
-    if (engagement.latestSummarySessionId === sessionId) return { status: "duplicate" as const };
+    if (account.accessStatus !== "active") return { result: { status: "ignored" as const } };
+    const engagement = account.playerRoomEngagement as EngagementWithTotal | undefined;
+    if (!engagement || engagement.lastCountedSessionId !== sessionId) return { result: { status: "stale" as const } };
+    if (engagement.latestSummarySessionId === sessionId) return { result: { status: "duplicate" as const } };
 
-    const next: BoardSignalPlayerRoomEngagement = {
+    const endedAt = new Date().toISOString();
+    const next: EngagementWithTotal = {
       ...engagement,
       latestSummarySessionId: sessionId,
-      latestSessionEndedAt: new Date().toISOString(),
+      latestSessionEndedAt: endedAt,
+      lastActiveAt: endedAt,
       latestSessionForegroundEngagedSeconds: foregroundEngagedSeconds,
+      totalForegroundEngagedSeconds: currentVisitCount(engagement.totalForegroundEngagedSeconds) + foregroundEngagedSeconds,
     };
     transaction.set(ref, { playerRoomEngagement: next }, { merge: true });
-    return { status: "recorded" as const };
+    return {
+      result: { status: "recorded" as const },
+      projection: { foregroundEngagedSeconds, at: endedAt },
+    };
   });
+
+  if (outcome.projection) {
+    await recordFounderSessionProjection(outcome.projection).catch(() => undefined);
+  }
+  return outcome.result;
 }
 
 export async function resolveTrustpilotFollowUp(uid: string, input: unknown) {

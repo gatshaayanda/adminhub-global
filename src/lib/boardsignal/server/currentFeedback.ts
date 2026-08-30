@@ -7,6 +7,7 @@ import type {
 } from "@/lib/boardsignal/account";
 import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
 import { getAdminDb } from "@/utils/firebaseAdmin";
+import { recordFounderFeedbackProjection } from "./founderEngagement";
 
 const MAX_CURRENT_FEEDBACK_ITEMS = 12;
 
@@ -64,8 +65,9 @@ export async function recordCurrentBoardSignalFeedback(uid: string, input: unkno
     throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_ITEM", "That feedback item does not belong to this Current BoardSignal.");
   }
 
-  const ref = getAdminDb().collection("users").doc(uid);
-  return getAdminDb().runTransaction(async (transaction) => {
+  const db = getAdminDb();
+  const ref = db.collection("users").doc(uid);
+  const outcome = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCOUNT_NOT_FOUND", "This BoardSignal account could not be found.", 404);
     const account = snapshot.data() as {
@@ -87,13 +89,32 @@ export async function recordCurrentBoardSignalFeedback(uid: string, input: unkno
       : [];
     const existing = existingItems.find((item) => item.itemKey === itemKey);
     if (existing?.reaction === reaction) {
-      return { periodStart, periodEnd, items: existingItems };
+      return {
+        feedback: { periodStart, periodEnd, items: existingItems },
+        changed: false as const,
+      };
     }
 
-    const item: BoardSignalCurrentFeedbackItem = { itemKey, reaction, reactedAt: new Date().toISOString() };
+    const nowIso = new Date().toISOString();
+    const item: BoardSignalCurrentFeedbackItem = { itemKey, reaction, reactedAt: nowIso };
     const items = [item, ...existingItems.filter((candidate) => candidate.itemKey !== itemKey)].slice(0, MAX_CURRENT_FEEDBACK_ITEMS);
     const feedback: BoardSignalCurrentFeedback = { periodStart, periodEnd, items };
     transaction.set(ref, { currentBoardSignalFeedback: feedback }, { merge: true });
-    return feedback;
+    return {
+      feedback,
+      changed: true as const,
+      previousReaction: existing?.reaction,
+      at: nowIso,
+    };
   });
+
+  if (outcome.changed) {
+    await recordFounderFeedbackProjection({
+      uid,
+      reaction,
+      previousReaction: outcome.previousReaction,
+      at: outcome.at,
+    }).catch(() => undefined);
+  }
+  return outcome.feedback;
 }

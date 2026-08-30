@@ -117,7 +117,7 @@ test('11. PWA/offline architecture stays intact while its identity copy follows 
   assert.match(offlineRoom, /Latest four saved Reviews/);
 });
 
-test('12. Universe stays secondary to the player's own BoardSignal', () => {
+test("12. Universe stays secondary to the player's own BoardSignal", () => {
   assert.ok(home.indexOf('Your personal chess improvement companion.') < home.indexOf('homepage-universe-entry'));
   assert.match(home, /Explore the Universe/);
   assert.match(feed, /The wider BoardSignal world around your improvement\./);

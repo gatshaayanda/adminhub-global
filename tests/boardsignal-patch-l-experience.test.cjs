@@ -97,7 +97,7 @@ test('homepage has one obvious private entry followed by compact proof, explanat
   assert.doesNotMatch(homepage, /Founder beta|Fact Pack|Data Lab|seeded Desk/i);
 });
 
-test('homepage credibility uses all strong product proof, separately labelled anonymous traffic and independent reputation', () => {
+test('homepage credibility uses strong product proof, separately labelled anonymous traffic and transparent Trustpilot reputation', () => {
   assert.match(homepage, /loadPublicBoardSignalProof/);
   assert.match(homepage, /loadPublicBoardSignalTrafficProof/);
   assert.match(homepage, /HomeProofRail/);
@@ -105,23 +105,22 @@ test('homepage credibility uses all strong product proof, separately labelled an
   assert.match(homeProofRail, /proof\.activePlayers/);
   assert.match(homeProofRail, /proof\.reviewsProduced/);
   assert.match(homeProofRail, /proof\.playersServed/);
-  assert.match(homeProofRail, /proof\.reviewsForming/);
   assert.match(homeProofRail, /proof\.retentionReviews/);
-  assert.match(homeProofRail, /Active players/);
-  assert.match(homeProofRail, /Reviews completed/);
-  assert.match(homeProofRail, /Players served/);
-  assert.match(homeProofRail, /Reviews forming now/);
-  assert.match(homeProofRail, /retention Review records/);
-  assert.match(homeProofRail, /LAST 30 DAYS · VERCEL WEB ANALYTICS/);
+  assert.doesNotMatch(homeProofRail, /proof\.reviewsForming|Reviews forming now/i);
+  assert.match(homeProofRail, /active player accounts/);
+  assert.match(homeProofRail, /Reviews completed across/);
+  assert.match(homeProofRail, /retention Reviews from later player cycles/);
   assert.match(homeProofRail, /site visitors/);
   assert.match(homeProofRail, /page views/);
-  assert.match(homeProofRail, /Anonymous aggregated site activity — not player accounts/);
-  assert.match(homeProofRail, /Read independent reviews on Trustpilot/);
+  assert.match(homeProofRail, /last 30 days/);
+  assert.match(homeProofRail, /anonymous aggregated Vercel Web Analytics/);
+  assert.match(homeProofRail, /BoardSignal is on Trustpilot through Admin Hub/);
+  assert.match(homeProofRail, /CHECK OUR TRUSTPILOT PROFILE/);
+  assert.match(homeProofRail, /not filtered by rating or sentiment/);
   assert.match(homeProofRail, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
   assert.match(publicProof, /activePlayers: count\(metrics\.activePlayers\)/);
   assert.match(publicProof, /reviewsProduced: count\(validation\.totalReviewsProduced\)/);
   assert.match(publicProof, /playersServed: count\(validation\.playersServed\)/);
-  assert.match(publicProof, /reviewsForming: count\(metrics\.reviewsForming\)/);
   assert.match(publicProof, /retentionReviews: count\(validation\.verifiedReviews\)/);
   assert.match(publicTrafficProof, /getFounderTraffic\(30\)/);
   assert.match(publicTrafficProof, /visitors30d/);
@@ -132,9 +131,18 @@ test('homepage credibility uses all strong product proof, separately labelled an
   assert.doesNotMatch([homepage, homeProofRail].join('\n'), /\b87\b|\b72\b|\b49\b|\b41\b|\b44\b|\b365\b|\b2335\b|2,335/);
 });
 
+test('homepage proof is editorial rather than a dashboard of stat tiles', () => {
+  assert.match(homeProofRail, /storyList/);
+  assert.match(homeProofRail, /data-proof-story/);
+  assert.match(homeProofRail, /trustPanel/);
+  assert.doesNotMatch(homeProofRail, /styles\.metrics|styles\.metric\b|metricTop/);
+  assert.doesNotMatch(homeProofStyles, /\.metrics\s*\{|\.metric\s*\{/);
+});
+
 test('homepage proof motion is compositor-safe, one-shot and reduced-motion safe', () => {
   assert.match(homeProofStyles, /@keyframes proofRailEnter/);
-  assert.match(homeProofStyles, /@keyframes proofMetricEnter/);
+  assert.match(homeProofStyles, /@keyframes proofStoryEnter/);
+  assert.match(homeProofStyles, /@keyframes proofTrustEnter/);
   assert.match(homeProofStyles, /opacity/);
   assert.match(homeProofStyles, /transform/);
   assert.match(homeProofStyles, /@media \(prefers-reduced-motion: reduce\)/);
@@ -276,7 +284,7 @@ test('motion remains state-based and reduced-motion safe', () => {
   assert.match(motion, /bs-motion-unread-change/);
   assert.match(motion, /bs-motion-engine-active/);
   assert.match(motion, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(homeProofStyles, /@keyframes proofMetricEnter/);
+  assert.match(homeProofStyles, /@keyframes proofStoryEnter/);
   assert.doesNotMatch(motion, /animation\s*:\s*[^;]*(?:scan|breathe)[^;]*infinite/i);
 });
 

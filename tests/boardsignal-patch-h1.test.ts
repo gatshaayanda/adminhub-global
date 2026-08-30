@@ -136,9 +136,14 @@ test("H.1 history visibility counts Reviews, no-activity and pending slots witho
 
 test("H.1 founder detail labels qualifying Review history truthfully", () => {
   const source = read("src/components/FounderOperationsConsole.tsx");
-  assert.match(source, /\{row\.reviewCount\} qualifying/);
-  assert.match(source, /LATEST VERIFIED REVIEW PERIODS/);
-  assert.match(source, /No verified completed Review periods stored\./);
+  const server = read("src/lib/boardsignal/server/founderOperations.ts");
+  assert.match(server, /const nonHistorical = periods\.filter\(\(period\) => period\.source !== "historical"\)/);
+  assert.match(server, /reviewCount:\s*nonHistorical\.length/);
+  assert.match(server, /reviewPeriods:\s*nonHistorical/);
+  assert.match(source, /PRODUCT HISTORY \/ VALIDATION/);
+  assert.match(source, /REVIEWS PRODUCED/);
+  assert.match(source, /HISTORICAL ONBOARDING/);
+  assert.match(source, /Historical onboarding is real Review output, but it is not automatically a player return\./);
   assert.doesNotMatch(source, /<dt>Latest Review<\/dt>/);
   assert.doesNotMatch(source, /No completed Review/);
 });

@@ -24,6 +24,8 @@ const rules = read('firestore.rules');
 const css = read('src/app/globals.css');
 const layout = read('src/app/layout.tsx');
 const chrome = read('src/components/RouteAwarePublicChrome.tsx');
+const usernameForm = read('src/components/UsernameDeskForm.tsx');
+const googleSignInButton = read('src/components/GoogleSignInButton.tsx');
 
 function context(extra = {}) {
   return {
@@ -131,7 +133,8 @@ test('guest onboarding help remains deterministic and Google-first entry stays a
   assert.match(guide.renderGuideResponse('beta_next', guest).reply, /Ayanda reviews identity in the background/i);
   assert.match(guide.renderGuideResponse('username_reason', guest).reply, /stable Chess\.com player ID/i);
   assert.match(guide.renderGuideResponse('privacy', guest).reply, /stay private/i);
-  assert.match(read('src/components/UsernameDeskForm.tsx'), /CONTINUE WITH GOOGLE/);
+  assert.match(usernameForm, /GoogleSignInButton/);
+  assert.match(googleSignInButton, /Continue with Google/);
 });
 
 test('Guide memory and conversational continuity remain bounded by UID', () => {

@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithCustomToken } from "firebase/auth";
 import { ArrowRight, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
-import FoundingBetaAccessPanel from "@/components/FoundingBetaAccessPanel";
 import GoogleAccessButton from "@/components/GoogleAccessButton";
+import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { auth } from "@/utils/firebaseConfig";
 
 type ProviderStatus = {
@@ -14,11 +14,17 @@ type ProviderStatus = {
   devIdentityEnabled: boolean;
 };
 
+type UnmappedGoogle = {
+  googleIdToken: string;
+  email?: string;
+};
+
 export default function ChessComLoginPanel({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [status, setStatus] = useState<ProviderStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [unmappedGoogle, setUnmappedGoogle] = useState<UnmappedGoogle | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/chesscom/status", { cache: "no-store" })
@@ -44,7 +50,7 @@ export default function ChessComLoginPanel({ compact = false }: { compact?: bool
     }
   }
 
-  const hasRecoveryOptions = status?.enabled === true || status?.devIdentityEnabled === true || status !== null;
+  const hasRecoveryOptions = status?.enabled === true || status?.devIdentityEnabled === true;
 
   return (
     <section className={`chesscom-login-panel ${compact ? "is-compact" : ""}`}>
@@ -52,19 +58,22 @@ export default function ChessComLoginPanel({ compact = false }: { compact?: bool
       <div className="chesscom-login-copy">
         <span>RETURN TO MY BOARDSIGNAL</span>
         <h2>Pick up where you left off.</h2>
-        <p>If you connected Google to BoardSignal, use it to return to your exact Player Room, Reviews, Progress and Journal.</p>
-        <small><ShieldCheck size={14} /> Google signs you into BoardSignal only. It does not prove ownership of a Chess.com profile.</small>
+        <p>Continue with Google to return to the exact BoardSignal already connected to you.</p>
+        <small><ShieldCheck size={14} /> Google signs you into BoardSignal. It does not verify ownership of a Chess.com profile.</small>
       </div>
       <div className="chesscom-login-actions boardsignal-entry-primary">
-        <GoogleAccessButton compact={compact} label="CONTINUE WITH GOOGLE" />
-        {hasRecoveryOptions ? <details className="return-recovery-details">
+        {unmappedGoogle ? (
+          <UsernameDeskForm compact={compact} initialGoogleIdToken={unmappedGoogle.googleIdToken} initialGoogleEmail={unmappedGoogle.email} />
+        ) : (
+          <GoogleAccessButton compact={compact} label="CONTINUE WITH GOOGLE" onUnmapped={setUnmappedGoogle} />
+        )}
+        {!unmappedGoogle && hasRecoveryOptions ? <details className="return-recovery-details">
           <summary>Other sign-in or recovery options</summary>
           <div className="return-recovery-options">
-            <p>Use these only if your BoardSignal was set up with an earlier access method or you need recovery.</p>
+            <p>Use these only for an older Chess.com sign-in path or development recovery. Google is the normal BoardSignal return key.</p>
             {status?.enabled ? (
               <a className="button button-outline" href="/api/auth/chesscom/start">Continue with Chess.com <ArrowRight size={16} /></a>
             ) : null}
-            <FoundingBetaAccessPanel oauthAvailable={status?.enabled === true} />
             {status?.devIdentityEnabled ? (
               <button className="button button-quiet" type="button" onClick={developmentSignIn} disabled={busy}>
                 {busy ? <><LoaderCircle className="button-spinner" size={15} /> Signing in</> : "Development access"}

@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Post-M6 Google access finalization guard
+        run: node --test tests/boardsignal-google-access-finalization.test.cjs tests/boardsignal-google-player-accounting.test.cjs tests/boardsignal-legacy-beta-access-compat.test.cjs tests/boardsignal-patch-l-founder-access-semantics.test.cjs
+
       - name: M6 branding language guard
         run: node --test tests/boardsignal-patch-m6-branding-language.test.cjs tests/boardsignal-language-information-hierarchy.test.cjs
 

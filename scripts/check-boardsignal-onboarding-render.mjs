@@ -242,6 +242,10 @@ try {
   }
 } finally {
   cdp?.close();
-  if (chromeProcess.exitCode === null) chromeProcess.kill("SIGTERM");
-  rmSync(profileDir, { recursive: true, force: true });
+  if (chromeProcess.exitCode === null) {
+    const exited = new Promise((resolveExit) => chromeProcess.once("exit", resolveExit));
+    chromeProcess.kill("SIGTERM");
+    await Promise.race([exited, sleep(2000)]);
+  }
+  rmSync(profileDir, { recursive: true, force: true, maxRetries: 8, retryDelay: 125 });
 }

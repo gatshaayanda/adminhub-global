@@ -46,12 +46,13 @@ test("4. first member Desk is published into the persistent owner account", () =
   assert.match(persistence, /collection\("users"\)\.doc\(account\.uid\)\.collection\("desks"\)/);
 });
 
-test("5. required Universe participation is disclosed and cannot be falsely toggled off", () => {
+test("5. required Universe participation is disclosed at the agreement and cannot be falsely toggled off", () => {
   const form = read("src/components/UsernameDeskForm.tsx");
   const gate = read("src/components/BetaAgreementGate.tsx");
   const profile = read("src/components/PlayerProfileNotifications.tsx");
-  assert.match(form, /className="beta-universe-disclosure"/);
-  assert.match(form, /SEE YOUR GAMES TOGETHER/);
+  assert.doesNotMatch(form, /SEE YOUR GAMES TOGETHER|EXPLORE PUBLIC BOARDSIGNAL|public-universe-username-form/);
+  assert.match(gate, /Each completed Review may contribute at least one safe positive or neutral public highlight/);
+  assert.match(gate, /BOARDSIGNAL UNIVERSE/);
   assert.match(gate, /Included with Founding Access/);
   assert.match(profile, /Public highlights/);
   assert.match(profile, /Google Access never unlocks public Chess.com identity by itself/);
@@ -212,4 +213,3 @@ test("25. requested screens retain readable contrast, visible focus and non-dupl
   assert.equal((header.match(/Get My BoardSignal/g) ?? []).length, 2);
   assert.match(screens, /Get My BoardSignal|Player Room|COMMUNICATIONS|COVERAGE/);
 });
-

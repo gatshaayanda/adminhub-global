@@ -44,7 +44,7 @@ export default function BetaAgreementGate({ onAccept }: { onAccept: () => Promis
           <li>Communication preferences are separate. Browser alerts require a separate explicit permission action.</li>
         </ul>
         <div className="agreement-universe-required">
-          <span>AROUND BOARDSIGNAL</span>
+          <span>BOARDSIGNAL UNIVERSE</span>
           <strong>Included with Founding Access ✓</strong>
           <p>Public highlights. Private improvement guidance.</p>
         </div>

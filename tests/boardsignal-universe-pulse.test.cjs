@@ -210,11 +210,13 @@ test("share acquisition now enters the Google-first homepage without reviving be
   const tracker = read("src/app/api/boardsignal/share/[momentId]/track/route.ts");
   const client = read("src/components/ShareAttributionClient.tsx");
   const form = read("src/components/UsernameDeskForm.tsx");
+  const googleButton = read("src/components/GoogleSignInButton.tsx");
   assert.match(tracker, /share_viewed[\s\S]*share_tapped[\s\S]*cta_clicked/);
   assert.match(client, /type AttributionEvent = "share_viewed" \| "cta_clicked"/);
   assert.match(client, /source: "boardSignalShare"/);
   assert.match(client, /\?source=boardSignalShare&shareMomentId=/);
-  assert.match(form, /CONTINUE WITH GOOGLE/);
+  assert.match(form, /GoogleSignInButton/);
+  assert.match(googleButton, /Continue with Google/);
   assert.doesNotMatch(form, /beta_request_started|beta_request_submitted|CONTINUE PREVIEW/i);
 });
 

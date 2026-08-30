@@ -13,6 +13,10 @@ const accessibility = read('src/app/boardsignal-accessibility.css');
 const motion = read('src/app/boardsignal-motion.css');
 const homepage = read('src/app/page.tsx');
 const homepageStyles = read('src/app/page.module.css');
+const publicProof = read('src/lib/boardsignal/server/publicProof.ts');
+const publicTrafficProof = read('src/lib/boardsignal/server/publicTrafficProof.ts');
+const trustpilotBridge = read('src/components/TrustpilotInvitationBridge.tsx');
+const trustpilotRoute = read('src/app/api/boardsignal/trustpilot-invitation/route.ts');
 const username = read('src/components/UsernameDeskForm.tsx');
 const usernameStyles = read('src/components/UsernameDeskForm.module.css');
 const login = read('src/components/ChessComLoginPanel.tsx');
@@ -87,23 +91,48 @@ test('homepage has one obvious private entry before proof, explanation and Unive
   assert.doesNotMatch(homepage, /Founder beta|Fact Pack|Data Lab|seeded Desk/i);
 });
 
-test('homepage credibility leads with meaningful proof and masks weak returning-player counts', () => {
+test('homepage credibility combines strong product proof, anonymous audience proof and independent reputation', () => {
+  assert.match(homepage, /loadPublicBoardSignalProof/);
+  assert.match(homepage, /loadPublicBoardSignalTrafficProof/);
+  assert.match(homepage, /PUBLIC_PROOF_THRESHOLD = 20/);
+  assert.match(homepage, /liveProof\?\.activePlayers/);
   assert.match(homepage, /liveProof\?\.playersServed/);
   assert.match(homepage, /liveProof\?\.reviewsProduced/);
-  assert.match(homepage, /liveProof\?\.returningPlayers/);
-  assert.match(homepage, /RETURNING_PLAYER_PROOF_THRESHOLD = 20/);
-  assert.match(homepage, /Reviews?[^\n]*completed across/);
-  assert.match(homepage, /Read independent reviews on Trustpilot/);
+  assert.match(homepage, /active player accounts/);
+  assert.match(homepage, /completed Reviews across/);
+  assert.match(homepage, /site visitors in the last 30 days/);
+  assert.match(homepage, /anonymous aggregate Vercel Web Analytics/);
+  assert.match(homepage, /BoardSignal is on Trustpilot through Admin Hub/);
+  assert.match(homepage, /SEE BOARDSIGNAL ON TRUSTPILOT/);
   assert.match(homepage, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
-  assert.match(homepage, /UsersRound/);
+  assert.match(publicProof, /activePlayers: count\(metrics\.activePlayers\)/);
+  assert.match(publicProof, /reviewsProduced: count\(validation\.totalReviewsProduced\)/);
+  assert.match(publicProof, /playersServed: count\(validation\.playersServed\)/);
+  assert.match(publicTrafficProof, /getFounderTraffic\(30\)/);
+  assert.match(publicTrafficProof, /visitors30d/);
+  assert.match(publicTrafficProof, /pageviews30d/);
+  assert.doesNotMatch(publicTrafficProof, /BOARDSIGNAL_VERCEL_ANALYTICS_TOKEN/);
   assert.match(system, /\.boardsignal-social-proof/);
   assert.match(system, /bs-proof-sheen/);
-  assert.match(homepageStyles, /\.proofSentence/);
-  assert.match(homepageStyles, /\.trustLink/);
+  assert.match(homepageStyles, /\.proofRows/);
+  assert.match(homepageStyles, /credibility-row-enter/);
+  assert.match(homepageStyles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.proofRow/);
   assert.doesNotMatch(system.slice(system.indexOf('@keyframes bs-proof-sheen'), system.indexOf('.boardsignal-social-proof-mark')), /infinite/i);
   assert.match(system, /prefers-reduced-motion[\s\S]*boardsignal-social-proof::after/);
-  assert.doesNotMatch(homepage, /liveProof\.reviewsForming|REAL BOARDSIGNAL PRODUCT PROOF|Players served|Reviews produced|Returning players|Reviews forming|BoardSignal product activity only|Vercel visitors|pageviews/i);
-  assert.doesNotMatch(homepage, /\b49\b|\b72\b|\b8\b/);
+  assert.doesNotMatch(homepage, /returningPlayers|reviewsForming|R2\+|R3\+|R4\+/i);
+  assert.doesNotMatch(homepage, /\b87\b|\b72\b|\b49\b|\b365\b|\b2335\b|2,335/);
+});
+
+test('Trustpilot invitation stays post-experience, fair and non-selective', () => {
+  assert.match(layout, /TrustpilotInvitationBridge/);
+  assert.match(layout, /invitejs\.trustpilot\.com\/tp\.min\.js/);
+  assert.match(trustpilotBridge, /saved\?\.desks\?\.length/);
+  assert.match(trustpilotRoute, /account\.accessStatus !== "active"/);
+  assert.match(trustpilotRoute, /reviewProduction\?\.totalReviews \?\? 0\) < 1/);
+  assert.match(trustpilotRoute, /BOARD_SIGNAL_ROLLING_INVITATION_LIMIT = 45/);
+  assert.match(trustpilotRoute, /canonicalUsername\?\.trim\(\)\.toLowerCase\(\) === FOUNDER_USERNAME/);
+  assert.doesNotMatch(trustpilotRoute, /starRating|trustScore|positiveExperience|negativeExperience|sentiment|feedbackScore/i);
+  assert.doesNotMatch(trustpilotBridge, /starRating|trustScore|positiveExperience|negativeExperience|sentiment|feedbackScore/i);
 });
 
 test('one Google action resolves returning players before starting new-player username onboarding', () => {
@@ -214,6 +243,7 @@ test('motion remains state-based and reduced-motion safe', () => {
   assert.match(motion, /bs-motion-unread-change/);
   assert.match(motion, /bs-motion-engine-active/);
   assert.match(motion, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(homepageStyles, /@keyframes credibility-row-enter/);
   assert.doesNotMatch(motion, /animation\s*:\s*[^;]*(?:scan|breathe)[^;]*infinite/i);
 });
 

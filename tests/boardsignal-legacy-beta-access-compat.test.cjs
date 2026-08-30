@@ -53,10 +53,10 @@ test('5 explicit Reset Access still rotates the fallback credential and revokes 
   assert.match(adminRoute, /resetFoundingBetaAccess\(body\.playerId\)/);
 });
 
-test('6 optional magic-link creation does not touch fallback Beta Access', () => {
+test('6 optional magic-link creation preserves its record and does not touch fallback Beta Access', () => {
   assert.match(regenerate, /betaMagicAccessCredential/);
   assert.doesNotMatch(regenerate, /resetFoundingBetaAccess|createFoundingBetaAccess|createBetaAccessCredential|revokeRefreshTokens/);
-  assert.match(regenerate, /magicAccess: magic\.record/);
+  assert.match(regenerate, /magicAccess:\s*\{\s*\.\.\.magic\.record,\s*consumedAt:\s*null\s*\}/);
 });
 
 test('7 historical active testers are classified as LEGACY / EXISTING ACTIVE', () => {
@@ -65,27 +65,33 @@ test('7 historical active testers are classified as LEGACY / EXISTING ACTIVE', (
   assert.match(founderUi, /betaAccessStatus === "active"/);
 });
 
-test('8 ACCESS READY requires an actual Activation Bridge magic-access record', () => {
+test('8 RECOVERY LINK READY requires an actual Activation Bridge magic-access record', () => {
   assert.match(founderUi, /const accessReady = useMemo\(\(\) => approved\.filter\([\s\S]*Boolean\(item\.magicAccess\)/);
-  assert.match(founderUi, />ACCESS READY</);
+  assert.match(founderUi, /title="RECOVERY LINK READY"/);
+  assert.match(founderUi, /RECOVERY READY/);
 });
 
-test('9 claimed magic access is rendered separately as CLAIMED', () => {
+test('9 claimed magic access is rendered separately as RECOVERY CLAIMED', () => {
   assert.match(founderUi, /const claimed = useMemo/);
-  assert.match(founderUi, />CLAIMED</);
+  assert.match(founderUi, /title="RECOVERY CLAIMED"/);
 });
 
-test('10 legacy player gets explicit Create magic access link without resetting fallback access', () => {
-  assert.match(founderUi, /Create magic access link/);
-  assert.match(founderUi, /does not reset fallback Beta Access or end the current Firebase session/);
+test('10 legacy player gets explicit one-time recovery capability without resetting fallback access', () => {
+  assert.match(founderUi, /Create an optional one-time recovery link/);
+  assert.match(founderUi, /Recovery options/);
   assert.match(founderUi, /action: "regenerateMagic"/);
 });
 
-test('11 Founder page loading is read-only for legacy request classification', () => {
+test('11 Founder page loading stays read-only through the no-store directory helper', () => {
+  const fetchStart = founderUi.indexOf('async function fetchFounderDirectory');
+  const fetchEnd = founderUi.indexOf('function privateAccessLabel', fetchStart);
+  const fetchBlock = founderUi.slice(fetchStart, fetchEnd);
   const loadStart = founderUi.indexOf('const loadPlayers = useCallback');
   const loadEnd = founderUi.indexOf('useEffect(() => { void loadPlayers();', loadStart);
   const loadBlock = founderUi.slice(loadStart, loadEnd);
-  assert.match(loadBlock, /fetch\("\/api\/admin\/boardsignal\/beta-access", \{ cache: "no-store" \}\)/);
+  assert.match(fetchBlock, /fetch\("\/api\/admin\/boardsignal\/beta-access", \{ cache: "no-store" \}\)/);
+  assert.doesNotMatch(fetchBlock, /method:\s*"POST"|reset|regenerateMagic/);
+  assert.match(loadBlock, /const body = await fetchFounderDirectory\(\)/);
   assert.doesNotMatch(loadBlock, /method:\s*"POST"|reset|regenerateMagic/);
 });
 

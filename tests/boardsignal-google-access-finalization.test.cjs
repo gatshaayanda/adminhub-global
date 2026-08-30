@@ -80,7 +80,7 @@ test("44-47 public username/email cannot take over an account and mapping confli
 });
 
 test("Founder identity cases are separate from ordinary beta approval semantics", () => {
-  hasAll(founderUi, ["ACCESS / IDENTITY CASES", "OPEN", "AWAITING PLAYER", "UNDER REVIEW", "RESOLVED", "CLOSED", "REJECTED", "Ordinary Google onboarding and returning players never wait here"]);
+  hasAll(founderUi, ["ACCESS / IDENTITY CASES", "OPEN", "AWAITING PLAYER", "UNDER REVIEW", "RESOLVED", "CLOSED", 'type CaseStatus = "open" | "awaiting_player" | "under_review" | "resolved" | "closed" | "rejected"', "return status.toUpperCase()", "Ordinary Google onboarding and returning players never wait here"]);
   assert.ok(founderPage.includes("<FounderIdentityAccessCases />"));
   assert.ok(founderPage.includes("<FoundingBetaPlayersAdmin />"));
   assert.ok(!founderUi.includes("PLAYER WAITING FOR APPROVAL"));

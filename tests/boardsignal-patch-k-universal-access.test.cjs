@@ -29,6 +29,7 @@ const preview = read('src/components/BetaPreviewRoom.tsx');
 const activation = read('src/lib/boardsignal/server/activation.ts');
 const betaRequests = read('src/lib/boardsignal/server/betaRequests.ts');
 const proof = read('src/lib/boardsignal/server/publicProof.ts');
+const trafficProof = read('src/lib/boardsignal/server/publicTrafficProof.ts');
 const homepage = read('src/app/page.tsx');
 const account = read('src/lib/boardsignal/account.ts');
 const founderOperations = read('src/lib/boardsignal/server/founderOperations.ts');
@@ -183,6 +184,9 @@ test('persona J — quotas stay bounded with no anonymous Review-generation or p
   assert.match(proof, /collection\("founderOperationsState"\)\.doc\("current"\)\.get\(\)/);
   assert.match(proof, /revalidate: 900/);
   assert.doesNotMatch(proof, /collection\("users"\)|collection\("desks"\)|api\.vercel\.com|VERCEL_ACCESS_TOKEN/i);
+  assert.match(trafficProof, /getFounderTraffic\(30\)/);
+  assert.match(trafficProof, /revalidate: 900/);
+  assert.doesNotMatch(trafficProof, /collection\("users"\)|collection\("desks"\)|BOARDSIGNAL_VERCEL_ANALYTICS_TOKEN/i);
 });
 
 test('Journal and Progress remain on the stable BoardSignal UID across Google link and return', () => {
@@ -208,16 +212,23 @@ test('normal copy no longer presents Preview or Founder approval as the new-user
   assert.match(preview, /BetaPreviewStatus/);
 });
 
-test('homepage proof is BoardSignal product truth with restrained independent reputation support', () => {
+test('homepage proof combines product truth, anonymous traffic and restrained independent reputation support', () => {
+  assert.match(proof, /activePlayers/);
   assert.match(proof, /totalReviewsProduced/);
-  assert.match(proof, /r2Plus/);
-  assert.match(homepage, /reviewsProduced > 0 && playersServed > 0/);
-  assert.match(homepage, /completed across/);
-  assert.match(homepage, /RETURNING_PLAYER_PROOF_THRESHOLD = 20/);
-  assert.match(homepage, /Read independent reviews on Trustpilot/);
+  assert.match(proof, /playersServed/);
+  assert.match(homepage, /PUBLIC_PROOF_THRESHOLD = 20/);
+  assert.match(homepage, /active player accounts/);
+  assert.match(homepage, /completed Reviews across/);
+  assert.match(homepage, /site visitors in the last 30 days/);
+  assert.match(homepage, /anonymous aggregate Vercel Web Analytics/);
+  assert.match(homepage, /BoardSignal is on Trustpilot through Admin Hub/);
+  assert.match(homepage, /SEE BOARDSIGNAL ON TRUSTPILOT/);
   assert.match(homepage, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
-  assert.doesNotMatch(homepage, /REAL BOARDSIGNAL PRODUCT PROOF|Players served|Reviews produced|Returning players|Reviews forming|not Vercel visitors, pageviews or traffic counts/i);
+  assert.match(trafficProof, /visitors30d/);
+  assert.match(trafficProof, /pageviews30d/);
+  assert.doesNotMatch(homepage, /returningPlayers|reviewsForming|R2\+|R3\+|R4\+/i);
   assert.doesNotMatch(homepage, /TrustScore|Trustpilot rating|stars? out of|\b0\.0\b|\b0 reviews\b/i);
+  assert.doesNotMatch(homepage, /\b87\b|\b72\b|\b49\b|\b365\b|\b2335\b|2,335/);
 });
 
 test('Google entry remains real Google auth and uses recognizable Google branding without changing identity security', () => {

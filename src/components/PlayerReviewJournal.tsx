@@ -37,6 +37,11 @@ function dateLabel(value: string) {
   }
 }
 
+function openAskBoardSignal() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("boardsignal:ask-open"));
+}
+
 async function journalMutation(token: string, method: "POST" | "PATCH" | "DELETE", body: Record<string, unknown>) {
   const response = await fetch("/api/boardsignal/review-journal", {
     method,
@@ -186,7 +191,7 @@ export default function PlayerReviewJournal({ review, token, online, journal, on
     <div className="review-journal-heading"><div><p className="kicker">{current ? "YOUR TAKE" : "MY NOTES"}</p><h3>{current ? "Anything you'd change or add?" : "Keep something for your future self."}</h3><p>{current ? "Your note stays private. What you write here travels with this period when it closes into a completed Review." : "Your notes stay private and do not change BoardSignal's Review."}</p></div><span>PRIVATE</span></div>
     {notes.length ? <JournalNotesList notes={notes} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} /> : <p className="review-journal-empty">{current ? "No private notes for your current BoardSignal yet." : "No private notes saved for this Review yet."}</p>}
     {!online ? <p className="review-journal-offline" role="status">Reconnect to update your notes. Saved notes remain readable while offline.</p> : null}
-    {adding && online ? <JournalEditor saveLabel="Save note" busy={saving} onSave={add} onCancel={() => { setAdding(false); setError(""); setSavedNotice(""); }} /> : <button type="button" className="review-journal-add" disabled={!online} onClick={() => { setAdding(true); setSavedNotice(""); }}>{current ? "ADD A NOTE" : "+ ADD A NOTE"}{!online ? " — RECONNECT REQUIRED" : ""}</button>}
+    {adding && online ? <JournalEditor saveLabel="Save note" busy={saving} onSave={add} onCancel={() => { setAdding(false); setError(""); setSavedNotice(""); }} /> : current ? <div className="review-journal-editor-actions"><button type="button" className="review-journal-add" disabled={!online} onClick={() => { setAdding(true); setSavedNotice(""); }}>ADD A NOTE{!online ? " — RECONNECT REQUIRED" : ""}</button><button type="button" className="button button-quiet" disabled={!online} onClick={openAskBoardSignal} aria-label="Ask BoardSignal about this current item">ASK BOARDSIGNAL</button></div> : <button type="button" className="review-journal-add" disabled={!online} onClick={() => { setAdding(true); setSavedNotice(""); }}>+ ADD A NOTE{!online ? " — RECONNECT REQUIRED" : ""}</button>}
     {savedNotice ? <p className={engagementStyles.noteSaved} role="status">{savedNotice}</p> : null}
     {error ? <p className="review-journal-error" role="alert">{error}</p> : null}
   </section>;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requirePlayerToken } from "@/lib/boardsignal/server/persistence";
 import { contextualGuideFeedbackFollowup, contextualGuideResponse, guideContextObservation } from "@/lib/boardsignal/server/askContext";
+import { currentBoardSignalDeepDiveObservation, currentBoardSignalDeepDiveResponse } from "@/lib/boardsignal/server/currentAskDeepDive";
 import { createGuideHandoff, getGuideProfileState, guideResponse, recordGuideFeedback, saveGuidePreference, updateGuideState } from "@/lib/boardsignal/server/guide";
 import { recordFounderAskUsageByUid } from "@/lib/boardsignal/server/founderEngagement";
 import { weeklyHistoryGuideResponse } from "@/lib/boardsignal/server/weeklyGuide";
@@ -38,6 +39,12 @@ export async function POST(request: Request) {
       if (body.mode !== "beta_preview" && body.panelOpen !== true) {
         return response({ ok: true, observation: undefined });
       }
+      const currentObservation = await currentBoardSignalDeepDiveObservation({
+        token,
+        pathname: body.pathname,
+        activeTab: body.activeTab,
+      });
+      if (currentObservation) return response({ ok: true, observation: currentObservation });
       return response({
         ok: true,
         observation: await guideContextObservation({
@@ -75,6 +82,14 @@ export async function POST(request: Request) {
       if (body.mode === "beta_preview") {
         return finishAsk(await guideResponse({ token, message: body.message, pathname: body.pathname, activeTab: body.activeTab, visibleEntityId: body.visibleEntityId, recentConversation: body.recentConversation, mode: "beta_preview", previewRequestId: body.previewRequestId, previewStatusToken: body.previewStatusToken }));
       }
+      const currentDeepDive = await currentBoardSignalDeepDiveResponse({
+        token,
+        message: body.message,
+        pathname: body.pathname,
+        activeTab: body.activeTab,
+        recentConversation: body.recentConversation,
+      });
+      if (currentDeepDive) return finishAsk(currentDeepDive);
       const weeklyHistory = await weeklyHistoryGuideResponse(token, body.message);
       if (weeklyHistory) return finishAsk(weeklyHistory);
       const contextual = await contextualGuideResponse({

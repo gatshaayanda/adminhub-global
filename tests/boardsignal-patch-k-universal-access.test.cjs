@@ -213,26 +213,29 @@ test('normal copy no longer presents Preview or Founder approval as the new-user
   assert.match(preview, /BetaPreviewStatus/);
 });
 
-test('homepage proof combines product truth, anonymous traffic and transparent independent reputation support', () => {
+test('homepage proof combines product truth, anonymous traffic and restrained independent reputation support', () => {
   assert.match(proof, /activePlayers/);
   assert.match(proof, /totalReviewsProduced/);
   assert.match(proof, /playersServed/);
+  assert.match(proof, /reviewsForming/);
   assert.match(proof, /retentionReviews/);
   assert.match(homepage, /HomeProofRail/);
   assert.match(proofRail, /PUBLIC_PROOF_MINIMUM = 20/);
   assert.match(proofRail, /active player accounts/);
+  assert.match(proofRail, /Reviews are forming now/);
   assert.match(proofRail, /Reviews completed across/);
-  assert.match(proofRail, /retention Reviews from later player cycles/);
+  assert.match(proofRail, /retention Review records from ongoing player history/);
   assert.match(proofRail, /site visitors/);
   assert.match(proofRail, /page views/);
-  assert.match(proofRail, /anonymous aggregated Vercel Web Analytics/);
+  assert.match(proofRail, /last 30 days/);
+  assert.match(proofRail, /anonymous aggregated Vercel Web Analytics — not player accounts/);
   assert.match(proofRail, /BoardSignal is on Trustpilot through Admin Hub/);
   assert.match(proofRail, /CHECK OUR TRUSTPILOT PROFILE/);
   assert.match(proofRail, /not filtered by rating or sentiment/);
   assert.match(proofRail, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
   assert.match(trafficProof, /visitors30d/);
   assert.match(trafficProof, /pageviews30d/);
-  assert.doesNotMatch(proofRail, /proof\.reviewsForming|Reviews forming now|returningPlayers|R2\+|R3\+|R4\+/i);
+  assert.doesNotMatch(proofRail, /returningPlayers|R2\+|R3\+|R4\+/i);
   assert.doesNotMatch(proofRail, /TrustScore|Trustpilot rating|stars? out of|\b0\.0\b|\b0 reviews\b/i);
   assert.doesNotMatch([homepage, proofRail].join('\n'), /\b87\b|\b72\b|\b49\b|\b41\b|\b44\b|\b365\b|\b2335\b|2,335/);
 });

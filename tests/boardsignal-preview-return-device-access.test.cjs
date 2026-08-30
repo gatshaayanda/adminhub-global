@@ -10,11 +10,12 @@ const BASELINE_SHA = 'b24191dca59c0ce5c33631c414745df4f17d02d7';
 const normalizeText = (value) => value.replace(/\r\n/g, '\n');
 const assertBaselineFile = (file) => {
   const current = normalizeText(read(file));
-  const baseline = normalizeText(execFileSync('git', ['show', `${BASELINE_SHA}:${file}`], { cwd: root, encoding: 'utf8' }));
+  const baseline = normalizeText(execFileSync('git', ['show', `${BASELINE_SHA}:${file}`], { cwd: root, encoding: 'utf8'));
   assert.equal(current, baseline, `${file} changed from locked baseline ${BASELINE_SHA}`);
 };
 const pkg = JSON.parse(read('package.json'));
 const requestForm = read('src/components/UsernameDeskForm.tsx');
+const homepage = read('src/app/page.tsx');
 const previewRoom = read('src/components/BetaPreviewRoom.tsx');
 const previewRuntime = read('src/lib/boardsignal/previewRuntime.mjs');
 const previewReturn = read('src/lib/boardsignal/previewReturn.ts');
@@ -43,10 +44,11 @@ const registerDevice = section(serverActivation, 'export async function register
 const openRoom = section(previewRoom, 'async function openPlayerRoom', 'async function leaveOtherPlayerForRecovery');
 const previewType = section(activation, 'export type BoardSignalBetaPreview', 'export type BetaActivationReturnMethod');
 
-test('Patch K normal private entry is Google-first while username-only stays public', () => {
-  assert.ok(all(requestForm, ['CONTINUE WITH GOOGLE', 'Continue with Google, then connect your Chess.com username.']));
-  assert.ok(requestForm.includes('router.push(`/boardsignal/build/${encodeURIComponent(publicUsername)}`)'));
-  assert.ok(requestForm.includes('This does not create or open a private Player Room.'));
+test('Patch K normal private entry is one Google action while public Universe remains open', () => {
+  assert.ok(all(requestForm, ['GoogleSignInButton', 'action: "return"', 'New to BoardSignal?', 'Already have BoardSignal?', 'What&apos;s your Chess.com username?']));
+  assert.ok(requestForm.includes('GOOGLE_ACCESS_NOT_LINKED'));
+  assert.ok(!/OR EXPLORE THE PUBLIC UNIVERSE|EXPLORE PUBLIC BOARDSIGNAL|public-universe-username-form|\/boardsignal\/build\//.test(requestForm));
+  assert.ok(all(homepage, ['Explore the Universe', 'No sign-in required.']));
   assert.ok(!requestForm.includes('/boardsignal/preview/${encodeURIComponent(requestId)}'));
 });
 

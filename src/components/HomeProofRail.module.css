@@ -77,7 +77,7 @@
   min-width: 0;
   padding: .7rem 0;
   border-bottom: 1px solid var(--bs-border);
-  animation: proofStoryEnter 300ms var(--bs-ease-enter) calc(80ms + var(--proof-index, 0) * 60ms) both;
+  animation: proofStoryEnter 300ms var(--bs-ease-enter) calc(80ms + var(--proof-delay, 0ms)) both;
 }
 
 .story > svg {

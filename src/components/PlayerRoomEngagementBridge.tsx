@@ -71,9 +71,9 @@ export default function PlayerRoomEngagementBridge() {
   const [trustpilotMessage, setTrustpilotMessage] = useState("");
   const [settledMessage, setSettledMessage] = useState("");
   const recordingRef = useRef(false);
-  const sessionUidRef = useRef<string>();
-  const sessionIdRef = useRef<string>();
-  const recordedSessionRef = useRef<string>();
+  const sessionUidRef = useRef<string | undefined>(undefined);
+  const sessionIdRef = useRef<string | undefined>(undefined);
+  const recordedSessionRef = useRef<string | undefined>(undefined);
 
   const resetSession = useCallback((uid?: string) => {
     sessionUidRef.current = uid;

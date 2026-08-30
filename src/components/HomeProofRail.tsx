@@ -33,17 +33,20 @@ export default function HomeProofRail({
   const stories: ProofStory[] = [];
 
   if (proof && qualifies(proof.activePlayers)) {
+    const formingDetail = qualifies(proof.reviewsForming)
+      ? ` ${format(proof.reviewsForming)} Reviews are forming now.`
+      : "";
     stories.push({
       key: "active-players",
       lead: `${format(proof.activePlayers)} active player accounts`,
-      detail: "are currently in BoardSignal's live player lifecycle.",
+      detail: `are currently in BoardSignal's live player lifecycle.${formingDetail}`,
       icon: Activity,
     });
   }
 
   if (proof && qualifies(proof.reviewsProduced) && qualifies(proof.playersServed)) {
     const retentionDetail = qualifies(proof.retentionReviews)
-      ? ` ${format(proof.retentionReviews)} of those are retention Reviews from later player cycles.`
+      ? ` ${format(proof.retentionReviews)} of those are retention Review records from ongoing player history.`
       : "";
     stories.push({
       key: "review-history",

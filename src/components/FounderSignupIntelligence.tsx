@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, LoaderCircle, RefreshCcw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, LoaderCircle, RefreshCcw, Search } from "lucide-react";
 import styles from "./FounderSignupIntelligence.module.css";
 
 type AccountRow = {
@@ -10,11 +10,18 @@ type AccountRow = {
   playerId?: number;
   username: string;
   profileUrl?: string;
-  email?: string;
-  emailVerified: boolean;
-  linkedAt?: string;
+  accountStatus?: string;
+  accessPath: string;
+  googleLinked: boolean;
+  googleEmail?: string;
+  googleEmailVerified: boolean;
+  googleLinkedAt?: string;
+  preferredContactEmail?: string;
+  betaContactConsent: boolean;
+  emailUpdatesEnabled: boolean;
   lastSeenAt?: string;
-  playerRoomUsed: boolean;
+  privateUseConfirmed: boolean;
+  historyDataPresent: boolean;
   reviewCount: number;
   latestReview?: { periodLabel?: string; publishedAt?: string };
   reviewOpened: boolean;
@@ -25,11 +32,6 @@ type AccountRow = {
   forming: boolean;
   readyNotSeen: boolean;
   activityStage: string;
-  emailUpdatesEnabled: boolean;
-  betaContactConsent: boolean;
-  preferredContactMethod?: string;
-  preferredContactValue?: string;
-  accountStatus?: string;
 };
 
 type ExceptionCase = {
@@ -49,10 +51,12 @@ type Intelligence = {
   generatedAt: string;
   partial: boolean;
   funnel: {
-    googleClaimed: number;
-    claimedLast24h: number;
-    claimedLast7d: number;
-    playerRoomUsed: number;
+    totalPlayers: number;
+    googleLinked: number;
+    googleLinkedLast24h: number;
+    googleLinkedLast7d: number;
+    privateUseConfirmed: number;
+    historyDataPresent: number;
     reviewAvailable: number;
     reviewOpened: number;
     latestReviewOpened: number;
@@ -92,6 +96,7 @@ export default function FounderSignupIntelligence() {
   const [data, setData] = useState<Intelligence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,10 +104,10 @@ export default function FounderSignupIntelligence() {
     try {
       const response = await fetch("/api/admin/boardsignal/founder-intelligence", { cache: "no-store" });
       const body = await response.json() as { ok?: boolean; intelligence?: Intelligence; error?: string };
-      if (!response.ok || !body.ok || !body.intelligence) throw new Error(body.error ?? "Founder signup intelligence could not be loaded.");
+      if (!response.ok || !body.ok || !body.intelligence) throw new Error(body.error ?? "Founder player intelligence could not be loaded.");
       setData(body.intelligence);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Founder signup intelligence could not be loaded.");
+      setError(reason instanceof Error ? reason.message : "Founder player intelligence could not be loaded.");
     } finally {
       setLoading(false);
     }
@@ -110,23 +115,31 @@ export default function FounderSignupIntelligence() {
 
   useEffect(() => { void load(); }, [load]);
 
-  if (loading && !data) return <section className={styles.shell}><LoaderCircle className="button-spinner" size={18}/> Loading Founder signup intelligence…</section>;
-  if (!data) return <section className={styles.shell}><p className="form-error" role="alert">{error || "Founder signup intelligence is unavailable."}</p><button className="button button-quiet" type="button" onClick={() => void load()}>Try again</button></section>;
+  const visibleAccounts = useMemo(() => {
+    if (!data) return [];
+    const needle = query.trim().toLowerCase();
+    if (!needle) return data.accounts;
+    return data.accounts.filter((row) => [row.username, row.playerId, row.googleEmail, row.preferredContactEmail, row.accessPath, row.activityStage]
+      .some((value) => String(value ?? "").toLowerCase().includes(needle)));
+  }, [data, query]);
+
+  if (loading && !data) return <section className={styles.shell}><LoaderCircle className="button-spinner" size={18}/> Loading Founder player intelligence…</section>;
+  if (!data) return <section className={styles.shell}><p className="form-error" role="alert">{error || "Founder player intelligence is unavailable."}</p><button className="button button-quiet" type="button" onClick={() => void load()}>Try again</button></section>;
 
   const metrics = [
-    ["GOOGLE CLAIMED", data.funnel.googleClaimed, `${data.funnel.claimedLast24h} in 24h · ${data.funnel.claimedLast7d} in 7d`],
-    ["PLAYER ROOM USED", data.funnel.playerRoomUsed, "Post-claim private use"],
+    ["BOARDSIGNAL PLAYERS", data.funnel.totalPlayers, "Canonical private player accounts"],
+    ["GOOGLE LINKED", data.funnel.googleLinked, `${data.funnel.googleLinkedLast24h} in 24h · ${data.funnel.googleLinkedLast7d} in 7d`],
+    ["PRIVATE USE CONFIRMED", data.funnel.privateUseConfirmed, "Evidence beyond account creation"],
+    ["HISTORY / REVIEW DATA", data.funnel.historyDataPresent, "History, forming Review or Review data exists"],
     ["REVIEW AVAILABLE", data.funnel.reviewAvailable, "At least one Review exists"],
-    ["REVIEW OPENED", data.funnel.reviewOpened, `${data.funnel.latestReviewOpened} opened latest · tracked from this update`],
-    ["RETURNED AFTER REVIEW", data.funnel.returnedAfterReview, "Historical later-visit signal"],
+    ["REVIEW OPENED", data.funnel.reviewOpened, `${data.funnel.latestReviewOpened} opened latest · tracked from 30 Aug`],
     ["R2+", data.funnel.r2Plus, "Returned for another Review"],
     ["FORMING NOW", data.funnel.reviewsForming, "Next Review in progress"],
-    ["EMAIL UPDATES", data.funnel.emailUpdatesEnabled, "Player-enabled email/contact channel"],
   ] as const;
 
   return <section className={styles.shell} aria-labelledby="founder-signup-intelligence-heading">
     <div className={styles.heading}>
-      <div><p className="kicker">FOUNDER SIGNAL</p><h2 id="founder-signup-intelligence-heading">Who signed up — and what happened next.</h2><p>Google claim → private use → Review availability/open → return. Account emails are Founder-only account data; they are not treated as marketing consent.</p></div>
+      <div><p className="kicker">FOUNDER SIGNAL</p><h2 id="founder-signup-intelligence-heading">Every player — access, activity and return.</h2><p>BoardSignal player accounts are canonical. Google is an optional return key attached to that player; it never defines whether the player exists.</p></div>
       <button className="button button-quiet" type="button" onClick={() => void load()} disabled={loading}>{loading ? <LoaderCircle className="button-spinner" size={15}/> : <RefreshCcw size={15}/>} Refresh</button>
     </div>
     {error ? <p className="form-error" role="alert">{error}</p> : null}
@@ -135,21 +148,23 @@ export default function FounderSignupIntelligence() {
     <div className={styles.metrics}>{metrics.map(([label, value, note]) => <article key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></article>)}</div>
 
     <details className={styles.details} open>
-      <summary>Google-linked account map · {data.accounts.length} player{data.accounts.length === 1 ? "" : "s"}</summary>
-      <p className={styles.explainer}>This joins Firebase Google identity to the BoardSignal/Chess.com player mapping, so you do not need Firebase Authentication just to work out who a signup belongs to. Dedicated Review-open tracking starts with this update; older history is not fabricated. “Returned after Review” remains the historical signal for a later Player Room visit after publication.</p>
+      <summary>BoardSignal player/account map · {data.accounts.length} player{data.accounts.length === 1 ? "" : "s"}</summary>
+      <p className={styles.explainer}>This starts with every BoardSignal player account, then adds Google/Firebase identity when a Google link exists. Existing players remain visible even when Google is not linked. Google account email is Founder-only account information and is not marketing consent.</p>
+      <label className={styles.search}><Search size={15}/><span className="sr-only">Search players or emails</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search username, Chess.com ID or email" /></label>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
-          <thead><tr><th>PLAYER</th><th>GOOGLE ACCOUNT</th><th>CLAIMED</th><th>PRODUCT USE</th><th>REVIEW / RETURN</th><th>EMAIL STATUS</th><th></th></tr></thead>
-          <tbody>{data.accounts.map((row) => <tr key={`${row.uid}:${row.playerId ?? row.username}`}>
-            <td><strong>{row.username}</strong><small>Chess.com {row.playerId ?? "ID unavailable"}</small></td>
-            <td><strong>{row.email ?? "Email unavailable"}</strong><small>{row.email ? (row.emailVerified ? "Google email verified" : "Google account email") : "No matching Google email found"}</small></td>
-            <td><strong>{displayDate(row.linkedAt)}</strong><small>{relative(row.linkedAt)}</small></td>
-            <td><strong>{row.playerRoomUsed ? "Player Room used" : "Claimed only"}</strong><small>Last seen {relative(row.lastSeenAt)}</small></td>
+          <thead><tr><th>PLAYER</th><th>ACCESS / GOOGLE</th><th>CONTACT</th><th>PRODUCT USE</th><th>REVIEW / RETURN</th><th>LAST SEEN</th><th></th></tr></thead>
+          <tbody>{visibleAccounts.map((row) => <tr key={row.uid}>
+            <td><strong>{row.username}</strong><small>Chess.com {row.playerId ?? "ID unavailable"} · {row.accountStatus ?? "status unknown"}</small></td>
+            <td><strong>{row.googleLinked ? (row.googleEmail ?? "Google linked · email unavailable") : "No Google link recorded"}</strong><small>{row.googleLinked ? `${row.googleEmailVerified ? "Verified Google email" : "Google return key"} · linked ${relative(row.googleLinkedAt)}` : row.accessPath}</small></td>
+            <td><strong>{row.preferredContactEmail ?? (row.googleEmail ? "Google account email only" : "No email contact recorded")}</strong><small>{row.emailUpdatesEnabled ? "Player-enabled email/contact updates" : row.betaContactConsent ? "Contact consent recorded; email alerts not enabled" : "Do not infer contact/marketing consent"}</small></td>
+            <td><strong>{row.privateUseConfirmed ? "Private use confirmed" : "No later-use signal"}</strong><small>{row.historyDataPresent ? "History / Review data present" : "No history/Review data signal in this snapshot"}</small></td>
             <td><strong>{row.activityStage}</strong><small>{row.reviewCount} Review{row.reviewCount === 1 ? "" : "s"}{row.latestReviewOpenedAt ? ` · opened ${relative(row.latestReviewOpenedAt)}` : ""}{row.forming ? " · next forming" : ""}</small></td>
-            <td><strong>{row.emailUpdatesEnabled ? "Updates enabled" : "Account email only"}</strong><small>{row.emailUpdatesEnabled ? "Player enabled an email/contact channel" : "Do not treat Google sign-in as marketing consent"}</small></td>
+            <td><strong>{relative(row.lastSeenAt)}</strong><small>{displayDate(row.lastSeenAt)}</small></td>
             <td><Link className="button button-quiet" href={`/admin/players?player=${encodeURIComponent(String(row.playerId ?? row.username))}`}>Manage</Link></td>
           </tr>)}</tbody>
         </table>
+        {!visibleAccounts.length ? <p className={styles.explainer}>No player matches that search.</p> : null}
       </div>
     </details>
 
@@ -165,6 +180,6 @@ export default function FounderSignupIntelligence() {
       </article>)}</div> : null}
     </details>
 
-    <p className={styles.generated}>Snapshot generated {displayDate(data.generatedAt)} · Email-update channels enabled: {data.funnel.emailUpdatesEnabled}</p>
+    <p className={styles.generated}>Snapshot generated {displayDate(data.generatedAt)} · Email-update channels enabled: {data.funnel.emailUpdatesEnabled} · Review-open telemetry begins with the 30 Aug Founder update; older read history is not fabricated.</p>
   </section>;
 }

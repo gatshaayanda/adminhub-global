@@ -11,7 +11,8 @@ import { rememberGoogleEmailPrefill, requestGoogleAccessCredential } from "@/lib
 import { auth } from "@/utils/firebaseConfig";
 import styles from "./UsernameDeskForm.module.css";
 
-type UsernameDeskFormProps = { compact?: boolean };
+export type OnboardingQaState = "google" | "username" | "profile" | "collision";
+type UsernameDeskFormProps = { compact?: boolean; qaState?: OnboardingQaState };
 
 type ResolvedProfile = {
   playerId: number;
@@ -29,6 +30,12 @@ type GoogleReturnResult = {
   verifiedEmail?: string;
 };
 
+const QA_PROFILE: ResolvedProfile = {
+  playerId: 424242,
+  canonicalUsername: "sample_player",
+  safeConfirmation: "BoardSignal found this public Chess.com profile. Confirm it only if this is the account whose games you want in your private Player Room.",
+};
+
 function OnboardingSteps({ current }: { current: 1 | 2 | 3 }) {
   const labels = ["Google", "Chess.com profile", "Player Room"];
   return (
@@ -42,15 +49,16 @@ function OnboardingSteps({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
-export default function UsernameDeskForm({ compact = false }: UsernameDeskFormProps) {
+export default function UsernameDeskForm({ compact = false, qaState }: UsernameDeskFormProps) {
   const router = useRouter();
-  const [googleIdToken, setGoogleIdToken] = useState("");
+  const qaEnabled = process.env.NODE_ENV !== "production" && Boolean(qaState);
+  const [googleIdToken, setGoogleIdToken] = useState(() => qaEnabled && qaState !== "google" ? "boardsignal-local-render-qa" : "");
   const [googleEmail, setGoogleEmail] = useState<string>();
-  const [username, setUsername] = useState("");
-  const [profile, setProfile] = useState<ResolvedProfile | null>(null);
+  const [username, setUsername] = useState(() => qaEnabled && qaState !== "google" ? QA_PROFILE.canonicalUsername : "");
+  const [profile, setProfile] = useState<ResolvedProfile | null>(() => qaEnabled && (qaState === "profile" || qaState === "collision") ? QA_PROFILE : null);
   const [busy, setBusy] = useState<BusyState>("");
   const [error, setError] = useState("");
-  const [collision, setCollision] = useState(false);
+  const [collision, setCollision] = useState(() => qaEnabled && qaState === "collision");
   const [caseContactMethod, setCaseContactMethod] = useState<"email" | "discord">("email");
   const [caseContactValue, setCaseContactValue] = useState("");
   const [caseSubmitted, setCaseSubmitted] = useState(false);
@@ -213,8 +221,8 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
   const shellClass = `${styles.shell} ${compact ? styles.compact : ""}`.trim();
 
   if (!googleIdToken) {
-    return <section className={shellClass} onFocusCapture={() => publishGuideContext(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) publishGuideContext(false); }}>
-      <div className={styles.card}>
+    return <section className={shellClass} data-boardsignal-onboarding-state="google" onFocusCapture={() => publishGuideContext(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) publishGuideContext(false); }}>
+      <div className={styles.card} data-boardsignal-onboarding-card>
         <OnboardingSteps current={1} />
         <div className={styles.heading}>
           <p className="kicker">GET MY BOARDSIGNAL</p>
@@ -233,8 +241,8 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
   }
 
   if (collision && profile) {
-    return <section className={shellClass} aria-live="polite">
-      <div className={`${styles.card} ${styles.collisionCard}`}>
+    return <section className={shellClass} data-boardsignal-onboarding-state="collision" aria-live="polite">
+      <div className={`${styles.card} ${styles.collisionCard}`} data-boardsignal-onboarding-card>
         <OnboardingSteps current={3} />
         <div className={styles.collisionHeading}>
           <p className="kicker">EXISTING BOARDSIGNAL FOUND</p>
@@ -269,8 +277,8 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
   }
 
   if (profile) {
-    return <section className={shellClass} aria-live="polite">
-      <div className={styles.card}>
+    return <section className={shellClass} data-boardsignal-onboarding-state="profile" aria-live="polite">
+      <div className={styles.card} data-boardsignal-onboarding-card>
         <OnboardingSteps current={3} />
         <div className={styles.profileIdentity}>
           {profile.avatar ? <Image src={profile.avatar} alt="" width={58} height={58} unoptimized /> : <span className={styles.avatarFallback}>{profile.canonicalUsername.slice(0, 2).toUpperCase()}</span>}
@@ -291,8 +299,8 @@ export default function UsernameDeskForm({ compact = false }: UsernameDeskFormPr
     </section>;
   }
 
-  return <section className={shellClass} onFocusCapture={() => publishGuideContext(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) publishGuideContext(false); }}>
-    <div className={styles.card}>
+  return <section className={shellClass} data-boardsignal-onboarding-state="username" onFocusCapture={() => publishGuideContext(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) publishGuideContext(false); }}>
+    <div className={styles.card} data-boardsignal-onboarding-card>
       <OnboardingSteps current={2} />
       <div className={styles.heading}>
         <p className="kicker">GOOGLE SIGN-IN COMPLETE</p>

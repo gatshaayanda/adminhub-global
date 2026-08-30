@@ -12,7 +12,6 @@ const QA_PROOF: PublicBoardSignalProof = {
   playersServed: 49,
   reviewsProduced: 72,
   reviewsForming: 41,
-  retentionReviews: 44,
   returningPlayers: 8,
 };
 const QA_TRAFFIC: PublicBoardSignalTrafficProof = {

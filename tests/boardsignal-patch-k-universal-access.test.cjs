@@ -51,7 +51,8 @@ function escaped(value) {
 test('persona A — a new private player is Google first, then username, confirmation, stable private BoardSignal', () => {
   assert.match(usernameForm, /GET MY BOARDSIGNAL/);
   assert.match(usernameForm, /GoogleSignInButton/);
-  assert.match(usernameForm, /What&apos;s your Chess\.com username\?/);
+  assert.match(usernameForm, /Now connect your Chess\.com profile\./);
+  assert.match(usernameForm, /OnboardingSteps/);
   assert.match(usernameForm, /action: "resolveProfile"/);
   assert.match(usernameForm, /IS THIS YOUR CHESS\.COM PROFILE\?/);
   assert.match(usernameForm, /YES — THIS IS MINE/);
@@ -111,8 +112,10 @@ test('persona D — legacy player connects Google additively with no Review, Jou
 
 test('persona E — collision fails closed and only creates a Google-authenticated identity dispute', () => {
   assert.match(googleOnboarding, /CHESS_PROFILE_ALREADY_HAS_BOARDSIGNAL/);
-  assert.match(usernameForm, /THIS CHESS\.COM PROFILE ALREADY HAS A BOARDSIGNAL/);
-  assert.match(usernameForm, /REQUEST OWNERSHIP REVIEW/);
+  assert.match(usernameForm, /EXISTING BOARDSIGNAL FOUND/);
+  assert.match(usernameForm, /EXISTING PLAYER RECOVERY/);
+  assert.match(usernameForm, /I still need help recovering this account/);
+  assert.match(usernameForm, /REQUEST ACCOUNT HELP/);
   assert.match(usernameForm, /caseContactMethod/);
   assert.match(usernameForm, /caseContactValue/);
   assert.match(usernameForm, /identityHelp/);
@@ -205,14 +208,16 @@ test('normal copy no longer presents Preview or Founder approval as the new-user
   assert.match(preview, /BetaPreviewStatus/);
 });
 
-test('homepage proof is BoardSignal product truth presented as human social proof, not Vercel or Trustpilot theatre', () => {
+test('homepage proof is BoardSignal product truth with restrained independent reputation support', () => {
   assert.match(proof, /totalReviewsProduced/);
   assert.match(proof, /r2Plus/);
-  assert.match(homepage, /already used BoardSignal to understand their games/);
-  assert.match(homepage, /Reviews?" : "Reviews"|Review" : "Reviews"/);
-  assert.match(homepage, /already come back for another Review/);
+  assert.match(homepage, /reviewsProduced > 0 && playersServed > 0/);
+  assert.match(homepage, /completed across/);
+  assert.match(homepage, /RETURNING_PLAYER_PROOF_THRESHOLD = 20/);
+  assert.match(homepage, /Read independent reviews on Trustpilot/);
+  assert.match(homepage, /https:\/\/www\.trustpilot\.com\/review\/adminhub-global\.com/);
   assert.doesNotMatch(homepage, /REAL BOARDSIGNAL PRODUCT PROOF|Players served|Reviews produced|Returning players|Reviews forming|not Vercel visitors, pageviews or traffic counts/i);
-  assert.doesNotMatch(homepage, /0\.0|0 reviews|Trustpilot/i);
+  assert.doesNotMatch(homepage, /TrustScore|Trustpilot rating|stars? out of|\b0\.0\b|\b0 reviews\b/i);
 });
 
 test('Google entry remains real Google auth and uses recognizable Google branding without changing identity security', () => {

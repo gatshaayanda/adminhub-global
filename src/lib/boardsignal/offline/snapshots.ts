@@ -59,6 +59,7 @@ export async function savePlayerRoomOfflineSnapshot(uid: string, input: OnlineSn
     pulse: input.pulse,
     shareMoments: (input.shareMoments ?? []).filter((item) => activeDeskKeys.has(item.deskKey)).slice(0, 12),
     reviewJournal: input.reviewJournal ?? { version: 1, notes: [] },
+    currentBoardSignalFeedback: input.account.currentBoardSignalFeedback,
   };
   await putOfflineRecord("snapshots", { key: offlineKey(uid, PLAYER_ROOM_KIND), uid, kind: PLAYER_ROOM_KIND, updatedAt: now, payload: snapshot });
   const meta = await getOfflineMeta(uid);

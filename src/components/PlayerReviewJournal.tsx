@@ -1,6 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
+import CurrentBoardSignalEngagement from "./CurrentBoardSignalEngagement";
+import engagementStyles from "./CurrentBoardSignalEngagement.module.css";
 import {
   REVIEW_JOURNAL_MAX_NOTE_LENGTH,
   REVIEW_JOURNAL_TYPE_DETAILS,
@@ -157,6 +159,7 @@ export default function PlayerReviewJournal({ review, token, online, journal, on
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [savedNotice, setSavedNotice] = useState("");
   const current = context === "current";
   const notes = sortReviewJournalNotes(journal.notes.filter((note) => note.reviewKey === review.reviewKey || (note.periodStart === review.periodStart && note.periodEnd === review.periodEnd)));
 
@@ -164,10 +167,12 @@ export default function PlayerReviewJournal({ review, token, online, journal, on
     if (!online) return;
     setSaving(true);
     setError("");
+    setSavedNotice("");
     try {
       const next = await journalMutation(token, "POST", { ...review, type, body });
       onJournalChanged(next);
       setAdding(false);
+      if (current) setSavedNotice("Saved. That's part of this BoardSignal now.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Your private note could not be saved.");
       throw reason;
@@ -177,10 +182,12 @@ export default function PlayerReviewJournal({ review, token, online, journal, on
   }
 
   return <section className={`review-journal ${compact ? "is-compact" : ""}`} aria-label={current ? `Your take for ${review.periodLabel}` : `My notes for ${review.periodLabel}`}>
-    <div className="review-journal-heading"><div><p className="kicker">{current ? "YOUR TAKE" : "MY NOTES"}</p><h3>{current ? "Add your view to the current picture." : "Keep something for your future self."}</h3><p>{current ? "What you noticed, what you'll try, and follow-ups stay private. They travel with this period when it closes into a completed Review." : "Your notes stay private and do not change BoardSignal's Review."}</p></div><span>PRIVATE</span></div>
+    {current ? <CurrentBoardSignalEngagement review={review} token={token} online={online} /> : null}
+    <div className="review-journal-heading"><div><p className="kicker">{current ? "YOUR TAKE" : "MY NOTES"}</p><h3>{current ? "Anything you'd change or add?" : "Keep something for your future self."}</h3><p>{current ? "Your note stays private. What you write here travels with this period when it closes into a completed Review." : "Your notes stay private and do not change BoardSignal's Review."}</p></div><span>PRIVATE</span></div>
     {notes.length ? <JournalNotesList notes={notes} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} /> : <p className="review-journal-empty">{current ? "No private notes for your current BoardSignal yet." : "No private notes saved for this Review yet."}</p>}
     {!online ? <p className="review-journal-offline" role="status">Reconnect to update your notes. Saved notes remain readable while offline.</p> : null}
-    {adding && online ? <JournalEditor saveLabel="Save note" busy={saving} onSave={add} onCancel={() => { setAdding(false); setError(""); }} /> : <button type="button" className="review-journal-add" disabled={!online} onClick={() => setAdding(true)}>+ ADD A NOTE{!online ? " — RECONNECT REQUIRED" : ""}</button>}
+    {adding && online ? <JournalEditor saveLabel="Save note" busy={saving} onSave={add} onCancel={() => { setAdding(false); setError(""); setSavedNotice(""); }} /> : <button type="button" className="review-journal-add" disabled={!online} onClick={() => { setAdding(true); setSavedNotice(""); }}>{current ? "ADD A NOTE" : "+ ADD A NOTE"}{!online ? " — RECONNECT REQUIRED" : ""}</button>}
+    {savedNotice ? <p className={engagementStyles.noteSaved} role="status">{savedNotice}</p> : null}
     {error ? <p className="review-journal-error" role="alert">{error}</p> : null}
   </section>;
 }

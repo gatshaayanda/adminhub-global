@@ -31,6 +31,20 @@ export type BoardSignalPrivacySettings = {
   expandedPublicProfile?: boolean;
 };
 
+export type BoardSignalCurrentReaction = "helpful" | "not_helpful";
+
+export type BoardSignalCurrentFeedbackItem = {
+  itemKey: string;
+  reaction: BoardSignalCurrentReaction;
+  reactedAt: string;
+};
+
+export type BoardSignalCurrentFeedback = {
+  periodStart: string;
+  periodEnd: string;
+  items: BoardSignalCurrentFeedbackItem[];
+};
+
 export type BoardSignalNotificationPreferences = {
   email: boolean;
   browserPush: boolean;
@@ -79,6 +93,7 @@ export type BoardSignalAccount = {
   previousBlue?: { title: string; copy: string };
   previousAmber?: { title: string; copy: string };
   currentEpisodeSummary?: import("./memory").CurrentEpisodeSummary;
+  currentBoardSignalFeedback?: BoardSignalCurrentFeedback;
   lastNotificationAt?: string;
   eligibleCoverageKeys: string[];
   reviewProduction?: import("./reviewProduction").ReviewProductionStats;

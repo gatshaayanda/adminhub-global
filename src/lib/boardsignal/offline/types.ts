@@ -1,3 +1,4 @@
+import type { BoardSignalCurrentFeedback } from "@/lib/boardsignal/account";
 import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
 import type { CurrentEpisodeSummary, DeskSummary, PersonalRecords, ProgressSeries, RecurringPattern } from "@/lib/boardsignal/memory";
 import type { PlayerPulse, SafeShareMoment } from "@/lib/boardsignal/pulse";
@@ -33,6 +34,7 @@ export type OfflinePlayerRoomSnapshot = {
   pulse?: PlayerPulse;
   shareMoments: SafeShareMoment[];
   reviewJournal?: ReviewJournal;
+  currentBoardSignalFeedback?: BoardSignalCurrentFeedback;
 };
 
 export type OfflineSocialOverview = {

@@ -4,7 +4,6 @@ import "./globals.css";
 import "./boardsignal-system.css";
 
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
-import TrustpilotInvitationBridge from "@/components/TrustpilotInvitationBridge";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -66,24 +65,14 @@ const boardSignalThemeBootstrap = `(() => {
   root.style.colorScheme = dark ? "dark" : "light";
 })();`;
 
-const trustpilotInvitationBootstrap = `(function(w,d,s,r,n){
-  w.TrustpilotObject=n;
-  w[n]=w[n]||function(){(w[n].q=w[n].q||[]).push(arguments)};
-  var a=d.createElement(s);a.async=1;a.src=r;a.type='text/java'+s;
-  var f=d.getElementsByTagName(s)[0];f.parentNode.insertBefore(a,f);
-})(window,document,'script','https://invitejs.trustpilot.com/tp.min.js','tp');
-tp('register','oiloKbZhU5G7rp2L');`;
-
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${montserrat.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
         <meta name="trustpilot-one-time-domain-verification-id" content="88f344e5-4f9b-4089-b887-1fb2bdbababb" />
         <script dangerouslySetInnerHTML={{ __html: boardSignalThemeBootstrap }} />
-        <script dangerouslySetInnerHTML={{ __html: trustpilotInvitationBootstrap }} />
       </head>
       <body suppressHydrationWarning>
-        <TrustpilotInvitationBridge />
         <AnalyticsProvider>
           <ConnectivityProvider>
             <RouteAwarePublicChrome>{children}</RouteAwarePublicChrome>

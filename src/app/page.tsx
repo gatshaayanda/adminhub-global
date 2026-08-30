@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Activity, ArrowRight, BadgeCheck, ExternalLink, LockKeyhole, ShieldCheck, Target } from "lucide-react";
+import { ArrowRight, LockKeyhole, ShieldCheck, Target } from "lucide-react";
+import HomeProofRail from "@/components/HomeProofRail";
 import UsernameDeskForm from "@/components/UsernameDeskForm";
 import { coverageStories } from "@/data/boardsignal";
 import { BOARDSIGNAL_SUPPORT_DISCORD_URL } from "@/lib/boardsignal/client/firestoreQuota";
@@ -8,29 +9,12 @@ import { loadPublicBoardSignalTrafficProof } from "@/lib/boardsignal/server/publ
 import styles from "./page.module.css";
 
 const secondaryStories = coverageStories.slice(0, 3);
-const TRUSTPILOT_PROFILE_URL = "https://www.trustpilot.com/review/adminhub-global.com";
-const PUBLIC_PROOF_THRESHOLD = 20;
-
-function formatCount(value: number) {
-  return value.toLocaleString("en-US");
-}
 
 export default async function HomePage() {
   const [liveProof, trafficProof] = await Promise.all([
     loadPublicBoardSignalProof(),
     loadPublicBoardSignalTrafficProof(),
   ]);
-
-  const activePlayers = liveProof?.activePlayers ?? 0;
-  const playersServed = liveProof?.playersServed ?? 0;
-  const reviewsProduced = liveProof?.reviewsProduced ?? 0;
-  const showActivePlayers = activePlayers >= PUBLIC_PROOF_THRESHOLD;
-  const showCompletedReviews = reviewsProduced >= PUBLIC_PROOF_THRESHOLD && playersServed >= PUBLIC_PROOF_THRESHOLD;
-  const showAudienceProof = Boolean(
-    trafficProof
-    && trafficProof.visitors30d >= PUBLIC_PROOF_THRESHOLD
-    && trafficProof.pageviews30d >= PUBLIC_PROOF_THRESHOLD,
-  );
 
   return (
     <div id="main" className="personal-home">
@@ -44,40 +28,7 @@ export default async function HomePage() {
               <UsernameDeskForm />
             </div>
 
-            <section className={`boardsignal-social-proof motion-enter motion-delay-1 ${styles.credibilityPanel}`} aria-label="Real BoardSignal activity and independent reputation">
-              <div className={`boardsignal-social-proof-mark ${styles.credibilityMark}`} aria-hidden="true"><Activity size={21} /></div>
-              <div className={`boardsignal-social-proof-copy ${styles.credibilityBody}`}>
-                <div className={styles.credibilityIntro}>
-                  <span>REAL BOARDSIGNAL ACTIVITY</span>
-                  <p>Real usage and audience evidence, followed by a public place to check our reputation for yourself.</p>
-                </div>
-
-                {(showActivePlayers || showCompletedReviews || showAudienceProof) ? <div className={styles.proofRows}>
-                  {showActivePlayers ? <div className={`${styles.proofRow} ${styles.proofRowOne}`}>
-                    <strong className={styles.proofNumber}>{formatCount(activePlayers)}</strong>
-                    <p><b>active player accounts</b><small>currently in BoardSignal&apos;s live player lifecycle</small></p>
-                  </div> : null}
-                  {showCompletedReviews ? <div className={`${styles.proofRow} ${styles.proofRowTwo}`}>
-                    <strong className={styles.proofNumber}>{formatCount(reviewsProduced)}</strong>
-                    <p><b>completed Reviews across {formatCount(playersServed)} players</b><small>durable BoardSignal product records, not signup counts</small></p>
-                  </div> : null}
-                  {showAudienceProof && trafficProof ? <div className={`${styles.proofRow} ${styles.proofRowThree}`}>
-                    <strong className={styles.proofNumber}>{formatCount(trafficProof.visitors30d)}</strong>
-                    <p><b>site visitors in the last 30 days</b><small>{formatCount(trafficProof.pageviews30d)} page views · anonymous aggregate Vercel Web Analytics</small></p>
-                  </div> : null}
-                </div> : <p className={styles.proofFallback}>BoardSignal publishes real product activity as soon as the current aggregate evidence is available.</p>}
-
-                <div className={styles.trustPanel}>
-                  <BadgeCheck size={20} aria-hidden="true" />
-                  <div>
-                    <span>INDEPENDENT REVIEWS</span>
-                    <strong>BoardSignal is on Trustpilot through Admin Hub.</strong>
-                    <p>Read the public customer reviews and make up your own mind.</p>
-                  </div>
-                  <a className={styles.trustLink} href={TRUSTPILOT_PROFILE_URL} target="_blank" rel="noreferrer noopener">SEE BOARDSIGNAL ON TRUSTPILOT <ExternalLink size={13} /></a>
-                </div>
-              </div>
-            </section>
+            {(liveProof || trafficProof) ? <HomeProofRail proof={liveProof} traffic={trafficProof} /> : null}
 
             <div className="homepage-universe-entry">
               <Link href="/feed" className="home-universe-link">Explore the Universe <ArrowRight size={15} /></Link>

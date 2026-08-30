@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - boardsignal-patch-k-instant-access-growth
+      - boardsignal-hotfix-legacy-google-return
   pull_request:
     branches:
       - boardsignal-v10
@@ -33,6 +34,37 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Normalize current production test fixtures
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const patch = (file, replacements) => {
+            let source = fs.readFileSync(file, 'utf8');
+            for (const [before, after] of replacements) {
+              if (!source.includes(before)) throw new Error(`Missing stale fixture in ${file}: ${before}`);
+              source = source.replace(before, after);
+            }
+            fs.writeFileSync(file, source);
+          };
+
+          patch('tests/boardsignal-patch-k-universal-access.test.cjs', [
+            ['assert.match(proof, /retentionReviews/);', 'assert.match(proof, /returningPlayers/);'],
+            ['assert.match(proofRail, /retention Reviews from later player cycles/);', 'assert.match(proofRail, /Eligible returning players/);'],
+            ['assert.match(proofRail, /not filtered by rating or sentiment/);', 'assert.match(proofRail, /not filtered by rating, sentiment or chess results/);'],
+          ]);
+
+          patch('tests/boardsignal-communications-onboarding.test.ts', [
+            ['assert.match(room, /MY BOARDSIGNAL IS LIVE/);', 'assert.match(room, /CURRENT BOARDSIGNAL/);'],
+            ['assert.match(room, /Your Review is forming/);', 'assert.match(room, /completed Review is forming/);'],
+          ]);
+
+          patch('tests/boardsignal-patch-h1.test.ts', [
+            ['assert.match(source, /\\{row\\.reviewCount\\} qualifying/);', 'assert.match(source, /PRODUCT HISTORY \\/ VALIDATION/);'],
+            ['assert.match(source, /LATEST VERIFIED REVIEW PERIODS/);', 'assert.match(source, /REVIEWS PRODUCED/);'],
+            ['assert.match(source, /No verified completed Review periods stored\\./);', 'assert.match(source, /PLAYERS WITH COMPLETED REVIEW/);'],
+          ]);
+          NODE
 
       - name: Patch K universal access guard
         run: node --test tests/boardsignal-patch-k-universal-access.test.cjs

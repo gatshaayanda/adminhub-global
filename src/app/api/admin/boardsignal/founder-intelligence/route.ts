@@ -239,7 +239,7 @@ export async function GET() {
       const candidateScore = candidate.retentionDepth * 1000 + candidate.reviewCount * 100 + (candidate.historyDataPresent ? 50 : 0) + (candidate.privateUseConfirmed ? 20 : 0) + (candidate.preferredContactEmail ? 5 : 0);
       const primary = candidateScore > currentScore ? candidate : current;
       const secondary = primary === candidate ? current : candidate;
-      const latestReview = parsed(candidate.latestReview?.publishedAt) > parsed(current.latestReview?.publishedAt)
+      const latestReview = (parsed(candidate.latestReview?.publishedAt) ?? 0) > (parsed(current.latestReview?.publishedAt) ?? 0)
         ? candidate.latestReview
         : current.latestReview;
       const mergedRetentionDepth = Math.max(current.retentionDepth, candidate.retentionDepth);

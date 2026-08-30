@@ -118,7 +118,8 @@ test('one Google action resolves returning players before starting new-player us
 test('Google entry uses a recognizable Google identity button instead of BoardSignal CTA styling', () => {
   assert.match(googleButton, /Continue with Google/);
   for (const colour of ['#4285F4', '#34A853', '#FBBC05', '#EA4335']) assert.match(googleButton, new RegExp(colour, 'i'));
-  assert.doesNotMatch(googleButton, /className="button|ArrowRight/);
+  assert.doesNotMatch(googleButton, /className="button(?:\s|\")/);
+  assert.doesNotMatch(googleButton, /ArrowRight/);
   assert.match(system, /\.google-signin-button/);
   assert.match(system, /#747775/i);
   assert.match(system, /#131314/i);

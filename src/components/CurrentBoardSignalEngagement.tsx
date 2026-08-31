@@ -1,136 +1,14 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import type { CurrentEpisodeWithNextGameGuidance } from "@/lib/boardsignal/activeWeekGuidance";
-import type {
-  BoardSignalCurrentFeedback,
-  BoardSignalCurrentFeedbackItem,
-  BoardSignalCurrentReaction,
-} from "@/lib/boardsignal/account";
-import { buildCurrentBoardSignalMoment, type CurrentBoardSignalMoment } from "@/lib/boardsignal/currentBoardSignalPresentation";
-import { loadPlayerRoomOfflineSnapshot } from "@/lib/boardsignal/offline/snapshots";
-import type { OfflinePlayerRoomSnapshot } from "@/lib/boardsignal/offline/types";
-import type { ReviewJournalReviewIdentity } from "@/lib/boardsignal/reviewJournal";
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { onAuthStateChanged } from "firebase/auth";
+import type { BoardSignalCoachingLevel, BoardSignalCoachingPresentation, BoardSignalCurrentFeedback, BoardSignalCurrentReaction } from "@/lib/boardsignal/account";
+import { loadPlayerRoomOfflineSnapshot, patchPlayerRoomOfflineCoaching } from "@/lib/boardsignal/offline/snapshots";
 import { auth } from "@/utils/firebaseConfig";
 import styles from "./CurrentBoardSignalEngagement.module.css";
-
-async function currentFeedbackMutation(
-  token: string,
-  moment: CurrentBoardSignalMoment,
-  review: ReviewJournalReviewIdentity,
-  reaction: BoardSignalCurrentReaction,
-) {
-  const response = await fetch("/api/boardsignal/current-feedback", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ periodStart: review.periodStart, periodEnd: review.periodEnd, itemKey: moment.itemKey, reaction }),
-  });
-  const payload = await response.json() as { ok?: boolean; feedback?: BoardSignalCurrentFeedback; error?: string };
-  if (!response.ok || !payload.ok || !payload.feedback) throw new Error(payload.error ?? "BoardSignal could not save that reaction.");
-  return payload.feedback;
-}
-
-function MomentCard({ moment, feedback, online, busy, error, onReact }: {
-  moment?: CurrentBoardSignalMoment;
-  feedback?: BoardSignalCurrentFeedbackItem;
-  online: boolean;
-  busy: boolean;
-  error: string;
-  onReact: (reaction: BoardSignalCurrentReaction) => Promise<void>;
-}) {
-  if (!moment) return null;
-  const settled = Boolean(feedback);
-  return <section className={styles.liveMoment} data-variant={moment.variant} aria-label="Current BoardSignal live context">
-    <span className={styles.eyebrow}>{moment.eyebrow}</span>
-    <h3>{moment.headline}</h3>
-    <p className={styles.evidence}>{moment.evidence}</p>
-    {moment.carry ? <div className={styles.carry}><span>{moment.carry.label}</span><b>{moment.carry.title}</b>{moment.carry.copy ? <p>{moment.carry.copy}</p> : null}</div> : null}
-    {moment.around ? <div className={styles.around}><span>AROUND THE UNIVERSE</span><b>{moment.around.headline}</b><p>{moment.around.supportingFact}</p></div> : null}
-    <div className={`${styles.helpful} ${settled ? styles.settled : ""}`}>
-      {settled ? <p className={styles.acknowledgement} role="status">{feedback?.reaction === "helpful" ? "Got it — we'll keep leaning into what helps." : "Got it — that's useful for BoardSignal to know."}</p> : <>
-        <strong>Helpful?</strong>
-        <div className={styles.reactionButtons}>
-          <button type="button" disabled={!online || busy} aria-label="Yes, this was helpful" onClick={() => void onReact("helpful")}>👍</button>
-          <button type="button" disabled={!online || busy} aria-label="No, this was not helpful" onClick={() => void onReact("not_helpful")}>👎</button>
-        </div>
-        {!online ? <p className={styles.reconnectHint}>Reconnect to send this feedback.</p> : null}
-      </>}
-    </div>
-    {error ? <p className={styles.feedbackError} role="alert">{error}</p> : null}
-  </section>;
-}
-
-export default function CurrentBoardSignalEngagement({ review, token, online }: { review: ReviewJournalReviewIdentity; token: string; online: boolean }) {
-  const [snapshot, setSnapshot] = useState<OfflinePlayerRoomSnapshot>();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [sessionFeedback, setSessionFeedback] = useState<{ itemKey: string; reaction: BoardSignalCurrentReaction }>();
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let active = true;
-    const refresh = async () => {
-      const uid = auth.currentUser?.uid;
-      if (!uid) return;
-      const saved = await loadPlayerRoomOfflineSnapshot(uid).catch(() => undefined);
-      if (!active || !saved) return;
-      if (saved.currentEpisode?.periodStart !== review.periodStart || saved.currentEpisode?.periodEnd !== review.periodEnd) return;
-      setSnapshot(saved);
-    };
-    const onOfflineSaved = () => { void refresh(); };
-    void refresh();
-    window.addEventListener("boardsignal:offline-saved", onOfflineSaved);
-    return () => {
-      active = false;
-      window.removeEventListener("boardsignal:offline-saved", onOfflineSaved);
-    };
-  }, [review.periodEnd, review.periodStart]);
-
-  const liveEpisode = snapshot?.currentEpisode as CurrentEpisodeWithNextGameGuidance | undefined;
-  const moment = liveEpisode?.nextGameGuidance
-    ? buildCurrentBoardSignalMoment({ episode: liveEpisode, pulse: snapshot?.pulse, canonicalUsername: snapshot?.canonicalUsername })
-    : undefined;
-  const durableFeedback = moment
-    && snapshot?.currentBoardSignalFeedback?.periodStart === review.periodStart
-    && snapshot.currentBoardSignalFeedback.periodEnd === review.periodEnd
-      ? snapshot.currentBoardSignalFeedback.items.find((item) => item.itemKey === moment.itemKey)
-      : undefined;
-  const feedback = durableFeedback ?? (moment && sessionFeedback?.itemKey === moment.itemKey ? { itemKey: moment.itemKey, reaction: sessionFeedback.reaction, reactedAt: "session" } : undefined);
-  const momentItemKey = moment?.itemKey;
-
-  useEffect(() => {
-    if (!momentItemKey || typeof window === "undefined" || durableFeedback) {
-      setSessionFeedback(undefined);
-      return;
-    }
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    try {
-      const stored = window.sessionStorage.getItem(`boardsignal:m2-feedback:${uid}:${momentItemKey}`);
-      setSessionFeedback(stored === "helpful" || stored === "not_helpful" ? { itemKey: momentItemKey, reaction: stored } : undefined);
-    } catch {
-      setSessionFeedback(undefined);
-    }
-  }, [durableFeedback, momentItemKey]);
-
-  async function react(reaction: BoardSignalCurrentReaction) {
-    if (!moment || !online || busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const next = await currentFeedbackMutation(token, moment, review, reaction);
-      setSnapshot((current) => current ? { ...current, currentBoardSignalFeedback: next } : current);
-      setSessionFeedback({ itemKey: moment.itemKey, reaction });
-      const uid = auth.currentUser?.uid;
-      if (uid && typeof window !== "undefined") {
-        try { window.sessionStorage.setItem(`boardsignal:m2-feedback:${uid}:${moment.itemKey}`, reaction); } catch { /* server durability is authoritative */ }
-      }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "BoardSignal could not save that reaction.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return <MomentCard moment={moment} feedback={feedback} online={online} busy={busy} error={error} onReact={react} />;
-}
+type MutationPayload={ok?:boolean;coaching?:BoardSignalCoachingPresentation;feedback?:BoardSignalCurrentFeedback;error?:string};
+function sourceLabel(coaching:BoardSignalCoachingPresentation){if(coaching.provenance==="previous_review")return`FROM YOUR LAST REVIEW${coaching.previousReviewPeriod?` · ${coaching.previousReviewPeriod}`:""}`;return"CURRENT PERIOD · PROVISIONAL"}
+function exactEvidence(coaching:BoardSignalCoachingPresentation){if(coaching.provenance==="previous_review")return"Current-period evidence has not replaced this completed-Review cue yet.";if(coaching.family==="loss_run")return`Current run: ${coaching.evidenceCount} loss${coaching.evidenceCount===1?"":"es"} · ${coaching.gamesConsidered} game${coaching.gamesConsidered===1?"":"s"} checked.`;return`Seen in ${coaching.evidenceCount} of ${coaching.gamesConsidered} game${coaching.gamesConsidered===1?"":"s"} checked this period.`}
+function ReactionRow({level,reaction,online,busy,onReact}:{level:BoardSignalCoachingLevel;reaction?:BoardSignalCurrentReaction;online:boolean;busy:boolean;onReact:(level:BoardSignalCoachingLevel,reaction:BoardSignalCurrentReaction)=>void}){return <div className={`${styles.helpful} ${reaction?styles.settled:""}`}>{reaction?<p className={styles.acknowledgement} role="status">{reaction==="helpful"?`Level ${level} helped. BoardSignal saved that.`:`Level ${level} did not help. BoardSignal saved that.`}</p>:<><strong>Helpful?</strong><div className={styles.reactionButtons}><button type="button" disabled={!online||busy} aria-label={`Level ${level}: helpful`} onClick={()=>onReact(level,"helpful")}>👍</button><button type="button" disabled={!online||busy} aria-label={`Level ${level}: not helpful`} onClick={()=>onReact(level,"not_helpful")}>👎</button></div>{!online?<p className={styles.reconnectHint}>Reconnect to send feedback. Saved coaching stays read-only offline.</p>:null}</>}</div>}
+function Example({coaching,online,busy,onInteraction}:{coaching:BoardSignalCoachingPresentation;online:boolean;busy:boolean;onInteraction:(action:"next_example"|"view_game"|"ask_escalation")=>void}){const example=coaching.selectedExample;if(!example)return <div className={styles.noExample}><strong>No real Level 3 example is stored yet.</strong><p>BoardSignal will not invent an opponent, move or game link just to deepen the explanation.</p></div>;const details=[example.opponent?`vs ${example.opponent}${example.opponentRating?` (${example.opponentRating})`:""}`:undefined,example.pool,example.moveNumber?`move ${example.moveNumber}`:undefined].filter(Boolean);return <div className={styles.example}>{details.length?<p className={styles.exampleMeta}>{details.join(" · ")}</p>:null}{example.movePlayed?<p className={styles.moveLine}><b>You played:</b> {example.movePlayed}{example.opponentReply?<> <span>→</span> <b>Reply:</b> {example.opponentReply}</>:null}</p>:null}<p>{example.summary}</p><div className={styles.actions}>{example.gameUrl?<a className="button button-quiet" href={example.gameUrl} target="_blank" rel="noreferrer" onClick={()=>onInteraction("view_game")}>VIEW GAME</a>:null}{coaching.examples.length>1?<button type="button" className="button button-quiet" disabled={!online||busy} onClick={()=>onInteraction("next_example")}>SEE ANOTHER EXAMPLE</button>:null}</div></div>}
+export default function CurrentBoardSignalEngagement(){const[coaching,setCoaching]=useState<BoardSignalCoachingPresentation>();const[target,setTarget]=useState<Element|null>(null);const[online,setOnline]=useState(()=>typeof navigator==="undefined"?true:navigator.onLine);const[busy,setBusy]=useState(false);const[error,setError]=useState("");const loadSaved=useCallback(async()=>{const uid=auth.currentUser?.uid;if(!uid)return;const saved=await loadPlayerRoomOfflineSnapshot(uid).catch(()=>undefined);if(saved?.coaching)setCoaching(saved.coaching)},[]);useEffect(()=>onAuthStateChanged(auth,(user)=>{if(!user)setCoaching(undefined);else void loadSaved()}),[loadSaved]);useEffect(()=>{if(typeof window==="undefined")return;const locate=()=>setTarget(document.querySelector(".g3-before-next-game")??document.querySelector(".offline-forming-snapshot"));const onState=(event:Event)=>{const next=(event as CustomEvent<BoardSignalCoachingPresentation>).detail;if(next?.schemaVersion===2)setCoaching(next);locate()};const onSaved=()=>{void loadSaved();locate()};const onOnline=()=>setOnline(true),onOffline=()=>setOnline(false);const observer=new MutationObserver(locate);observer.observe(document.body,{childList:true,subtree:true});window.addEventListener("boardsignal:coaching-state",onState);window.addEventListener("boardsignal:offline-saved",onSaved);window.addEventListener("boardsignal:context",locate);window.addEventListener("online",onOnline);window.addEventListener("offline",onOffline);window.requestAnimationFrame(locate);return()=>{observer.disconnect();window.removeEventListener("boardsignal:coaching-state",onState);window.removeEventListener("boardsignal:offline-saved",onSaved);window.removeEventListener("boardsignal:context",locate);window.removeEventListener("online",onOnline);window.removeEventListener("offline",onOffline)}},[loadSaved]);const mutate=useCallback(async(body:Record<string,unknown>)=>{if(!coaching||!online||busy)return;const user=auth.currentUser;if(!user)return;setBusy(true);setError("");try{const token=await user.getIdToken();const response=await fetch("/api/boardsignal/current-feedback",{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},cache:"no-store",body:JSON.stringify({coachingSignalKey:coaching.coachingSignalKey,...body})});const payload=await response.json().catch(()=>({})) as MutationPayload;if(!response.ok||!payload.ok||!payload.coaching)throw new Error(payload.error??"BoardSignal could not save that coaching response.");setCoaching(payload.coaching);await patchPlayerRoomOfflineCoaching(user.uid,payload.coaching,payload.feedback).catch(()=>undefined);window.dispatchEvent(new CustomEvent("boardsignal:coaching-state",{detail:payload.coaching}))}catch(reason){setError(reason instanceof Error?reason.message:"BoardSignal could not save that coaching response.")}finally{setBusy(false)}},[busy,coaching,online]);const react=useCallback((level:BoardSignalCoachingLevel,reaction:BoardSignalCurrentReaction)=>{void mutate({level,reaction})},[mutate]);const interaction=useCallback((action:"next_example"|"view_game"|"ask_escalation")=>{if(action==="view_game"){void mutate({action});return}if(action==="ask_escalation"){if(online)void mutate({action});window.dispatchEvent(new CustomEvent("boardsignal:ask-open",{detail:{message:coaching?.ladderExhaustedAt?"What should I actually do about this coaching signal?":"Why is this still the main thing BoardSignal is watching?"}}));return}void mutate({action})},[coaching?.ladderExhaustedAt,mutate,online]);if(!target||!coaching)return null;const level1Reaction=coaching.reactions?.[1]?.reaction,level2Reaction=coaching.reactions?.[2]?.reaction,level3Reaction=coaching.reactions?.[3]?.reaction;const content=<div className={styles.progressive} aria-label="Progressive coaching explanation"><div className={styles.levelOne}><span>LEVEL 1 · QUICK CUE</span><small>{sourceLabel(coaching)}</small><ReactionRow level={1} reaction={level1Reaction} online={online} busy={busy} onReact={react}/></div>{coaching.level>=2?<section className={styles.depthBlock} aria-label="Coaching level 2"><span>LEVEL 2 · ANOTHER WAY TO THINK ABOUT IT</span><p>{coaching.level2Copy}</p><small>{exactEvidence(coaching)}</small><ReactionRow level={2} reaction={level2Reaction} online={online} busy={busy} onReact={react}/>{level2Reaction==="not_helpful"&&coaching.level<3&&!coaching.examples.length?<p className={styles.noFabrication}>There is no real same-signal game example to show yet, so BoardSignal is stopping here instead of fabricating Level 3.</p>:null}</section>:null}{coaching.level>=3?<section className={styles.depthBlock} aria-label="Coaching level 3"><span>LEVEL 3 · HERE&apos;S ONE PLACE BOARDSIGNAL SAW IT</span><Example coaching={coaching} online={online} busy={busy} onInteraction={interaction}/><ReactionRow level={3} reaction={level3Reaction} online={online} busy={busy} onReact={react}/><div className={styles.hold}><strong>STILL THE MAIN THING BOARDSIGNAL IS WATCHING</strong><p>The automatic explanation ladder stops here. More game data can strengthen or replace the signal, but there is no Level 4.</p><div className={styles.actions}>{coaching.examples.length>1?<button type="button" className="button button-quiet" disabled={!online||busy} onClick={()=>interaction("next_example")}>SEE EXAMPLES</button>:null}<button type="button" className="button button-outline" onClick={()=>interaction("ask_escalation")}>{coaching.ladderExhaustedAt?"ASK BOARDSIGNAL ABOUT THIS":"ASK BOARDSIGNAL"}</button></div></div></section>:null}{error?<p className={styles.feedbackError} role="alert">{error}</p>:null}</div>;return createPortal(content,target)}

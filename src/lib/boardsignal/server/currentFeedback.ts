@@ -1,120 +1,22 @@
 import "server-only";
-
-import type {
-  BoardSignalCurrentFeedback,
-  BoardSignalCurrentFeedbackItem,
-  BoardSignalCurrentReaction,
-} from "@/lib/boardsignal/account";
+import type { BoardSignalCoachingFeedbackItem, BoardSignalCoachingLevel, BoardSignalCurrentFeedback, BoardSignalCurrentReaction, BoardSignalLegacyCurrentFeedbackItem } from "@/lib/boardsignal/account";
+import { applyCoachingReaction, cycleCoachingExample, normalizeCurrentFeedbackItems, presentationFromCoachingState } from "@/lib/boardsignal/coaching";
 import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
 import { getAdminDb } from "@/utils/firebaseAdmin";
-import { recordFounderFeedbackProjection } from "./founderEngagement";
-
-const MAX_CURRENT_FEEDBACK_ITEMS = 12;
-
-export class CurrentBoardSignalFeedbackError extends Error {
-  status: number;
-  code: string;
-
-  constructor(code: string, message: string, status = 400) {
-    super(message);
-    this.name = "CurrentBoardSignalFeedbackError";
-    this.code = code;
-    this.status = status;
-  }
-}
-
-function cleanDate(value: unknown, label: string) {
-  const text = typeof value === "string" ? value.trim() : "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || !Number.isFinite(Date.parse(`${text}T00:00:00Z`))) {
-    throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_PERIOD", `${label} is invalid.`);
-  }
-  return text;
-}
-
-function cleanItemKey(value: unknown) {
-  const text = typeof value === "string" ? value.trim() : "";
-  if (!/^m2:\d{4}-\d{2}-\d{2}:[a-z_]+:[a-z0-9]+$/.test(text) || text.length > 180) {
-    throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_ITEM", "That Current BoardSignal item is invalid.");
-  }
-  return text;
-}
-
-function cleanReaction(value: unknown): BoardSignalCurrentReaction {
-  if (value === "helpful" || value === "not_helpful") return value;
-  throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_REACTION", "Choose whether this Current BoardSignal was helpful.");
-}
-
-function validItems(value: unknown): BoardSignalCurrentFeedbackItem[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is BoardSignalCurrentFeedbackItem => {
-    if (!item || typeof item !== "object") return false;
-    const candidate = item as BoardSignalCurrentFeedbackItem;
-    return typeof candidate.itemKey === "string"
-      && (candidate.reaction === "helpful" || candidate.reaction === "not_helpful")
-      && typeof candidate.reactedAt === "string";
-  }).slice(0, MAX_CURRENT_FEEDBACK_ITEMS);
-}
-
-export async function recordCurrentBoardSignalFeedback(uid: string, input: unknown): Promise<BoardSignalCurrentFeedback> {
-  const body = input && typeof input === "object" ? input as Record<string, unknown> : {};
-  const periodStart = cleanDate(body.periodStart, "Current period start");
-  const periodEnd = cleanDate(body.periodEnd, "Current period end");
-  const itemKey = cleanItemKey(body.itemKey);
-  const reaction = cleanReaction(body.reaction);
-  if (!itemKey.startsWith(`m2:${periodStart}:`)) {
-    throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_ITEM", "That feedback item does not belong to this Current BoardSignal.");
-  }
-
-  const db = getAdminDb();
-  const ref = db.collection("users").doc(uid);
-  const outcome = await db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
-    if (!snapshot.exists) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCOUNT_NOT_FOUND", "This BoardSignal account could not be found.", 404);
-    const account = snapshot.data() as {
-      accessStatus?: string;
-      currentEpisodeSummary?: CurrentEpisodeSummary;
-      currentBoardSignalFeedback?: BoardSignalCurrentFeedback;
-    };
-    if (account.accessStatus && account.accessStatus !== "active") {
-      throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCESS_INACTIVE", "This BoardSignal access is not active.", 403);
-    }
-    const current = account.currentEpisodeSummary;
-    if (!current || current.periodStart !== periodStart || current.periodEnd !== periodEnd) {
-      throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_PERIOD_CHANGED", "Your Current BoardSignal has moved on. Refresh before rating this item.", 409);
-    }
-
-    const existingFeedback = account.currentBoardSignalFeedback;
-    const existingItems = existingFeedback?.periodStart === periodStart && existingFeedback.periodEnd === periodEnd
-      ? validItems(existingFeedback.items)
-      : [];
-    const existing = existingItems.find((item) => item.itemKey === itemKey);
-    if (existing?.reaction === reaction) {
-      return {
-        feedback: { periodStart, periodEnd, items: existingItems },
-        changed: false as const,
-      };
-    }
-
-    const nowIso = new Date().toISOString();
-    const item: BoardSignalCurrentFeedbackItem = { itemKey, reaction, reactedAt: nowIso };
-    const items = [item, ...existingItems.filter((candidate) => candidate.itemKey !== itemKey)].slice(0, MAX_CURRENT_FEEDBACK_ITEMS);
-    const feedback: BoardSignalCurrentFeedback = { periodStart, periodEnd, items };
-    transaction.set(ref, { currentBoardSignalFeedback: feedback }, { merge: true });
-    return {
-      feedback,
-      changed: true as const,
-      previousReaction: existing?.reaction,
-      at: nowIso,
-    };
-  });
-
-  if (outcome.changed) {
-    await recordFounderFeedbackProjection({
-      uid,
-      reaction,
-      previousReaction: outcome.previousReaction,
-      at: outcome.at,
-    }).catch(() => undefined);
-  }
-  return outcome.feedback;
-}
+import { recordFounderCoachingInteractionProjection, recordFounderFeedbackProjection } from "./founderEngagement";
+import { validStoredCoachingState } from "./coaching";
+const MAX_CURRENT_FEEDBACK_ITEMS=24;
+export class CurrentBoardSignalFeedbackError extends Error{status:number;code:string;constructor(code:string,message:string,status=400){super(message);this.name="CurrentBoardSignalFeedbackError";this.code=code;this.status=status}}
+function cleanDate(value:unknown,label:string){const text=typeof value==="string"?value.trim():"";if(!/^\d{4}-\d{2}-\d{2}$/.test(text)||!Number.isFinite(Date.parse(`${text}T00:00:00Z`)))throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_PERIOD",`${label} is invalid.`);return text}
+function cleanLegacyItemKey(value:unknown){const text=typeof value==="string"?value.trim():"";if(!/^m2:\d{4}-\d{2}-\d{2}:[a-z_]+:[a-z0-9]+$/.test(text)||text.length>180)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_ITEM","That Current BoardSignal item is invalid.");return text}
+function cleanSignalKey(value:unknown){const text=typeof value==="string"?value.trim():"";if(!/^m7:\d{4}-\d{2}-\d{2}:(?:current|previous):[A-Za-z0-9:_-]{1,150}$/.test(text)||text.length>220)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_SIGNAL","That coaching signal is invalid.");return text}
+function cleanLevel(value:unknown):BoardSignalCoachingLevel{const level=Number(value);if(level===1||level===2||level===3)return level;throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_LEVEL","That coaching level is invalid.")}
+function cleanReaction(value:unknown):BoardSignalCurrentReaction{if(value==="helpful"||value==="not_helpful")return value;throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_REACTION","Choose whether this coaching explanation was helpful.")}
+function isLegacyItem(value:unknown):value is BoardSignalLegacyCurrentFeedbackItem{if(!value||typeof value!=="object")return false;const item=value as Partial<BoardSignalLegacyCurrentFeedbackItem>;return typeof item.itemKey==="string"&&(item.reaction==="helpful"||item.reaction==="not_helpful")&&typeof item.reactedAt==="string"}
+function isM7Item(value:unknown):value is BoardSignalCoachingFeedbackItem{if(!value||typeof value!=="object")return false;const item=value as Partial<BoardSignalCoachingFeedbackItem>;return item.schemaVersion===2&&typeof item.coachingSignalKey==="string"&&(item.level===1||item.level===2||item.level===3)&&(item.reaction==="helpful"||item.reaction==="not_helpful")&&typeof item.reactedAt==="string"}
+function feedbackForPeriod(existing:BoardSignalCurrentFeedback|undefined,periodStart:string,periodEnd:string){return existing?.periodStart===periodStart&&existing.periodEnd===periodEnd?normalizeCurrentFeedbackItems(existing.items,MAX_CURRENT_FEEDBACK_ITEMS):[]}
+async function recordLegacyFeedback(uid:string,body:Record<string,unknown>){const periodStart=cleanDate(body.periodStart,"Current period start");const periodEnd=cleanDate(body.periodEnd,"Current period end");const itemKey=cleanLegacyItemKey(body.itemKey);const reaction=cleanReaction(body.reaction);if(!itemKey.startsWith(`m2:${periodStart}:`))throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_ITEM","That feedback item does not belong to this Current BoardSignal.");const db=getAdminDb(),ref=db.collection("users").doc(uid);const outcome=await db.runTransaction(async(transaction:any)=>{const snapshot=await transaction.get(ref);if(!snapshot.exists)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCOUNT_NOT_FOUND","This BoardSignal account could not be found.",404);const account=snapshot.data() as {accessStatus?:string;currentEpisodeSummary?:CurrentEpisodeSummary;currentBoardSignalFeedback?:BoardSignalCurrentFeedback};if(account.accessStatus&&account.accessStatus!=="active")throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCESS_INACTIVE","This BoardSignal access is not active.",403);const current=account.currentEpisodeSummary;if(!current||current.periodStart!==periodStart||current.periodEnd!==periodEnd)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_PERIOD_CHANGED","Your Current BoardSignal has moved on. Refresh before rating this item.",409);const existingItems=feedbackForPeriod(account.currentBoardSignalFeedback,periodStart,periodEnd);const existing=existingItems.find((item):item is BoardSignalLegacyCurrentFeedbackItem=>isLegacyItem(item)&&item.itemKey===itemKey);if(existing?.reaction===reaction)return{feedback:{periodStart,periodEnd,items:existingItems},changed:false as const};const nowIso=new Date().toISOString();const item:BoardSignalLegacyCurrentFeedbackItem={itemKey,reaction,reactedAt:nowIso};const items=[item,...existingItems.filter((candidate)=>!(isLegacyItem(candidate)&&candidate.itemKey===itemKey))].slice(0,MAX_CURRENT_FEEDBACK_ITEMS);const feedback={periodStart,periodEnd,items} satisfies BoardSignalCurrentFeedback;transaction.set(ref,{currentBoardSignalFeedback:feedback},{merge:true});return{feedback,changed:true as const,previousReaction:existing?.reaction,at:nowIso}});if(outcome.changed)await recordFounderFeedbackProjection({uid,reaction,previousReaction:outcome.previousReaction,at:outcome.at}).catch(()=>undefined);return{feedback:outcome.feedback,coaching:undefined}}
+export async function recordCurrentBoardSignalFeedback(uid:string,input:unknown){const body=input&&typeof input==="object"?input as Record<string,unknown>:{};// Compatibility bridge: old itemKey records remain valid historical feedback, but never write M7 reaction state or trigger coaching progression.
+if(!body.coachingSignalKey&&body.itemKey)return recordLegacyFeedback(uid,body);const coachingSignalKey=cleanSignalKey(body.coachingSignalKey),level=cleanLevel(body.level),reaction=cleanReaction(body.reaction);const db=getAdminDb(),ref=db.collection("users").doc(uid);const outcome=await db.runTransaction(async(transaction:any)=>{const snapshot=await transaction.get(ref);if(!snapshot.exists)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCOUNT_NOT_FOUND","This BoardSignal account could not be found.",404);const account=snapshot.data() as {accessStatus?:string;currentBoardSignalFeedback?:BoardSignalCurrentFeedback;coachingState?:unknown};if(account.accessStatus&&account.accessStatus!=="active")throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCESS_INACTIVE","This BoardSignal access is not active.",403);const state=validStoredCoachingState(account.coachingState);if(!state||state.coachingSignalKey!==coachingSignalKey)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_SIGNAL_CHANGED","Your coaching signal has changed. Refresh before rating this explanation.",409);if(level>state.level)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_LEVEL_NOT_PRESENTED","That coaching level has not been shown yet.",409);const existingItems=feedbackForPeriod(account.currentBoardSignalFeedback,state.periodStart,state.periodEnd);const existing=existingItems.find((item):item is BoardSignalCoachingFeedbackItem=>isM7Item(item)&&item.coachingSignalKey===coachingSignalKey&&item.level===level);const stateReaction=state.reactions?.[level];if(existing?.reaction===reaction&&stateReaction?.reaction===reaction)return{feedback:{periodStart:state.periodStart,periodEnd:state.periodEnd,items:existingItems},state,changed:false as const,advancedTo:undefined as number|undefined,level3Reached:false,ladderExhausted:false};const nowIso=new Date().toISOString();const item:BoardSignalCoachingFeedbackItem={schemaVersion:2,coachingSignalKey,level,reaction,reactedAt:nowIso};const items=[item,...existingItems.filter((candidate)=>!(isM7Item(candidate)&&candidate.coachingSignalKey===coachingSignalKey&&candidate.level===level))].slice(0,MAX_CURRENT_FEEDBACK_ITEMS);const feedback={periodStart:state.periodStart,periodEnd:state.periodEnd,items} satisfies BoardSignalCurrentFeedback;const transition=applyCoachingReaction(state,level,reaction,nowIso);const nextState=transition.state;transaction.set(ref,{currentBoardSignalFeedback:feedback,coachingState:nextState},{merge:true});return{feedback,state:nextState,changed:true as const,previousReaction:existing?.reaction,at:nowIso,advancedTo:transition.advancedTo,level3Reached:transition.level3Reached,ladderExhausted:transition.ladderExhausted}});if(outcome.changed)await recordFounderFeedbackProjection({uid,reaction,previousReaction:outcome.previousReaction,at:outcome.at,coaching:{family:outcome.state.family,level,l1DownToL2:level===1&&reaction==="not_helpful"&&outcome.advancedTo===2,l2DownToL3:level===2&&reaction==="not_helpful"&&outcome.advancedTo===3,level3Reached:outcome.level3Reached===true,level3Down:level===3&&reaction==="not_helpful"&&outcome.ladderExhausted===true}}).catch(()=>undefined);return{feedback:outcome.feedback,coaching:presentationFromCoachingState(outcome.state)}}
+export type CurrentCoachingInteraction="next_example"|"view_game"|"ask_escalation";
+export async function recordCurrentBoardSignalInteraction(uid:string,input:unknown){const body=input&&typeof input==="object"?input as Record<string,unknown>:{};const coachingSignalKey=cleanSignalKey(body.coachingSignalKey);const action=body.action;if(action!=="next_example"&&action!=="view_game"&&action!=="ask_escalation")throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_UNKNOWN_ACTION","That coaching interaction is not supported.");const db=getAdminDb(),ref=db.collection("users").doc(uid);const outcome=await db.runTransaction(async(transaction:any)=>{const snapshot=await transaction.get(ref);if(!snapshot.exists)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCOUNT_NOT_FOUND","This BoardSignal account could not be found.",404);const account=snapshot.data() as {accessStatus?:string;coachingState?:unknown;currentBoardSignalFeedback?:BoardSignalCurrentFeedback};if(account.accessStatus&&account.accessStatus!=="active")throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCESS_INACTIVE","This BoardSignal access is not active.",403);const state=validStoredCoachingState(account.coachingState);if(!state||state.coachingSignalKey!==coachingSignalKey)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_SIGNAL_CHANGED","Your coaching signal has changed. Refresh before using this example.",409);const nowIso=new Date().toISOString();let nextState=state;if(action==="next_example"){nextState=cycleCoachingExample(state,nowIso);if(nextState===state)return{state,feedback:account.currentBoardSignalFeedback,changed:false as const}}else if(action==="view_game"){const selected=state.selectedExampleId?state.examples.find((example)=>example.id===state.selectedExampleId)??state.selectedExampleSnapshot:state.selectedExampleSnapshot;if(state.level<3||!selected?.gameUrl)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_GAME_UNAVAILABLE","This example does not have a stored game link.",409);nextState={...state,viewGameCount:(state.viewGameCount??0)+1,updatedAt:nowIso}}else{if(state.level<3)throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ASK_TOO_EARLY","Ask escalation becomes available after the coaching ladder reaches Level 3.",409);nextState={...state,askEscalationAt:state.askEscalationAt??nowIso,updatedAt:nowIso}}if(nextState!==state)transaction.set(ref,{coachingState:nextState},{merge:true});return{state:nextState,feedback:account.currentBoardSignalFeedback,changed:nextState!==state}});if(outcome.changed)await recordFounderCoachingInteractionProjection({uid,action,at:new Date().toISOString()}).catch(()=>undefined);return{feedback:outcome.feedback,coaching:presentationFromCoachingState(outcome.state)}}

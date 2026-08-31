@@ -1,7 +1,4 @@
+import CurrentBoardSignalEngagement from "@/components/CurrentBoardSignalEngagement";
 import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
-
-export const metadata = { title: "Saved Player Room" };
-
-export default function OfflinePlayerRoomPage() {
-  return <OfflinePlayerRoom />;
-}
+export const metadata={title:"Saved Player Room"};
+export default function OfflinePlayerRoomPage(){return <><OfflinePlayerRoom/><CurrentBoardSignalEngagement/></>}

@@ -24,15 +24,15 @@ test('M5 does not send arbitrary current chess copy through the browser event', 
 });
 
 test('closed Ask still performs zero authenticated ambient context reads', () => {
-  assert.match(route, /body\.mode !== "beta_preview" && body\.panelOpen !== true/);
-  assert.match(ask, /if \(playerRoomMode && !open\) return/);
+  assert.match(route, /body\.mode\s*!==\s*"beta_preview"\s*&&\s*body\.panelOpen\s*!==\s*true/);
+  assert.match(ask, /if\s*\(playerRoomMode\s*&&\s*!open\)\s*return/);
 });
 
 test('explicit Ask open prefers the current-item deep dive before broader context loading', () => {
   assert.match(route, /currentBoardSignalDeepDiveObservation/);
-  assert.match(route, /if \(currentObservation\) return response\(\{ ok: true, observation: currentObservation \}\);/);
+  assert.match(route, /if\s*\(currentObservation\)\s*return\s*response\(\{\s*ok:\s*true,\s*observation:\s*currentObservation\s*\}\)/);
   assert.match(route, /currentBoardSignalDeepDiveResponse/);
-  assert.ok(route.indexOf('currentBoardSignalDeepDiveResponse') < route.indexOf('weeklyHistoryGuideResponse(token, body.message)'));
+  assert.ok(route.indexOf('currentBoardSignalDeepDiveResponse') < route.indexOf('weeklyHistoryGuideResponse'));
 });
 
 test('current-item context is rebuilt from the server-written guide session and M2 presentation rules', () => {
@@ -56,7 +56,7 @@ test('one-tap questions are context-dependent and examples only appear with evid
 
 test('M4 Ask usage and existing clarity follow-up remain separate and intact', () => {
   assert.match(route, /recordFounderAskUsageByUid/);
-  assert.match(route, /body\.mode !== "beta_preview"/);
+  assert.match(route, /body\.mode\s*!==\s*"beta_preview"/);
   assert.match(ask, /Explain that more simply\./);
   assert.match(ask, /Was that clear\?/);
   assert.match(ask, /% 3 === 0/);

@@ -97,17 +97,17 @@ test('service worker update remains player-controlled and reloads once', () => {
 
 test('private offline data remains UID-scoped and bounded', () => {
   for (const pattern of [
-    /BOARDSIGNAL_OFFLINE_DB_NAME = "boardsignal-offline-v1"/,
-    /BOARDSIGNAL_OFFLINE_MAX_DESKS = 4/,
-    /BOARDSIGNAL_OFFLINE_MAX_DRAFTS = 4/,
-    /BOARDSIGNAL_OFFLINE_MAX_SOCIAL_COMPARISONS = 4/,
+    /BOARDSIGNAL_OFFLINE_DB_NAME\s*=\s*"boardsignal-offline-v1"/,
+    /BOARDSIGNAL_OFFLINE_MAX_DESKS\s*=\s*4/,
+    /BOARDSIGNAL_OFFLINE_MAX_DRAFTS\s*=\s*4/,
+    /BOARDSIGNAL_OFFLINE_MAX_SOCIAL_COMPARISONS\s*=\s*4/,
   ]) assert.match(offlineTypes, pattern);
   assert.match(db, /return `\$\{uid\}:\$\{kind\}:\$\{id\}`/);
   assert.match(db, /record\.uid !== expectedUid/);
   assert.match(db, /key\.startsWith\("boardsignal-"\)/);
   for (const pattern of [
-    /if \(input\.account\.uid !== uid\) throw new Error\("Offline snapshot identity mismatch\."\)/,
-    /slice\(0, BOARDSIGNAL_OFFLINE_MAX_DESKS\)/,
+    /if\s*\(\s*input\.account\.uid\s*!==\s*uid\s*\)\s*throw new Error\("Offline snapshot identity mismatch\."\)/,
+    /slice\(\s*0,\s*BOARDSIGNAL_OFFLINE_MAX_DESKS\s*\)/,
     /activeDeskKeys\.has\(point\.deskKey\)/,
     /lastSyncedAt:\s*now/,
     /savedAt:\s*now/,
@@ -175,7 +175,7 @@ test('Ask BoardSignal keeps a bounded factual offline path', () => {
   assert.match(offlineGuide, /You're offline/);
   assert.match(offlineGuide, /can't check Chess\.com for anything newer/);
   assert.match(offlineGuide, /don't create new chess analysis/);
-  assert.match(snapshots, /slice\(0, BOARDSIGNAL_OFFLINE_MAX_DRAFTS\)/);
+  assert.match(snapshots, /slice\(\s*0,\s*BOARDSIGNAL_OFFLINE_MAX_DRAFTS\s*\)/);
 });
 
 test('connectivity recovery is probed independently and coordinated once', () => {

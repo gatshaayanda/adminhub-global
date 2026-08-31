@@ -51,7 +51,7 @@ test('guest Ask never receives private player context', () => {
   const response = guide.renderGuideResponse('what_changed', { authenticated:false, pathname:'/' });
   assert.match(response.reply, /only show personal changes after you sign in/i);
   assert.doesNotMatch(response.reply, /Signal|Desk 1|Ayandakopano/);
-  assert.match(guideRoute, /action === "ask" \? await optionalToken\(request\)/);
+  assert.match(guideRoute, /action\s*===\s*"ask"\s*\?\s*await\s+optionalToken\(request\)/);
   assert.match(widget, /continuityKey\(user\?\.uid\)/);
   assert.match(widget, /uid \|\| "guest"/);
 });
@@ -218,7 +218,7 @@ test('mobile Ask controls keep 44px targets and avoid bottom navigation', () => 
 });
 
 test('Ask failure is isolated from Player Room', () => {
-  assert.match(roomRoute, /recordGuidePlayerRoomSnapshot[\s\S]*\.catch\(\(\) => undefined\)/);
+  assert.match(roomRoute, /recordGuidePlayerRoomSnapshot[\s\S]*\.catch\(\s*\(\)\s*=>\s*undefined\s*\)/);
   assert.match(widget, /Ask BoardSignal isn't available right now/);
   assert.match(widget, /Open Inbox/);
 });

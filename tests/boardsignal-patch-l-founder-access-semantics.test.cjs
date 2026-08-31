@@ -67,8 +67,8 @@ test('7. Founder operations API strips legacy request rows and request attention
 test('8. Founder operations no longer treats New requests or normal sign-in as attention work', () => {
   assert.doesNotMatch(operations, /\["New requests"/);
   assert.doesNotMatch(operations, /\["new_requests","NEW REQUESTS"\]/);
-  assert.match(operations, /Exceptions and support, not the product score\./);
-  assert.match(operations, /These remain operational queues\. They do not define whether the product is engaging\./);
+  assert.match(operations, /attention:\{followUpsDue:number;unreadReplies:number;exceptions:number;identityConflicts:number\}/);
+  assert.match(operations, /Coaching feedback is product-quality intelligence; it never becomes an access, identity or approval queue\./);
 });
 
 test('9. Founder browser alerts describe identity-review entry rather than Preview approval', () => {

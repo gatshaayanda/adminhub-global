@@ -80,7 +80,8 @@ test('Notes and Ask BoardSignal stay part of the personal current context withou
   assert.match(journal, /Your note stays private/);
   assert.match(ask, /Ask BoardSignal/);
   assert.match(ask, /verified BoardSignal context/i);
-  assert.match(currentEngagement, /AROUND THE UNIVERSE/);
+  assert.match(currentEngagement, /CURRENT PERIOD · PROVISIONAL/);
+  assert.match(currentEngagement, /boardsignal:ask-open/);
 });
 
 test('Preview leads toward My BoardSignal while keeping private guidance private', () => {

@@ -49,6 +49,9 @@ jobs:
       - name: M7.1 Founder player-card guard
         run: node --test tests/boardsignal-patch-m7-1-founder-player-cards.test.cjs
 
+      - name: M8 living editorial visual-system guard
+        run: node --test tests/boardsignal-patch-m8-living-editorial-visual-system.test.cjs
+
       - name: Founder access semantics
         run: node --test tests/boardsignal-patch-l-founder-access-semantics.test.cjs
 

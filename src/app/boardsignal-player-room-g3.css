@@ -645,3 +645,135 @@
   .player-room-authenticated .review-journal-editor-meta,
   .player-room-authenticated .review-journal-progress > summary { align-items: stretch; flex-direction: column; }
 }
+
+/* ==========================================================
+   Patch M8 — living editorial Player Room
+   Familiar shell; live/current interior; completed Review calm.
+   ========================================================== */
+
+.player-room-authenticated .current-boardsignal-lead {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1rem, 2.6vw, 1.65rem);
+  border: 1px solid var(--bs-border);
+  border-top: 4px solid var(--bs-brand-primary);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .current-boardsignal-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .65rem 1rem;
+}
+
+.player-room-authenticated .current-boardsignal-heading :is(h1, h2) {
+  max-width: 18ch;
+  line-height: 1;
+}
+
+.player-room-authenticated .current-boardsignal-state {
+  padding: .75rem .9rem;
+  border: 1px solid var(--bs-border);
+  border-left: 4px solid var(--bs-blue-readable);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-blue-soft);
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated .current-boardsignal-state :is(p, small) {
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated .corner-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-height: 32px;
+  max-width: 100%;
+  padding: .35rem .6rem;
+  border: 1px solid var(--bs-blue-readable);
+  border-radius: 999px;
+  background: var(--bs-blue-soft);
+  color: var(--bs-blue-readable);
+  font-size: .75rem;
+  font-weight: 850;
+  letter-spacing: .05em;
+  overflow-wrap: anywhere;
+}
+
+.player-room-authenticated .corner-live-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.player-room-authenticated .current-episode-card.g3-current-week {
+  border: 1px solid var(--bs-border);
+  border-left: 4px solid var(--bs-brand-primary);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface-elevated);
+  box-shadow: none;
+}
+
+.player-room-authenticated .g3-before-next-game {
+  border: 1px solid var(--bs-border-strong);
+  border-left: 5px solid var(--bs-lime);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .g3-before-next-game h3 {
+  max-width: 24ch;
+  font-size: clamp(1.2rem, 2.4vw, 1.65rem);
+  line-height: 1.12;
+}
+
+.player-room-authenticated .g3-before-next-game p {
+  max-width: 62ch;
+}
+
+.player-room-authenticated :is(.last-completed-review, .g3-review-proof, .g3-deeper-review) {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  box-shadow: none;
+}
+
+.player-room-authenticated :is(.last-completed-review, .g3-review-proof, .g3-deeper-review, #what-mattered, #focus-next) :is(p, li) {
+  max-width: 68ch;
+}
+
+.player-room-authenticated .g3-progress-section :is(.personal-record-strip, .pool-progress, .recurring-patterns, .desk-sequence) {
+  padding-left: clamp(.8rem, 2vw, 1.15rem);
+  border-left: 3px solid var(--bs-border-strong);
+}
+
+.player-room-authenticated .review-journal-add:disabled,
+.player-room-authenticated .review-journal-note-actions button:disabled {
+  opacity: 1;
+  border-color: var(--bs-ui-border);
+  background: var(--bs-bg-subtle);
+  color: var(--bs-text-secondary);
+}
+
+@media (max-width: 680px) {
+  .player-room-authenticated .current-boardsignal-lead {
+    padding: 1rem;
+    border-radius: var(--bs-radius-md);
+  }
+
+  .player-room-authenticated .current-boardsignal-heading {
+    display: grid;
+    align-items: start;
+  }
+
+  .player-room-authenticated .g3-progress-section :is(.personal-record-strip, .pool-progress, .recurring-patterns, .desk-sequence) {
+    padding-left: .7rem;
+    border-left-width: 2px;
+  }
+}

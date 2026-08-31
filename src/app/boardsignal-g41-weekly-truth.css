@@ -363,3 +363,50 @@ html[data-bs-theme="dark"] .player-room-authenticated .universe-board li > span 
   background: var(--bs-surface-inverse);
   color: var(--bs-text-on-inverse);
 }
+
+/* ==========================================================
+   Patch M8 — restrained support surfaces + static editorial reading
+   Profile/offline/Ask/Founder stay operational; meaningful state classes
+   remain the only source of Current/Review motion.
+   ========================================================== */
+
+.player-room-authenticated :where(.player-profile-section, .profile-settings-card) {
+  box-shadow: none;
+}
+
+.player-room-authenticated :where(.offline-player-room, .player-room-offline, .offline-forming-snapshot) {
+  border: 1px solid var(--bs-ui-border);
+  border-left: 4px solid var(--bs-warning);
+  background: var(--bs-warning-surface);
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated :where(.offline-player-room, .player-room-offline, .offline-forming-snapshot) :where(p, small, span) {
+  color: var(--bs-text-secondary);
+}
+
+.ask-bs-panel {
+  border: 1px solid var(--bs-border-strong);
+  background: var(--bs-surface-elevated);
+}
+
+.founder-ops-console :where(
+  .founder-attention-section,
+  .founder-live-metrics,
+  .founder-validation-section,
+  .founder-live-directory,
+  .founder-ops-row,
+  .founder-ops-details,
+  .founder-review-periods
+) {
+  box-shadow: none;
+}
+
+.player-room-memory,
+.my-progress-section,
+.current-episode-card:not(.bs-motion-fact-change):not(.bs-motion-observation-change):not(.bs-motion-guidance-change):not(.bs-motion-guidance-current),
+.universal-cover:not(.bs-motion-review-ready):not(.bs-motion-review-ready-focus),
+#what-mattered.universal-section:not(.bs-motion-review-ready),
+#focus-next.universal-section:not(.bs-motion-review-ready-focus) {
+  animation: none;
+}

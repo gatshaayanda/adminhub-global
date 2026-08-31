@@ -237,3 +237,24 @@
     transform: none !important;
   }
 }
+
+/* Patch M8 — editorial proof is static content, not decorative motion. */
+.rail {
+  background: var(--bs-surface);
+  animation: none;
+}
+.rail::before {
+  transform: scaleX(1);
+  background: var(--bs-brand-primary);
+  animation: none;
+}
+.story,
+.trustPanel {
+  animation: none;
+}
+.liveLabel { font-size: .72rem; }
+.story p { font-size: .82rem; }
+.trustCopy > span { font-size: .7rem; }
+.trustCopy strong { font-size: .82rem; }
+.trustCopy p { font-size: .76rem; }
+.trustLink { font-size: .72rem; }

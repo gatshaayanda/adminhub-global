@@ -228,3 +228,45 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ==========================================================
+   Patch M8 — living editorial Universe
+   Strongest controlled expression; official/public truth unchanged.
+   ========================================================== */
+
+.g4-live-field-header {
+  border-color: var(--bs-border-strong);
+  border-top: 4px solid var(--bs-lime);
+  background: var(--bs-surface-inverse);
+  color: var(--bs-text-on-inverse);
+}
+
+.g4-live-field-header :is(h1, h2, h3, strong) {
+  color: var(--bs-text-on-inverse);
+}
+
+.g4-live-field-header :is(p, small, .g4-field-scale, .g4-block-intro) {
+  color: var(--bs-text-on-inverse-secondary);
+}
+
+.g4-live-field-header .g4-live-field-title > span {
+  color: var(--bs-lime);
+}
+
+.g4-official-position-grid > article {
+  border-top: 3px solid var(--bs-brand-primary);
+}
+
+.g4-event-grid > article,
+.g4-from-field-grid > article > :is(a, .g4-field-card-static) {
+  border-left: 3px solid var(--bs-border-strong);
+}
+
+.g4-provisional-block {
+  border-left: 3px dashed var(--bs-border-strong);
+}
+
+.g4-universe-archive {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+}

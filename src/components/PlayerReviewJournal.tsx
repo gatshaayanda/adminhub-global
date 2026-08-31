@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useState } from "react";
-import CurrentBoardSignalEngagement from "./CurrentBoardSignalEngagement";
 import engagementStyles from "./CurrentBoardSignalEngagement.module.css";
 import {
   REVIEW_JOURNAL_MAX_NOTE_LENGTH,
@@ -187,7 +186,6 @@ export default function PlayerReviewJournal({ review, token, online, journal, on
   }
 
   return <section className={`review-journal ${compact ? "is-compact" : ""}`} aria-label={current ? `Your take for ${review.periodLabel}` : `My notes for ${review.periodLabel}`}>
-    {current ? <CurrentBoardSignalEngagement /> : null}
     <div className="review-journal-heading"><div><p className="kicker">{current ? "YOUR TAKE" : "MY NOTES"}</p><h3>{current ? "Anything you'd change or add?" : "Keep something for your future self."}</h3><p>{current ? "Your note stays private. What you write here travels with this period when it closes into a completed Review." : "Your notes stay private and do not change BoardSignal's Review."}</p></div><span>PRIVATE</span></div>
     {notes.length ? <JournalNotesList notes={notes} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} /> : <p className="review-journal-empty">{current ? "No private notes for your current BoardSignal yet." : "No private notes saved for this Review yet."}</p>}
     {!online ? <p className="review-journal-offline" role="status">Reconnect to update your notes. Saved notes remain readable while offline.</p> : null}

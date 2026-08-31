@@ -55,6 +55,9 @@ jobs:
       - name: M8 living editorial visual-system guard
         run: node --test tests/boardsignal-patch-m8-living-editorial-visual-system.test.cjs
 
+      - name: M8 final rendered correction guard
+        run: node --test tests/boardsignal-m8-final-render-correction.test.cjs
+
       - name: Founder access semantics
         run: node --test tests/boardsignal-patch-l-founder-access-semantics.test.cjs
 
@@ -79,7 +82,7 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
 
-      - name: Render homepage and onboarding in real Chrome at desktop and mobile widths
+      - name: Render onboarding and M8 Player Room coaching in real Chrome
         env:
           NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchM6Guard000000000000000000000
           NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-m6-ci.firebaseapp.com
@@ -105,7 +108,9 @@ jobs:
             cat /tmp/boardsignal-patch-m6-dev.log
             exit 1
           fi
+          curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/player-room-coaching?theme=light&level=1" >/dev/null
           node --experimental-websocket scripts/check-boardsignal-onboarding-render.mjs
+          node --experimental-websocket scripts/check-boardsignal-m8-player-room-render.mjs
 
       - name: Production build
         env:

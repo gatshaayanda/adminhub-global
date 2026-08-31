@@ -137,7 +137,7 @@
 }
 
 .player-room-authenticated .g3-quick-item h3,
-.player-room-authenticated .g3-before-next-game h3,
+.player-room-authenticated .g3-before-next-game > h3,
 .player-room-authenticated .g3-proof-signal h3 {
   margin-top: .45rem;
   color: var(--bs-text-primary);
@@ -219,13 +219,13 @@
 }
 
 .player-room-authenticated .g3-before-next-game > span,
-.player-room-authenticated .g3-before-next-game h3,
-.player-room-authenticated .g3-before-next-game p,
-.player-room-authenticated .g3-before-next-game small {
+.player-room-authenticated .g3-before-next-game > h3,
+.player-room-authenticated .g3-before-next-game > p,
+.player-room-authenticated .g3-before-next-game > small {
   color: var(--bs-text-on-inverse);
 }
 
-.player-room-authenticated .g3-before-next-game small {
+.player-room-authenticated .g3-before-next-game > small {
   display: block;
   margin-top: .55rem;
   font-size: .75rem;
@@ -728,13 +728,13 @@
   box-shadow: var(--bs-shadow-1);
 }
 
-.player-room-authenticated .g3-before-next-game h3 {
+.player-room-authenticated .g3-before-next-game > h3 {
   max-width: 24ch;
   font-size: clamp(1.2rem, 2.4vw, 1.65rem);
   line-height: 1.12;
 }
 
-.player-room-authenticated .g3-before-next-game p {
+.player-room-authenticated .g3-before-next-game > p {
   max-width: 62ch;
 }
 

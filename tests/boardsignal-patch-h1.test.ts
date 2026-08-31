@@ -180,7 +180,7 @@ test("H.1 protected player hierarchy and presentation language remain intact", (
   assert.match(read("src/components/UniverseRecognition.tsx"), /boardSignalPresentationLabel/);
   const account = read("src/lib/boardsignal/account.ts");
   assert.match(account, /export type BoardSignalAccessTier = "founding_beta" \| "paid"/);
-  assert.match(account, /accessTier: "founding_beta"/);
+  assert.match(account, /accessTier:\s*"founding_beta"/);
 });
 
 test("H.1 analytics configuration still expects the dedicated Vercel token", () => {

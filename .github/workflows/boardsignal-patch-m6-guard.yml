@@ -43,6 +43,12 @@ jobs:
       - name: M5 contextual Ask guard
         run: node --test tests/boardsignal-patch-m5-contextual-ask.test.cjs
 
+      - name: M7 progressive coaching guard
+        run: node --test tests/boardsignal-m7-progressive-coaching.test.cjs
+
+      - name: M7.1 Founder player-card guard
+        run: node --test tests/boardsignal-patch-m7-1-founder-player-cards.test.cjs
+
       - name: Founder access semantics
         run: node --test tests/boardsignal-patch-l-founder-access-semantics.test.cjs
 

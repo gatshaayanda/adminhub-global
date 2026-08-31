@@ -29,6 +29,7 @@ export type BoardSignalCoachingState = {
 };
 export type BoardSignalCoachingPresentation = BoardSignalCoachingState & { selectedExample?: BoardSignalCoachingExample; hold: boolean };
 export type BoardSignalPlayerRoomEngagement = { roomVisitCount: number; firstRoomVisitAt?: string; latestRoomVisitAt?: string; lastActiveAt?: string; lastCountedSessionId?: string; latestSessionEnteredAt?: string; latestSummarySessionId?: string; latestSessionEndedAt?: string; latestSessionForegroundEngagedSeconds?: number };
+export type BoardSignalCurrentEpisodeCollection = { source: "chesscom"; status: "ok" | "retry_required"; checkedAt: string; periodStart?: string; periodEnd?: string };
 export type BoardSignalTrustpilotResolution = "reviewed" | "declined" | "not_yet";
 export type BoardSignalTrustpilotReviewInvitation = { referenceId?: string; reservedAt?: string; confirmedAt?: string; source?: "InvitationScript"; firstAskShownAt?: string; finalAskShownAt?: string; resolution?: BoardSignalTrustpilotResolution; resolvedAt?: string; automaticCycleCompletedAt?: string };
 export type BoardSignalNotificationPreferences = { email: boolean; browserPush: boolean; deskReady: boolean; episodeProgress: boolean; blueReminder: boolean; amberWatch: boolean; universeAchievement: boolean; founderUpdates: boolean };
@@ -41,7 +42,7 @@ export type BoardSignalAccount = {
   privacy: BoardSignalPrivacySettings; notificationPreferences: BoardSignalNotificationPreferences; cadenceAnchor?: string; lastSeenAt?: string;
   founderOps?: { lastContactedAt?: string; lastContactMethod?: BoardSignalFounderContactMethod; followUpSnoozedUntil?: string };
   latestProgressCheckedAt?: string; nextDeskDueAt?: string; previousBlue?: { title: string; copy: string }; previousAmber?: { title: string; copy: string };
-  currentEpisodeSummary?: import("./memory").CurrentEpisodeSummary; currentBoardSignalFeedback?: BoardSignalCurrentFeedback; coachingState?: BoardSignalCoachingState;
+  currentEpisodeSummary?: import("./memory").CurrentEpisodeSummary; currentEpisodeCollection?: BoardSignalCurrentEpisodeCollection; currentBoardSignalFeedback?: BoardSignalCurrentFeedback; coachingState?: BoardSignalCoachingState;
   playerRoomEngagement?: BoardSignalPlayerRoomEngagement; trustpilotReviewInvitation?: BoardSignalTrustpilotReviewInvitation; lastNotificationAt?: string;
   eligibleCoverageKeys: string[]; reviewProduction?: import("./reviewProduction").ReviewProductionStats;
 };

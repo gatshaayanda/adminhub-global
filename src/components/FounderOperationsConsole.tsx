@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight, ExternalLink, LoaderCircle, RefreshCcw, Sear
 type TrustpilotStatus = "not_asked" | "asked_visit_3" | "final_ask" | "says_reviewed" | "declined" | "not_yet";
 type PlayerFilter = "all" | "recent" | "new" | "new_google" | "returned" | "feedback" | "notes" | "ask" | "trustpilot";
 type PlayerSort = "latest" | "visits" | "engaged" | "username";
+type ChessSourceHealthStatus = "ok" | "zero_games" | "not_checked" | "retry_required";
+type ReviewStatus = "FORMING" | "READY" | "COMPLETED" | "NO ACTIVITY" | "CHECK REQUIRED";
 
 type ChessSnapshot = {
   periodStart: string;
@@ -76,6 +78,22 @@ type EngagementRow = {
   chess: {
     current?: ChessSnapshot;
     sincePreviousVisit?: ChessDelta;
+    sourceHealth: {
+      status: ChessSourceHealthStatus;
+      checkedAt?: string;
+    };
+  };
+  review: {
+    status?: ReviewStatus;
+    daysComplete?: number;
+    daysRemaining?: number;
+    dueAt?: string;
+    completedCount?: number;
+    latest?: {
+      periodStart?: string;
+      periodEnd?: string;
+      periodLabel?: string;
+    };
   };
   trustpilot: {
     status: TrustpilotStatus;
@@ -163,6 +181,19 @@ function displayDate(value?: string, empty = "—") {
     : empty;
 }
 
+function compactDate(value?: string, empty = "—") {
+  if (!value) return empty;
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value) ? Date.parse(`${value}T00:00:00.000Z`) : Date.parse(value);
+  return Number.isFinite(parsed)
+    ? new Date(parsed).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })
+    : empty;
+}
+
+function periodRange(start?: string, end?: string, fallback?: string) {
+  if (start && end) return `${compactDate(start, start)}–${compactDate(end, end)}`;
+  return fallback ?? "Period not projected";
+}
+
 function relativeActivity(value?: string) {
   if (!value) return "NOT RECORDED";
   const parsed = Date.parse(value);
@@ -206,22 +237,47 @@ function accessMethodLabel(row: EngagementRow) {
   return "Latest method not yet projected";
 }
 
+function sourceHealthLabel(status: ChessSourceHealthStatus) {
+  if (status === "ok") return "CHESS.COM · OK";
+  if (status === "zero_games") return "CHESS.COM · 0 CURRENT-PERIOD GAMES";
+  if (status === "retry_required") return "CHESS COLLECTION · RETRY REQUIRED";
+  return "CHESS DATA · NOT CHECKED";
+}
+
 function chessLabel(row: EngagementRow) {
-  const delta = row.chess.sincePreviousVisit;
-  if (delta) {
-    return {
-      primary: `${delta.games} new game${delta.games === 1 ? "" : "s"}`,
-      secondary: `${delta.wins}W · ${delta.draws}D · ${delta.losses}L since previous visit`,
-    };
-  }
   const current = row.chess.current;
-  if (current) {
-    return {
-      primary: `${current.games} current-period game${current.games === 1 ? "" : "s"}`,
-      secondary: `${current.wins}W · ${current.draws}D · ${current.losses}L · ${current.periodStart}`,
-    };
+  const delta = row.chess.sincePreviousVisit;
+  const source = sourceHealthLabel(row.chess.sourceHealth.status);
+  return {
+    primary: current ? `${current.games} current-period game${current.games === 1 ? "" : "s"}` : source,
+    results: current ? `${current.wins}W · ${current.draws}D · ${current.losses}L` : undefined,
+    period: current ? `PERIOD · ${periodRange(current.periodStart, current.periodEnd)}` : undefined,
+    delta: delta ? `NEW GAMES · ${delta.games} since previous visit` : undefined,
+    source,
+  };
+}
+
+function reviewProgressLabel(row: EngagementRow) {
+  const parts: string[] = [];
+  const complete = row.review.daysComplete;
+  const remaining = row.review.daysRemaining;
+  if (Number.isFinite(complete) && Number.isFinite(remaining)) {
+    const safeComplete = Math.max(0, Math.round(complete ?? 0));
+    const totalDays = Math.max(1, safeComplete + Math.max(0, Math.round(remaining ?? 0)));
+    parts.push(`${safeComplete} of ${totalDays} days complete`);
   }
-  return { primary: "No cheap chess snapshot", secondary: "Founder did not fetch Chess.com for this row." };
+  if (row.review.dueAt) parts.push(`due ${compactDate(row.review.dueAt)}`);
+  return parts.length ? parts.join(" · ") : "Cadence progress not projected";
+}
+
+function reviewHistoryLabel(row: EngagementRow) {
+  const completed = row.review.completedCount;
+  if (completed === undefined) return "Review count not projected";
+  if (completed === 0) return "0 completed · NO COMPLETED REVIEWS";
+  const latest = row.review.latest;
+  return latest
+    ? `${completed} completed · Latest ${periodRange(latest.periodStart, latest.periodEnd, latest.periodLabel)}`
+    : `${completed} completed · Latest Review not projected`;
 }
 
 function explicitUseCount(row: EngagementRow) {
@@ -416,7 +472,7 @@ export default function FounderOperationsConsole() {
         <div>
           <p className="kicker">PLAYER ENGAGEMENT</p>
           <h2 id="player-engagement-heading">One player, one account picture.</h2>
-          <p>{rowsLoaded ? `${filtered.length} matching player${filtered.length === 1 ? "" : "s"} · at most ${PAGE_SIZE} shown per page.` : "Player rows are not read until you open this view. The load is one account document per player, with no Review, note, chat or Chess.com fan-out."}</p>
+          <p>{rowsLoaded ? `${filtered.length} matching player${filtered.length === 1 ? "" : "s"} · at most ${PAGE_SIZE} shown per page.` : "Player rows are not read until you open this view. The load uses existing account and materialized BoardSignal summary data, with no Review payload, note, chat or Chess.com fan-out."}</p>
         </div>
         {!rowsLoaded ? <button className="button button-dark" type="button" onClick={() => void loadRows()} disabled={rowsLoading}>{rowsLoading ? <LoaderCircle className="button-spinner" size={15} /> : null} Open player engagement</button> : null}
       </div>
@@ -428,7 +484,7 @@ export default function FounderOperationsConsole() {
         </div>
         <div className="founder-filter-strip" aria-label="Player engagement filters">{FILTERS.map(([value, label]) => <button type="button" key={value} className={filter === value ? "active" : ""} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div>
         {shown.length ? <div className="founder-ops-table" role="table" aria-label="Player engagement intelligence">
-          <div className="founder-ops-table-head" role="row"><span>PLAYER</span><span>ACCESS</span><span>USAGE</span><span>CHESS SINCE USE</span><span>CURRENT BOARDSIGNAL</span><span>FEEDBACK</span><span>TRUSTPILOT</span><span>LAST ACTIVE</span><span>ACTION</span></div>
+          <div className="founder-ops-table-head" role="row"><span>PLAYER</span><span>ACCESS</span><span>USAGE</span><span>CHESS / PERIOD</span><span>CURRENT BOARDSIGNAL</span><span>FEEDBACK</span><span>TRUSTPILOT</span><span>LAST ACTIVE</span><span>ACTION</span></div>
           {shown.map((row) => {
             const chess = chessLabel(row);
             const feedbackTotal = row.currentBoardSignal.helpfulCount + row.currentBoardSignal.notHelpfulCount;
@@ -439,10 +495,19 @@ export default function FounderOperationsConsole() {
                 <div data-label="PLAYER"><strong>{row.username}</strong><small>Chess.com ID {row.playerId}</small></div>
                 <div data-label="ACCESS"><strong>{accessOriginLabel(row)}</strong><small>{accessMethodLabel(row)}</small></div>
                 <div data-label="USAGE"><strong>{row.usage.roomVisitCount} visit{row.usage.roomVisitCount === 1 ? "" : "s"}</strong><small>{duration(row.usage.totalForegroundEngagedSeconds)} foreground engaged</small></div>
-                <div data-label="CHESS SINCE USE"><strong>{chess.primary}</strong><small>{chess.secondary}</small></div>
+                <div data-label="CHESS / PERIOD">
+                  <strong>{chess.primary}</strong>
+                  {chess.results ? <small>{chess.results}</small> : null}
+                  {chess.period ? <small>{chess.period}</small> : null}
+                  {chess.delta ? <small>{chess.delta}</small> : null}
+                  {chess.source !== chess.primary ? <small>{chess.source}</small> : null}
+                </div>
                 <div data-label="CURRENT BOARDSIGNAL">
                   <strong>{explicitUseCount(row)} explicit action{explicitUseCount(row) === 1 ? "" : "s"}</strong>
                   <small>{row.currentBoardSignal.noteCount} note{row.currentBoardSignal.noteCount === 1 ? "" : "s"} · {row.currentBoardSignal.askQuestionCount} Ask question{row.currentBoardSignal.askQuestionCount === 1 ? "" : "s"}</small>
+                  <small><strong>REVIEW · {row.review.status ?? "NOT CHECKED"}</strong></small>
+                  <small>{reviewProgressLabel(row)}</small>
+                  <small>{reviewHistoryLabel(row)}</small>
                   {coaching ? <>
                     <small><strong>{coachingLabel(row)}</strong> · LEVEL {coaching.level} / 3 · EVIDENCE {coaching.evidenceCount} / {coaching.gamesConsidered}</small>
                     <small>{reactions || "NO COACHING FEEDBACK YET"} · {coaching.needsReview ? "COACHING NEEDS REVIEW" : "Coaching current"}</small>

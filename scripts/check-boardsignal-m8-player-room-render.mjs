@@ -30,7 +30,7 @@ for (const theme of ["light", "dark"]) {
 
 async function waitForDevTools(profileDir, chromeProcess) {
   const portFile = join(profileDir, "DevToolsActivePort");
-  for (let attempt = 0; attempt < 200; attempt += 1) {
+  for (let attempt = 0; attempt < 600; attempt += 1) {
     if (chromeProcess.exitCode !== null) throw new Error(`Chrome exited before DevTools became available (${chromeProcess.exitCode}).`);
     if (existsSync(portFile)) {
       const [portText, browserPath] = readFileSync(portFile, "utf8").trim().split(/\r?\n/);
@@ -69,7 +69,52 @@ async function openCdp(webSocketUrl) {
       socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
   }
-  return { command, close: () => socket.close() };
+  return {
+    command,
+    close() {
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) socket.close();
+    },
+  };
+}
+
+function waitForProcessExit(process, timeoutMs) {
+  if (process.exitCode !== null) return Promise.resolve(true);
+  return new Promise((resolveExit) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolveExit(true);
+    };
+    const timer = setTimeout(() => {
+      process.off("exit", onExit);
+      resolveExit(false);
+    }, timeoutMs);
+    process.once("exit", onExit);
+  });
+}
+
+async function shutdownChrome(cdp, chromeProcess) {
+  if (chromeProcess.exitCode === null && cdp) {
+    await cdp.command("Browser.close").catch(() => undefined);
+  }
+  if (await waitForProcessExit(chromeProcess, 5000)) return;
+  if (chromeProcess.exitCode === null) chromeProcess.kill("SIGTERM");
+  if (await waitForProcessExit(chromeProcess, 5000)) return;
+  if (chromeProcess.exitCode === null) chromeProcess.kill("SIGKILL");
+  if (!await waitForProcessExit(chromeProcess, 5000)) throw new Error("Chrome did not exit after Browser.close, SIGTERM and SIGKILL.");
+}
+
+async function removeProfileDir(profileDir) {
+  let lastError;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    try {
+      rmSync(profileDir, { recursive: true, force: true, maxRetries: 4, retryDelay: 125 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await sleep(250);
+    }
+  }
+  throw lastError;
 }
 
 async function inspectCase(cdp, testCase) {
@@ -87,7 +132,7 @@ async function inspectCase(cdp, testCase) {
     }, sessionId);
     await cdp.command("Page.navigate", { url }, sessionId);
 
-    const deadline = Date.now() + 12000;
+    const deadline = Date.now() + 15000;
     let probe;
     while (Date.now() < deadline) {
       try {
@@ -109,7 +154,14 @@ async function inspectCase(cdp, testCase) {
           returnByValue: true,
         }, sessionId);
         probe = evaluated?.result?.value;
-        if (probe?.state === "pass" || probe?.state === "fail") break;
+        if (probe?.state === "fail") break;
+        if (
+          probe?.state === "pass"
+          && probe.progressiveCount === 1
+          && probe.level1Count === 1
+          && probe.level2Count === (level >= 2 ? 1 : 0)
+          && probe.level3Count === (level >= 3 ? 1 : 0)
+        ) break;
       } catch {
         // Navigation can replace the execution context while the QA route hydrates.
       }
@@ -119,7 +171,7 @@ async function inspectCase(cdp, testCase) {
     const captured = await cdp.command("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false }, sessionId);
     if (captured?.data) writeFileSync(screenshot, Buffer.from(captured.data, "base64"));
 
-    if (!probe || (probe.state !== "pass" && probe.state !== "fail")) throw new Error(`${slug}: render probe did not settle. Screenshot: ${screenshot}`);
+    if (!probe || probe.state === "checking" || probe.state === null) throw new Error(`${slug}: render probe did not settle. Screenshot: ${screenshot}`);
     if (probe.width !== width) throw new Error(`${slug}: requested viewport ${width}, measured ${probe.width ?? "unknown"}. Screenshot: ${screenshot}`);
     if (probe.progressiveCount !== 1) throw new Error(`${slug}: progressive coaching instances ${probe.progressiveCount}. Screenshot: ${screenshot}`);
     if (probe.level1Count !== 1) throw new Error(`${slug}: Level 1 count ${probe.level1Count}. Screenshot: ${screenshot}`);
@@ -138,6 +190,7 @@ async function inspectCase(cdp, testCase) {
 const profileDir = mkdtempSync(join(tmpdir(), "boardsignal-m8-chrome-"));
 const chromeProcess = spawn(chrome, [
   "--headless=new", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu", "--hide-scrollbars",
+  "--no-first-run", "--no-default-browser-check", "--disable-background-networking",
   "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", `--user-data-dir=${profileDir}`, "about:blank",
 ], { stdio: ["ignore", "ignore", "ignore"] });
 
@@ -160,11 +213,7 @@ try {
     console.log("BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_PASS");
   }
 } finally {
+  await shutdownChrome(cdp, chromeProcess);
   cdp?.close();
-  if (chromeProcess.exitCode === null) {
-    const exited = new Promise((resolveExit) => chromeProcess.once("exit", resolveExit));
-    chromeProcess.kill("SIGTERM");
-    await Promise.race([exited, sleep(2000)]);
-  }
-  rmSync(profileDir, { recursive: true, force: true, maxRetries: 8, retryDelay: 125 });
+  await removeProfileDir(profileDir);
 }

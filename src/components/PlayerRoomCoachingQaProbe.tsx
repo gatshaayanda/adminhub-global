@@ -84,7 +84,7 @@ export default function PlayerRoomCoachingQaProbe({ theme, level }: { theme: The
     let settled = false;
 
     const inspect = () => {
-      if (settled) return;
+      if (settled) return true;
       const result = document.getElementById("boardsignal-m8-player-room-qa-result");
       const target = document.querySelector<HTMLElement>(".g3-before-next-game");
       const progressive = document.querySelectorAll<HTMLElement>('[aria-label="Progressive coaching explanation"]');
@@ -142,13 +142,19 @@ export default function PlayerRoomCoachingQaProbe({ theme, level }: { theme: The
       return true;
     };
 
+    const inject = () => {
+      window.dispatchEvent(new CustomEvent("boardsignal:coaching-state", { detail: coaching }));
+    };
+
+    inject();
     const timer = window.setInterval(() => {
       attempts += 1;
-      window.dispatchEvent(new CustomEvent("boardsignal:coaching-state", { detail: coaching }));
-      window.requestAnimationFrame(() => {
-        if (inspect()) window.clearInterval(timer);
-      });
-      if (attempts >= 30 && !settled) {
+      // QA-only hold: Firebase has no authenticated player on this local route and may
+      // clear the production component state after our synthetic coaching event.
+      // Keep the fixture state present until CDP has completed its measurement.
+      inject();
+      if (!settled) window.requestAnimationFrame(() => { inspect(); });
+      if (attempts >= 60 && !settled) {
         window.clearInterval(timer);
         const result = document.getElementById("boardsignal-m8-player-room-qa-result");
         if (result) {

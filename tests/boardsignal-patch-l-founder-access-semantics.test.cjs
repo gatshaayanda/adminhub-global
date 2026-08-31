@@ -67,7 +67,7 @@ test('7. Founder operations API strips legacy request rows and request attention
 test('8. Founder operations no longer treats New requests or normal sign-in as attention work', () => {
   assert.doesNotMatch(operations, /\["New requests"/);
   assert.doesNotMatch(operations, /\["new_requests","NEW REQUESTS"\]/);
-  assert.match(operations, /attention:\{followUpsDue:number;unreadReplies:number;exceptions:number;identityConflicts:number\}/);
+  assert.match(operations, /attention:\s*\{\s*followUpsDue:\s*number;\s*unreadReplies:\s*number;\s*exceptions:\s*number;\s*identityConflicts:\s*number;\s*\}/);
   assert.match(operations, /Coaching feedback is product-quality intelligence; it never becomes an access, identity or approval queue\./);
 });
 

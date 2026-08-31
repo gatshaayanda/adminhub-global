@@ -23,7 +23,7 @@ test('Founder landing no longer mounts the eager signup/account repair dashboard
 
 test('Founder engagement GET is read-only and does not invoke repair/bootstrap operations', () => {
   assert.match(route, /founderOperationsState/);
-  assert.match(route, /where\("role", "==", "player"\)/);
+  assert.match(route, /where\(\s*"role"\s*,\s*"=="\s*,\s*"player"\s*\)/);
   assert.doesNotMatch(route, /founderOperationsSnapshot|reconcileFounder|refreshFounder|\.set\(|\.update\(|\.delete\(/);
 });
 
@@ -37,18 +37,18 @@ test('M4 uses compact explicit projections rather than raw event documents', () 
 });
 
 test('M3 visit semantics remain session-deduped while M4 records cumulative foreground time', () => {
-  assert.match(room, /lastCountedSessionId === sessionId/);
-  assert.match(room, /previousVisitCount: count/);
-  assert.match(room, /nextVisitCount: nextCount/);
+  assert.match(room, /lastCountedSessionId\s*===\s*sessionId/);
+  assert.match(room, /previousVisitCount:\s*count/);
+  assert.match(room, /nextVisitCount:\s*nextCount/);
   assert.match(room, /totalForegroundEngagedSeconds/);
-  assert.match(room, /latestSummarySessionId === sessionId/);
+  assert.match(room, /latestSummarySessionId\s*===\s*sessionId/);
 });
 
 test('Helpful, note and Ask projections are attached only to explicit actions', () => {
   assert.match(feedback, /recordFounderFeedbackProjection/);
   assert.match(journal, /recordFounderNoteActivityByUid/);
   assert.match(guide, /recordFounderAskUsageByUid/);
-  assert.match(guide, /body\.mode !== "beta_preview"/);
+  assert.match(guide, /body\.mode\s*!==\s*"beta_preview"/);
 });
 
 test('Founder privacy boundary does not read private journal or Ask conversation stores', () => {

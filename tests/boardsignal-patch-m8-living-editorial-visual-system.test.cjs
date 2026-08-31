@@ -46,7 +46,7 @@ test('Current BoardSignal has a live editorial surface without a pulsing live in
 test('Before Your Next Game is a distinct high-clarity cue, not a gamified panel', () => {
   const m8 = afterM8(playerRoom);
   assert.match(m8, /\.g3-before-next-game[\s\S]*border-left:\s*5px solid var\(--bs-lime\)/);
-  assert.match(m8, /\.g3-before-next-game p[\s\S]*max-width:\s*62ch/);
+  assert.match(m8, /\.g3-before-next-game > p[\s\S]*max-width:\s*62ch/);
   assert.doesNotMatch(m8, /streak|xp|level-up|combo|reward/i);
 });
 

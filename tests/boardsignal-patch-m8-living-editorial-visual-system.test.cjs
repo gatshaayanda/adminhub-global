@@ -50,13 +50,15 @@ test('Before Your Next Game is a distinct high-clarity cue, not a gamified panel
   assert.doesNotMatch(m8, /streak|xp|level-up|combo|reward/i);
 });
 
-test('M7 progressive coaching remains Level 1 first and deepens only to stored Levels 2 and 3', () => {
+test('M7 progressive coaching presents exactly the stored Level 1, 2 or 3 depth', () => {
   const level1 = coaching.indexOf('LEVEL 1 · QUICK CUE');
   const level2 = coaching.indexOf('LEVEL 2 · ANOTHER WAY TO THINK ABOUT IT');
   const level3 = coaching.indexOf('LEVEL 3 · HERE&apos;S ONE PLACE BOARDSIGNAL SAW IT');
   assert.ok(level1 >= 0 && level2 > level1 && level3 > level2);
-  assert.match(coaching, /coaching\.level>=2/);
-  assert.match(coaching, /coaching\.level>=3/);
+  assert.match(coaching, /coaching\.level===1/);
+  assert.match(coaching, /coaching\.level===2/);
+  assert.match(coaching, /coaching\.level===3/);
+  assert.doesNotMatch(coaching, /coaching\.level>=2|coaching\.level>=3/);
   assert.match(coachingStyles, /\.levelOne[\s\S]*border-left:4px solid var\(--bs-brand-primary\)/);
   assert.match(coachingStyles, /\.depthBlock \+ \.depthBlock[\s\S]*var\(--bs-lime-readable\)/);
 });

@@ -28,6 +28,14 @@ for (const theme of ["light", "dark"]) {
   }
 }
 
+function expectedCounts(level) {
+  return {
+    level1: level === 1 ? 1 : 0,
+    level2: level === 2 ? 1 : 0,
+    level3: level === 3 ? 1 : 0,
+  };
+}
+
 async function waitForDevTools(profileDir, chromeProcess) {
   const portFile = join(profileDir, "DevToolsActivePort");
   for (let attempt = 0; attempt < 600; attempt += 1) {
@@ -119,6 +127,7 @@ async function removeProfileDir(profileDir) {
 
 async function inspectCase(cdp, testCase) {
   const { theme, level, width, height } = testCase;
+  const expected = expectedCounts(level);
   const slug = `level-${level}-${theme}-${width}x${height}`;
   const screenshot = join(artifactDir, `${slug}.png`);
   const url = `${baseUrl}/boardsignal/qa/player-room-coaching?theme=${theme}&level=${level}`;
@@ -143,8 +152,12 @@ async function inspectCase(cdp, testCase) {
               state: result?.dataset.result ?? null,
               text: result?.textContent ?? "",
               width: window.innerWidth,
+              level1Contrast: result?.dataset.level1Contrast ?? null,
               level2Contrast: result?.dataset.level2Contrast ?? null,
               level3Contrast: result?.dataset.level3Contrast ?? null,
+              feedbackRows: Number(result?.dataset.feedbackRows ?? "0"),
+              levelThreeGameValid: result?.dataset.level3GameValid === "true",
+              levelThreeAskAvailable: result?.dataset.level3AskAvailable === "true",
               progressiveCount: document.querySelectorAll('[aria-label="Progressive coaching explanation"]').length,
               level1Count: [...document.querySelectorAll('[aria-label="Progressive coaching explanation"] span')].filter((node) => node.textContent?.startsWith('LEVEL 1 ·')).length,
               level2Count: document.querySelectorAll('[aria-label="Coaching level 2"]').length,
@@ -158,9 +171,10 @@ async function inspectCase(cdp, testCase) {
         if (
           probe?.state === "pass"
           && probe.progressiveCount === 1
-          && probe.level1Count === 1
-          && probe.level2Count === (level >= 2 ? 1 : 0)
-          && probe.level3Count === (level >= 3 ? 1 : 0)
+          && probe.level1Count === expected.level1
+          && probe.level2Count === expected.level2
+          && probe.level3Count === expected.level3
+          && probe.feedbackRows === 1
         ) break;
       } catch {
         // Navigation can replace the execution context while the QA route hydrates.
@@ -174,14 +188,19 @@ async function inspectCase(cdp, testCase) {
     if (!probe || probe.state === "checking" || probe.state === null) throw new Error(`${slug}: render probe did not settle. Screenshot: ${screenshot}`);
     if (probe.width !== width) throw new Error(`${slug}: requested viewport ${width}, measured ${probe.width ?? "unknown"}. Screenshot: ${screenshot}`);
     if (probe.progressiveCount !== 1) throw new Error(`${slug}: progressive coaching instances ${probe.progressiveCount}. Screenshot: ${screenshot}`);
-    if (probe.level1Count !== 1) throw new Error(`${slug}: Level 1 count ${probe.level1Count}. Screenshot: ${screenshot}`);
-    if (probe.level2Count !== (level >= 2 ? 1 : 0)) throw new Error(`${slug}: Level 2 count ${probe.level2Count}. Screenshot: ${screenshot}`);
-    if (probe.level3Count !== (level >= 3 ? 1 : 0)) throw new Error(`${slug}: Level 3 count ${probe.level3Count}. Screenshot: ${screenshot}`);
+    if (probe.level1Count !== expected.level1) throw new Error(`${slug}: Level 1 count ${probe.level1Count}, expected ${expected.level1}. Screenshot: ${screenshot}`);
+    if (probe.level2Count !== expected.level2) throw new Error(`${slug}: Level 2 count ${probe.level2Count}, expected ${expected.level2}. Screenshot: ${screenshot}`);
+    if (probe.level3Count !== expected.level3) throw new Error(`${slug}: Level 3 count ${probe.level3Count}, expected ${expected.level3}. Screenshot: ${screenshot}`);
+    if (probe.level1Count + probe.level2Count + probe.level3Count !== 1) throw new Error(`${slug}: multiple/zero active coaching levels. Screenshot: ${screenshot}`);
+    if (probe.feedbackRows !== 1) throw new Error(`${slug}: feedback rows ${probe.feedbackRows}. Screenshot: ${screenshot}`);
     if (probe.state !== "pass") throw new Error(`${slug}: ${probe.text || "render probe reported failure"}. Screenshot: ${screenshot}`);
-    if (level >= 2 && Number(probe.level2Contrast) < 4.5) throw new Error(`${slug}: Level 2 contrast ${probe.level2Contrast}. Screenshot: ${screenshot}`);
-    if (level >= 3 && Number(probe.level3Contrast) < 4.5) throw new Error(`${slug}: Level 3 contrast ${probe.level3Contrast}. Screenshot: ${screenshot}`);
+    if (level === 1 && Number(probe.level1Contrast) < 4.5) throw new Error(`${slug}: Level 1 contrast ${probe.level1Contrast}. Screenshot: ${screenshot}`);
+    if (level === 2 && Number(probe.level2Contrast) < 4.5) throw new Error(`${slug}: Level 2 contrast ${probe.level2Contrast}. Screenshot: ${screenshot}`);
+    if (level === 3 && Number(probe.level3Contrast) < 4.5) throw new Error(`${slug}: Level 3 contrast ${probe.level3Contrast}. Screenshot: ${screenshot}`);
+    if (level === 3 && probe.levelThreeGameValid !== true) throw new Error(`${slug}: Level 3 real game link is missing/invalid. Screenshot: ${screenshot}`);
+    if (level === 3 && probe.levelThreeAskAvailable !== true) throw new Error(`${slug}: Level 3 capped Ask continuation is missing. Screenshot: ${screenshot}`);
     if (!existsSync(screenshot)) throw new Error(`${slug}: Chrome did not create ${screenshot}`);
-    return `${slug}${probe.level2Contrast ? ` L2=${probe.level2Contrast}` : ""}${probe.level3Contrast ? ` L3=${probe.level3Contrast}` : ""}`;
+    return `${slug}${probe.level1Contrast ? ` L1=${probe.level1Contrast}` : ""}${probe.level2Contrast ? ` L2=${probe.level2Contrast}` : ""}${probe.level3Contrast ? ` L3=${probe.level3Contrast}` : ""} feedback=1`;
   } finally {
     await cdp.command("Target.closeTarget", { targetId }).catch(() => undefined);
   }

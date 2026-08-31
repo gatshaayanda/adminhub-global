@@ -94,32 +94,54 @@ export default function PlayerRoomCoachingQaProbe({ theme, level }: { theme: The
       const levelOneCount = [...root.querySelectorAll("span")].filter((node) => node.textContent?.startsWith("LEVEL 1 ·")).length;
       const levelTwoCount = root.querySelectorAll('[aria-label="Coaching level 2"]').length;
       const levelThreeCount = root.querySelectorAll('[aria-label="Coaching level 3"]').length;
+      const expectedLevelOne = level === 1 ? 1 : 0;
+      const expectedLevelTwo = level === 2 ? 1 : 0;
+      const expectedLevelThree = level === 3 ? 1 : 0;
       if (progressive.length !== 1) issues.push(`progressive:${progressive.length}`);
-      if (levelOneCount !== 1) issues.push(`level1:${levelOneCount}`);
-      if (levelTwoCount !== (level >= 2 ? 1 : 0)) issues.push(`level2:${levelTwoCount}`);
-      if (levelThreeCount !== (level >= 3 ? 1 : 0)) issues.push(`level3:${levelThreeCount}`);
+      if (levelOneCount !== expectedLevelOne) issues.push(`level1:${levelOneCount}`);
+      if (levelTwoCount !== expectedLevelTwo) issues.push(`level2:${levelTwoCount}`);
+      if (levelThreeCount !== expectedLevelThree) issues.push(`level3:${levelThreeCount}`);
+      if (levelOneCount + levelTwoCount + levelThreeCount !== 1) issues.push(`active-levels:${levelOneCount + levelTwoCount + levelThreeCount}`);
+
+      const feedbackButtons = [...root.querySelectorAll<HTMLButtonElement>('button[aria-label^="Level "]')];
+      const feedbackRows = new Set(feedbackButtons.map((button) => button.parentElement)).size;
+      if (feedbackRows !== 1 || feedbackButtons.length !== 2) issues.push(`feedback-rows:${feedbackRows}:buttons:${feedbackButtons.length}`);
 
       const nativeTitle = target.querySelector<HTMLElement>(":scope > h3");
       const nativeCopy = target.querySelector<HTMLElement>(":scope > p");
       if (!nativeTitle || contrast(nativeTitle) < 4.5) issues.push(`native-title-contrast:${nativeTitle ? contrast(nativeTitle).toFixed(2) : "missing"}`);
       if (!nativeCopy || contrast(nativeCopy) < 4.5) issues.push(`native-copy-contrast:${nativeCopy ? contrast(nativeCopy).toFixed(2) : "missing"}`);
 
+      let levelOneContrast: number | undefined;
+      if (level === 1) {
+        const provenance = root.querySelector<HTMLElement>("small");
+        levelOneContrast = provenance ? contrast(provenance) : 0;
+        if (!provenance || levelOneContrast < 4.5) issues.push(`level1-contrast:${levelOneContrast.toFixed(2)}`);
+      }
+
       let levelTwoContrast: number | undefined;
-      if (level >= 2) {
+      if (level === 2) {
         const levelTwoBody = root.querySelector<HTMLElement>('[aria-label="Coaching level 2"] > p');
         levelTwoContrast = levelTwoBody ? contrast(levelTwoBody) : 0;
         if (!levelTwoBody || levelTwoContrast < 4.5) issues.push(`level2-contrast:${levelTwoContrast.toFixed(2)}`);
       }
 
       let levelThreeContrast: number | undefined;
-      if (level >= 3) {
+      let levelThreeGameValid: boolean | undefined;
+      let levelThreeAskAvailable: boolean | undefined;
+      if (level === 3) {
         const levelThree = root.querySelector<HTMLElement>('[aria-label="Coaching level 3"]');
         const exampleText = levelThree ? [...levelThree.querySelectorAll<HTMLElement>("p")].find((node) => node.textContent?.includes("QA real example text")) : undefined;
         levelThreeContrast = exampleText ? contrast(exampleText) : 0;
         if (!exampleText || levelThreeContrast < 4.5) issues.push(`level3-contrast:${levelThreeContrast.toFixed(2)}`);
+        const gameLink = levelThree?.querySelector<HTMLAnchorElement>('a[href="https://www.chess.com/game/live/1"]');
+        levelThreeGameValid = Boolean(gameLink && gameLink.textContent?.includes("VIEW GAME"));
+        if (!levelThreeGameValid) issues.push("level3-game:missing");
+        levelThreeAskAvailable = Boolean([...root.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("ASK BOARDSIGNAL")));
+        if (!levelThreeAskAvailable) issues.push("level3-ask:missing");
       }
 
-      for (const button of root.querySelectorAll<HTMLButtonElement>('button[aria-label^="Level "]')) {
+      for (const button of feedbackButtons) {
         const rect = button.getBoundingClientRect();
         if (rect.width < 50 || rect.height < 48) {
           issues.push(`thumb-target:${Math.round(rect.width)}x${Math.round(rect.height)}`);
@@ -134,8 +156,12 @@ export default function PlayerRoomCoachingQaProbe({ theme, level }: { theme: The
       result.dataset.theme = theme;
       result.dataset.level = String(level);
       result.dataset.viewportWidth = String(window.innerWidth);
+      result.dataset.feedbackRows = String(feedbackRows);
+      if (levelOneContrast !== undefined) result.dataset.level1Contrast = levelOneContrast.toFixed(2);
       if (levelTwoContrast !== undefined) result.dataset.level2Contrast = levelTwoContrast.toFixed(2);
       if (levelThreeContrast !== undefined) result.dataset.level3Contrast = levelThreeContrast.toFixed(2);
+      if (levelThreeGameValid !== undefined) result.dataset.level3GameValid = String(levelThreeGameValid);
+      if (levelThreeAskAvailable !== undefined) result.dataset.level3AskAvailable = String(levelThreeAskAvailable);
       result.dataset.result = issues.length ? "fail" : "pass";
       result.textContent = issues.length ? `BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_FAIL:${issues.join(",")}` : "BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_PASS";
       settled = true;

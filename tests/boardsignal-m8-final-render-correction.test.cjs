@@ -38,12 +38,14 @@ test('Before Your Next Game inverse text is scoped to native direct children', (
   assert.doesNotMatch(g3, /!important/);
 });
 
-test('the real M7 component renders one progressive wrapper and one template per level', () => {
+test('the real M7 component renders one progressive wrapper and exactly one active level contract', () => {
   assert.equal(count(engagement, 'aria-label="Progressive coaching explanation"'), 1);
   assert.equal(count(engagement, 'aria-label="Coaching level 2"'), 1);
   assert.equal(count(engagement, 'aria-label="Coaching level 3"'), 1);
-  assert.match(engagement, /coaching\.level>=2/);
-  assert.match(engagement, /coaching\.level>=3/);
+  assert.match(engagement, /coaching\.level===1/);
+  assert.match(engagement, /coaching\.level===2/);
+  assert.match(engagement, /coaching\.level===3/);
+  assert.doesNotMatch(engagement, /coaching\.level>=2|coaching\.level>=3/);
 });
 
 test('coaching module retains semantic authority and existing thumb targets', () => {
@@ -62,18 +64,27 @@ test('local-only Chrome fixture mounts the real self-contained component once', 
   assert.match(qaProbe, /Progressive coaching explanation/);
 });
 
-test('rendered QA locks computed contrast, counts, overflow and touch targets', () => {
+test('rendered QA locks one-level counts, one feedback row, computed contrast, overflow and touch targets', () => {
+  assert.match(qaProbe, /expectedLevelOne/);
+  assert.match(qaProbe, /expectedLevelTwo/);
+  assert.match(qaProbe, /expectedLevelThree/);
+  assert.match(qaProbe, /feedbackRows !== 1/);
   assert.match(qaProbe, /contrast\(levelTwoBody\)/);
   assert.match(qaProbe, /levelTwoContrast < 4\.5/);
   assert.match(qaProbe, /levelThreeContrast < 4\.5/);
   assert.match(qaProbe, /nativeTitle\) < 4\.5/);
   assert.match(qaProbe, /nativeCopy\) < 4\.5/);
+  assert.match(qaProbe, /levelThreeGameValid/);
+  assert.match(qaProbe, /levelThreeAskAvailable/);
   assert.match(qaProbe, /scrollWidth > window\.innerWidth \+ 2/);
   assert.match(qaProbe, /rect\.width < 50 \|\| rect\.height < 48/);
   for (const width of ['320', '360', '390', '1365']) assert.ok(chrome.includes(width));
   for (const theme of ['light', 'dark']) assert.ok(chrome.includes(`"${theme}"`));
   for (const level of ['1', '2', '3']) assert.ok(chrome.includes(level));
   assert.match(chrome, /progressiveCount !== 1/);
+  assert.match(chrome, /feedbackRows !== 1/);
   assert.match(chrome, /Number\(probe\.level2Contrast\) < 4\.5/);
   assert.match(chrome, /Number\(probe\.level3Contrast\) < 4\.5/);
+  assert.match(chrome, /levelThreeGameValid !== true/);
+  assert.match(chrome, /levelThreeAskAvailable !== true/);
 });

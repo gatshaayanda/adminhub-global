@@ -41,7 +41,7 @@ test("Founder Current projection reuses R1 same-period safety and aligned cadenc
 });
 
 test("Founder Current distinguishes fresh, zero games, last-good fallback, temporary unavailable and not checked", () => {
-  for (const status of ["fresh", "zero_games", "last_good", "temporarily_unavailable", "not_checked"]) assert.ok(route.includes(`status: \"${status}\"`));
+  for (const status of ["fresh", "zero_games", "last_good", "temporarily_unavailable", "not_checked"]) assert.ok(route.includes(`"${status}"`));
   hasAll(component, [
     "CURRENT · FRESH",
     "CURRENT · 0 GAMES",

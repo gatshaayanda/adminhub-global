@@ -40,8 +40,9 @@ test('2. Current BoardSignal remains the live experience and Guidance points to 
   assert.match(room, /LIVE PLAYER VIEW/);
   assert.match(room, /BEFORE YOUR NEXT GAME/);
   assert.match(room, /WHAT BOARDSIGNAL IS WATCHING/);
-  assert.match(currentEngagement, /CURRENT PERIOD · PROVISIONAL/);
-  assert.match(currentEngagement, /LEVEL 1 · QUICK CUE/);
+  assert.match(currentEngagement, /TRY ANOTHER EXPLANATION/);
+  assert.match(currentEngagement, /Helpful\?/);
+  assert.doesNotMatch(currentEngagement, /LEVEL 1|LEVEL 2|LEVEL 3|automatic explanation ladder|no Level 4/);
 });
 
 test('3. completed historical objects remain Reviews rather than being renamed', () => {

@@ -8,14 +8,16 @@ import type {
 } from "@/lib/boardsignal/account";
 import {
   applyCoachingReaction,
+  coachingVariantsForState,
   cycleCoachingExample,
   firestoreSafeCoachingState,
   normalizeCurrentFeedbackItems,
   presentationFromCoachingState,
+  switchCoachingVariant,
 } from "@/lib/boardsignal/coaching";
 import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
 import { getAdminDb } from "@/utils/firebaseAdmin";
-import { recordFounderCoachingInteractionProjection, recordFounderFeedbackProjection } from "./founderEngagement";
+import { recordFounderCoachingInteractionProjection, recordFounderCoachingPresentationProjection, recordFounderFeedbackProjection } from "./founderEngagement";
 import { validStoredCoachingState } from "./coaching";
 
 const MAX_CURRENT_FEEDBACK_ITEMS = 24;
@@ -58,7 +60,7 @@ function cleanSignalKey(value: unknown) {
 function cleanLevel(value: unknown): BoardSignalCoachingLevel {
   const level = Number(value);
   if (level === 1 || level === 2 || level === 3) return level;
-  throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_LEVEL", "That coaching level is invalid.");
+  throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_INVALID_LEVEL", "That coaching explanation is invalid.");
 }
 
 function cleanReaction(value: unknown): BoardSignalCurrentReaction {
@@ -123,7 +125,6 @@ async function recordLegacyFeedback(uid: string, body: Record<string, unknown>) 
 
 export async function recordCurrentBoardSignalFeedback(uid: string, input: unknown) {
   const body = input && typeof input === "object" ? input as Record<string, unknown> : {};
-  // Compatibility bridge: old itemKey records remain valid historical feedback, but never write M7 reaction state or trigger coaching progression.
   if (!body.coachingSignalKey && body.itemKey) return recordLegacyFeedback(uid, body);
   const coachingSignalKey = cleanSignalKey(body.coachingSignalKey);
   const level = cleanLevel(body.level);
@@ -137,12 +138,12 @@ export async function recordCurrentBoardSignalFeedback(uid: string, input: unkno
     if (account.accessStatus && account.accessStatus !== "active") throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCESS_INACTIVE", "This BoardSignal access is not active.", 403);
     const state = validStoredCoachingState(account.coachingState);
     if (!state || state.coachingSignalKey !== coachingSignalKey) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_SIGNAL_CHANGED", "Your coaching signal has changed. Refresh before rating this explanation.", 409);
-    if (level > state.level) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_LEVEL_NOT_PRESENTED", "That coaching level has not been shown yet.", 409);
+    if (level !== state.level) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_LEVEL_NOT_PRESENTED", "That coaching explanation is not the one currently shown.", 409);
     const existingItems = feedbackForPeriod(account.currentBoardSignalFeedback, state.periodStart, state.periodEnd);
     const existing = existingItems.find((item): item is BoardSignalCoachingFeedbackItem => isM7Item(item) && item.coachingSignalKey === coachingSignalKey && item.level === level);
     const stateReaction = state.reactions?.[level];
     if (existing?.reaction === reaction && stateReaction?.reaction === reaction) {
-      return { feedback: { periodStart: state.periodStart, periodEnd: state.periodEnd, items: existingItems }, state, changed: false as const, advancedTo: undefined as number | undefined, level3Reached: false, ladderExhausted: false };
+      return { feedback: { periodStart: state.periodStart, periodEnd: state.periodEnd, items: existingItems }, state, changed: false as const };
     }
     const nowIso = new Date().toISOString();
     const item: BoardSignalCoachingFeedbackItem = { schemaVersion: 2, coachingSignalKey, level, reaction, reactedAt: nowIso };
@@ -151,7 +152,7 @@ export async function recordCurrentBoardSignalFeedback(uid: string, input: unkno
     const transition = applyCoachingReaction(state, level, reaction, nowIso);
     const nextState = firestoreSafeCoachingState(transition.state);
     transaction.set(ref, { currentBoardSignalFeedback: feedback, coachingState: nextState }, { merge: true });
-    return { feedback, state: nextState, changed: true as const, previousReaction: existing?.reaction, at: nowIso, advancedTo: transition.advancedTo, level3Reached: transition.level3Reached, ladderExhausted: transition.ladderExhausted };
+    return { feedback, state: nextState, changed: true as const, previousReaction: existing?.reaction, at: nowIso };
   });
   if (outcome.changed) {
     await recordFounderFeedbackProjection({
@@ -159,26 +160,19 @@ export async function recordCurrentBoardSignalFeedback(uid: string, input: unkno
       reaction,
       previousReaction: outcome.previousReaction,
       at: outcome.at,
-      coaching: {
-        family: outcome.state.family,
-        level,
-        l1DownToL2: level === 1 && reaction === "not_helpful" && outcome.advancedTo === 2,
-        l2DownToL3: level === 2 && reaction === "not_helpful" && outcome.advancedTo === 3,
-        level3Reached: outcome.level3Reached === true,
-        level3Down: level === 3 && reaction === "not_helpful" && outcome.ladderExhausted === true,
-      },
+      coaching: { family: outcome.state.family, variant: level },
     }).catch(() => undefined);
   }
   return { feedback: outcome.feedback, coaching: presentationFromCoachingState(outcome.state) };
 }
 
-export type CurrentCoachingInteraction = "next_example" | "view_game" | "ask_escalation";
+export type CurrentCoachingInteraction = "next_example" | "view_game" | "ask_escalation" | "switch_variant";
 
 export async function recordCurrentBoardSignalInteraction(uid: string, input: unknown) {
   const body = input && typeof input === "object" ? input as Record<string, unknown> : {};
   const coachingSignalKey = cleanSignalKey(body.coachingSignalKey);
   const action = body.action;
-  if (action !== "next_example" && action !== "view_game" && action !== "ask_escalation") {
+  if (action !== "next_example" && action !== "view_game" && action !== "ask_escalation" && action !== "switch_variant") {
     throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_UNKNOWN_ACTION", "That coaching interaction is not supported.");
   }
   const db = getAdminDb();
@@ -189,26 +183,38 @@ export async function recordCurrentBoardSignalInteraction(uid: string, input: un
     const account = snapshot.data() as { accessStatus?: string; coachingState?: unknown; currentBoardSignalFeedback?: BoardSignalCurrentFeedback };
     if (account.accessStatus && account.accessStatus !== "active") throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ACCESS_INACTIVE", "This BoardSignal access is not active.", 403);
     const state = validStoredCoachingState(account.coachingState);
-    if (!state || state.coachingSignalKey !== coachingSignalKey) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_SIGNAL_CHANGED", "Your coaching signal has changed. Refresh before using this example.", 409);
+    if (!state || state.coachingSignalKey !== coachingSignalKey) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_SIGNAL_CHANGED", "Your coaching signal has changed. Refresh before using this explanation.", 409);
     const nowIso = new Date().toISOString();
     let nextState = state;
-    if (action === "next_example") {
+    let switchedVariant: BoardSignalCoachingLevel | undefined;
+    if (action === "switch_variant") {
+      const variant = cleanLevel(body.variant);
+      if (!coachingVariantsForState(state).includes(variant)) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_VARIANT_UNAVAILABLE", "That explanation is not available for this coaching signal yet.", 409);
+      nextState = switchCoachingVariant(state, variant, nowIso);
+      if (nextState === state) return { state, feedback: account.currentBoardSignalFeedback, changed: false as const, action, switchedVariant: undefined };
+      switchedVariant = variant;
+    } else if (action === "next_example") {
       nextState = cycleCoachingExample(state, nowIso);
-      if (nextState === state) return { state, feedback: account.currentBoardSignalFeedback, changed: false as const };
+      if (nextState === state) return { state, feedback: account.currentBoardSignalFeedback, changed: false as const, action, switchedVariant: undefined };
     } else if (action === "view_game") {
       const selected = state.selectedExampleId ? state.examples.find((example) => example.id === state.selectedExampleId) ?? state.selectedExampleSnapshot : state.selectedExampleSnapshot;
-      if (state.level < 3 || !selected?.gameUrl) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_GAME_UNAVAILABLE", "This example does not have a stored game link.", 409);
+      if (state.level !== 3 || !selected?.gameUrl) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_GAME_UNAVAILABLE", "This example does not have a stored game link.", 409);
       nextState = { ...state, viewGameCount: (state.viewGameCount ?? 0) + 1, updatedAt: nowIso };
     } else {
-      if (state.level < 3) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ASK_TOO_EARLY", "Ask escalation becomes available after the coaching ladder reaches Level 3.", 409);
+      if (state.level !== 3) throw new CurrentBoardSignalFeedbackError("CURRENT_FEEDBACK_ASK_TOO_EARLY", "Ask about this example becomes available when the game example is shown.", 409);
       nextState = { ...state, askEscalationAt: state.askEscalationAt ?? nowIso, updatedAt: nowIso };
     }
-    if (nextState !== state) {
-      nextState = firestoreSafeCoachingState(nextState);
-      transaction.set(ref, { coachingState: nextState }, { merge: true });
-    }
-    return { state: nextState, feedback: account.currentBoardSignalFeedback, changed: nextState !== state };
+    nextState = firestoreSafeCoachingState(nextState);
+    transaction.set(ref, { coachingState: nextState }, { merge: true });
+    return { state: nextState, feedback: account.currentBoardSignalFeedback, changed: true as const, action, switchedVariant };
   });
-  if (outcome.changed) await recordFounderCoachingInteractionProjection({ uid, action, at: new Date().toISOString() }).catch(() => undefined);
+  if (outcome.changed) {
+    const at = new Date().toISOString();
+    if (outcome.action === "switch_variant" && outcome.switchedVariant) {
+      await recordFounderCoachingPresentationProjection({ uid, source: "MANUAL_SWITCH", variant: outcome.switchedVariant, at }).catch(() => undefined);
+    } else {
+      await recordFounderCoachingInteractionProjection({ uid, action: outcome.action as "next_example" | "view_game" | "ask_escalation", at }).catch(() => undefined);
+    }
+  }
   return { feedback: outcome.feedback, coaching: presentationFromCoachingState(outcome.state) };
 }

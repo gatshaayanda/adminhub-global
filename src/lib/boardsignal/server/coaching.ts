@@ -3,6 +3,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import type { BoardSignalAccount, BoardSignalCoachingPresentation, BoardSignalCoachingState } from "@/lib/boardsignal/account";
 import type { CurrentEpisodeWithNextGameGuidance } from "@/lib/boardsignal/activeWeekGuidance";
 import {
+  activeCoachingPresentationCopy,
+  automaticVariantCursorForState,
   coachingCandidateForEpisode,
   firestoreSafeCoachingState,
   mergeSameSignalState,
@@ -18,6 +20,8 @@ export function validStoredCoachingState(value: unknown): BoardSignalCoachingSta
   if (state.schemaVersion !== 2) return undefined;
   if (typeof state.coachingSignalKey !== "string" || !state.coachingSignalKey.startsWith("m7:")) return undefined;
   if (![1, 2, 3].includes(Number(state.level))) return undefined;
+  if (state.automaticVariantCursor !== undefined && ![1, 2, 3].includes(Number(state.automaticVariantCursor))) return undefined;
+  if (state.lastPresentationSource !== undefined && state.lastPresentationSource !== "AUTO_RETURN" && state.lastPresentationSource !== "MANUAL_SWITCH") return undefined;
   if (typeof state.periodStart !== "string" || typeof state.periodEnd !== "string") return undefined;
   if (typeof state.cueTitle !== "string" || typeof state.cueCopy !== "string" || typeof state.level2Copy !== "string") return undefined;
   if (!Array.isArray(state.examples) || !Array.isArray(state.presentedSessionIds)) return undefined;
@@ -45,6 +49,7 @@ export async function reconcilePlayerCoachingState(
       }
       const retained = firestoreSafeCoachingState({
         ...existing,
+        automaticVariantCursor: automaticVariantCursorForState(existing),
         gamesConsidered: Math.max(existing.gamesConsidered, episode.games),
         updatedAt: nowIso,
       });
@@ -55,7 +60,7 @@ export async function reconcilePlayerCoachingState(
     if (!existing || existing.periodStart !== candidate.periodStart) next = stateForNewCandidate(candidate, nowIso);
     else if (existing.coachingSignalKey === candidate.key) next = mergeSameSignalState(existing, candidate, nowIso);
     else if (shouldReplaceIncumbentSignal(existing, candidate)) next = stateForNewCandidate(candidate, nowIso);
-    else next = { ...existing, gamesConsidered: Math.max(existing.gamesConsidered, candidate.gamesConsidered), updatedAt: nowIso };
+    else next = { ...existing, automaticVariantCursor: automaticVariantCursorForState(existing), gamesConsidered: Math.max(existing.gamesConsidered, candidate.gamesConsidered), updatedAt: nowIso };
     const persistedNext = firestoreSafeCoachingState(next);
     transaction.set(ref, { coachingState: persistedNext }, { merge: true });
     return persistedNext;
@@ -70,12 +75,13 @@ export function episodeWithCanonicalCoaching(
   if (!coaching) return episode;
   const supportingFacts = coaching.provenance === "current_period" ? coaching.examples.map((example) => ({ ...example })) : [];
   const latestMatch = episode.latestGame?.gameId ? coaching.examples.find((example) => example.gameId === episode.latestGame?.gameId) : undefined;
+  const visible = activeCoachingPresentationCopy(coaching);
   const guidance = {
     ...episode.nextGameGuidance,
     family: (coaching.family ?? episode.nextGameGuidance.family) as typeof episode.nextGameGuidance.family,
     source: coaching.source as typeof episode.nextGameGuidance.source,
-    title:coaching.cueTitle,
-    copy:coaching.cueCopy,
+    title: visible.title,
+    copy: visible.copy,
     evidenceCount: coaching.evidenceCount,
     gamesConsidered: coaching.gamesConsidered,
     supportingFacts,
@@ -99,7 +105,6 @@ export function episodeWithCanonicalCoaching(
       evidenceCount: coaching.evidenceCount,
       gamesConsidered: coaching.gamesConsidered,
       selectedExample: coaching.selectedExample,
-      ladderExhaustedAt: coaching.ladderExhaustedAt,
     },
   } as typeof episode.nextGameGuidance & { m7: Record<string, unknown> };
   const latestGame = episode.latestGame

@@ -23,9 +23,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function omitUndefinedDeep<T>(value: T): T {
   if (Array.isArray(value)) {
-    return value
-      .filter((item) => item !== undefined)
-      .map((item) => omitUndefinedDeep(item)) as T;
+    return value.filter((item) => item !== undefined).map((item) => omitUndefinedDeep(item)) as T;
   }
   if (!isPlainObject(value)) return value;
   const cleaned: Record<string, unknown> = {};
@@ -195,6 +193,41 @@ function uniqueExamples(items: BoardSignalCoachingExample[]) {
     .slice(0, M7_MAX_EXAMPLES);
 }
 
+function hasRealExample(state: Pick<BoardSignalCoachingState, "examples" | "selectedExampleSnapshot">) {
+  return (state.examples ?? []).length > 0 || Boolean(state.selectedExampleSnapshot);
+}
+
+export function coachingVariantsForState(state: Pick<BoardSignalCoachingState, "examples" | "selectedExampleSnapshot">): BoardSignalCoachingLevel[] {
+  return hasRealExample(state) ? [1, 2, 3] : [1, 2];
+}
+
+function nextVariantAfter(state: Pick<BoardSignalCoachingState, "examples" | "selectedExampleSnapshot">, level: BoardSignalCoachingLevel) {
+  const variants = coachingVariantsForState(state);
+  const index = variants.indexOf(level);
+  return variants[(index >= 0 ? index + 1 : 0) % variants.length];
+}
+
+export function automaticVariantCursorForState(state: Pick<BoardSignalCoachingState, "level" | "automaticVariantCursor" | "examples" | "selectedExampleSnapshot">) {
+  const variants = coachingVariantsForState(state);
+  if (state.automaticVariantCursor && variants.includes(state.automaticVariantCursor)) return state.automaticVariantCursor;
+  if (!variants.includes(state.level)) return variants[0];
+  return nextVariantAfter(state, state.level);
+}
+
+export function selectedCoachingExample(state: Pick<BoardSignalCoachingState, "examples" | "selectedExampleId" | "selectedExampleSnapshot">) {
+  const examples = uniqueExamples(state.examples ?? []);
+  return state.selectedExampleId ? examples.find((example) => example.id === state.selectedExampleId) ?? state.selectedExampleSnapshot : state.selectedExampleSnapshot ?? examples[0];
+}
+
+export function activeCoachingPresentationCopy(state: Pick<BoardSignalCoachingState, "level" | "cueTitle" | "cueCopy" | "level2Copy" | "examples" | "selectedExampleId" | "selectedExampleSnapshot">) {
+  if (state.level === 2) return { title: state.cueTitle, copy: state.level2Copy };
+  if (state.level === 3) {
+    const selected = selectedCoachingExample(state);
+    if (selected?.summary) return { title: state.cueTitle, copy: selected.summary };
+  }
+  return { title: state.cueTitle, copy: state.cueCopy };
+}
+
 export function stateForNewCandidate(candidate: CoachingCandidate, nowIso: string): BoardSignalCoachingState {
   const selected = candidate.examples[0];
   return {
@@ -207,6 +240,7 @@ export function stateForNewCandidate(candidate: CoachingCandidate, nowIso: strin
     provenance: candidate.provenance,
     ...(candidate.previousReviewPeriod !== undefined ? { previousReviewPeriod: candidate.previousReviewPeriod } : {}),
     level: 1,
+    automaticVariantCursor: 2,
     cueTitle: candidate.cueTitle,
     cueCopy: candidate.cueCopy,
     level2Copy: candidate.level2Copy,
@@ -228,6 +262,7 @@ export function mergeSameSignalState(existing: BoardSignalCoachingState, candida
   const examples = uniqueExamples([...(selected ? [selected] : []), ...candidate.examples, ...(existing.examples ?? [])]);
   const family = candidate.family ?? existing.family;
   const previousReviewPeriod = candidate.previousReviewPeriod ?? existing.previousReviewPeriod;
+  const rotationBase = { ...existing, examples, ...(selected ? { selectedExampleSnapshot: selected } : {}) };
   return {
     ...existing,
     schemaVersion: M7_COACHING_SCHEMA_VERSION,
@@ -235,6 +270,7 @@ export function mergeSameSignalState(existing: BoardSignalCoachingState, candida
     source: candidate.source,
     provenance: candidate.provenance,
     ...(previousReviewPeriod !== undefined ? { previousReviewPeriod } : {}),
+    automaticVariantCursor: automaticVariantCursorForState(rotationBase),
     evidenceCount: candidate.evidenceCount,
     gamesConsidered: candidate.gamesConsidered,
     examples,
@@ -245,47 +281,69 @@ export function mergeSameSignalState(existing: BoardSignalCoachingState, candida
 
 export function presentationFromCoachingState(state: BoardSignalCoachingState): BoardSignalCoachingPresentation {
   const examples = uniqueExamples(state.examples ?? []);
-  const selectedExample = state.selectedExampleId ? examples.find((example) => example.id === state.selectedExampleId) ?? state.selectedExampleSnapshot : state.selectedExampleSnapshot ?? examples[0];
-  return { ...state, examples, selectedExample, hold: state.level >= 3 };
+  const selectedExample = selectedCoachingExample({ ...state, examples });
+  return { ...state, examples, selectedExample, hold: state.level === 3 };
 }
 
 export type SessionPresentationResult = {
   state: BoardSignalCoachingState;
   advanced: boolean;
   previousLevel: BoardSignalCoachingLevel;
-  reachedLevel3: boolean;
   coalesced: boolean;
+  automaticPresentation: boolean;
 };
 
 export function presentCoachingForSession(state: BoardSignalCoachingState, sessionId: string, nowMs: number): SessionPresentationResult {
   const previousLevel = state.level;
   const ids = Array.isArray(state.presentedSessionIds) ? state.presentedSessionIds : [];
-  if (ids.includes(sessionId)) return { state, advanced: false, previousLevel, reachedLevel3: false, coalesced: false };
+  if (ids.includes(sessionId)) return { state, advanced: false, previousLevel, coalesced: false, automaticPresentation: false };
   const nowIso = new Date(nowMs).toISOString();
   const lastPresentationMs = state.lastPresentationAt ? Date.parse(state.lastPresentationAt) : NaN;
   const coalesced = Number.isFinite(lastPresentationMs) && nowMs - lastPresentationMs < M7_CONCURRENT_SESSION_COALESCE_MS;
   const firstPresentation = ids.length === 0;
-  const canReachLevel3 = (state.examples ?? []).length > 0 || Boolean(state.selectedExampleSnapshot);
-  let level = previousLevel;
-  let advanced = false;
-  if (!firstPresentation && !coalesced && previousLevel < 3) {
-    const proposed = (previousLevel + 1) as BoardSignalCoachingLevel;
-    if (proposed < 3 || canReachLevel3) {
-      level = proposed;
-      advanced = true;
-    }
-  }
   const presentedSessionIds = [...ids.filter((value) => value !== sessionId), sessionId].slice(-M7_MAX_PRESENTED_SESSION_IDS);
+  if (coalesced) {
+    return {
+      state: { ...state, automaticVariantCursor: automaticVariantCursorForState(state), presentedSessionIds, lastPresentationAt: nowIso, updatedAt: nowIso },
+      advanced: false,
+      previousLevel,
+      coalesced: true,
+      automaticPresentation: false,
+    };
+  }
+  const level = firstPresentation ? 1 : automaticVariantCursorForState(state);
+  const automaticVariantCursor = nextVariantAfter(state, level);
+  const advanced = !firstPresentation && level !== previousLevel;
   const next: BoardSignalCoachingState = {
     ...state,
     level,
+    automaticVariantCursor,
+    automaticPresentationCount: Math.max(0, Number(state.automaticPresentationCount ?? 0)) + 1,
+    lastPresentationSource: "AUTO_RETURN",
     presentedSessionIds,
     lastPresentationAt: nowIso,
     ...(advanced ? { lastMeaningfulAdvanceAt: nowIso } : {}),
-    ...(level === 3 && previousLevel < 3 ? { level3ReachedAt: state.level3ReachedAt ?? nowIso } : {}),
     updatedAt: nowIso,
   };
-  return { state: next, advanced, previousLevel, reachedLevel3: level === 3 && previousLevel < 3, coalesced };
+  return { state: next, advanced, previousLevel, coalesced: false, automaticPresentation: true };
+}
+
+export function switchCoachingVariant(state: BoardSignalCoachingState, variant: BoardSignalCoachingLevel, nowIso: string) {
+  const variants = coachingVariantsForState(state);
+  if (!variants.includes(variant) || variant === state.level) return state;
+  return {
+    ...state,
+    level: variant,
+    automaticVariantCursor: automaticVariantCursorForState(state),
+    lastPresentationSource: "MANUAL_SWITCH",
+    lastManualVariantSwitchAt: nowIso,
+    manualVariantSwitchCount: Math.max(0, Number(state.manualVariantSwitchCount ?? 0)) + 1,
+    updatedAt: nowIso,
+  } satisfies BoardSignalCoachingState;
+}
+
+export function nextManualCoachingVariant(state: BoardSignalCoachingState) {
+  return nextVariantAfter(state, state.level);
 }
 
 function isLegacyFeedbackItem(value: unknown): value is BoardSignalLegacyCurrentFeedbackItem {
@@ -302,9 +360,7 @@ function isM7FeedbackItem(value: unknown): value is BoardSignalCoachingFeedbackI
 
 export function normalizeCurrentFeedbackItems(value: unknown, maxItems = 24): BoardSignalCurrentFeedbackItem[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is BoardSignalCurrentFeedbackItem => isLegacyFeedbackItem(item) || isM7FeedbackItem(item))
-    .slice(0, maxItems);
+  return value.filter((item): item is BoardSignalCurrentFeedbackItem => isLegacyFeedbackItem(item) || isM7FeedbackItem(item)).slice(0, maxItems);
 }
 
 export type CoachingReactionTransition = {
@@ -320,29 +376,17 @@ export function applyCoachingReaction(
   reaction: BoardSignalCurrentReaction,
   nowIso: string,
 ): CoachingReactionTransition {
-  let nextLevel = state.level;
-  let level3Reached = false;
-  let ladderExhausted = false;
-  if (reaction === "not_helpful" && level === 1 && state.level === 1) nextLevel = 2;
-  if (reaction === "not_helpful" && level === 2 && state.level <= 2 && ((state.examples ?? []).length > 0 || state.selectedExampleSnapshot)) {
-    nextLevel = 3;
-    level3Reached = state.level < 3;
-  }
-  if (reaction === "not_helpful" && level === 3) ladderExhausted = true;
   const next: BoardSignalCoachingState = {
     ...state,
-    level: nextLevel,
     reactions: { ...(state.reactions ?? {}), [level]: { reaction, reactedAt: nowIso } },
-    ...(level3Reached ? { level3ReachedAt: state.level3ReachedAt ?? nowIso } : {}),
-    ...(ladderExhausted ? { ladderExhaustedAt: state.ladderExhaustedAt ?? nowIso } : {}),
     updatedAt: nowIso,
   };
-  return { state: next, advancedTo: nextLevel > state.level ? nextLevel : undefined, level3Reached, ladderExhausted };
+  return { state: next, advancedTo: undefined, level3Reached: false, ladderExhausted: false };
 }
 
 export function cycleCoachingExample(state: BoardSignalCoachingState, nowIso: string) {
   const examples = uniqueExamples(state.examples ?? []);
-  if (state.level < 3 || examples.length < 2) return state;
+  if (state.level !== 3 || examples.length < 2) return state;
   const currentIndex = Math.max(0, examples.findIndex((example) => example.id === state.selectedExampleId));
   const selected = examples[(currentIndex + 1) % examples.length];
   return {

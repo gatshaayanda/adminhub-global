@@ -2,7 +2,7 @@ import "server-only";
 import type { BoardSignalAccount, BoardSignalCoachingPresentation, BoardSignalPlayerRoomEngagement, BoardSignalTrustpilotResolution, BoardSignalTrustpilotReviewInvitation } from "@/lib/boardsignal/account";
 import { firestoreSafeCoachingState, presentCoachingForSession, presentationFromCoachingState } from "@/lib/boardsignal/coaching";
 import { getAdminDb } from "@/utils/firebaseAdmin";
-import { recordFounderCoachingProgressionProjection, recordFounderRoomEntryProjection, recordFounderSessionProjection } from "./founderEngagement";
+import { recordFounderCoachingPresentationProjection, recordFounderRoomEntryProjection, recordFounderSessionProjection } from "./founderEngagement";
 import { validStoredCoachingState } from "./coaching";
 
 const MAX_FOREGROUND_SECONDS = 6 * 60 * 60;
@@ -94,6 +94,9 @@ export async function recordPlayerRoomEntry(uid: string, input: unknown) {
     const storedCoaching = validStoredCoachingState(account.coachingState);
     const coachingPresentation = storedCoaching ? presentCoachingForSession(storedCoaching, sessionId, nowMs) : undefined;
     const persistedCoaching = coachingPresentation ? firestoreSafeCoachingState(coachingPresentation.state) : undefined;
+    const coachingProjection = coachingPresentation?.automaticPresentation && persistedCoaching
+      ? { source: "AUTO_RETURN" as const, variant: persistedCoaching.level, at: nowIso }
+      : undefined;
 
     if (engagement?.lastCountedSessionId === sessionId) {
       if (persistedCoaching && coachingPresentation?.state !== storedCoaching) {
@@ -102,7 +105,7 @@ export async function recordPlayerRoomEntry(uid: string, input: unknown) {
       return {
         result: resultFor("duplicate", count, invitation, founder, persistedCoaching ? presentationFromCoachingState(persistedCoaching) : undefined),
         projection: undefined,
-        coachingProjection: coachingPresentation?.reachedLevel3 ? { reachedLevel3: true, at: nowIso } : undefined,
+        coachingProjection,
       };
     }
 
@@ -127,11 +130,11 @@ export async function recordPlayerRoomEntry(uid: string, input: unknown) {
     return {
       result: resultFor("recorded", nextCount, nextInvitation, founder, persistedCoaching ? presentationFromCoachingState(persistedCoaching) : undefined),
       projection: { account, previousVisitCount: count, nextVisitCount: nextCount, accessProvider: body.accessProvider, at: nowIso },
-      coachingProjection: coachingPresentation?.reachedLevel3 ? { reachedLevel3: true, at: nowIso } : undefined,
+      coachingProjection,
     };
   });
   if (outcome.projection) await recordFounderRoomEntryProjection(outcome.projection).catch(() => undefined);
-  if (outcome.coachingProjection) await recordFounderCoachingProgressionProjection(outcome.coachingProjection).catch(() => undefined);
+  if (outcome.coachingProjection) await recordFounderCoachingPresentationProjection({ uid, ...outcome.coachingProjection }).catch(() => undefined);
   return outcome.result;
 }
 

@@ -12,6 +12,7 @@ export type StableChessComIdentity = { playerId: number; canonicalUsername: stri
 export type BoardSignalPrivacySettings = { publicPlayerPage: boolean; universeCoverage: boolean; additionalPositiveHighlights?: boolean; publicGameLinks?: boolean; expandedPublicProfile?: boolean };
 export type BoardSignalCurrentReaction = "helpful" | "not_helpful";
 export type BoardSignalCoachingLevel = 1 | 2 | 3;
+export type BoardSignalCoachingPresentationSource = "AUTO_RETURN" | "MANUAL_SWITCH";
 export type BoardSignalLegacyCurrentFeedbackItem = { itemKey: string; reaction: BoardSignalCurrentReaction; reactedAt: string; schemaVersion?: 1 };
 export type BoardSignalCoachingFeedbackItem = { schemaVersion: 2; coachingSignalKey: string; level: BoardSignalCoachingLevel; reaction: BoardSignalCurrentReaction; reactedAt: string };
 export type BoardSignalCurrentFeedbackItem = BoardSignalLegacyCurrentFeedbackItem | BoardSignalCoachingFeedbackItem;
@@ -21,6 +22,8 @@ export type BoardSignalCoachingExample = { id: string; gameId?: string; gameUrl?
 export type BoardSignalCoachingState = {
   schemaVersion: 2; coachingSignalKey: string; periodStart: string; periodEnd: string; family?: string; source: string;
   provenance: "current_period" | "previous_review"; previousReviewPeriod?: string; level: BoardSignalCoachingLevel;
+  automaticVariantCursor?: BoardSignalCoachingLevel; automaticPresentationCount?: number; manualVariantSwitchCount?: number;
+  lastPresentationSource?: BoardSignalCoachingPresentationSource; lastManualVariantSwitchAt?: string;
   cueTitle: string; cueCopy: string; level2Copy: string; evidenceCount: number; gamesConsidered: number;
   reactions: Partial<Record<BoardSignalCoachingLevel, BoardSignalCoachingReaction>>; examples: BoardSignalCoachingExample[];
   selectedExampleId?: string; selectedExampleSnapshot?: BoardSignalCoachingExample; presentedSessionIds: string[];

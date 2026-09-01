@@ -15,7 +15,7 @@ import type { FoundingBetaRequest } from "./betaRequests";
 import { logReadBudget } from "./firestoreService";
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]{2,50}$/;
-const FOUNDER_DIRECTORY_VERSION = "boardsignal-founder-directory-v1" as const;
+const FOUNDER_DIRECTORY_VERSION = "boardsignal-founder-directory-v2" as const;
 const FOUNDER_DIRECTORY_LIMIT = 200;
 const FOUNDER_DIRECTORY_TTL_MS = 15 * 60 * 1000;
 const FOUNDER_DIRECTORY_LEASE_MS = 15_000;

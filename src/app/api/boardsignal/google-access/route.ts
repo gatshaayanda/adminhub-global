@@ -11,6 +11,7 @@ import {
   resolveGoogleOnboardingProfile,
 } from "@/lib/boardsignal/server/googleOnboarding";
 import { refreshFounderPlayerSummaryByUid } from "@/lib/boardsignal/server/founderOperations";
+import { refreshFounderDirectoryPlayer } from "@/lib/boardsignal/server/betaAccess";
 import { evaluateBetaAccessAttempt, isValidBetaAccessCode, type BetaAccessRecord } from "@/lib/boardsignal/auth/betaAccess";
 import type { BoardSignalAccount } from "@/lib/boardsignal/account";
 import { resolveChessComPlayer } from "@/lib/boardsignal/processor";
@@ -86,9 +87,11 @@ export async function POST(request: Request) {
       if (result.created) {
         // This is the only Google path allowed to add a BoardSignal player.
         await recordGoogleAccessOrigin(result.uid, "new_player_via_google", true).catch(() => undefined);
-        // Founder/public player truth must move with the canonical player creation.
-        // Telemetry failure must never block the player from entering BoardSignal.
-        await refreshFounderPlayerSummaryByUid(result.uid).catch(() => undefined);
+        // Founder/public player truth and the Founder directory must move with the
+        // canonical player creation. Telemetry failure must never block entry.
+        await refreshFounderPlayerSummaryByUid(result.uid)
+          .then(() => refreshFounderDirectoryPlayer(result.playerId))
+          .catch(() => undefined);
       }
       return response({ ok: true, result }, result.created ? 201 : 200);
     }

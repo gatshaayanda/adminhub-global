@@ -20,8 +20,16 @@ const founderRoute = read("src/app/api/admin/boardsignal/identity-access/route.t
 const founderUi = read("src/components/FounderIdentityAccessCases.tsx");
 const founderPage = read("src/app/admin/players/page.tsx");
 const betaPanel = read("src/components/FoundingBetaAccessPanel.tsx");
+const founderBetaAccess = read("src/lib/boardsignal/server/betaAccess.ts");
+const adminBetaAccessRoute = read("src/app/api/admin/boardsignal/beta-access/route.ts");
 
 function hasAll(source, values) { for (const value of values) assert.ok(source.includes(value), `Missing: ${value}`); }
+function block(source, startNeedle, endNeedle) {
+  const start = source.indexOf(startNeedle);
+  assert.notEqual(start, -1, `Missing block start: ${startNeedle}`);
+  const end = endNeedle ? source.indexOf(endNeedle, start + startNeedle.length) : source.length;
+  return source.slice(start, end === -1 ? source.length : end);
+}
 
 test("1-6 new Google-first player maps Google and Chess identity atomically without approval/password", () => {
   hasAll(onboarding, ["runTransaction", "transaction.set(subjectRef", "transaction.set(playerRef", "transaction.set(userRef", "CHESS_PROFILE_ALREADY_HAS_BOARDSIGNAL", "createCustomToken(result.account.uid"]);
@@ -109,6 +117,49 @@ test("R1.1 F explicit agreement acceptance still records current terms and reloa
   hasAll(playerRoom, ["body: JSON.stringify({ action: \"acceptAgreement\" })", "if (user) await loadRoom(user);"]);
   hasAll(playerRoomRoute, ["if (!hasAcceptedCurrentBetaAgreement(account))", "if (body.action === \"acceptAgreement\") return response({ ok: true, account: await acceptFoundingBetaAgreement(token) });"]);
   hasAll(persistence, ["betaAgreementVersion: FOUNDING_BETA_AGREEMENT_VERSION", "betaAgreementAcceptedAt: acceptedAt", "collection(\"users\").doc(account.uid).set(update, { merge: true })"]);
+});
+
+test("R1.2 A-B new Google onboarding refreshes Founder directory after summary and keeps telemetry non-blocking", () => {
+  const claim = block(googleRoute, "if (action === \"claimProfile\")", "if (action === \"recoverLegacy\")");
+  hasAll(claim, [
+    "if (result.created)",
+    "refreshFounderPlayerSummaryByUid(result.uid)",
+    "refreshFounderDirectoryPlayer(result.playerId)",
+    ".catch(() => undefined)",
+    "return response({ ok: true, result }, result.created ? 201 : 200)",
+  ]);
+  assert.ok(claim.indexOf("refreshFounderPlayerSummaryByUid(result.uid)") < claim.indexOf("refreshFounderDirectoryPlayer(result.playerId)"));
+  assert.match(claim, /refreshFounderPlayerSummaryByUid\(result\.uid\)\s*\.then\(\(\) => refreshFounderDirectoryPlayer\(result\.playerId\)\)\s*\.catch\(\(\) => undefined\)/);
+  const refresh = block(founderBetaAccess, "export async function refreshFounderDirectoryPlayer", "export async function refreshFounderDirectoryRequest");
+  hasAll(refresh, ["founderPlayerSummaries", "const nextRow = summary ? founderIdentityRow(summary, betaAccess) : undefined", "if (nextRow) players.push(nextRow)"]);
+});
+
+test("R1.2 C-F old directory materialization rebuilds from summaries while preserving player inclusion filters", () => {
+  hasAll(founderBetaAccess, [
+    "const FOUNDER_DIRECTORY_VERSION = \"boardsignal-founder-directory-v2\" as const;",
+    "state.version !== FOUNDER_DIRECTORY_VERSION",
+    "db.collection(\"founderPlayerSummaries\").limit(FOUNDER_DIRECTORY_LIMIT + 1).get()",
+    "const players = summaries.docs",
+    "const row = founderIdentityRow(summary, accessByPlayer.get(String(summary.playerId)))",
+    "if (!summary.active || row.uid.startsWith(\"request:\") || !Number.isSafeInteger(row.playerId)) return undefined;",
+    "betaAccess?.status ?? \"not_created\"",
+    "db.collection(\"betaRequests\").limit(FOUNDER_DIRECTORY_LIMIT + 1).get()",
+    "const state: FounderPlayerDirectoryState = { version: FOUNDER_DIRECTORY_VERSION",
+  ]);
+  assert.ok(!founderBetaAccess.includes("boardsignal-founder-directory-v1"));
+  const rebuild = block(founderBetaAccess, "async function rebuildFounderPlayerDirectoryState", "export async function loadFounderPlayerDirectoryState");
+  assert.match(rebuild, /founderPlayerSummaries/);
+  assert.match(rebuild, /betaAccess/);
+  assert.match(rebuild, /betaRequests/);
+});
+
+test("R1.2 G Delete BoardSignal Account keeps the authoritative full-account deletion lifecycle", () => {
+  const deletion = block(adminBetaAccessRoute, "if (body.action === \"deleteAccount\")", "if (body.action === \"confirmIdentity\"");
+  hasAll(deletion, [
+    "deleteBoardSignalAccount({ playerId: body.playerId, confirmationUsername: body.confirmationUsername })",
+    "removeFounderPlayerSummary(deletion.playerId)",
+    "refreshFounderDirectoryPlayer(deletion.playerId)",
+  ]);
 });
 
 test("Founder identity cases are separate from ordinary beta approval semantics", () => {

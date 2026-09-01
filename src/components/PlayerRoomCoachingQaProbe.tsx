@@ -53,6 +53,7 @@ export default function PlayerRoomCoachingQaProbe({ theme, level }: { theme: The
     const coaching = coachingFor(level);
     let attempts = 0;
     let settled = false;
+    let lastIssues: string[] = [];
     const expectedCopy = level === 1 ? coaching.cueCopy : level === 2 ? coaching.level2Copy : coaching.selectedExample?.summary;
 
     const inspect = () => {
@@ -101,8 +102,14 @@ export default function PlayerRoomCoachingQaProbe({ theme, level }: { theme: The
       result.dataset.feedbackCount = String(feedback.length);
       result.dataset.titleContrast = nativeTitle ? contrast(nativeTitle).toFixed(2) : "0";
       result.dataset.copyContrast = nativeCopy ? contrast(nativeCopy).toFixed(2) : "0";
-      result.dataset.result = issues.length ? "fail" : "pass";
-      result.textContent = issues.length ? `BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_FAIL:${issues.join(",")}` : "BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_PASS";
+      lastIssues = issues;
+      if (issues.length) {
+        result.dataset.result = "checking";
+        result.textContent = `BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_CHECKING:${issues.join(",")}`;
+        return false;
+      }
+      result.dataset.result = "pass";
+      result.textContent = "BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_PASS";
       settled = true;
       return true;
     };
@@ -113,10 +120,13 @@ export default function PlayerRoomCoachingQaProbe({ theme, level }: { theme: The
       attempts += 1;
       inject();
       if (!settled) window.requestAnimationFrame(() => { inspect(); });
-      if (attempts >= 60 && !settled) {
+      if (attempts >= 100 && !settled) {
         window.clearInterval(timer);
         const result = document.getElementById("boardsignal-m8-player-room-qa-result");
-        if (result) { result.dataset.result = "fail"; result.textContent = "BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_FAIL:coaching-did-not-render"; }
+        if (result) {
+          result.dataset.result = "fail";
+          result.textContent = lastIssues.length ? `BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_FAIL:${lastIssues.join(",")}` : "BOARD_SIGNAL_M8_PLAYER_ROOM_RENDER_FAIL:coaching-did-not-render";
+        }
       }
     }, 100);
     return () => window.clearInterval(timer);

@@ -67,7 +67,7 @@ test("R1: source failures are classified without logging private player identity
   assert.deepEqual(classifyCurrentCollectionFailure(new Error("malformed")), { kind: "unexpected_current_collection" });
   assert.match(routeSource, /samePeriodFallbackUsed: usingLastKnownGood/);
   assert.match(routeSource, /lastSuccessfulCurrentCollectionAt/);
-  assert.doesNotMatch(routeSource, /console\.warn\([^)]*canonicalUsername/s);
+  assert.doesNotMatch(routeSource, /console\.warn\([^)]*canonicalUsername/);
 });
 
 test("R1: failed fallback reuses stored same-period M7 presentation without advancing coaching", () => {

@@ -7,8 +7,9 @@ import { ChevronLeft, ChevronRight, ExternalLink, LoaderCircle, RefreshCcw, Sear
 type TrustpilotStatus = "not_asked" | "asked_visit_3" | "final_ask" | "says_reviewed" | "declined" | "not_yet";
 type PlayerFilter = "all" | "recent" | "new" | "new_google" | "returned" | "feedback" | "notes" | "ask" | "trustpilot";
 type PlayerSort = "latest" | "visits" | "engaged" | "username";
-type ChessSourceHealthStatus = "ok" | "zero_games" | "not_checked" | "retry_required";
+type ChessSourceHealthStatus = "fresh" | "zero_games" | "last_good" | "temporarily_unavailable" | "not_checked";
 type ReviewStatus = "FORMING" | "READY" | "COMPLETED" | "NO ACTIVITY" | "CHECK REQUIRED";
+type CoachingPresentationSource = "AUTO_RETURN" | "MANUAL_SWITCH";
 
 type ChessSnapshot = {
   periodStart: string;
@@ -32,7 +33,9 @@ type CoachingRow = {
   family?: string;
   source?: string;
   provenance: "current_period" | "previous_review";
-  level: 1 | 2 | 3;
+  variant: 1 | 2 | 3;
+  automaticVariantCursor?: 1 | 2 | 3;
+  lastPresentationSource?: CoachingPresentationSource;
   evidenceCount: number;
   gamesConsidered: number;
   reactions: {
@@ -40,7 +43,6 @@ type CoachingRow = {
     2?: "helpful" | "not_helpful";
     3?: "helpful" | "not_helpful";
   };
-  needsReview: boolean;
 };
 
 type EngagementRow = {
@@ -55,9 +57,12 @@ type EngagementRow = {
     googleLinkedAt?: string;
     latestMethod?: "google_onboarding" | "google_return" | "player_session";
     latestAccessAt?: string;
+    agreementAccepted: boolean;
+    playerRoomEntered: boolean;
   };
   usage: {
     roomVisitCount: number;
+    returned: boolean;
     firstRoomVisitAt?: string;
     latestRoomVisitAt?: string;
     lastActiveAt?: string;
@@ -73,6 +78,9 @@ type EngagementRow = {
     latestNoteAt?: string;
     askQuestionCount: number;
     latestAskAt?: string;
+    latestCoachingVariant?: 1 | 2 | 3;
+    latestCoachingPresentationSource?: CoachingPresentationSource;
+    latestCoachingPresentationAt?: string;
     coaching?: CoachingRow;
   };
   chess: {
@@ -80,7 +88,8 @@ type EngagementRow = {
     sincePreviousVisit?: ChessDelta;
     sourceHealth: {
       status: ChessSourceHealthStatus;
-      checkedAt?: string;
+      lastSuccessfulAt?: string;
+      latestAttemptAt?: string;
     };
   };
   review: {
@@ -133,15 +142,13 @@ type IntelligenceResponse = {
     totalReactions: number;
     helpful: number;
     notHelpful: number;
-    l1DownToL2: number;
-    l2DownToL3: number;
-    level3Reached: number;
-    level3Down: number;
     viewGame: number;
     exampleCycles: number;
     askEscalations: number;
     byFamily: Record<string, unknown>;
-    byLevel: Record<string, unknown>;
+    byVariant: Record<string, unknown>;
+    variantShown: Record<string, unknown>;
+    presentationSource: Record<string, unknown>;
   };
   validation: {
     playersServed: number;
@@ -181,6 +188,14 @@ function displayDate(value?: string, empty = "—") {
     : empty;
 }
 
+function displayDateTime(value?: string, empty = "—") {
+  if (!value) return empty;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed)
+    ? new Date(parsed).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : empty;
+}
+
 function compactDate(value?: string, empty = "—") {
   if (!value) return empty;
   const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value) ? Date.parse(`${value}T00:00:00.000Z`) : Date.parse(value);
@@ -214,6 +229,11 @@ function duration(seconds: number) {
   return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
 }
 
+function numericRecordValue(values: Record<string, unknown>, key: string) {
+  const value = Number(values[key]);
+  return Number.isFinite(value) && value >= 0 ? Math.round(value) : 0;
+}
+
 function trustpilotLabel(status: TrustpilotStatus) {
   if (status === "asked_visit_3") return "ASKED ON VISIT 3";
   if (status === "final_ask") return "FINAL ASK SHOWN";
@@ -237,23 +257,55 @@ function accessMethodLabel(row: EngagementRow) {
   return "Latest method not yet projected";
 }
 
+function agreementLabel(row: EngagementRow) {
+  return row.access.agreementAccepted ? "Agreement accepted" : "AGREEMENT PENDING";
+}
+
+function roomEntryLabel(row: EngagementRow) {
+  return row.access.playerRoomEntered ? "Player Room entered" : "PLAYER ROOM NOT ENTERED";
+}
+
+function returnLabel(row: EngagementRow) {
+  if (row.usage.returned) return "RETURNED";
+  if (row.usage.roomVisitCount === 1) return "First visit only";
+  return "No Player Room visit";
+}
+
 function sourceHealthLabel(status: ChessSourceHealthStatus) {
-  if (status === "ok") return "CHESS.COM · OK";
-  if (status === "zero_games") return "CHESS.COM · 0 CURRENT-PERIOD GAMES";
-  if (status === "retry_required") return "CHESS COLLECTION · RETRY REQUIRED";
+  if (status === "fresh") return "CURRENT · FRESH";
+  if (status === "zero_games") return "CURRENT · 0 GAMES";
+  if (status === "last_good") return "CURRENT · LAST GOOD SHOWN";
+  if (status === "temporarily_unavailable") return "CURRENT · TEMPORARILY UNAVAILABLE";
+  return "CURRENT · NOT CHECKED";
+}
+
+function sourceDetail(status: ChessSourceHealthStatus) {
+  if (status === "fresh" || status === "zero_games") return "CHESS.COM · CHECKED SUCCESSFULLY";
+  if (status === "last_good") return "CHESS.COM · LAST SUCCESSFUL SNAPSHOT";
+  if (status === "temporarily_unavailable") return "CHESS.COM · REFRESH RETRY REQUIRED";
   return "CHESS DATA · NOT CHECKED";
 }
 
 function chessLabel(row: EngagementRow) {
   const current = row.chess.current;
   const delta = row.chess.sincePreviousVisit;
-  const source = sourceHealthLabel(row.chess.sourceHealth.status);
+  const status = row.chess.sourceHealth.status;
+  const timing: string[] = [];
+  if (status === "last_good") {
+    if (row.chess.sourceHealth.lastSuccessfulAt) timing.push(`Last successful check ${displayDateTime(row.chess.sourceHealth.lastSuccessfulAt)}`);
+    if (row.chess.sourceHealth.latestAttemptAt) timing.push(`Refresh retry ${displayDateTime(row.chess.sourceHealth.latestAttemptAt)}`);
+  } else if (status === "temporarily_unavailable") {
+    if (row.chess.sourceHealth.latestAttemptAt) timing.push(`Refresh retry ${displayDateTime(row.chess.sourceHealth.latestAttemptAt)}`);
+  } else if (row.chess.sourceHealth.latestAttemptAt) {
+    timing.push(`Checked ${displayDateTime(row.chess.sourceHealth.latestAttemptAt)}`);
+  }
   return {
-    primary: current ? `${current.games} current-period game${current.games === 1 ? "" : "s"}` : source,
-    results: current ? `${current.wins}W · ${current.draws}D · ${current.losses}L` : undefined,
+    primary: sourceHealthLabel(status),
+    results: current ? `${current.games} game${current.games === 1 ? "" : "s"} · ${current.wins}W · ${current.draws}D · ${current.losses}L` : undefined,
     period: current ? `PERIOD · ${periodRange(current.periodStart, current.periodEnd)}` : undefined,
     delta: delta ? `NEW GAMES · ${delta.games} since previous visit` : undefined,
-    source,
+    source: sourceDetail(status),
+    timing,
   };
 }
 
@@ -287,6 +339,11 @@ function explicitUseCount(row: EngagementRow) {
     + row.currentBoardSignal.askQuestionCount;
 }
 
+function explicitUseLabel(row: EngagementRow) {
+  const total = explicitUseCount(row);
+  return total ? `${total} explicit action${total === 1 ? "" : "s"}` : "No explicit action yet";
+}
+
 function coachingLabel(row: EngagementRow) {
   const coaching = row.currentBoardSignal.coaching;
   if (!coaching) return undefined;
@@ -294,11 +351,17 @@ function coachingLabel(row: EngagementRow) {
     ?? (coaching.provenance === "previous_review" ? "previous Review cue" : "current cue");
 }
 
+function presentationSourceLabel(source?: CoachingPresentationSource) {
+  if (source === "MANUAL_SWITCH") return "MANUAL SWITCH";
+  if (source === "AUTO_RETURN") return "AUTO PRESENTATION";
+  return "PRESENTATION SOURCE NOT RECORDED";
+}
+
 function coachingReactions(row: EngagementRow) {
   const reactions = row.currentBoardSignal.coaching?.reactions;
   if (!reactions) return "";
   return ([1, 2, 3] as const)
-    .flatMap((level) => reactions[level] ? [`L${level} ${reactions[level] === "helpful" ? "👍" : "👎"}`] : [])
+    .flatMap((variant) => reactions[variant] ? [`Presentation ${variant} ${reactions[variant] === "helpful" ? "👍" : "👎"}`] : [])
     .join(" · ");
 }
 
@@ -398,6 +461,8 @@ export default function FounderOperationsConsole() {
   const helpfulRate = helpfulTotal > 0 ? Math.round((intelligence.engagement.helpful / helpfulTotal) * 100) : undefined;
   const coachingTotal = intelligence.coaching.helpful + intelligence.coaching.notHelpful;
   const coachingHelpfulRate = coachingTotal > 0 ? Math.round((intelligence.coaching.helpful / coachingTotal) * 100) : undefined;
+  const manualSwitches = numericRecordValue(intelligence.coaching.presentationSource, "MANUAL_SWITCH");
+  const autoPresentations = numericRecordValue(intelligence.coaching.presentationSource, "AUTO_RETURN");
   const headline = [
     ["PLAYERS", intelligence.metrics.activePlayers, "Canonical active BoardSignal players"],
     ["ROOM VISITS", intelligence.engagement.roomVisits, "Explicit authenticated entries captured by M4"],
@@ -451,17 +516,18 @@ export default function FounderOperationsConsole() {
     <section className="founder-validation-section" aria-labelledby="coaching-intelligence-heading">
       <div className="founder-ops-heading">
         <div>
-          <p className="kicker">M7 COACHING INTELLIGENCE</p>
-          <h2 id="coaching-intelligence-heading">How players respond as coaching gets deeper.</h2>
-          <p>Coaching feedback is product-quality intelligence; it never becomes an access, identity or approval queue.</p>
+          <p className="kicker">COACHING FEEDBACK</p>
+          <h2 id="coaching-intelligence-heading">How players respond to coaching presentations.</h2>
+          <p>One stable coaching signal can be presented another way automatically or manually. Feedback stays attached to the presentation shown; it never becomes an access, identity or approval queue.</p>
         </div>
       </div>
       <div className="founder-validation-grid">
-        <article><span>COACHING REACTIONS</span><strong>{intelligence.coaching.totalReactions}</strong><small>{coachingHelpfulRate === undefined ? "No M7 reactions yet" : `${coachingHelpfulRate}% helpful`}</small></article>
-        <article><span>L1 👎 → L2</span><strong>{intelligence.coaching.l1DownToL2}</strong></article>
-        <article><span>L2 👎 → L3</span><strong>{intelligence.coaching.l2DownToL3}</strong></article>
-        <article><span>LEVEL 3 REACHED</span><strong>{intelligence.coaching.level3Reached}</strong></article>
-        <article><span>LEVEL 3 👎</span><strong>{intelligence.coaching.level3Down}</strong></article>
+        <article><span>COACHING REACTIONS</span><strong>{intelligence.coaching.totalReactions}</strong><small>{coachingHelpfulRate === undefined ? "No coaching reactions yet" : `${coachingHelpfulRate}% helpful`}</small></article>
+        <article><span>HELPFUL</span><strong>{intelligence.coaching.helpful}</strong></article>
+        <article><span>NOT HELPFUL</span><strong>{intelligence.coaching.notHelpful}</strong></article>
+        <article><span>MANUAL SWITCH</span><strong>{manualSwitches}</strong><small>Player asked for another presentation</small></article>
+        <article><span>AUTO PRESENTATION</span><strong>{autoPresentations}</strong><small>Meaningful return presentation</small></article>
+        <article><span>ALTERNATE EXPLANATION</span><strong>{intelligence.coaching.exampleCycles}</strong></article>
         <article><span>VIEW GAME</span><strong>{intelligence.coaching.viewGame}</strong></article>
         <article><span>ASK ESCALATIONS</span><strong>{intelligence.coaching.askEscalations}</strong></article>
       </div>
@@ -484,36 +550,38 @@ export default function FounderOperationsConsole() {
         </div>
         <div className="founder-filter-strip" aria-label="Player engagement filters">{FILTERS.map(([value, label]) => <button type="button" key={value} className={filter === value ? "active" : ""} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}</div>
         {shown.length ? <div className="founder-ops-table" role="table" aria-label="Player engagement intelligence">
-          <div className="founder-ops-table-head" role="row"><span>PLAYER</span><span>ACCESS</span><span>USAGE</span><span>CHESS / PERIOD</span><span>CURRENT BOARDSIGNAL</span><span>FEEDBACK</span><span>TRUSTPILOT</span><span>LAST ACTIVE</span><span>ACTION</span></div>
+          <div className="founder-ops-table-head" role="row"><span>PLAYER</span><span>ACCESS</span><span>USAGE</span><span>CURRENT / CHESS</span><span>CURRENT BOARDSIGNAL</span><span>FEEDBACK</span><span>TRUSTPILOT</span><span>LAST ACTIVE</span><span>ACTION</span></div>
           {shown.map((row) => {
             const chess = chessLabel(row);
             const feedbackTotal = row.currentBoardSignal.helpfulCount + row.currentBoardSignal.notHelpfulCount;
             const coaching = row.currentBoardSignal.coaching;
             const reactions = coachingReactions(row);
+            const presentationSource = row.currentBoardSignal.latestCoachingPresentationSource ?? coaching?.lastPresentationSource;
             return <article className="founder-ops-row" role="row" key={row.uid}>
               <div className="founder-ops-main-row">
                 <div data-label="PLAYER"><strong>{row.username}</strong><small>Chess.com ID {row.playerId}</small></div>
-                <div data-label="ACCESS"><strong>{accessOriginLabel(row)}</strong><small>{accessMethodLabel(row)}</small></div>
-                <div data-label="USAGE"><strong>{row.usage.roomVisitCount} visit{row.usage.roomVisitCount === 1 ? "" : "s"}</strong><small>{duration(row.usage.totalForegroundEngagedSeconds)} foreground engaged</small></div>
-                <div data-label="CHESS / PERIOD">
+                <div data-label="ACCESS"><strong>{accessOriginLabel(row)}</strong><small>{agreementLabel(row)}</small><small>{roomEntryLabel(row)}</small><small>{accessMethodLabel(row)}</small></div>
+                <div data-label="USAGE"><strong>{row.usage.roomVisitCount} visit{row.usage.roomVisitCount === 1 ? "" : "s"}</strong><small>{duration(row.usage.totalForegroundEngagedSeconds)} foreground engaged</small><small>{returnLabel(row)}</small></div>
+                <div data-label="CURRENT / CHESS">
                   <strong>{chess.primary}</strong>
                   {chess.results ? <small>{chess.results}</small> : null}
                   {chess.period ? <small>{chess.period}</small> : null}
                   {chess.delta ? <small>{chess.delta}</small> : null}
-                  {chess.source !== chess.primary ? <small>{chess.source}</small> : null}
+                  <small>{chess.source}</small>
+                  {chess.timing.map((item) => <small key={item}>{item}</small>)}
                 </div>
                 <div data-label="CURRENT BOARDSIGNAL">
-                  <strong>{explicitUseCount(row)} explicit action{explicitUseCount(row) === 1 ? "" : "s"}</strong>
+                  <strong>{explicitUseLabel(row)}</strong>
                   <small>{row.currentBoardSignal.noteCount} note{row.currentBoardSignal.noteCount === 1 ? "" : "s"} · {row.currentBoardSignal.askQuestionCount} Ask question{row.currentBoardSignal.askQuestionCount === 1 ? "" : "s"}</small>
                   <small><strong>REVIEW · {row.review.status ?? "NOT CHECKED"}</strong></small>
                   <small>{reviewProgressLabel(row)}</small>
                   <small>{reviewHistoryLabel(row)}</small>
                   {coaching ? <>
-                    <small><strong>{coachingLabel(row)}</strong> · LEVEL {coaching.level} / 3 · EVIDENCE {coaching.evidenceCount} / {coaching.gamesConsidered}</small>
-                    <small>{reactions || "NO COACHING FEEDBACK YET"} · {coaching.needsReview ? "COACHING NEEDS REVIEW" : "Coaching current"}</small>
+                    <small><strong>{coachingLabel(row)}</strong> · PRESENTATION {coaching.variant} · {presentationSourceLabel(presentationSource)} · EVIDENCE {coaching.evidenceCount} / {coaching.gamesConsidered}</small>
+                    <small>{reactions || "NO COACHING FEEDBACK YET"}</small>
                   </> : null}
                 </div>
-                <div data-label="FEEDBACK"><strong>{feedbackTotal ? `👍 ${row.currentBoardSignal.helpfulCount} · 👎 ${row.currentBoardSignal.notHelpfulCount}` : "NO FEEDBACK YET"}</strong><small>{row.currentBoardSignal.latestFeedbackAt ? `Latest ${displayDate(row.currentBoardSignal.latestFeedbackAt)}` : "Explicit Helpful only"}</small></div>
+                <div data-label="FEEDBACK"><strong>{feedbackTotal ? `👍 ${row.currentBoardSignal.helpfulCount} · 👎 ${row.currentBoardSignal.notHelpfulCount}` : "NO FEEDBACK YET"}</strong><small>{row.currentBoardSignal.latestFeedbackAt ? `Latest ${displayDate(row.currentBoardSignal.latestFeedbackAt)}` : "Helpful / Not Helpful reactions only"}</small></div>
                 <div data-label="TRUSTPILOT"><strong>{trustpilotLabel(row.trustpilot.status)}</strong><small>{row.trustpilot.resolvedAt ? `Resolved ${displayDate(row.trustpilot.resolvedAt)}` : "Independent of sentiment and chess results"}</small></div>
                 <div data-label="LAST ACTIVE"><strong>{relativeActivity(row.usage.lastActiveAt)}</strong><small>{displayDate(row.usage.lastActiveAt)}</small></div>
                 <div data-label="ACTION"><Link className="button button-quiet" href={`/admin/players?player=${encodeURIComponent(String(row.playerId))}`}>MANAGE</Link></div>
@@ -525,7 +593,7 @@ export default function FounderOperationsConsole() {
                 <div><dt>Latest note activity</dt><dd>{displayDate(row.currentBoardSignal.latestNoteAt, "None")}</dd></div>
                 <div><dt>Latest Ask activity</dt><dd>{displayDate(row.currentBoardSignal.latestAskAt, "None")}</dd></div>
                 <div><dt>Identity state</dt><dd>{row.identityStatus ?? "Not recorded"}</dd></div>
-              </dl><div className="founder-review-periods"><span>PRIVACY BOUNDARY</span><p>Founder sees note count/latest activity, Ask usage count/latest activity, and compact coaching state/reaction levels only. Private journal text and Ask conversation contents are not loaded here. Coaching feedback never changes access or identity status.</p>{row.profileUrl ? <a className="text-link" href={row.profileUrl} target="_blank" rel="noreferrer">Open Chess.com profile <ExternalLink size={14} /></a> : null}</div></div></details>
+              </dl><div className="founder-review-periods"><span>PRIVACY BOUNDARY</span><p>Founder sees note count/latest activity, Ask usage count/latest activity, and compact coaching signal/presentation/reaction state only. Private journal text and Ask conversation contents are not loaded here. Coaching feedback never changes access or identity status.</p>{row.profileUrl ? <a className="text-link" href={row.profileUrl} target="_blank" rel="noreferrer">Open Chess.com profile <ExternalLink size={14} /></a> : null}</div></div></details>
             </article>;
           })}
         </div> : <div className="universe-empty"><p>No players match this engagement view.</p></div>}

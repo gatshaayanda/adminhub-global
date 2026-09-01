@@ -198,6 +198,46 @@ async function runCase(cdp, testCase) {
   throw lastError;
 }
 
+function waitForProcessExit(process, timeoutMs) {
+  if (process.exitCode !== null) return Promise.resolve(true);
+  return new Promise((resolveExit) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolveExit(true);
+    };
+    const timer = setTimeout(() => {
+      process.off("exit", onExit);
+      resolveExit(false);
+    }, timeoutMs);
+    process.once("exit", onExit);
+  });
+}
+
+async function shutdownChrome(cdp, chromeProcess) {
+  if (chromeProcess.exitCode === null && cdp) {
+    await cdp.command("Browser.close").catch(() => undefined);
+  }
+  if (await waitForProcessExit(chromeProcess, 5000)) return;
+  if (chromeProcess.exitCode === null) chromeProcess.kill("SIGTERM");
+  if (await waitForProcessExit(chromeProcess, 5000)) return;
+  if (chromeProcess.exitCode === null) chromeProcess.kill("SIGKILL");
+  if (!await waitForProcessExit(chromeProcess, 5000)) throw new Error("Chrome did not exit after Browser.close, SIGTERM and SIGKILL.");
+}
+
+async function removeProfileDir(profileDir) {
+  let lastError;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    try {
+      rmSync(profileDir, { recursive: true, force: true, maxRetries: 4, retryDelay: 125 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await sleep(250);
+    }
+  }
+  throw lastError;
+}
+
 const profileDir = mkdtempSync(join(tmpdir(), "boardsignal-chrome-cdp-"));
 const chromeProcess = spawn(chrome, [
   "--headless=new",
@@ -241,11 +281,7 @@ try {
     console.log("BOARD_SIGNAL_ONBOARDING_RENDER_PASS");
   }
 } finally {
+  await shutdownChrome(cdp, chromeProcess);
   cdp?.close();
-  if (chromeProcess.exitCode === null) {
-    const exited = new Promise((resolveExit) => chromeProcess.once("exit", resolveExit));
-    chromeProcess.kill("SIGTERM");
-    await Promise.race([exited, sleep(2000)]);
-  }
-  rmSync(profileDir, { recursive: true, force: true, maxRetries: 8, retryDelay: 125 });
+  await removeProfileDir(profileDir);
 }

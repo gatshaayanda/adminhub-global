@@ -12,6 +12,10 @@ const usernameForm = read("src/components/UsernameDeskForm.tsx");
 const returnPanel = read("src/components/ChessComLoginPanel.tsx");
 const googleButton = read("src/components/GoogleAccessButton.tsx");
 const profile = read("src/components/PlayerProfileNotifications.tsx");
+const playerRoom = read("src/components/BoardSignalPlayerRoom.tsx");
+const playerRoomRoute = read("src/app/api/boardsignal/player-room/route.ts");
+const account = read("src/lib/boardsignal/account.ts");
+const persistence = read("src/lib/boardsignal/server/persistence.ts");
 const founderRoute = read("src/app/api/admin/boardsignal/identity-access/route.ts");
 const founderUi = read("src/components/FounderIdentityAccessCases.tsx");
 const founderPage = read("src/app/admin/players/page.tsx");
@@ -77,6 +81,34 @@ test("44-47 public username/email cannot take over an account and mapping confli
   hasAll(googleServer, ["identityStatus === \"revoked\"", "GOOGLE_ACCESS_MAPPING_MISMATCH"]);
   hasAll(founderRoute, ["requester Google identity is already attached to a different active private BoardSignal", "Nothing was merged or overwritten"]);
   hasAll(founderUi, ["Google email metadata", "not identity proof"]);
+});
+
+test("R1.1 A-D current agreement gate is authoritative regardless of Google connection", () => {
+  const gate = "if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;";
+  assert.ok(playerRoom.includes(gate));
+  assert.ok(!playerRoom.includes("!snapshot.account.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement(snapshot.account)"));
+  const shouldShowGate = ({ accepted }) => playerRoom.includes(gate) && !accepted;
+  assert.equal(shouldShowGate({ googleConnected: true, accepted: false }), true);
+  assert.equal(shouldShowGate({ googleConnected: false, accepted: false }), true);
+  assert.equal(shouldShowGate({ googleConnected: true, accepted: true }), false);
+  assert.equal(shouldShowGate({ googleConnected: false, accepted: true }), false);
+});
+
+test("R1.1 E Google onboarding does not infer or backfill agreement acceptance", () => {
+  const createStart = account.indexOf("export function createFoundingBetaAccount");
+  const createEnd = account.indexOf("export function hasAcceptedCurrentBetaAgreement");
+  const createAccount = account.slice(createStart, createEnd);
+  assert.ok(createStart >= 0 && createEnd > createStart);
+  assert.ok(!createAccount.includes("betaAgreementVersion"));
+  assert.ok(!createAccount.includes("betaAgreementAcceptedAt"));
+  assert.ok(!onboarding.includes("betaAgreementVersion:"));
+  assert.ok(!onboarding.includes("betaAgreementAcceptedAt:"));
+});
+
+test("R1.1 F explicit agreement acceptance still records current terms and reloads Player Room", () => {
+  hasAll(playerRoom, ["body: JSON.stringify({ action: \"acceptAgreement\" })", "if (user) await loadRoom(user);"]);
+  hasAll(playerRoomRoute, ["if (!hasAcceptedCurrentBetaAgreement(account))", "if (body.action === \"acceptAgreement\") return response({ ok: true, account: await acceptFoundingBetaAgreement(token) });"]);
+  hasAll(persistence, ["betaAgreementVersion: FOUNDING_BETA_AGREEMENT_VERSION", "betaAgreementAcceptedAt: acceptedAt", "collection(\"users\").doc(account.uid).set(update, { merge: true })"]);
 });
 
 test("Founder identity cases are separate from ordinary beta approval semantics", () => {

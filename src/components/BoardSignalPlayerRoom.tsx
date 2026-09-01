@@ -454,7 +454,7 @@ export default function BoardSignalPlayerRoom() {
   if (liveDataUnavailableSnapshot !== null && user) return <LiveDataUnavailablePlayerRoom initialSnapshot={liveDataUnavailableSnapshot} reasonCode={liveDataUnavailableCode} onRetry={() => loadRoom(user, false)} />;
   if (offlineSnapshot && user) return <OfflinePlayerRoom uid={user.uid} initialSnapshot={offlineSnapshot} embedded />;
   if (error || !snapshot) return <RoomError error={error || "My BoardSignal could not be loaded."} />;
-  if (!snapshot.account.googleAccessConnectedAt && !hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;
+  if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;
   if (!snapshot.account.preferencesConfirmedAt || !snapshot.account.contactConfirmedAt) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<PlayerPreferencesGate account={snapshot.account} onContinue={confirmPreferences} /></>;
 
   return (

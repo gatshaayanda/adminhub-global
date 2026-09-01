@@ -10,7 +10,7 @@ import {
   type HistoricalReviewPeriod,
 } from "../src/lib/boardsignal/historyBackfill";
 
-const ROOT = path.resolve(__dirname, "..");
+const ROOT = process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 const serverBackfill = read("src/lib/boardsignal/server/historyBackfill.ts");
 const worker = read("src/components/BoardSignalHistoryWorker.tsx");

@@ -20,20 +20,12 @@ function findChrome() {
 
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 const chrome = findChrome();
-const widths = [320, 360, 390, 1365];
+const widths = [320, 360, 390, 412, 1365];
 const cases = [];
 for (const theme of ["light", "dark"]) {
-  for (const level of [1, 2, 3]) {
-    for (const width of widths) cases.push({ theme, level, width, height: 900 });
+  for (const variant of [1, 2, 3]) {
+    for (const width of widths) cases.push({ theme, variant, width, height: 900 });
   }
-}
-
-function expectedCounts(level) {
-  return {
-    level1: level === 1 ? 1 : 0,
-    level2: level === 2 ? 1 : 0,
-    level3: level === 3 ? 1 : 0,
-  };
 }
 
 async function waitForDevTools(profileDir, chromeProcess) {
@@ -88,22 +80,14 @@ async function openCdp(webSocketUrl) {
 function waitForProcessExit(process, timeoutMs) {
   if (process.exitCode !== null) return Promise.resolve(true);
   return new Promise((resolveExit) => {
-    const onExit = () => {
-      clearTimeout(timer);
-      resolveExit(true);
-    };
-    const timer = setTimeout(() => {
-      process.off("exit", onExit);
-      resolveExit(false);
-    }, timeoutMs);
+    const onExit = () => { clearTimeout(timer); resolveExit(true); };
+    const timer = setTimeout(() => { process.off("exit", onExit); resolveExit(false); }, timeoutMs);
     process.once("exit", onExit);
   });
 }
 
 async function shutdownChrome(cdp, chromeProcess) {
-  if (chromeProcess.exitCode === null && cdp) {
-    await cdp.command("Browser.close").catch(() => undefined);
-  }
+  if (chromeProcess.exitCode === null && cdp) await cdp.command("Browser.close").catch(() => undefined);
   if (await waitForProcessExit(chromeProcess, 5000)) return;
   if (chromeProcess.exitCode === null) chromeProcess.kill("SIGTERM");
   if (await waitForProcessExit(chromeProcess, 5000)) return;
@@ -126,11 +110,10 @@ async function removeProfileDir(profileDir) {
 }
 
 async function inspectCase(cdp, testCase) {
-  const { theme, level, width, height } = testCase;
-  const expected = expectedCounts(level);
-  const slug = `level-${level}-${theme}-${width}x${height}`;
+  const { theme, variant, width, height } = testCase;
+  const slug = `variant-${variant}-${theme}-${width}x${height}`;
   const screenshot = join(artifactDir, `${slug}.png`);
-  const url = `${baseUrl}/boardsignal/qa/player-room-coaching?theme=${theme}&level=${level}`;
+  const url = `${baseUrl}/boardsignal/qa/player-room-coaching?theme=${theme}&level=${variant}`;
   const { targetId } = await cdp.command("Target.createTarget", { url: "about:blank" });
   try {
     const { sessionId } = await cdp.command("Target.attachToTarget", { targetId, flatten: true });
@@ -148,20 +131,25 @@ async function inspectCase(cdp, testCase) {
         const evaluated = await cdp.command("Runtime.evaluate", {
           expression: `(() => {
             const result = document.getElementById("boardsignal-m8-player-room-qa-result");
+            const target = document.querySelector('.g3-before-next-game');
+            const controls = document.querySelectorAll('[aria-label="Coaching controls"]');
+            const feedback = document.querySelectorAll('[aria-label="Feedback for this coaching explanation"]');
+            const text = target?.textContent ?? '';
             return {
               state: result?.dataset.result ?? null,
               text: result?.textContent ?? "",
               width: window.innerWidth,
-              level1Contrast: result?.dataset.level1Contrast ?? null,
-              level2Contrast: result?.dataset.level2Contrast ?? null,
-              level3Contrast: result?.dataset.level3Contrast ?? null,
-              feedbackRows: Number(result?.dataset.feedbackRows ?? "0"),
-              levelThreeGameValid: result?.dataset.level3GameValid === "true",
-              levelThreeAskAvailable: result?.dataset.level3AskAvailable === "true",
-              progressiveCount: document.querySelectorAll('[aria-label="Progressive coaching explanation"]').length,
-              level1Count: [...document.querySelectorAll('[aria-label="Progressive coaching explanation"] span')].filter((node) => node.textContent?.startsWith('LEVEL 1 ·')).length,
-              level2Count: document.querySelectorAll('[aria-label="Coaching level 2"]').length,
-              level3Count: document.querySelectorAll('[aria-label="Coaching level 3"]').length,
+              presentationCount: Number(result?.dataset.presentationCount ?? "0"),
+              feedbackCount: Number(result?.dataset.feedbackCount ?? "0"),
+              titleContrast: result?.dataset.titleContrast ?? null,
+              copyContrast: result?.dataset.copyContrast ?? null,
+              controlsCount: controls.length,
+              feedbackDomCount: feedback.length,
+              playerLevelLanguage: /\\bLEVEL\\s*[123]\\b/i.test(text),
+              legacyLevelSurface: Boolean(target?.querySelector('[aria-label^="Coaching level"]')),
+              legacyProgressiveSurface: Boolean(target?.querySelector('[aria-label="Progressive coaching explanation"]')),
+              switchAvailable: [...(controls[0]?.querySelectorAll('button') ?? [])].some((button) => button.textContent?.includes('TRY ANOTHER EXPLANATION')),
+              reactionButtons: feedback[0]?.querySelectorAll('button').length ?? 0,
             };
           })()`,
           returnByValue: true,
@@ -170,11 +158,12 @@ async function inspectCase(cdp, testCase) {
         if (probe?.state === "fail") break;
         if (
           probe?.state === "pass"
-          && probe.progressiveCount === 1
-          && probe.level1Count === expected.level1
-          && probe.level2Count === expected.level2
-          && probe.level3Count === expected.level3
-          && probe.feedbackRows === 1
+          && probe.presentationCount === 1
+          && probe.feedbackCount === 1
+          && probe.controlsCount === 1
+          && probe.feedbackDomCount === 1
+          && probe.reactionButtons === 2
+          && probe.switchAvailable === true
         ) break;
       } catch {
         // Navigation can replace the execution context while the QA route hydrates.
@@ -187,20 +176,19 @@ async function inspectCase(cdp, testCase) {
 
     if (!probe || probe.state === "checking" || probe.state === null) throw new Error(`${slug}: render probe did not settle. Screenshot: ${screenshot}`);
     if (probe.width !== width) throw new Error(`${slug}: requested viewport ${width}, measured ${probe.width ?? "unknown"}. Screenshot: ${screenshot}`);
-    if (probe.progressiveCount !== 1) throw new Error(`${slug}: progressive coaching instances ${probe.progressiveCount}. Screenshot: ${screenshot}`);
-    if (probe.level1Count !== expected.level1) throw new Error(`${slug}: Level 1 count ${probe.level1Count}, expected ${expected.level1}. Screenshot: ${screenshot}`);
-    if (probe.level2Count !== expected.level2) throw new Error(`${slug}: Level 2 count ${probe.level2Count}, expected ${expected.level2}. Screenshot: ${screenshot}`);
-    if (probe.level3Count !== expected.level3) throw new Error(`${slug}: Level 3 count ${probe.level3Count}, expected ${expected.level3}. Screenshot: ${screenshot}`);
-    if (probe.level1Count + probe.level2Count + probe.level3Count !== 1) throw new Error(`${slug}: multiple/zero active coaching levels. Screenshot: ${screenshot}`);
-    if (probe.feedbackRows !== 1) throw new Error(`${slug}: feedback rows ${probe.feedbackRows}. Screenshot: ${screenshot}`);
+    if (probe.presentationCount !== 1) throw new Error(`${slug}: presentation instances ${probe.presentationCount}. Screenshot: ${screenshot}`);
+    if (probe.controlsCount !== 1) throw new Error(`${slug}: coaching control surfaces ${probe.controlsCount}. Screenshot: ${screenshot}`);
+    if (probe.feedbackCount !== 1 || probe.feedbackDomCount !== 1) throw new Error(`${slug}: feedback surfaces ${probe.feedbackCount}/${probe.feedbackDomCount}. Screenshot: ${screenshot}`);
+    if (probe.reactionButtons !== 2) throw new Error(`${slug}: reaction buttons ${probe.reactionButtons}. Screenshot: ${screenshot}`);
+    if (probe.switchAvailable !== true) throw new Error(`${slug}: manual explanation switch missing. Screenshot: ${screenshot}`);
+    if (probe.playerLevelLanguage !== false) throw new Error(`${slug}: player-facing numeric level language is visible. Screenshot: ${screenshot}`);
+    if (probe.legacyLevelSurface) throw new Error(`${slug}: legacy coaching-level surface is visible. Screenshot: ${screenshot}`);
+    if (probe.legacyProgressiveSurface) throw new Error(`${slug}: legacy progressive coaching wrapper is visible. Screenshot: ${screenshot}`);
+    if (Number(probe.titleContrast) < 4.5) throw new Error(`${slug}: title contrast ${probe.titleContrast}. Screenshot: ${screenshot}`);
+    if (Number(probe.copyContrast) < 4.5) throw new Error(`${slug}: copy contrast ${probe.copyContrast}. Screenshot: ${screenshot}`);
     if (probe.state !== "pass") throw new Error(`${slug}: ${probe.text || "render probe reported failure"}. Screenshot: ${screenshot}`);
-    if (level === 1 && Number(probe.level1Contrast) < 4.5) throw new Error(`${slug}: Level 1 contrast ${probe.level1Contrast}. Screenshot: ${screenshot}`);
-    if (level === 2 && Number(probe.level2Contrast) < 4.5) throw new Error(`${slug}: Level 2 contrast ${probe.level2Contrast}. Screenshot: ${screenshot}`);
-    if (level === 3 && Number(probe.level3Contrast) < 4.5) throw new Error(`${slug}: Level 3 contrast ${probe.level3Contrast}. Screenshot: ${screenshot}`);
-    if (level === 3 && probe.levelThreeGameValid !== true) throw new Error(`${slug}: Level 3 real game link is missing/invalid. Screenshot: ${screenshot}`);
-    if (level === 3 && probe.levelThreeAskAvailable !== true) throw new Error(`${slug}: Level 3 capped Ask continuation is missing. Screenshot: ${screenshot}`);
     if (!existsSync(screenshot)) throw new Error(`${slug}: Chrome did not create ${screenshot}`);
-    return `${slug}${probe.level1Contrast ? ` L1=${probe.level1Contrast}` : ""}${probe.level2Contrast ? ` L2=${probe.level2Contrast}` : ""}${probe.level3Contrast ? ` L3=${probe.level3Contrast}` : ""} feedback=1`;
+    return `${slug} title=${probe.titleContrast} copy=${probe.copyContrast} feedback=1`;
   } finally {
     await cdp.command("Target.closeTarget", { targetId }).catch(() => undefined);
   }

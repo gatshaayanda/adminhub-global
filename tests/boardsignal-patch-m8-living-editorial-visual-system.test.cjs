@@ -50,23 +50,23 @@ test('Before Your Next Game is a distinct high-clarity cue, not a gamified panel
   assert.doesNotMatch(m8, /streak|xp|level-up|combo|reward/i);
 });
 
-test('M7 progressive coaching presents exactly the stored Level 1, 2 or 3 depth', () => {
-  const level1 = coaching.indexOf('LEVEL 1 · QUICK CUE');
-  const level2 = coaching.indexOf('LEVEL 2 · ANOTHER WAY TO THINK ABOUT IT');
-  const level3 = coaching.indexOf('LEVEL 3 · HERE&apos;S ONE PLACE BOARDSIGNAL SAW IT');
-  assert.ok(level1 >= 0 && level2 > level1 && level3 > level2);
-  assert.match(coaching, /coaching\.level===1/);
-  assert.match(coaching, /coaching\.level===2/);
+test('M7 coaching renders one rotating presentation without player-facing level language', () => {
+  assert.match(coaching, /aria-label="Coaching controls"/);
+  assert.match(coaching, /aria-label="Feedback for this coaching explanation"/);
+  assert.match(coaching, /TRY ANOTHER EXPLANATION/);
   assert.match(coaching, /coaching\.level===3/);
+  assert.match(coaching, /ExampleDetails/);
+  assert.doesNotMatch(coaching, /LEVEL 1|LEVEL 2|LEVEL 3|Level 1|Level 2|Level 3|automatic explanation ladder|no Level 4/);
   assert.doesNotMatch(coaching, /coaching\.level>=2|coaching\.level>=3/);
-  assert.match(coachingStyles, /\.levelOne[\s\S]*border-left:4px solid var\(--bs-brand-primary\)/);
-  assert.match(coachingStyles, /\.depthBlock \+ \.depthBlock[\s\S]*var\(--bs-lime-readable\)/);
+  assert.match(coachingStyles, /\.coachingControls[\s\S]*border-top:1px solid var\(--bs-border\)/);
+  assert.match(coachingStyles, /\.exampleDetails[\s\S]*border-left:4px solid var\(--bs-brand-primary\)/);
 });
 
-test('M8 feedback controls preserve practical targets and readable disabled states', () => {
-  assert.match(coachingStyles, /min-height:48px/);
-  assert.match(coachingStyles, /\.actions :global\(\.button\)[\s\S]*min-height:44px/);
-  const disabled = coachingStyles.match(/\.reactionButtons button:disabled, \.actions button:disabled \{[^}]+\}/)?.[0] ?? '';
+test('M8 feedback and explanation controls preserve practical targets and readable disabled states', () => {
+  assert.match(coachingStyles, /\.reactionButtons button \{[^}]*min-height:48px/);
+  assert.match(coachingStyles, /\.actions :global\(\.button\), \.switcher :global\(\.button\) \{[^}]*min-height:48px/);
+  assert.match(coachingStyles, /button\[aria-pressed="true"\]/);
+  const disabled = coachingStyles.match(/\.reactionButtons button:disabled, \.actions button:disabled, \.switcher button:disabled \{[^}]+\}/)?.[0] ?? '';
   assert.match(disabled, /opacity:1/);
   assert.match(disabled, /var\(--bs-bg-subtle\)/);
   assert.match(disabled, /var\(--bs-text-secondary\)/);

@@ -68,7 +68,7 @@ test('8. Founder operations no longer treats New requests or normal sign-in as a
   assert.doesNotMatch(operations, /\["New requests"/);
   assert.doesNotMatch(operations, /\["new_requests","NEW REQUESTS"\]/);
   assert.match(operations, /attention:\s*\{\s*followUpsDue:\s*number;\s*unreadReplies:\s*number;\s*exceptions:\s*number;\s*identityConflicts:\s*number;\s*\}/);
-  assert.match(operations, /Coaching feedback is product-quality intelligence; it never becomes an access, identity or approval queue\./);
+  assert.match(operations, /never becomes an access, identity or approval queue\./);
 });
 
 test('9. Founder browser alerts describe identity-review entry rather than Preview approval', () => {

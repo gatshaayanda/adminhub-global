@@ -42,7 +42,7 @@ export async function claimHistoricalBackfillWork(token: DecodedIdToken, now = n
     const targets = targetsFor(account, now);
     if (!targets.length) return undefined;
     const establishedHistory = await loadCompletedReviewHistory(account.uid);
-    if (!establishedHistory.length) return undefined;
+    // Empty completed Review history is valid: durable period truth still decides which canonical slots need recovery.
     // G.4.2: reuse this exact already-loaded history while reconstructing any missing ledger slots.
     const truth = await loadRecentReportPeriodTruth(account, now, true, establishedHistory);
     const evaluatedFromLedger: Record<string, HistoricalReviewEvaluation> = Object.fromEntries(truth.periods.flatMap((period) => period.outcome ? [[period.periodStart, { status: period.outcome === "review" ? "existing" : "no_activity", evaluatedAt: period.evaluatedAt ?? isoNow(now) } satisfies HistoricalReviewEvaluation]] : []));

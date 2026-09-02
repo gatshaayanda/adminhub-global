@@ -34,6 +34,9 @@ jobs:
       - name: P0 public feature pipeline guard
         run: node --test tests/boardsignal-p0-feature-pipeline.test.cjs
 
+      - name: P1 live capacity recovery guard
+        run: npx tsx --test tests/boardsignal-p1-live-recovery.test.ts
+
       - name: Reconstruct legacy E.3 deletion manifest
         shell: bash
         run: |
@@ -132,7 +135,7 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
 
-      - name: Render onboarding, Pipeline and M8 Player Room coaching in real Chrome
+      - name: Render onboarding, Pipeline, P1 recovery and M8 Player Room coaching in real Chrome
         env:
           ADMIN_PASSWORD: boardsignal-p0-ci-founder
           NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchM6Guard000000000000000000000
@@ -142,6 +145,7 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
           NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+          NEXT_PUBLIC_FIREBASE_VAPID_KEY: boardsignal-p1-ci-vapid-key
         run: |
           set -euo pipefail
           npm run dev -- -p 3100 > /tmp/boardsignal-patch-m6-dev.log 2>&1 &
@@ -160,11 +164,13 @@ jobs:
             exit 1
           fi
           curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/player-room-coaching?theme=light&level=1" >/dev/null
+          curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/live-recovery?state=saved" >/dev/null
           curl --fail --silent --show-error "http://127.0.0.1:3100/pipeline" >/dev/null
           curl --fail --silent --show-error --user "founder:${ADMIN_PASSWORD}" "http://127.0.0.1:3100/admin/pipeline" >/dev/null
           node --experimental-websocket scripts/check-boardsignal-onboarding-render.mjs
           node scripts/check-boardsignal-p0-pipeline-render.mjs
           node --experimental-websocket scripts/check-boardsignal-p0-pipeline-interaction.mjs
+          node --experimental-websocket scripts/check-boardsignal-p1-live-recovery.mjs
           node --experimental-websocket scripts/check-boardsignal-m8-player-room-render.mjs
 
       - name: Production build
@@ -176,4 +182,5 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
           NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+          NEXT_PUBLIC_FIREBASE_VAPID_KEY: boardsignal-p1-ci-vapid-key
         run: npm run build

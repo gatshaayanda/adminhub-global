@@ -37,9 +37,23 @@ export async function registerBoardSignalBrowserPush(idToken: string) {
   return fcmToken;
 }
 
+async function cancelBoardSignalLiveRecovery(idToken: string, fcmToken?: string) {
+  await fetch("/api/boardsignal/live-recovery", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({ action: "unsubscribe", ...(fcmToken ? { fcmToken } : {}) }),
+  }).catch(() => undefined);
+}
+
 export async function removeBoardSignalBrowserPush(idToken: string) {
   if (typeof window === "undefined") return;
+  let fcmToken: string | undefined;
   try {
+    if ("Notification" in window && Notification.permission === "granted") fcmToken = await getBoardSignalBrowserPushToken().catch(() => undefined);
+    // Service recovery is a separate one-time request. Disabling browser alerts
+    // cancels its Auth marker first so the reset scheduler cannot target this account.
+    await cancelBoardSignalLiveRecovery(idToken, fcmToken);
     const client = await messagingClient();
     if (client) await client.deleteToken(client.instance).catch(() => false);
   } finally {

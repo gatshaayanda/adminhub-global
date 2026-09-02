@@ -9,6 +9,14 @@
     {
       "path": "/api/cron/boardsignal-return",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/boardsignal-live-recovery",
+      "schedule": "5 7 * * *"
+    },
+    {
+      "path": "/api/cron/boardsignal-live-recovery",
+      "schedule": "5 8 * * *"
     }
   ]
 }

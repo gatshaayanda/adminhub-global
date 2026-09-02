@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MessageCircle, RefreshCcw, ShieldCheck } from "lucide-react";
+import LiveRecoveryReminder from "@/components/LiveRecoveryReminder";
 import UniversalPlayerDesk from "@/components/UniversalPlayerDesk";
 import type { OfflinePlayerRoomSnapshot } from "@/lib/boardsignal/offline/types";
 import {
@@ -58,14 +59,14 @@ export default function LiveDataUnavailablePlayerRoom({
     return <div id="main" className="desk-processing-page">
       <section className="container desk-processing-card error-card" role="status">
         <ShieldCheck />
-        <p className="kicker">{quotaExhausted ? "LIVE DATA PAUSED FOR TODAY" : "LIVE DATA UNAVAILABLE"}</p>
+        <p className="kicker">{quotaExhausted ? "LIVE CHECKS PAUSED" : "LIVE DATA UNAVAILABLE"}</p>
         <h1>{quotaExhausted
-          ? "BoardSignal has reached today's live-data allowance."
+          ? "TODAY'S LIVE BOARDSIGNAL CAPACITY HAS BEEN USED"
           : "BoardSignal is online, but live account data is temporarily unavailable."}</h1>
         <p>{quotaExhausted
-          ? `Current BoardSignal updates, completed Review generation, Universe movement, messages and account changes will return after the daily reset — approximately ${resetLabel} for you. Nothing has been deleted.`
+          ? `Your saved Reviews and Progress are still safe. Live checks reopen around ${resetLabel}. No saved My BoardSignal copy is available on this device yet.`
           : "No saved My BoardSignal copy is available on this device yet. Your account has not been presented as offline and BoardSignal is not fabricating live data."}</p>
-        {quotaExhausted ? <FounderHelp /> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
+        {quotaExhausted ? <><LiveRecoveryReminder /><FounderHelp /></> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
           <RefreshCcw size={15} /> {retrying ? "Retrying…" : "Retry live data"}
         </button>}
       </section>
@@ -79,18 +80,18 @@ export default function LiveDataUnavailablePlayerRoom({
         <span>MY BOARDSIGNAL · SAVED</span>
         <h1>{initialSnapshot.canonicalUsername}</h1>
         <p><ShieldCheck size={14} /> {quotaExhausted
-          ? `Today's live-data allowance has been used. Your saved BoardSignal remains available. Live updates are expected back around ${resetLabel}.`
+          ? `Today's live BoardSignal capacity has been used. Your saved Reviews and Progress are still safe. Live checks reopen around ${resetLabel}.`
           : `Live BoardSignal data is temporarily unavailable. Showing your saved BoardSignal from ${savedLabel(initialSnapshot.lastSyncedAt)}.`}</p>
       </div>
     </header>
     <div className="container offline-room-truth" role="status">
-      <strong>{quotaExhausted ? "LIVE DATA PAUSED · SAVED" : "LIVE DATA UNAVAILABLE · SAVED"}</strong>
+      <strong>{quotaExhausted ? "LIVE CHECKS PAUSED · SAVED WORK SAFE" : "LIVE DATA UNAVAILABLE · SAVED"}</strong>
       <span>{quotaExhausted
-        ? `Your saved BoardSignal and completed Reviews remain read-only and safe on this device. Live BoardSignal work resumes after the daily allowance resets, with another check after ${resetLabel}.`
+        ? `Your saved BoardSignal and completed Reviews remain read-only and safe on this device. Live checks reopen around ${resetLabel}.`
         : `New games, Universe movement, messages and account changes may not be current after ${savedLabel(initialSnapshot.lastSyncedAt)}. Saved content is read-only until live data returns.`}</span>
     </div>
     <div className="container player-room-memory">
-      {quotaExhausted ? <FounderHelp /> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
+      {quotaExhausted ? <><LiveRecoveryReminder /><FounderHelp /></> : <button type="button" className="button button-dark" onClick={() => void retry()} disabled={retrying}>
         <RefreshCcw size={15} /> {retrying ? "Retrying…" : "Retry live data"}
       </button>}
       {latest ? <div className="founding-field-note"><ShieldCheck size={18}/><div><strong>Latest saved completed Review</strong><p>{latest.summary.periodLabel}</p></div></div> : <div className="universe-empty"><p>No completed Review was saved on this device yet.</p></div>}

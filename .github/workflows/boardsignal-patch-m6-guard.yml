@@ -74,7 +74,9 @@ jobs:
         run: node --test tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs
 
       - name: P0 Universe regressions
-        run: node --test tests/boardsignal-universe-pulse.test.cjs tests/boardsignal-patch-g425-universe-founder-truth.test.cjs
+        run: |
+          npm run test:universe-pulse
+          node --test tests/boardsignal-patch-g425-universe-founder-truth.test.cjs
 
       - name: P0 historical onboarding regression
         run: npx tsx --test tests/boardsignal-historical-onboarding-recovery.test.ts

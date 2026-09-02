@@ -31,14 +31,15 @@ test("3. Reviews Forming derives from cadence truth, including Player Room activ
   assert.match(ops, /forming: cadenceWeekForming\(account\)/);
   assert.doesNotMatch(ops, /forming: account\.currentEpisodeSummary\?\.status/);
   assert.match(persistence, /forming: account\.accessStatus === "active" && Boolean\(account\.cadenceAnchor\)/);
-  assert.match(ui, /cadence-aligned current week/);
+  assert.match(ui, /REVIEW · \{row\.review\.status \?\? "NOT CHECKED"\}/);
+  assert.match(ui, /reviewProgressLabel\(row\)/);
 });
 
 test("4. historical onboarding counts as Review output but does not inflate retentionDepth", () => {
   assert.match(ops, /historicalPublishedPeriods\(account\)/);
   assert.match(mat, /historicalPeriods/);
   assert.match(ui, /HISTORICAL ONBOARDING/);
-  assert.match(ui, /TOTAL REVIEWS/);
+  assert.match(ui, /REVIEWS PRODUCED/);
   const start = mat.indexOf("export function founderSummaryFromRow");
   const end = mat.indexOf("export function founderPendingSummaryFromInput", start);
   const summary = mat.slice(start, end);

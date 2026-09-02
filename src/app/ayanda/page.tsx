@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import AyandaPortfolioClient from "@/components/ayanda/AyandaPortfolioClient";
 import { ayandaPortfolio } from "@/data/ayandaPortfolio";
 
-const title = "Ayanda Kopano Gatsha — Technical Support, SaaS Customer Success & Product Operations";
+const title = "Ayanda Kopano Gatsha — Technical Operations & Product Systems Specialist";
 const description =
-  "Technical Support, SaaS Customer Success and Product Operations professional with 10+ years of international remote experience. Technical troubleshooting, customer support, documentation, product operations and evidence-backed work.";
+  "Technical operations, product systems and business operations professional with 10+ years of international experience across SaaS operations, customer support and success, product development, automation and technical troubleshooting.";
 const canonical = "https://www.adminhub-global.com/ayanda";
 
 export const metadata: Metadata = {
@@ -16,16 +16,16 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   openGraph: {
     title,
-    description: "Technical Support · SaaS Customer Success · Product Operations. Evidence-backed international remote work.",
+    description: "Technical Operations · Product Systems · Customer Success · Founder & Product Operator.",
     url: canonical,
     siteName: "Ayanda Kopano Gatsha",
     type: "profile",
-    images: [{ url: "/ayanda/opengraph-image", width: 1200, height: 630, alt: "Ayanda Kopano Gatsha — Technical Support and SaaS Customer Success" }],
+    images: [{ url: "/ayanda/opengraph-image", width: 1200, height: 630, alt: "Ayanda Kopano Gatsha — Technical Operations and Product Systems" }],
   },
   twitter: {
     card: "summary_large_image",
     title,
-    description: "Technical Support · SaaS Customer Success · Product Operations.",
+    description: "Technical Operations · Product Systems · Customer Success.",
     images: ["/ayanda/opengraph-image"],
   },
 };
@@ -47,16 +47,19 @@ const profilePageJsonLd = {
   mainEntity: {
     "@type": "Person",
     name: ayandaPortfolio.profile.name,
-    jobTitle: "Technical Support Specialist",
-    description: "SaaS customer support, customer success, product operations and technical operations professional.",
-    homeLocation: {
-      "@type": "Place",
-      address: {
-        "@type": "PostalAddress",
-        addressLocality: "Gaborone",
-        addressCountry: "BW",
-      },
-    },
+    jobTitle: "Technical Operations & Product Systems Specialist",
+    description: "Technical operations, product systems, customer success and SaaS operations professional; Founder and Product Operator of BoardSignal V1.",
+    knowsAbout: [
+      "Technical Operations",
+      "Product Operations",
+      "SaaS Operations",
+      "Customer Support",
+      "Customer Success",
+      "Product Systems",
+      "Next.js",
+      "TypeScript",
+      "Firebase",
+    ],
     sameAs: [ayandaPortfolio.contact.linkedin, ayandaPortfolio.contact.github],
   },
 };

@@ -37,6 +37,7 @@ export type HistoricalBackfillWork = {
   completedSlots: number;
   totalSlots: number;
 };
+export type HistoricalSettlementDecision = "already_evaluated" | "owned" | "stale";
 
 function parseIsoDay(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -100,6 +101,35 @@ export function backfillComplete(targetPeriods: HistoricalReviewPeriod[], evalua
 }
 export function leaseIsActive(lease: HistoricalBackfillLease | undefined, now = new Date()) {
   return Boolean(lease && Date.parse(lease.leaseUntil) > now.getTime());
+}
+export function resumableHistoricalBackfillWork(
+  targetPeriods: HistoricalReviewPeriod[],
+  state: Pick<ReviewHistoryBackfillState, "lease" | "evaluated"> | undefined,
+  requestCadenceAnchor: string,
+  existingStarts: Iterable<string> = [],
+  now = new Date(),
+): HistoricalBackfillWork | undefined {
+  const lease = state?.lease;
+  if (!leaseIsActive(lease, now)) return undefined;
+  const target = targetPeriods.find((period) => period.start === lease?.periodStart);
+  if (!target || !lease) return undefined;
+  return {
+    periodStart: target.start,
+    periodEnd: target.end,
+    requestCadenceAnchor,
+    leaseId: lease.leaseId,
+    completedSlots: evaluatedBackfillSlots(targetPeriods, state?.evaluated, existingStarts),
+    totalSlots: targetPeriods.length,
+  };
+}
+export function historicalSettlementDecision(
+  state: Pick<ReviewHistoryBackfillState, "lease" | "evaluated"> | undefined,
+  input: { leaseId: string; periodStart: string },
+  durableOutcome?: "review" | "no_activity",
+): HistoricalSettlementDecision {
+  if (state?.evaluated?.[input.periodStart] || durableOutcome === "review" || durableOutcome === "no_activity") return "already_evaluated";
+  if (!state?.lease || state.lease.leaseId !== input.leaseId || state.lease.periodStart !== input.periodStart) return "stale";
+  return "owned";
 }
 export function uniqueArchiveMonthKeys(periods: HistoricalReviewPeriod[]) {
   const keys = new Set<string>();

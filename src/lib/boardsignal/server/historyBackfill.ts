@@ -7,8 +7,10 @@ import {
   REVIEW_HISTORY_LEASE_MS,
   backfillComplete,
   evaluatedBackfillSlots,
+  historicalSettlementDecision,
   leaseIsActive,
   nextBackfillPeriod,
+  resumableHistoricalBackfillWork,
   type HistoricalBackfillWork,
   type HistoricalReviewEvaluation,
   type HistoricalReviewPeriod,
@@ -53,13 +55,27 @@ export async function claimHistoricalBackfillWork(token: DecodedIdToken, now = n
       const snapshot = await transaction.get(accountRef);
       if (!snapshot.exists) return undefined;
       const fresh = snapshot.data() as AccountWithBackfill;
-      let state = fresh.reviewHistoryBackfill;
+      const persistedState = fresh.reviewHistoryBackfill;
+      const persistedActiveLease = leaseIsActive(persistedState?.lease, now) ? persistedState?.lease : undefined;
+      // An active claim that no longer maps to the current completed target window is anomalous.
+      // Do not replace it with different work; stale lease expiry/retry semantics remain authoritative.
+      if (persistedActiveLease && !targets.some((period) => period.start === persistedActiveLease.periodStart)) return undefined;
+      let state = persistedState;
       if (!state || state.version !== REVIEW_HISTORY_BACKFILL_VERSION || !sameTargets(state.targetPeriods, targets)) state = stateForTargets(state, targets, now);
       else if (!leaseIsActive(state.lease, now)) state = { ...state, lease: undefined };
       state = { ...state, evaluated: { ...(state.evaluated ?? {}), ...evaluatedFromLedger } };
       if (backfillComplete(targets, state.evaluated, existingStarts)) {
         transaction.set(accountRef, clean({ reviewHistoryBackfill: { ...state, status: "complete" as const, lease: undefined, completedAt: isoNow(now), lastError: undefined } }), { merge: true });
         return undefined;
+      }
+      if (persistedActiveLease) {
+        return resumableHistoricalBackfillWork(
+          targets,
+          { lease: persistedActiveLease, evaluated: state.evaluated },
+          account.cadenceAnchor!,
+          existingStarts,
+          now,
+        );
       }
       if (leaseIsActive(state.lease, now)) return undefined;
       const target = nextBackfillPeriod(targets, state.evaluated, existingStarts);
@@ -92,13 +108,18 @@ export async function markHistoricalBackfillSlot(token: DecodedIdToken, input: {
     if (!snapshot.exists) throw Object.assign(new Error("BoardSignal account not found."), { status: 404 });
     const fresh = snapshot.data() as AccountWithBackfill;
     let nextState = fresh.reviewHistoryBackfill;
+    const existingData = periodSnapshot.data() as (Partial<ReviewPeriodResult> & Record<string, unknown>) | undefined;
+    const durableOutcome = existingData?.outcome === "review" || existingData?.outcome === "no_activity" ? existingData.outcome : undefined;
+    const settlementDecision = historicalSettlementDecision(nextState, input, durableOutcome);
+    // A repeated successful settlement is a server-side no-op. Returning before any write also
+    // guarantees that a newer active lease cannot be cleared by a late replay from older work.
+    if (settlementDecision === "already_evaluated") return nextState;
     if (!nextState || nextState.version !== REVIEW_HISTORY_BACKFILL_VERSION) throw Object.assign(new Error("Historical Review state is not active."), { status: 409 });
-    if (!nextState.lease || nextState.lease.leaseId !== input.leaseId || nextState.lease.periodStart !== input.periodStart) throw Object.assign(new Error("Historical Review claim is no longer active."), { status: 409, code: "HISTORY_LEASE_MISMATCH" });
+    if (settlementDecision === "stale") throw Object.assign(new Error("Historical Review claim is no longer active."), { status: 409, code: "HISTORY_LEASE_MISMATCH" });
     const target = targets.find((period) => period.start === input.periodStart) ?? nextState.targetPeriods.find((period) => period.start === input.periodStart);
     if (!target) throw Object.assign(new Error("Historical Review period is no longer in the recent cadence window."), { status: 409 });
     const outcome = input.status === "published" ? "review" : "no_activity";
     const result: ReviewPeriodResult = { periodStart: target.start, periodEnd: target.end, periodLabel: reportPeriodLabel(target.start, target.end), outcome, reviewLifecycle: outcome === "review" ? "historical_backfill" : undefined, evaluatedAt: isoNow(now) };
-    const existingData = periodSnapshot.data() as (Partial<ReviewPeriodResult> & Record<string, unknown>) | undefined;
     if (!(existingData?.outcome === "review" && outcome === "no_activity")) transaction.set(periodRef, clean(mergeReviewPeriodResult(existingData, result)), { merge: false });
     const evaluated: Record<string, HistoricalReviewEvaluation> = { ...(nextState.evaluated ?? {}), [input.periodStart]: { status: input.status, evaluatedAt: isoNow(now) } };
     const nextTargets = targets.length ? targets : nextState.targetPeriods;

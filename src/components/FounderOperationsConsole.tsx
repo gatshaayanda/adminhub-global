@@ -9,6 +9,7 @@ type PlayerFilter = "all" | "recent" | "new" | "new_google" | "returned" | "feed
 type PlayerSort = "latest" | "visits" | "engaged" | "username";
 type ChessSourceHealthStatus = "fresh" | "zero_games" | "last_good" | "temporarily_unavailable" | "not_checked";
 type ReviewStatus = "FORMING" | "READY" | "COMPLETED" | "NO ACTIVITY" | "CHECK REQUIRED";
+type HistoryStatus = "not_started" | "pending" | "retryable" | "complete";
 type CoachingPresentationSource = "AUTO_RETURN" | "MANUAL_SWITCH";
 
 type ChessSnapshot = {
@@ -103,6 +104,17 @@ type EngagementRow = {
       periodEnd?: string;
       periodLabel?: string;
     };
+  };
+  history: {
+    status: HistoryStatus;
+    evaluatedSlots: number;
+    totalSlots: number;
+    reviewSlots: number;
+    noActivitySlots: number;
+    currentPeriod?: { periodStart: string; periodEnd: string };
+    lastAttemptAt?: string;
+    lastError?: string;
+    completedAt?: string;
   };
   trustpilot: {
     status: TrustpilotStatus;
@@ -332,6 +344,22 @@ function reviewHistoryLabel(row: EngagementRow) {
     : `${completed} completed · Latest Review not projected`;
 }
 
+function historyLabel(row: EngagementRow) {
+  const history = row.history;
+  let primary = "HISTORY · NOT STARTED";
+  if (history.status === "pending") primary = "HISTORY · PROCESSING";
+  else if (history.status === "retryable") primary = "HISTORY · RETRY REQUIRED";
+  else if (history.status === "complete" && history.reviewSlots === 0 && history.totalSlots > 0 && history.noActivitySlots === history.totalSlots) primary = "HISTORY · NO QUALIFYING ACTIVITY";
+  else if (history.status === "complete") primary = "HISTORY · COMPLETE";
+
+  const detail = [`${history.evaluatedSlots}/${history.totalSlots} evaluated`];
+  if (history.currentPeriod) detail.push(`Processing ${periodRange(history.currentPeriod.periodStart, history.currentPeriod.periodEnd)}`);
+  if (history.lastAttemptAt) detail.push(`Last attempt ${displayDateTime(history.lastAttemptAt)}`);
+  if (history.completedAt) detail.push(`Completed ${displayDateTime(history.completedAt)}`);
+  if (history.lastError) detail.push(`Last error: ${history.lastError}`);
+  return { primary, detail: detail.join(" · ") };
+}
+
 function explicitUseCount(row: EngagementRow) {
   return row.currentBoardSignal.helpfulCount
     + row.currentBoardSignal.notHelpfulCount
@@ -553,6 +581,7 @@ export default function FounderOperationsConsole() {
           <div className="founder-ops-table-head" role="row"><span>PLAYER</span><span>ACCESS</span><span>USAGE</span><span>CURRENT / CHESS</span><span>CURRENT BOARDSIGNAL</span><span>FEEDBACK</span><span>TRUSTPILOT</span><span>LAST ACTIVE</span><span>ACTION</span></div>
           {shown.map((row) => {
             const chess = chessLabel(row);
+            const history = historyLabel(row);
             const feedbackTotal = row.currentBoardSignal.helpfulCount + row.currentBoardSignal.notHelpfulCount;
             const coaching = row.currentBoardSignal.coaching;
             const reactions = coachingReactions(row);
@@ -576,6 +605,8 @@ export default function FounderOperationsConsole() {
                   <small><strong>REVIEW · {row.review.status ?? "NOT CHECKED"}</strong></small>
                   <small>{reviewProgressLabel(row)}</small>
                   <small>{reviewHistoryLabel(row)}</small>
+                  <small><strong>{history.primary}</strong></small>
+                  <small>{history.detail}</small>
                   {coaching ? <>
                     <small><strong>{coachingLabel(row)}</strong> · PRESENTATION {coaching.variant} · {presentationSourceLabel(presentationSource)} · EVIDENCE {coaching.evidenceCount} / {coaching.gamesConsidered}</small>
                     <small>{reactions || "NO COACHING FEEDBACK YET"}</small>

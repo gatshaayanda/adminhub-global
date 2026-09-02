@@ -4,6 +4,8 @@ import {
   type BoardSignalAccount,
   type BoardSignalPlayerRoomEngagement,
 } from "@/lib/boardsignal/account";
+import type { ReviewHistoryBackfillState } from "@/lib/boardsignal/historyBackfill";
+import { summarizeFounderHistoryVisibility } from "@/lib/boardsignal/founderOperationsLogic";
 import { currentAlignedPeriod } from "@/lib/boardsignal/processor";
 import { founderChessSnapshot, founderTrustpilotStatus, type FounderAccessOrigin, type FounderAccountEngagementProjection } from "@/lib/boardsignal/server/founderEngagement";
 import type { FounderPlayerSummary } from "@/lib/boardsignal/server/founderMaterialized";
@@ -17,7 +19,7 @@ export const dynamic = "force-dynamic";
 const baseHeaders = { "Cache-Control": "no-store, private", "X-Robots-Tag": "noindex, nofollow" };
 const DAY_MS = 86_400_000;
 type EngagementWithTotal = BoardSignalPlayerRoomEngagement & { totalForegroundEngagedSeconds?: number };
-type FounderSafeAccount = BoardSignalAccount & { googleAccessOrigin?: FounderAccessOrigin; founderEngagementProjection?: FounderAccountEngagementProjection };
+type FounderSafeAccount = BoardSignalAccount & { googleAccessOrigin?: FounderAccessOrigin; founderEngagementProjection?: FounderAccountEngagementProjection; reviewHistoryBackfill?: ReviewHistoryBackfillState };
 type ReviewStatus = "FORMING" | "READY" | "COMPLETED" | "NO ACTIVITY" | "CHECK REQUIRED";
 function response(body: unknown, status = 200) { return NextResponse.json(body, { status, headers: baseHeaders }); }
 function count(value: unknown) { const number = Number(value); return Number.isFinite(number) && number >= 0 ? Math.round(number) : 0; }
@@ -87,6 +89,14 @@ function playerRow(account: FounderSafeAccount, summary?: FounderPlayerSummary) 
     ? projection.chessSincePreviousVisit
     : undefined;
   const latestReview = summary?.row.latestReview;
+  const liveHistory = account.reviewHistoryBackfill;
+  const materializedHistory = summary?.row.history;
+  const historySummary = materializedHistory
+    ? { ...materializedHistory, status: liveHistory?.status ?? materializedHistory.status }
+    : summarizeFounderHistoryVisibility(liveHistory);
+  const activeHistoryTarget = liveHistory?.lease
+    ? liveHistory.targetPeriods.find((period) => period.start === liveHistory.lease?.periodStart)
+    : undefined;
   return {
     uid: account.uid,
     playerId: account.chessCom.playerId,
@@ -120,6 +130,17 @@ function playerRow(account: FounderSafeAccount, summary?: FounderPlayerSummary) 
     },
     chess: { current, sincePreviousVisit, sourceHealth: currentTruth.sourceHealth },
     review: { status: reviewStatus(account, summary), daysComplete: currentEpisode?.daysComplete, daysRemaining: currentEpisode?.daysRemaining, dueAt: summary?.row.nextDeskDueAt ?? currentEpisode?.nextDeskDueAt ?? account.nextDeskDueAt, completedCount: summary ? count(summary.validation.verifiedReviews) : undefined, latest: latestReview ? { periodStart: latestReview.periodStart, periodEnd: latestReview.periodEnd, periodLabel: latestReview.periodLabel } : undefined },
+    history: {
+      status: historySummary.status,
+      evaluatedSlots: historySummary.evaluatedSlots,
+      totalSlots: historySummary.totalSlots,
+      reviewSlots: historySummary.reviewSlots,
+      noActivitySlots: historySummary.noActivitySlots,
+      currentPeriod: activeHistoryTarget ? { periodStart: activeHistoryTarget.start, periodEnd: activeHistoryTarget.end } : undefined,
+      lastAttemptAt: liveHistory?.lastAttemptAt,
+      lastError: liveHistory?.lastError,
+      completedAt: liveHistory?.completedAt,
+    },
     trustpilot: { status: founderTrustpilotStatus(account.trustpilotReviewInvitation), firstAskShownAt: account.trustpilotReviewInvitation?.firstAskShownAt, finalAskShownAt: account.trustpilotReviewInvitation?.finalAskShownAt, resolvedAt: account.trustpilotReviewInvitation?.resolvedAt },
   };
 }

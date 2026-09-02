@@ -52,6 +52,47 @@ test('guest identity is opaque and cookie-secured; player identity remains priva
   assert.doesNotMatch(read('src/app/pipeline/page.tsx'), /playerUid|identityKeyHash|email/i);
 });
 
+test('P0 feedback keeps stable card DOM identity and hydrates only the caller personal record', () => {
+  const client = read('src/components/FeaturePipelineClient.tsx');
+  assert.doesNotMatch(client, /const Card = \(\{ item \}/);
+  assert.match(client, /const renderCard = \(item: FeaturePipelineItem\) =>/);
+  assert.match(client, /<article key=\{item\.id\}/);
+  assert.match(client, /next\.map\(\(item\) => renderCard\(item\)\)/);
+  assert.match(client, /shipped\.map\(\(item\) => renderCard\(item\)\)/);
+  assert.match(client, /onAuthStateChanged\(auth/);
+  assert.match(client, /method: "GET"/);
+
+  const route = read('src/app/api/boardsignal/pipeline/feedback/route.ts');
+  assert.match(route, /export async function GET\(request: Request\)/);
+  assert.match(route, /getPublicFeaturePipelineState\(\)/);
+  assert.match(route, /Promise\.all\(itemIds\.map/);
+  assert.match(route, /\.doc\(personalFeedbackId\(identity\.keyHash, itemId\)\)\.get\(\)/);
+  assert.doesNotMatch(route, /\.where\(|\.orderBy\(|collectionGroup\(/);
+  assert.match(route, /return json\(\{ ok: true, feedback: await readPersonalFeedback\(identity\) \}\)/);
+  assert.match(route, /interested: Boolean\(stored\.interested\)/);
+  assert.match(route, /displayName: typeof stored\.displayName === "string"/);
+  assert.match(route, /comment: typeof stored\.comment === "string"/);
+
+  const server = read('src/lib/boardsignal/server/featurePipeline.ts');
+  assert.match(server, /stableFeedbackId\(identity\.keyHash, itemId\)/);
+  assert.match(server, /commentChanged \? "pending" as const/);
+});
+
+test('Pipeline real-browser guard types through multiple React updates at mobile and desktop widths', () => {
+  const interaction = read('scripts/check-boardsignal-p0-pipeline-interaction.mjs');
+  assert.match(interaction, /\[390, 1365\]/);
+  assert.match(interaction, /Input\.insertText/);
+  assert.match(interaction, /details\.open/);
+  assert.match(interaction, /document\.activeElement === displayInput/);
+  assert.match(interaction, /document\.activeElement === textarea/);
+  assert.match(interaction, /Ayanda/);
+  assert.match(interaction, /BoardSignal Pipeline feedback stays open while I type a complete sentence\./);
+  assert.match(interaction, /otherInterest\.click\(\)/);
+  assert.match(interaction, /sendButton\.click\(\)/);
+  const workflow = read('.github/workflows/boardsignal-patch-m6-guard.yml');
+  assert.match(workflow, /node --experimental-websocket scripts\/check-boardsignal-p0-pipeline-interaction\.mjs/);
+});
+
 test('Founder admin, status control, nav and deletion cleanup are wired', () => {
   assert.match(read('src/components/AdminNav.tsx'), /Feature Pipeline/);
   const admin = read('src/components/FounderFeaturePipeline.tsx');

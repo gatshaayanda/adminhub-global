@@ -164,6 +164,7 @@ jobs:
           curl --fail --silent --show-error --user "founder:${ADMIN_PASSWORD}" "http://127.0.0.1:3100/admin/pipeline" >/dev/null
           node --experimental-websocket scripts/check-boardsignal-onboarding-render.mjs
           node scripts/check-boardsignal-p0-pipeline-render.mjs
+          node --experimental-websocket scripts/check-boardsignal-p0-pipeline-interaction.mjs
           node --experimental-websocket scripts/check-boardsignal-m8-player-room-render.mjs
 
       - name: Production build

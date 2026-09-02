@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/utils/firebaseConfig";
 import type { FeaturePipelineItem, PublicFeaturePipelineComment, PublicFeaturePipelineState } from "@/lib/boardsignal/featurePipeline";
 
 type ItemFeedback = { interested: boolean; displayName: string; comment: string; saving: boolean; message?: string; comments?: PublicFeaturePipelineComment[]; loadingComments?: boolean };
+type PersonalFeedback = { interested?: boolean; displayName?: string; comment?: string; moderationStatus?: string | null };
+const EMPTY_FEEDBACK: ItemFeedback = { interested: false, displayName: "", comment: "", saving: false };
 
 async function playerHeaders(): Promise<Record<string, string>> {
   const user = auth.currentUser;
@@ -19,10 +22,45 @@ export default function FeaturePipelineClient({ initialState }: { initialState: 
   const next = items.filter((item) => item.status === "planned" || item.status === "building" || item.status === "exploring");
   const shipped = items.filter((item) => item.status === "released");
 
-  const patchFeedback = (id: string, patch: Partial<ItemFeedback>) => setFeedback((current) => ({ ...current, [id]: { ...(current[id] ?? { interested: false, displayName: "", comment: "", saving: false }), ...patch } }));
+  const patchFeedback = (id: string, patch: Partial<ItemFeedback>) => setFeedback((current) => ({ ...current, [id]: { ...(current[id] ?? EMPTY_FEEDBACK), ...patch } }));
+
+  useEffect(() => {
+    let active = true;
+    let requestSequence = 0;
+    const unsubscribe = onAuthStateChanged(auth, () => {
+      const sequence = ++requestSequence;
+      void (async () => {
+        try {
+          const response = await fetch("/api/boardsignal/pipeline/feedback", { method: "GET", headers: await playerHeaders(), cache: "no-store" });
+          const payload = await response.json().catch(() => ({}));
+          if (!active || sequence !== requestSequence || !response.ok || !payload.feedback || typeof payload.feedback !== "object") return;
+          setFeedback((current) => {
+            const nextFeedback = { ...current };
+            for (const [id, raw] of Object.entries(payload.feedback as Record<string, PersonalFeedback>)) {
+              const saved = raw ?? {};
+              const existing = current[id];
+              const hasLocalEdits = Boolean(existing && (existing.displayName || existing.comment || existing.interested || existing.saving || existing.message));
+              if (hasLocalEdits) continue;
+              nextFeedback[id] = {
+                ...(existing ?? EMPTY_FEEDBACK),
+                interested: Boolean(saved.interested),
+                displayName: typeof saved.displayName === "string" ? saved.displayName : "",
+                comment: typeof saved.comment === "string" ? saved.comment : "",
+                saving: false,
+              };
+            }
+            return nextFeedback;
+          });
+        } catch {
+          // Personal feedback hydration is optional; the public Pipeline remains usable if it cannot be read.
+        }
+      })();
+    });
+    return () => { active = false; requestSequence += 1; unsubscribe(); };
+  }, []);
 
   async function save(item: FeaturePipelineItem, patch: Partial<ItemFeedback>, toggleInterest = false) {
-    const current = { ...(feedback[item.id] ?? { interested: false, displayName: "", comment: "", saving: false }), ...patch };
+    const current = { ...(feedback[item.id] ?? EMPTY_FEEDBACK), ...patch };
     patchFeedback(item.id, { ...patch, saving: true, message: undefined });
     try {
       const response = await fetch("/api/boardsignal/pipeline/feedback", {
@@ -48,10 +86,10 @@ export default function FeaturePipelineClient({ initialState }: { initialState: 
     } catch { patchFeedback(item.id, { loadingComments: false, comments: [] }); }
   }
 
-  const Card = ({ item }: { item: FeaturePipelineItem }) => {
-    const local = feedback[item.id] ?? { interested: false, displayName: "", comment: "", saving: false };
+  const renderCard = (item: FeaturePipelineItem) => {
+    const local = feedback[item.id] ?? EMPTY_FEEDBACK;
     const status = item.status.toUpperCase();
-    return <article className={`pipeline-card pipeline-card--${item.status}`} id={item.slug}>
+    return <article key={item.id} className={`pipeline-card pipeline-card--${item.status}`} id={item.slug}>
       <div className="pipeline-card__meta"><span className="pipeline-status"><span aria-hidden="true" className="pipeline-status__dot" />{status}</span><span>{item.category}</span></div>
       <h3>{item.title}</h3><p className="pipeline-card__summary">{item.summary}</p>
       {item.detail ? <p>{item.detail}</p> : null}
@@ -78,7 +116,7 @@ export default function FeaturePipelineClient({ initialState }: { initialState: 
     <section className="pipeline-strip" aria-label="Live Pipeline counts">
       <div><strong>{state.counts.planned}</strong><span>Planned</span></div><div><strong>{state.counts.building}</strong><span>Building</span></div><div><strong>{state.counts.released}</strong><span>Released</span></div><div><strong>{state.counts.communityInput}</strong><span>Community input</span></div>
     </section>
-    <section className="pipeline-section" aria-labelledby="whats-next"><div className="pipeline-section__head"><p className="eyebrow">WHAT&apos;S NEXT</p><h2 id="whats-next">Work moving through the desk</h2></div><div className="pipeline-grid">{next.map((item) => <Card key={item.id} item={item} />)}</div></section>
-    <section className="pipeline-section pipeline-section--released" aria-labelledby="recently-shipped"><div className="pipeline-section__head"><p className="eyebrow">RECENTLY SHIPPED</p><h2 id="recently-shipped">The work stays visible after release</h2></div><div className="pipeline-grid">{shipped.map((item) => <Card key={item.id} item={item} />)}</div></section>
+    <section className="pipeline-section" aria-labelledby="whats-next"><div className="pipeline-section__head"><p className="eyebrow">WHAT&apos;S NEXT</p><h2 id="whats-next">Work moving through the desk</h2></div><div className="pipeline-grid">{next.map((item) => renderCard(item))}</div></section>
+    <section className="pipeline-section pipeline-section--released" aria-labelledby="recently-shipped"><div className="pipeline-section__head"><p className="eyebrow">RECENTLY SHIPPED</p><h2 id="recently-shipped">The work stays visible after release</h2></div><div className="pipeline-grid">{shipped.map((item) => renderCard(item))}</div></section>
   </>;
 }

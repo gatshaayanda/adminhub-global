@@ -12,6 +12,7 @@ import { BOARDSIGNAL_FOUNDER_DEVICE_EVENT, BOARDSIGNAL_FOUNDER_DEVICE_KEY } from
 const primaryNav = [
   { label: "Home", href: "/" },
   { label: "Universe", href: "/feed" },
+  { label: "Pipeline", href: "/pipeline" },
   { label: "My BoardSignal", href: "/boardsignal/player-room" },
 ];
 

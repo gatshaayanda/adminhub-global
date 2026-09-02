@@ -6,7 +6,7 @@ import type { FeaturePipelineItem, PublicFeaturePipelineComment, PublicFeaturePi
 
 type ItemFeedback = { interested: boolean; displayName: string; comment: string; saving: boolean; message?: string; comments?: PublicFeaturePipelineComment[]; loadingComments?: boolean };
 
-async function playerHeaders() {
+async function playerHeaders(): Promise<Record<string, string>> {
   const user = auth.currentUser;
   if (!user) return { "Content-Type": "application/json" };
   return { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` };

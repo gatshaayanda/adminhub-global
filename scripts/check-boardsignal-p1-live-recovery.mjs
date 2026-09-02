@@ -110,6 +110,12 @@ async function runCase(cdp, width, state, permission) {
       if (!initial.text.includes("BoardSignal respects that choice and will not ask again")) throw new Error(`${width}/${state}/denied: denial copy missing.`);
     } else {
       if (!initial.hasCta) throw new Error(`${width}/${state}/${permission}: recovery CTA missing.`);
+      await waitFor(cdp, sessionId, `(() => {
+        const button = document.querySelector('.live-recovery-reminder button');
+        if (!button) return false;
+        const reactKey = Object.keys(button).find((key) => key.startsWith('__reactProps$'));
+        return Boolean(reactKey && typeof button[reactKey]?.onClick === 'function');
+      })()`);
       await evaluate(cdp, sessionId, `document.querySelector('.live-recovery-reminder button')?.click()`);
       await sleep(150);
       const after = await evaluate(cdp, sessionId, `({ text: document.body.innerText, promptCount: globalThis.__bsPromptCount })`);

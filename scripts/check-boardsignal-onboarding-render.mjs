@@ -1,5 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { request } from "node:http";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -7,6 +9,7 @@ const baseUrl = process.env.BOARDSIGNAL_QA_BASE_URL || "http://127.0.0.1:3100";
 const artifactDir = resolve(process.env.BOARDSIGNAL_QA_ARTIFACT_DIR || "artifacts/patch-l-onboarding-qa");
 const chromeStartupTimeoutMs = 15000;
 const chromeLaunchOutputLimit = 16 * 1024;
+const chromeProbeTimeoutMs = 750;
 mkdirSync(artifactDir, { recursive: true });
 
 function findChrome() {
@@ -20,11 +23,39 @@ function findChrome() {
   throw new Error("Chrome/Chromium was not found on the QA runner.");
 }
 
+function chromeVersion(chromePath) {
+  const result = spawnSync(chromePath, ["--version"], { encoding: "utf8" });
+  const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
+  return output || `version command exited ${result.status ?? "unknown"}`;
+}
+
 function sleep(ms) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
+async function allocateLoopbackPort() {
+  const allocator = createServer();
+  allocator.unref();
+  return new Promise((resolvePort, rejectPort) => {
+    allocator.once("error", rejectPort);
+    allocator.listen({ host: "127.0.0.1", port: 0, exclusive: true }, () => {
+      const address = allocator.address();
+      if (!address || typeof address === "string") {
+        allocator.close();
+        rejectPort(new Error("Could not allocate a numeric loopback Chrome debugging port."));
+        return;
+      }
+      const port = address.port;
+      allocator.close((error) => {
+        if (error) rejectPort(error);
+        else resolvePort(port);
+      });
+    });
+  });
+}
+
 const chrome = findChrome();
+const chromeVersionLabel = chromeVersion(chrome);
 const desktopStates = ["google", "username", "profile", "collision"];
 const mobileWidths = [320, 360, 375, 390, 412, 430];
 const cases = [];
@@ -57,21 +88,91 @@ function captureChromeLaunchOutput(chromeProcess) {
   return () => output.trim() || "(no Chrome launch output captured)";
 }
 
-async function waitForDevTools(profileDir, chromeProcess, launchOutput) {
-  const portFile = join(profileDir, "DevToolsActivePort");
-  const deadline = Date.now() + chromeStartupTimeoutMs;
+function probeDevToolsVersion(debugPort) {
+  return new Promise((resolveProbe) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      resolveProbe(value);
+    };
+    const req = request({
+      host: "127.0.0.1",
+      port: debugPort,
+      path: "/json/version",
+      method: "GET",
+      timeout: chromeProbeTimeoutMs,
+    }, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("end", () => {
+        if (response.statusCode !== 200) {
+          finish({ ok: false, detail: `HTTP ${response.statusCode ?? "unknown"}` });
+          return;
+        }
+        try {
+          const payload = JSON.parse(body);
+          const webSocketDebuggerUrl = payload?.webSocketDebuggerUrl;
+          if (typeof webSocketDebuggerUrl === "string" && webSocketDebuggerUrl.startsWith("ws://")) {
+            finish({ ok: true, webSocketDebuggerUrl });
+            return;
+          }
+          finish({ ok: false, detail: "HTTP 200 returned no valid webSocketDebuggerUrl" });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          finish({ ok: false, detail: `HTTP 200 returned invalid JSON (${message})` });
+        }
+      });
+    });
+    req.on("timeout", () => {
+      const timeoutError = new Error("request timed out");
+      timeoutError.code = "ETIMEDOUT";
+      req.destroy(timeoutError);
+    });
+    req.on("error", (error) => {
+      const code = typeof error?.code === "string" ? error.code : error?.name || "ERROR";
+      finish({ ok: false, detail: `${code}: ${error?.message || String(error)}` });
+    });
+    req.end();
+  });
+}
+
+function chromeStartupError(message, debugPort, startedAt, chromeProcess, launchOutput, lastProbe) {
+  const durationMs = Date.now() - startedAt;
+  const exit = chromeProcess.exitCode !== null
+    ? `exit code ${chromeProcess.exitCode}`
+    : chromeProcess.signalCode
+      ? `signal ${chromeProcess.signalCode}`
+      : "still running";
+  return new Error([
+    message,
+    `Chrome executable: ${chrome}`,
+    `Chrome version: ${chromeVersionLabel}`,
+    `Debugging port: ${debugPort}`,
+    `Startup duration: ${durationMs}ms`,
+    `Chrome process: ${exit}`,
+    `Last /json/version probe: ${lastProbe || "not attempted"}`,
+    "Chrome launch output:",
+    launchOutput(),
+  ].join("\n"));
+}
+
+async function waitForDevTools(debugPort, chromeProcess, launchOutput, startedAt) {
+  const deadline = startedAt + chromeStartupTimeoutMs;
+  let lastProbe = "not attempted";
   while (Date.now() < deadline) {
-    if (chromeProcess.exitCode !== null) {
-      throw new Error(`Chrome exited before DevTools became available (${chromeProcess.exitCode}).\nChrome launch output:\n${launchOutput()}`);
+    if (chromeProcess.exitCode !== null || chromeProcess.signalCode) {
+      throw chromeStartupError("Chrome exited before DevTools became available.", debugPort, startedAt, chromeProcess, launchOutput, lastProbe);
     }
-    if (existsSync(portFile)) {
-      const [portText, browserPath] = readFileSync(portFile, "utf8").trim().split(/\r?\n/);
-      const port = Number(portText);
-      if (Number.isFinite(port) && browserPath) return `ws://127.0.0.1:${port}${browserPath}`;
-    }
+    const probe = await probeDevToolsVersion(debugPort);
+    if (probe.ok) return probe.webSocketDebuggerUrl;
+    lastProbe = probe.detail;
     await sleep(50);
   }
-  throw new Error(`Chrome DevTools endpoint did not become available within ${chromeStartupTimeoutMs}ms.\nChrome launch output:\n${launchOutput()}`);
+  throw chromeStartupError(`Chrome DevTools endpoint did not become available within ${chromeStartupTimeoutMs}ms.`, debugPort, startedAt, chromeProcess, launchOutput, lastProbe);
 }
 
 async function openCdp(webSocketUrl) {
@@ -258,13 +359,15 @@ async function removeProfileDir(profileDir) {
 }
 
 const profileDir = mkdtempSync(join(tmpdir(), "boardsignal-chrome-cdp-"));
+const debugPort = await allocateLoopbackPort();
+const chromeStartedAt = Date.now();
 const chromeProcess = spawn(chrome, [
   "--headless=new",
   "--no-sandbox",
   "--disable-dev-shm-usage",
   "--disable-gpu",
   "--hide-scrollbars",
-  "--remote-debugging-port=0",
+  `--remote-debugging-port=${debugPort}`,
   `--user-data-dir=${profileDir}`,
   "about:blank",
 ], { stdio: ["ignore", "pipe", "pipe"] });
@@ -272,10 +375,12 @@ const chromeLaunchOutput = captureChromeLaunchOutput(chromeProcess);
 
 let cdp;
 try {
-  const webSocketUrl = await waitForDevTools(profileDir, chromeProcess, chromeLaunchOutput);
+  const webSocketUrl = await waitForDevTools(debugPort, chromeProcess, chromeLaunchOutput, chromeStartedAt);
   cdp = await openCdp(webSocketUrl);
 
   console.log(`BoardSignal rendered onboarding QA using ${chrome}`);
+  console.log(`Chrome version: ${chromeVersionLabel}`);
+  console.log(`Chrome debugging port: ${debugPort}`);
   console.log(`Base URL: ${baseUrl}`);
   console.log(`Cases: ${cases.length}`);
 

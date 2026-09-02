@@ -5,6 +5,8 @@ import { join, resolve } from "node:path";
 
 const baseUrl = process.env.BOARDSIGNAL_QA_BASE_URL || "http://127.0.0.1:3100";
 const artifactDir = resolve(process.env.BOARDSIGNAL_QA_ARTIFACT_DIR || "artifacts/patch-l-onboarding-qa");
+const chromeStartupTimeoutMs = 15000;
+const chromeLaunchOutputLimit = 16 * 1024;
 mkdirSync(artifactDir, { recursive: true });
 
 function findChrome() {
@@ -41,10 +43,27 @@ for (const state of ["google", "username"]) {
   cases.push({ state, theme: "light", width: 390, height: 900 });
 }
 
-async function waitForDevTools(profileDir, chromeProcess) {
+function captureChromeLaunchOutput(chromeProcess) {
+  let output = "";
+  const capture = (stream, label) => {
+    if (!stream) return;
+    stream.setEncoding("utf8");
+    stream.on("data", (chunk) => {
+      output = `${output}${label}${chunk}`.slice(-chromeLaunchOutputLimit);
+    });
+  };
+  capture(chromeProcess.stdout, "[stdout] ");
+  capture(chromeProcess.stderr, "[stderr] ");
+  return () => output.trim() || "(no Chrome launch output captured)";
+}
+
+async function waitForDevTools(profileDir, chromeProcess, launchOutput) {
   const portFile = join(profileDir, "DevToolsActivePort");
-  for (let attempt = 0; attempt < 200; attempt += 1) {
-    if (chromeProcess.exitCode !== null) throw new Error(`Chrome exited before DevTools became available (${chromeProcess.exitCode}).`);
+  const deadline = Date.now() + chromeStartupTimeoutMs;
+  while (Date.now() < deadline) {
+    if (chromeProcess.exitCode !== null) {
+      throw new Error(`Chrome exited before DevTools became available (${chromeProcess.exitCode}).\nChrome launch output:\n${launchOutput()}`);
+    }
     if (existsSync(portFile)) {
       const [portText, browserPath] = readFileSync(portFile, "utf8").trim().split(/\r?\n/);
       const port = Number(portText);
@@ -52,7 +71,7 @@ async function waitForDevTools(profileDir, chromeProcess) {
     }
     await sleep(50);
   }
-  throw new Error("Chrome DevTools endpoint did not become available.");
+  throw new Error(`Chrome DevTools endpoint did not become available within ${chromeStartupTimeoutMs}ms.\nChrome launch output:\n${launchOutput()}`);
 }
 
 async function openCdp(webSocketUrl) {
@@ -245,15 +264,15 @@ const chromeProcess = spawn(chrome, [
   "--disable-dev-shm-usage",
   "--disable-gpu",
   "--hide-scrollbars",
-  "--remote-debugging-address=127.0.0.1",
   "--remote-debugging-port=0",
   `--user-data-dir=${profileDir}`,
   "about:blank",
-], { stdio: ["ignore", "ignore", "ignore"] });
+], { stdio: ["ignore", "pipe", "pipe"] });
+const chromeLaunchOutput = captureChromeLaunchOutput(chromeProcess);
 
 let cdp;
 try {
-  const webSocketUrl = await waitForDevTools(profileDir, chromeProcess);
+  const webSocketUrl = await waitForDevTools(profileDir, chromeProcess, chromeLaunchOutput);
   cdp = await openCdp(webSocketUrl);
 
   console.log(`BoardSignal rendered onboarding QA using ${chrome}`);

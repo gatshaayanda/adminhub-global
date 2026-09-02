@@ -18,14 +18,44 @@ function chromePath() {
 }
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function stopChrome(process) {
-  if (process.exitCode !== null) return;
-  const exited = new Promise((resolve) => process.once("exit", resolve));
-  process.kill("SIGTERM");
-  const graceful = await Promise.race([exited.then(() => true), sleep(5000).then(() => false)]);
-  if (graceful || process.exitCode !== null) return;
-  process.kill("SIGKILL");
-  await exited;
+function waitForProcessExit(process, timeoutMs) {
+  if (process.exitCode !== null || process.signalCode !== null) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      process.off("exit", onExit);
+      resolve(false);
+    }, timeoutMs);
+    process.once("exit", onExit);
+  });
+}
+
+async function shutdownChrome(cdp, process) {
+  if (process.exitCode === null && process.signalCode === null && cdp) {
+    await cdp.command("Browser.close").catch(() => undefined);
+  }
+  if (await waitForProcessExit(process, 5000)) return;
+  if (process.exitCode === null && process.signalCode === null) process.kill("SIGTERM");
+  if (await waitForProcessExit(process, 5000)) return;
+  if (process.exitCode === null && process.signalCode === null) process.kill("SIGKILL");
+  if (!await waitForProcessExit(process, 5000)) throw new Error("Chrome did not exit after Browser.close, SIGTERM and SIGKILL.");
+}
+
+async function removeProfileDir(profileDir) {
+  let lastError;
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    try {
+      rmSync(profileDir, { recursive: true, force: true, maxRetries: 4, retryDelay: 125 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await sleep(250);
+    }
+  }
+  throw lastError;
 }
 
 async function waitForDevTools(profileDir, process) {
@@ -57,6 +87,13 @@ async function cdpClient(url) {
     const item = pending.get(message.id); pending.delete(message.id); clearTimeout(item.timer);
     if (message.error) item.reject(new Error(message.error.message)); else item.resolve(message.result ?? {});
   });
+  socket.addEventListener("close", () => {
+    for (const item of pending.values()) {
+      clearTimeout(item.timer);
+      item.reject(new Error("Chrome DevTools connection closed."));
+    }
+    pending.clear();
+  });
   function command(method, params = {}, sessionId) {
     return new Promise((resolve, reject) => {
       const id = ++nextId;
@@ -65,7 +102,12 @@ async function cdpClient(url) {
       socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     });
   }
-  return { command, close: () => socket.close() };
+  return {
+    command,
+    close: () => {
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) socket.close();
+    },
+  };
 }
 
 async function evaluate(cdp, sessionId, expression) {
@@ -143,13 +185,16 @@ async function runCase(cdp, width, state, permission) {
 
 const profileDir = mkdtempSync(join(tmpdir(), "boardsignal-p1-chrome-"));
 const chrome = spawn(chromePath(), ["--headless=new", "--no-sandbox", "--disable-gpu", `--user-data-dir=${profileDir}`, "--remote-debugging-port=0", "about:blank"], { stdio: "ignore" });
+let cdp;
 try {
-  const cdp = await cdpClient(await waitForDevTools(profileDir, chrome));
-  try {
-    for (const width of widths) for (const state of states) for (const permission of permissions) await runCase(cdp, width, state, permission);
-  } finally { cdp.close(); }
+  cdp = await cdpClient(await waitForDevTools(profileDir, chrome));
+  for (const width of widths) for (const state of states) for (const permission of permissions) await runCase(cdp, width, state, permission);
   console.log("BoardSignal P1 live-recovery real Chrome checks passed.");
 } finally {
-  await stopChrome(chrome);
-  rmSync(profileDir, { recursive: true, force: true });
+  try {
+    await shutdownChrome(cdp, chrome);
+  } finally {
+    cdp?.close();
+  }
+  await removeProfileDir(profileDir);
 }

@@ -19,10 +19,10 @@ export default function FeaturePipelineClient({ initialState }: { initialState: 
   const next = items.filter((item) => item.status === "planned" || item.status === "building" || item.status === "exploring");
   const shipped = items.filter((item) => item.status === "released");
 
-  const patchFeedback = (id: string, patch: Partial<ItemFeedback>) => setFeedback((current) => ({ ...current, [id]: { interested: false, displayName: "", comment: "", saving: false, ...(current[id] ?? {}), ...patch } }));
+  const patchFeedback = (id: string, patch: Partial<ItemFeedback>) => setFeedback((current) => ({ ...current, [id]: { ...(current[id] ?? { interested: false, displayName: "", comment: "", saving: false }), ...patch } }));
 
   async function save(item: FeaturePipelineItem, patch: Partial<ItemFeedback>, toggleInterest = false) {
-    const current = { interested: false, displayName: "", comment: "", saving: false, ...(feedback[item.id] ?? {}), ...patch };
+    const current = { ...(feedback[item.id] ?? { interested: false, displayName: "", comment: "", saving: false }), ...patch };
     patchFeedback(item.id, { ...patch, saving: true, message: undefined });
     try {
       const response = await fetch("/api/boardsignal/pipeline/feedback", {

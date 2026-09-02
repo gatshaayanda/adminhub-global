@@ -143,6 +143,21 @@ async function runCase(cdp, width, state, permission) {
     await cdp.command("Page.navigate", { url: `${baseUrl}/boardsignal/qa/live-recovery?state=${state}` }, sessionId);
     await waitFor(cdp, sessionId, `document.body?.innerText.includes("LIVE CHECKS PAUSED") || document.body?.innerText.includes("LIVE CHECKS PAUSED · SAVED WORK SAFE")`);
 
+    if (permission === "denied") {
+      await waitFor(cdp, sessionId, `(() => {
+        const text = document.body?.innerText || "";
+        return text.includes("BoardSignal respects that choice and will not ask again")
+          && !document.querySelector('.live-recovery-reminder button');
+      })()`);
+    } else {
+      await waitFor(cdp, sessionId, `(() => {
+        const button = document.querySelector('.live-recovery-reminder button');
+        if (!button) return false;
+        const reactKey = Object.keys(button).find((key) => key.startsWith('__reactProps$'));
+        return Boolean(reactKey && typeof button[reactKey]?.onClick === 'function');
+      })()`);
+    }
+
     const initial = await evaluate(cdp, sessionId, `(() => ({
       text: document.body.innerText,
       hasCta: Boolean(document.querySelector('.live-recovery-reminder button')),

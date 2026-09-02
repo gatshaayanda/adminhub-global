@@ -27,7 +27,7 @@ export default function LiveRecoveryReminder() {
     setState("setting");
     setError("");
     try {
-      let nextPermission = permission;
+      let nextPermission: NotificationPermission = permission;
       if (nextPermission === "default") {
         // The browser prompt is reachable only from this explicit player gesture.
         nextPermission = await Notification.requestPermission();

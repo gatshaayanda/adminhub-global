@@ -18,6 +18,16 @@ function chromePath() {
 }
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function stopChrome(process) {
+  if (process.exitCode !== null) return;
+  const exited = new Promise((resolve) => process.once("exit", resolve));
+  process.kill("SIGTERM");
+  const graceful = await Promise.race([exited.then(() => true), sleep(5000).then(() => false)]);
+  if (graceful || process.exitCode !== null) return;
+  process.kill("SIGKILL");
+  await exited;
+}
+
 async function waitForDevTools(profileDir, process) {
   const portFile = join(profileDir, "DevToolsActivePort");
   for (let attempt = 0; attempt < 200; attempt += 1) {
@@ -140,6 +150,6 @@ try {
   } finally { cdp.close(); }
   console.log("BoardSignal P1 live-recovery real Chrome checks passed.");
 } finally {
-  chrome.kill("SIGTERM");
+  await stopChrome(chrome);
   rmSync(profileDir, { recursive: true, force: true });
 }

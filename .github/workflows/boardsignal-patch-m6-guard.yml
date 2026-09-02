@@ -31,6 +31,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: P0 public feature pipeline guard
+        run: node --test tests/boardsignal-p0-feature-pipeline.test.cjs
+
+      - name: P0 privacy and account deletion regressions
+        run: node --test tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs
+
+      - name: P0 Universe regressions
+        run: node --test tests/boardsignal-universe-pulse.test.cjs tests/boardsignal-patch-g425-universe-founder-truth.test.cjs
+
+      - name: P0 historical onboarding regression
+        run: npx tsx --test tests/boardsignal-historical-onboarding-recovery.test.ts
+
       - name: Post-M6 Google access finalization guard
         run: node --test tests/boardsignal-google-access-finalization.test.cjs tests/boardsignal-google-player-accounting.test.cjs tests/boardsignal-legacy-beta-access-compat.test.cjs tests/boardsignal-patch-l-founder-access-semantics.test.cjs
 
@@ -82,8 +94,9 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
 
-      - name: Render onboarding and M8 Player Room coaching in real Chrome
+      - name: Render onboarding, Pipeline and M8 Player Room coaching in real Chrome
         env:
+          ADMIN_PASSWORD: boardsignal-p0-ci-founder
           NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchM6Guard000000000000000000000
           NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-m6-ci.firebaseapp.com
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-m6-ci
@@ -109,7 +122,10 @@ jobs:
             exit 1
           fi
           curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/player-room-coaching?theme=light&level=1" >/dev/null
+          curl --fail --silent --show-error "http://127.0.0.1:3100/pipeline" >/dev/null
+          curl --fail --silent --show-error --user "founder:${ADMIN_PASSWORD}" "http://127.0.0.1:3100/admin/pipeline" >/dev/null
           node --experimental-websocket scripts/check-boardsignal-onboarding-render.mjs
+          node scripts/check-boardsignal-p0-pipeline-render.mjs
           node --experimental-websocket scripts/check-boardsignal-m8-player-room-render.mjs
 
       - name: Production build

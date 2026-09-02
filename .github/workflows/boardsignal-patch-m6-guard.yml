@@ -17,7 +17,7 @@ jobs:
       - name: Checkout M6 candidate
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -33,6 +33,42 @@ jobs:
 
       - name: P0 public feature pipeline guard
         run: node --test tests/boardsignal-p0-feature-pipeline.test.cjs
+
+      - name: Reconstruct legacy E.3 deletion manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          E3_BASE="ce270724126aa827bb8e02ec324bc6ee1a20b7de"
+          E3_PATCH="d334c937a1efbbd3601dfd88c14831e98e579e5e"
+          test "$(git rev-parse "${E3_PATCH}^")" = "$E3_BASE"
+          test "$(git show -s --format=%s "$E3_BASE")" = "Clarify player access and repair public highlights"
+          ACTUAL="$(git diff --name-only "$E3_BASE" "$E3_PATCH" | sort)"
+          EXPECTED="$(printf '%s\n' \
+            'src/lib/boardsignal/server/accountDeletion.ts' \
+            'tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs' \
+            'tests/boardsignal-full-account-deletion-reonboarding.test.cjs' | sort)"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            printf 'Unexpected E.3 delta:\n%s\n' "$ACTUAL"
+            exit 1
+          fi
+          {
+            echo "BASELINE"
+            echo "$E3_BASE"
+            git show -s --format=%s "$E3_BASE"
+            echo "ADDED FILES"
+            git diff --name-only --diff-filter=A "$E3_BASE" "$E3_PATCH"
+            echo "DELETED FILES"
+            git diff --name-only --diff-filter=D "$E3_BASE" "$E3_PATCH"
+            echo "E.2.1 Player Access/Public Highlights repair: UNCHANGED"
+            echo "firestore.rules: UNCHANGED"
+            echo "NO NEW FIRESTORE INDEX"
+            echo "package.json: UNCHANGED"
+            echo "package-lock.json: UNCHANGED"
+            echo "B.1 active-week guidance: UNCHANGED"
+            echo "Patch D motion: UNCHANGED"
+            echo "Patch E Ask BoardSignal: UNCHANGED"
+            echo "Stockfish/quality/processor/seven-day logic: UNCHANGED"
+          } > PATCH-MANIFEST.txt
 
       - name: P0 privacy and account deletion regressions
         run: node --test tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs

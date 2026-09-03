@@ -6,7 +6,11 @@ import {
   type CurrentEpisodeWithNextGameGuidance,
 } from "@/lib/boardsignal/activeWeekGuidance";
 import { presentationFromCoachingState } from "@/lib/boardsignal/coaching";
-import { buildCurrentEpisodeSummary, currentAlignedPeriod } from "@/lib/boardsignal/processor";
+import {
+  buildCurrentEpisodeSummary,
+  clearChessComArchiveCacheForTests as clearChessComArchiveCache,
+  currentAlignedPeriod,
+} from "@/lib/boardsignal/processor";
 import type { CurrentEpisodeSummary } from "@/lib/boardsignal/memory";
 import type { ReviewLifecycle } from "@/lib/boardsignal/historyBackfill";
 import { canonicalGenerationRequired } from "@/lib/boardsignal/reviewPeriods";
@@ -37,6 +41,15 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const CURRENT_ARCHIVE_REFRESH_MS = 60_000;
+let currentArchiveCacheLastClearedAt = 0;
+
+function refreshCurrentArchiveCacheIfNeeded(referenceMs: number) {
+  if (referenceMs - currentArchiveCacheLastClearedAt < CURRENT_ARCHIVE_REFRESH_MS) return;
+  clearChessComArchiveCache();
+  currentArchiveCacheLastClearedAt = referenceMs;
+}
 
 function response(body: unknown, status = 200, retryAfterSeconds?: number) {
   return NextResponse.json(body, {
@@ -86,6 +99,7 @@ export async function GET(request: Request) {
     }
 
     const refreshReference = new Date();
+    refreshCurrentArchiveCacheIfNeeded(refreshReference.getTime());
     const alignedPeriod = currentAlignedPeriod(account.cadenceAnchor, refreshReference);
     const currentPeriod = { periodStart: isoDay(alignedPeriod.start), periodEnd: isoDay(alignedPeriod.end) };
     let currentEpisode: CurrentEpisodeWithNextGameGuidance | undefined;

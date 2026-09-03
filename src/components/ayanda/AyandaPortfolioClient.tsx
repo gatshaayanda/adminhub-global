@@ -142,7 +142,7 @@ export default function AyandaPortfolioClient() {
               const evidence = evidenceById.get(item.evidenceId);
               return (
                 <article className={styles.proofCard} key={item.metric} data-reveal>
-                  <strong>{item.metric}</strong>
+                  <strong>{item.metric === "BOARDSIGNAL V1" ? <>BOARD<wbr />SIGNAL V1</> : item.metric}</strong>
                   <p>{item.label}</p>
                   {evidence ? <ExternalLink href={evidence.url} className={styles.sourceLink}>Source: {item.source}</ExternalLink> : <span className={styles.sourceLink}>Source: {item.source}</span>}
                 </article>
@@ -314,7 +314,7 @@ export default function AyandaPortfolioClient() {
               <a href={data.contact.emailHref}>{data.contact.email}</a>
               <a href={data.contact.phoneHref}>{data.contact.phone}</a>
               <span>{data.profile.location}</span>
-              <span>International remote</span>
+              <span>{data.profile.workProfile}</span>
             </div>
           </div>
         </section>

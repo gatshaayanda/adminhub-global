@@ -28,7 +28,7 @@ export const ayandaPortfolio = {
     linkedin: "https://www.linkedin.com/in/ayandagatsha",
     github: "https://github.com/gatshaayanda",
     currentCv:
-      "https://docs.google.com/document/d/1FoUVs3dmHBPFkG_j1G-w9OIdsVc6EjdELABESvZ0LEY/edit?usp=drivesdk",
+      "https://docs.google.com/document/d/1NlmVWWZX1CpgBnCkC_nzAE3WkAIs_klNAPOvtGfMyPM/edit?usp=drivesdk",
     pipeline: "https://www.adminhub-global.com/pipeline",
   },
   evidence: [
@@ -83,7 +83,7 @@ export const ayandaPortfolio = {
       title: "Current CV",
       date: "External document",
       format: "Google Doc",
-      url: "https://docs.google.com/document/d/1FoUVs3dmHBPFkG_j1G-w9OIdsVc6EjdELABESvZ0LEY/edit?usp=drivesdk",
+      url: "https://docs.google.com/document/d/1NlmVWWZX1CpgBnCkC_nzAE3WkAIs_klNAPOvtGfMyPM/edit?usp=drivesdk",
       accessNote: "External CV link · opens in new tab",
     },
   ],

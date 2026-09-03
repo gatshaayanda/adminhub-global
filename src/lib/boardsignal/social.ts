@@ -3,6 +3,7 @@ import type { DeskUniverseStanding } from "./types";
 
 export type SocialRelationshipStatus = "pending" | "friends";
 export type SocialProjectionStatus = "incoming" | "outgoing" | "friends" | "blocked";
+export type SocialAvailability = "available" | "unavailable";
 
 export type SocialRelationshipRecord = {
   id: string;
@@ -38,6 +39,20 @@ export type SocialPlayerCard = {
   safeHighlight?: string;
   universePlacement?: string;
   rivalPinned?: boolean;
+  availability?: SocialAvailability;
+  identityHidden?: boolean;
+};
+
+export type SocialEligibilityAccount = {
+  role?: string;
+  accessStatus?: string;
+  identityStatus?: string;
+  preferencesConfirmedAt?: string;
+  contactConfirmedAt?: string;
+  chessCom?: {
+    playerId?: number;
+    canonicalUsername?: string;
+  };
 };
 
 export type HeadToHeadMetric = {
@@ -86,6 +101,76 @@ export function canonicalSocialRelationshipId(playerAId: number, playerBId: numb
 export function socialBlockId(blockerPlayerId: number, blockedPlayerId: number) {
   if (blockerPlayerId === blockedPlayerId) throw new Error("A player cannot block themselves.");
   return `${blockerPlayerId}_${blockedPlayerId}`;
+}
+
+function stableSocialIdentity(account: SocialEligibilityAccount | undefined) {
+  const playerId = Number(account?.chessCom?.playerId);
+  const username = String(account?.chessCom?.canonicalUsername ?? "").trim();
+  return Number.isSafeInteger(playerId) && playerId > 0 && Boolean(username);
+}
+
+export function canExposeStoredSocialIdentity(account: SocialEligibilityAccount | undefined) {
+  return Boolean(account
+    && account.role === "player"
+    && account.accessStatus !== "deleted"
+    && account.identityStatus !== "provisional"
+    && account.identityStatus !== "revoked"
+    && stableSocialIdentity(account));
+}
+
+export function canReceiveSocialConnection(account: SocialEligibilityAccount | undefined) {
+  return Boolean(canExposeStoredSocialIdentity(account) && account?.accessStatus === "active");
+}
+
+export function hasSocialPlayerRoomReadiness(account: SocialEligibilityAccount | undefined) {
+  return Boolean(account?.preferencesConfirmedAt && account?.contactConfirmedAt);
+}
+
+export function canInitiateSocialConnection(account: SocialEligibilityAccount | undefined) {
+  return canReceiveSocialConnection(account) && hasSocialPlayerRoomReadiness(account);
+}
+
+export function canInteractSocialConnection(account: SocialEligibilityAccount | undefined) {
+  return canInitiateSocialConnection(account);
+}
+
+export function relationshipProjectionMatches(
+  viewerPlayerId: number,
+  viewerUid: string,
+  projection: SocialProjection,
+  relationship: SocialRelationshipRecord,
+) {
+  if (!Number.isSafeInteger(viewerPlayerId) || viewerPlayerId <= 0 || !viewerUid) return false;
+  if (projection.status === "blocked") return false;
+  const expectedId = canonicalSocialRelationshipId(viewerPlayerId, projection.otherPlayerId);
+  if (relationship.id !== expectedId) return false;
+  if (projection.relationshipId && projection.relationshipId !== expectedId) return false;
+
+  const viewerIsA = relationship.playerAId === viewerPlayerId && relationship.playerAUid === viewerUid;
+  const viewerIsB = relationship.playerBId === viewerPlayerId && relationship.playerBUid === viewerUid;
+  if (viewerIsA === viewerIsB) return false;
+  const otherId = viewerIsA ? relationship.playerBId : relationship.playerAId;
+  if (otherId !== projection.otherPlayerId) return false;
+
+  if (relationship.status === "friends") return projection.status === "friends";
+  if (relationship.status !== "pending") return false;
+  const expectedProjection = relationship.requestedByPlayerId === viewerPlayerId ? "outgoing" : "incoming";
+  return projection.status === expectedProjection;
+}
+
+export function unavailableRelationshipCard(
+  projection: SocialProjection,
+  exposeStoredIdentity: boolean,
+): SocialPlayerCard {
+  return {
+    playerId: projection.otherPlayerId,
+    canonicalUsername: exposeStoredIdentity && projection.canonicalUsername.trim()
+      ? projection.canonicalUsername.trim()
+      : "BoardSignal player",
+    relationshipStatus: projection.status === "blocked" ? undefined : projection.status,
+    availability: "unavailable",
+    identityHidden: !exposeStoredIdentity,
+  };
 }
 
 export function resolveFriendRequestTransition(input: {

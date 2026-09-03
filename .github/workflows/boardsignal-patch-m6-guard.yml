@@ -31,6 +31,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Friends / Rivals focused suite
+        run: |
+          npx tsc -p tsconfig.friends-rivals.json
+          node --test tests/boardsignal-friends-rivals.test.cjs
+
       - name: P0 public feature pipeline guard
         run: node --test tests/boardsignal-p0-feature-pipeline.test.cjs
 

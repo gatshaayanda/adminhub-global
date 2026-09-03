@@ -12,7 +12,11 @@ import {
   type BoardSignalChatAttachment,
 } from "../chatAttachments";
 import type { BoardSignalFriendConversationView, BoardSignalFriendMessage } from "../friendChat";
-import { canonicalSocialRelationshipId } from "../social";
+import {
+  canInitiateSocialConnection,
+  canInteractSocialConnection,
+  canonicalSocialRelationshipId,
+} from "../social";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import { accountForToken } from "./persistence";
 import {
@@ -44,6 +48,12 @@ function stableMessageId(scope: string, input: unknown) {
   return `msg_${createHash("sha256").update(`${scope}:${clientId}`).digest("hex").slice(0, 40)}`;
 }
 
+function assertCanInitiateSocial(account: BoardSignalAccount) {
+  if (!canInitiateSocialConnection(account)) {
+    throw Object.assign(new Error("Private messaging is unavailable until this BoardSignal player is ready for social interaction."), { status: 403 });
+  }
+}
+
 async function accountByPlayerId(targetPlayerId: number) {
   const db = getAdminDb();
   const mapping = await db.collection("chessPlayerAccounts").doc(String(targetPlayerId)).get();
@@ -51,7 +61,7 @@ async function accountByPlayerId(targetPlayerId: number) {
   const snapshot = await db.collection("users").doc(uid).get();
   if (!snapshot.exists) throw Object.assign(new Error("That BoardSignal player is not available."), { status: 404 });
   const account = snapshot.data() as BoardSignalAccount;
-  if (account.role !== "player" || account.accessStatus !== "active" || account.chessCom.playerId !== targetPlayerId) {
+  if (account.chessCom.playerId !== targetPlayerId || !canInteractSocialConnection(account)) {
     throw Object.assign(new Error("That BoardSignal player is not available."), { status: 404 });
   }
   return account;
@@ -97,6 +107,7 @@ async function assertCurrentFriendship(left: BoardSignalAccount, right: BoardSig
 
 export async function friendConversation(token: DecodedIdToken, otherPlayerIdInput: unknown): Promise<BoardSignalFriendConversationView> {
   const account = await accountForToken(token);
+  assertCanInitiateSocial(account);
   const other = await accountByPlayerId(playerId(otherPlayerIdInput));
   if (other.uid === account.uid) throw Object.assign(new Error("Choose another BoardSignal player."), { status: 400 });
   const threadId = await assertCurrentFriendship(account, other);
@@ -123,6 +134,7 @@ export async function sendFriendMessage(
   clientMessageIdInput?: unknown,
 ) {
   const account = await accountForToken(token);
+  assertCanInitiateSocial(account);
   const other = await accountByPlayerId(playerId(otherPlayerIdInput));
   if (other.uid === account.uid) throw Object.assign(new Error("Choose another BoardSignal player."), { status: 400 });
 

@@ -6,11 +6,13 @@ const path = require('node:path');
 const root = process.cwd();
 const social = require(path.join(root, '.test-dist-friends-rivals/src/lib/boardsignal/social.js'));
 const serverSource = fs.readFileSync(path.join(root, 'src/lib/boardsignal/server/social.ts'), 'utf8');
+const friendChatSource = fs.readFileSync(path.join(root, 'src/lib/boardsignal/server/friendChat.ts'), 'utf8');
 const routeSource = fs.readFileSync(path.join(root, 'src/app/api/boardsignal/social/route.ts'), 'utf8');
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const roomSource = fs.readFileSync(path.join(root, 'src/components/BoardSignalPlayerRoom.tsx'), 'utf8');
 const friendsSource = fs.readFileSync(path.join(root, 'src/components/PlayerFriends.tsx'), 'utf8');
 const commsSource = fs.readFileSync(path.join(root, 'src/lib/boardsignal/server/communications.ts'), 'utf8');
+const accountDeletionSource = fs.readFileSync(path.join(root, 'src/lib/boardsignal/server/accountDeletion.ts'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'src/app/globals.css'), 'utf8');
 const betaRoute = fs.readFileSync(path.join(root, 'src/app/api/auth/beta-access/sign-in/route.ts'), 'utf8');
 
@@ -33,6 +35,26 @@ function summary(key, end, pools, extra = {}) {
   };
 }
 function player(id, name) { return { playerId: id, canonicalUsername: name }; }
+function socialAccount(id, name, extra = {}) {
+  return {
+    role: 'player',
+    accessStatus: 'active',
+    identityStatus: 'founder_reviewed',
+    preferencesConfirmedAt: '2026-08-12T00:00:00.000Z',
+    contactConfirmedAt: '2026-08-12T00:00:00.000Z',
+    chessCom: { playerId: id, canonicalUsername: name },
+    ...extra,
+  };
+}
+function oldActiveSocialMember(account) {
+  return Boolean(account
+    && account.role === 'player'
+    && account.accessStatus === 'active'
+    && account.accessTier === 'founding_beta'
+    && account.betaAgreementVersion === 'founding-beta-2026-08-12'
+    && account.betaAgreementAcceptedAt
+    && account.universeParticipationDisclosedAt);
+}
 function contrast(hexA, hexB) {
   const lum = (hex) => {
     const rgb = [1,3,5].map(i => parseInt(hex.slice(i,i+2),16)/255).map(c => c <= .03928 ? c/12.92 : ((c+.055)/1.055)**2.4);
@@ -105,7 +127,7 @@ test('11 blocked player cannot send a new request', () => {
 
 test('12 block status does not leak to the blocked player', () => {
   const section = serverSource.slice(serverSource.indexOf('export async function blockPlayer'), serverSource.indexOf('export async function setRivalPin'));
-  assert.match(section, /transaction\.delete\(db\.collection\("users"\)\.doc\(other\.uid\)\.collection\("social"\)\.doc\(String\(actor\.chessCom\.playerId\)\)\)/);
+  assert.match(section, /transaction\.delete\(db\.collection\("users"\)\.doc\(otherUid\)\.collection\("social"\)\.doc\(String\(actor\.chessCom\.playerId\)\)\)/);
   assert.match(section, /status: "blocked"/);
   const blockedProjectionWrites = (section.match(/status: "blocked"/g) || []).length;
   assert.equal(blockedProjectionWrites, 1);
@@ -203,4 +225,200 @@ test('25 semantic contrast tokens and forbidden light-surface failures are gated
   assert.ok(contrast('#5e7f10','#fffdf8') >= 4.5, 'darkened lime semantic text accent is AA-safe on pale');
   assert.match(css, /\.tone-coral \{ --card-accent: var\(--danger\); \}/);
   assert.match(friendsSource, /HEAD TO HEAD/);
+});
+
+test('26 paid and Universe-opted-out players remain valid social recipients', () => {
+  const account = socialAccount(101, 'PaidPlayer', {
+    accessTier: 'paid',
+    privacy: { universeCoverage: false },
+    universeParticipationDisclosedAt: undefined,
+  });
+  assert.equal(social.canReceiveSocialConnection(account), true);
+  assert.equal(social.canInitiateSocialConnection(account), true);
+});
+
+test('27 provisional, revoked, inactive and deleted identities fail closed', () => {
+  assert.equal(social.canReceiveSocialConnection(socialAccount(1, 'P', { identityStatus:'provisional' })), false);
+  assert.equal(social.canReceiveSocialConnection(socialAccount(2, 'R', { identityStatus:'revoked' })), false);
+  assert.equal(social.canReceiveSocialConnection(socialAccount(3, 'I', { accessStatus:'paused' })), false);
+  assert.equal(social.canExposeStoredSocialIdentity(socialAccount(4, 'D', { accessStatus:'deleted' })), false);
+});
+
+test('28 initiating social action requires current Player Room readiness, not beta-era fields', () => {
+  const ready = socialAccount(7, 'Ready', { accessTier:'paid' });
+  const notReady = { ...ready, contactConfirmedAt: undefined };
+  assert.equal(social.canInitiateSocialConnection(ready), true);
+  assert.equal(social.canInitiateSocialConnection(notReady), false);
+  assert.equal(social.canInteractSocialConnection(notReady), false);
+  assert.equal(Object.hasOwn(ready, 'universeParticipationDisclosedAt'), false);
+});
+
+test('28.1 current interaction availability is stricter than receive/discovery eligibility', () => {
+  const receiveOnly = socialAccount(8, 'ReceiveOnly', { contactConfirmedAt: undefined });
+  assert.equal(social.canReceiveSocialConnection(receiveOnly), true);
+  assert.equal(social.canInteractSocialConnection(receiveOnly), false);
+});
+
+test('29 reported old eligibility contradiction is deterministically reproduced and removed', () => {
+  const requester = socialAccount(11, 'Requester', { accessTier:'paid' });
+  const recipient = socialAccount(22, 'Recipient', {
+    accessTier:'founding_beta',
+    betaAgreementVersion:'founding-beta-2026-08-12',
+    betaAgreementAcceptedAt:'2026-08-12T00:00:00.000Z',
+    universeParticipationDisclosedAt:'2026-08-12T00:00:00.000Z',
+  });
+  assert.equal(oldActiveSocialMember(requester), false, 'old read/search predicate hid requester');
+  assert.equal(oldActiveSocialMember(recipient), true, 'old send path could resolve recipient');
+  assert.equal(social.canInitiateSocialConnection(requester), true, 'new actor contract accepts legitimate requester');
+  assert.equal(social.canReceiveSocialConnection(requester), true, 'new overview/search contract resolves same requester');
+  assert.deepEqual(social.resolveFriendRequestTransition({ actorPlayerId:11, targetPlayerId:22 }), { allowed:true, action:'create_pending' });
+  const send = serverSource.slice(serverSource.indexOf('export async function sendFriendRequest'), serverSource.indexOf('async function pendingRelationshipFor'));
+  assert.ok(send.indexOf('assertCanInitiateSocial(actor)') < send.indexOf('receivableAccountByPlayerId(targetPlayerId)'));
+  assert.ok(send.indexOf('assertCanInitiateSocial(actor)') < send.indexOf('socialRequestRateLimits'));
+});
+
+test('30 valid pending relationship projection remains representable when counterpart becomes unavailable', () => {
+  const relationship = { id:'11_22', playerAId:11, playerAUid:'uid11', playerBId:22, playerBUid:'uid22', status:'pending', requestedByPlayerId:22, requestedAt:'x', updatedAt:'x' };
+  const projection = { relationshipId:'11_22', otherPlayerId:22, canonicalUsername:'Requester', status:'incoming', updatedAt:'x' };
+  assert.equal(social.relationshipProjectionMatches(11, 'uid11', projection, relationship), true);
+  const card = social.unavailableRelationshipCard(projection, true);
+  assert.equal(card.availability, 'unavailable');
+  assert.equal(card.relationshipStatus, 'incoming');
+  assert.equal(card.canonicalUsername, 'Requester');
+});
+
+test('31 orphan or mismatched projection is never upgraded into a relationship', () => {
+  const relationship = { id:'11_33', playerAId:11, playerAUid:'uid11', playerBId:33, playerBUid:'uid33', status:'pending', requestedByPlayerId:33, requestedAt:'x', updatedAt:'x' };
+  const projection = { relationshipId:'11_22', otherPlayerId:22, canonicalUsername:'Ghost', status:'incoming', updatedAt:'x' };
+  assert.equal(social.relationshipProjectionMatches(11, 'uid11', projection, relationship), false);
+  assert.match(serverSource, /if \(!relationshipSnapshot\.exists\) return undefined/);
+  assert.match(serverSource, /relationshipProjectionMatches/);
+});
+
+test('32 revoked/deleted fallback is an opaque private-safe tombstone', () => {
+  const projection = { relationshipId:'11_22', otherPlayerId:22, canonicalUsername:'SecretName', avatar:'https://example.test/a.png', status:'friends', updatedAt:'x', rivalPinned:true };
+  const card = social.unavailableRelationshipCard(projection, false);
+  assert.deepEqual(card, {
+    playerId:22,
+    canonicalUsername:'BoardSignal player',
+    relationshipStatus:'friends',
+    availability:'unavailable',
+    identityHidden:true,
+  });
+  assert.equal(social.socialPayloadHasPrivateFields(card), false);
+});
+
+test('33 safe unavailable relationship keeps only minimal stored identity', () => {
+  const projection = { relationshipId:'11_22', otherPlayerId:22, canonicalUsername:'KnownFriend', avatar:'https://example.test/a.png', status:'friends', updatedAt:'x', rivalPinned:true };
+  const card = social.unavailableRelationshipCard(projection, true);
+  assert.equal(card.canonicalUsername, 'KnownFriend');
+  assert.equal(card.avatar, undefined);
+  assert.equal(card.profileUrl, undefined);
+  assert.equal(card.rivalPinned, undefined);
+  assert.equal(card.safeHighlight, undefined);
+  assert.equal(card.universePlacement, undefined);
+});
+
+test('34 overview uses canonical fallback only after normal resolution fails', () => {
+  const section = serverSource.slice(serverSource.indexOf('export async function socialOverview'), serverSource.indexOf('export async function headToHead'));
+  assert.match(section, /interactableAccountByPlayerId\(item\.otherPlayerId\)\.catch/);
+  assert.match(section, /return unavailableCardForProjection\(actor, item\)/);
+  const fallback = serverSource.slice(serverSource.indexOf('async function unavailableCardForProjection'), serverSource.indexOf('export async function socialOverview'));
+  assert.match(fallback, /collection\("socialRelationships"\)\.doc\(id\)\.get\(\)/);
+  assert.match(fallback, /relationshipProjectionMatches/);
+});
+
+test('35 unavailable pending request stays visible with Decline but no Accept action', () => {
+  assert.match(friendsSource, /player\.availability === "unavailable"[\s\S]*Currently unavailable[\s\S]*socialAction\("decline"/);
+  assert.doesNotMatch(friendsSource, /player\.availability === "unavailable"[\s\S]{0,180}socialAction\("accept"/);
+});
+
+test('36 unavailable accepted friend disables interaction but preserves cleanup controls', () => {
+  const unavailableBranch = friendsSource.slice(friendsSource.indexOf('player.availability === "unavailable" ? <>'), friendsSource.indexOf('</> : <>'));
+  assert.match(unavailableBranch, /Compare unavailable/);
+  assert.match(unavailableBranch, /Message unavailable/);
+  assert.match(unavailableBranch, /Rival Watch unavailable/);
+  assert.match(unavailableBranch, /socialAction\("unfriend"/);
+  assert.match(unavailableBranch, /socialAction\("block"/);
+});
+
+test('37 existing unavailable counterpart can still be blocked without discovery eligibility', () => {
+  const section = serverSource.slice(serverSource.indexOf('export async function blockPlayer'), serverSource.indexOf('export async function setRivalPin'));
+  assert.ok(section.indexOf('relationshipRef.get()') < section.indexOf('receivableAccountByPlayerId(otherPlayerId)'));
+  assert.match(section, /relationshipOtherUid/);
+  assert.match(section, /rawAccountByPlayerId/);
+  assert.match(section, /else \{[\s\S]*assertCanInitiateSocial\(actor\)[\s\S]*receivableAccountByPlayerId/);
+  assert.match(section, /transaction\.delete\(db\.collection\("users"\)\.doc\(otherUid\)/);
+});
+
+test('38 Head-to-Head requires both accepted relationship and current social interaction availability', () => {
+  const section = serverSource.slice(serverSource.indexOf('export async function headToHead'), serverSource.indexOf('export async function suggestedSocialPlayers'));
+  assert.match(section, /assertCanInitiateSocial\(actor\)/);
+  assert.match(section, /status !== "friends"/);
+  assert.match(section, /interactableAccountByPlayerId\(otherPlayerId\)/);
+});
+
+test('39 friend messaging enforces the same actor and target social availability contract', () => {
+  assert.match(friendChatSource, /canInitiateSocialConnection/);
+  assert.match(friendChatSource, /canInteractSocialConnection/);
+  assert.ok((friendChatSource.match(/assertCanInitiateSocial\(account\)/g) || []).length >= 2);
+  assert.match(friendChatSource, /account\.chessCom\.playerId !== targetPlayerId \|\| !canInteractSocialConnection\(account\)/);
+});
+
+test('40 discovery no longer depends on Founding Beta, Universe disclosure or Universe coverage', () => {
+  assert.doesNotMatch(serverSource, /activeSocialMember/);
+  assert.doesNotMatch(serverSource, /accessTier === "founding_beta"/);
+  assert.doesNotMatch(serverSource, /universeParticipationDisclosedAt/);
+  const search = serverSource.slice(serverSource.indexOf('export async function searchSocialPlayers'), serverSource.indexOf('function socialEventKey'));
+  assert.match(search, /\.filter\(canReceiveSocialConnection\)/);
+});
+
+test('41 accepted private friendship survives Universe opt-out semantics', () => {
+  const optedOut = socialAccount(55, 'PrivateUniverse', { privacy:{ universeCoverage:false } });
+  assert.equal(social.canReceiveSocialConnection(optedOut), true);
+  assert.match(serverSource, /publicUniverseAllowed = account\.privacy\?\.universeCoverage !== false/);
+});
+
+test('42 completed account deletion still removes canonical social state', () => {
+  assert.match(accountDeletionSource, /collection\("socialRelationships"\)/);
+  assert.match(accountDeletionSource, /deleteDirectSocialProjection/);
+  assert.match(accountDeletionSource, /deleteRelationshipInboxArtifacts/);
+  assert.match(accountDeletionSource, /deleteOrphanSocialProjections/);
+});
+
+test('43 eligible accepted friend remains searchable with projection-derived relationship status', () => {
+  const search = serverSource.slice(serverSource.indexOf('export async function searchSocialPlayers'), serverSource.indexOf('function socialEventKey'));
+  assert.match(search, /projectionMap/);
+  assert.match(search, /safePlayerCard\(account, projectionMap\.get\(account\.chessCom\.playerId\), state\)/);
+});
+
+test('44 Universe-visible and social-eligible player is discoverable without coupling the privacy models', () => {
+  const account = socialAccount(66, 'UniversePlayer', { privacy:{ universeCoverage:true } });
+  assert.equal(social.canReceiveSocialConnection(account), true);
+  assert.doesNotMatch(serverSource, /canReceiveSocialConnection[\s\S]{0,120}universeCoverage/);
+});
+
+test('45 mutual cross-request still resolves into one canonical friendship transition', () => {
+  const existing = { status:'pending', requestedByPlayerId:22 };
+  assert.deepEqual(social.resolveFriendRequestTransition({ actorPlayerId:11, targetPlayerId:22, existing }), { allowed:true, action:'accept_mutual' });
+  assert.equal(social.canonicalSocialRelationshipId(11,22), '11_22');
+  assert.equal(social.canonicalSocialRelationshipId(22,11), '11_22');
+  const send = serverSource.slice(serverSource.indexOf('export async function sendFriendRequest'), serverSource.indexOf('async function pendingRelationshipFor'));
+  assert.match(send, /accept_mutual[\s\S]*canInteractSocialConnection\(target\)/);
+});
+
+test('46 duplicate and retry paths cannot create duplicate relationship or request notification state', () => {
+  assert.deepEqual(social.resolveFriendRequestTransition({ actorPlayerId:11, targetPlayerId:22, existing:{status:'pending',requestedByPlayerId:11} }), { allowed:false, reason:'duplicate' });
+  const send = serverSource.slice(serverSource.indexOf('export async function sendFriendRequest'), serverSource.indexOf('async function pendingRelationshipFor'));
+  assert.match(send, /if \(latest\.exists\) throw Object\.assign\(new Error\("A social relationship already exists/);
+  assert.equal((send.match(/id: `friend_request_\$\{relationship\.id\}`/g) || []).length, 1);
+});
+
+test('47 fallback payload never exposes private account or enrichment fields', () => {
+  const projection = { relationshipId:'11_22', otherPlayerId:22, canonicalUsername:'SafeName', avatar:'secret-avatar', status:'incoming', updatedAt:'x' };
+  const card = social.unavailableRelationshipCard(projection, true);
+  assert.equal(social.socialPayloadHasPrivateFields(card), false);
+  for (const key of ['avatar','profileUrl','latestDeskPeriod','primaryPool','safeHighlight','universePlacement','rivalPinned']) {
+    assert.equal(card[key], undefined, `${key} must not enter unavailable fallback`);
+  }
 });

@@ -86,7 +86,10 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
       });
     setOverview(overviewBody.overview);
     setSuggested(suggestedBody.players);
-    if (messageTarget && !overviewBody.overview.friends.some((friend) => friend.playerId === messageTarget.playerId)) setMessageTarget(null);
+    if (messageTarget) {
+      const currentFriend = overviewBody.overview.friends.find((friend) => friend.playerId === messageTarget.playerId);
+      if (!currentFriend || currentFriend.availability === "unavailable") setMessageTarget(null);
+    }
     void saveSocialOverviewOfflineSnapshot(uidRef.current, overviewBody.overview).then(() => window.dispatchEvent(new CustomEvent("boardsignal:offline-saved"))).catch(() => undefined);
     onChangedRef.current?.(overviewBody.overview);
   }, [messageTarget, token]);
@@ -145,7 +148,7 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
 
   useEffect(() => {
     if (!initialComparePlayerId || loading) return;
-    if (overview.friends.some((friend) => friend.playerId === initialComparePlayerId)) void compare(initialComparePlayerId);
+    if (overview.friends.some((friend) => friend.playerId === initialComparePlayerId && friend.availability !== "unavailable")) void compare(initialComparePlayerId);
   }, [compare, initialComparePlayerId, loading, overview.friends]);
 
   useEffect(() => {
@@ -204,11 +207,19 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
     {overview.socialPulse.length ? <section className="social-panel"><p className="kicker">SOCIAL PULSE</p><div className="social-pulse-grid">{overview.socialPulse.map((event) => <article key={event.id}><span>{event.eyebrow}</span><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small></article>)}</div></section> : null}
 
     {overview.incoming.length || overview.outgoing.length ? <section className="social-panel"><p className="kicker">REQUESTS</p><div className="friend-card-grid">
-      {overview.incoming.map((player) => <FriendCard key={`in:${player.playerId}`} player={player} status="incoming" actions={<><button className="button button-lime" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("accept", player.playerId)}><Check size={15}/> Accept</button><button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("decline", player.playerId)}><X size={15}/> Decline</button></>} />)}
+      {overview.incoming.map((player) => <FriendCard key={`in:${player.playerId}`} player={player} status="incoming" actions={<>{player.availability === "unavailable"
+        ? <button className="button button-quiet" type="button" disabled>Currently unavailable</button>
+        : <button className="button button-lime" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("accept", player.playerId)}><Check size={15}/> Accept</button>}<button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("decline", player.playerId)}><X size={15}/> Decline</button></>} />)}
       {overview.outgoing.map((player) => <FriendCard key={`out:${player.playerId}`} player={player} status="outgoing" actions={<button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("cancel", player.playerId)}><X size={15}/> Cancel</button>} />)}
     </div></section> : null}
 
-    {overview.friends.length ? <section className="social-panel"><div className="social-panel-heading"><p className="kicker">FRIENDS</p><span>{overview.friends.length} connected</span></div><div className="friend-card-grid">{overview.friends.map((player) => <FriendCard key={player.playerId} player={player} status="friends" actions={<>
+    {overview.friends.length ? <section className="social-panel"><div className="social-panel-heading"><p className="kicker">FRIENDS</p><span>{overview.friends.length} connected</span></div><div className="friend-card-grid">{overview.friends.map((player) => <FriendCard key={player.playerId} player={player} status="friends" actions={player.availability === "unavailable" ? <>
+      <button className="button button-quiet" type="button" disabled><Swords size={15}/> Compare unavailable</button>
+      <button className="button button-quiet" type="button" disabled><MessageCircle size={15}/> Message unavailable</button>
+      <button className="button button-quiet" type="button" disabled>Rival Watch unavailable</button>
+      <button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("unfriend", player.playerId)}><UserMinus size={15}/> Unfriend</button>
+      <button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("block", player.playerId)}><Ban size={15}/> Block</button>
+    </> : <>
       <button className="button button-blue" type="button" disabled={Boolean(busy)} onClick={() => compare(player.playerId)}><Swords size={15}/> Compare</button>
       <button className="button button-lime" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => { setComparison(null); setMessageTarget(player); }}><MessageCircle size={15}/> Message</button>
       <button className="button button-quiet" type="button" disabled={Boolean(busy) || !connectivity.online} onClick={() => socialAction("pin", player.playerId, !player.rivalPinned)}>{player.rivalPinned ? "Unpin rival" : "Pin to Rival Watch"}</button>
@@ -231,11 +242,13 @@ export default function PlayerFriends({ uid, token, initialComparePlayerId, onCh
 }
 
 function FriendCard({ player, status, actions }: { player: SocialPlayerCard; status: "incoming" | "outgoing" | "friends"; actions: ReactNode }) {
-  return <article className="friend-card"><div className="friend-card-ident"><div className="social-avatar">{player.avatar ? <img src={player.avatar} alt=""/> : <CircleUserRound aria-hidden="true"/>}</div><div><span>{status === "friends" ? "FRIEND" : status === "incoming" ? "REQUEST RECEIVED" : "REQUEST SENT"}</span><h3>{player.canonicalUsername}</h3></div></div><div className="friend-card-facts">{player.latestDeskPeriod ? <p><strong>Latest Review</strong>{player.latestDeskPeriod}</p> : null}{player.primaryPool ? <p><strong>Primary pool</strong>{player.primaryPool}</p> : null}{player.universePlacement ? <p><strong>Universe</strong>{player.universePlacement}</p> : null}{player.safeHighlight ? <p><strong>Recent moment</strong>{player.safeHighlight}</p> : null}</div><div className="friend-card-actions">{actions}<Link href={`/player/${encodeURIComponent(player.canonicalUsername)}`} className="text-link">Open player <ArrowRight size={14}/></Link></div></article>;
+  const unavailable = player.availability === "unavailable";
+  return <article className="friend-card"><div className="friend-card-ident"><div className="social-avatar">{!unavailable && player.avatar ? <img src={player.avatar} alt=""/> : <CircleUserRound aria-hidden="true"/>}</div><div><span>{status === "friends" ? "FRIEND" : status === "incoming" ? "REQUEST RECEIVED" : "REQUEST SENT"}</span><h3>{player.canonicalUsername}</h3></div></div>{unavailable ? <div className="friend-card-facts"><p><strong>Connection status</strong>BoardSignal player currently unavailable. This existing relationship remains visible so you can manage it safely.</p></div> : <div className="friend-card-facts">{player.latestDeskPeriod ? <p><strong>Latest Review</strong>{player.latestDeskPeriod}</p> : null}{player.primaryPool ? <p><strong>Primary pool</strong>{player.primaryPool}</p> : null}{player.universePlacement ? <p><strong>Universe</strong>{player.universePlacement}</p> : null}{player.safeHighlight ? <p><strong>Recent moment</strong>{player.safeHighlight}</p> : null}</div>}<div className="friend-card-actions">{actions}{!unavailable && !player.identityHidden ? <Link href={`/player/${encodeURIComponent(player.canonicalUsername)}`} className="text-link">Open player <ArrowRight size={14}/></Link> : null}</div></article>;
 }
 
 function DiscoveryCard({ player, status, busy, online, onAction, onCompare }: { player: SocialPlayerCard; status?: string; busy: boolean; online: boolean; onAction: (action: string, playerId: number, pinned?: boolean) => Promise<void>; onCompare: (playerId: number) => Promise<void> }) {
-  return <article className="friend-card discovery-card"><div className="friend-card-ident"><div className="social-avatar">{player.avatar ? <img src={player.avatar} alt=""/> : <CircleUserRound aria-hidden="true"/>}</div><div><span>BOARDSIGNAL PLAYER</span><h3>{player.canonicalUsername}</h3></div></div>{player.safeHighlight ? <p>{player.safeHighlight}</p> : <p>{player.universePlacement ?? "Active Founding Access player."}</p>}<div className="friend-card-actions">{status === "friends" ? <button className="button button-blue" type="button" disabled={busy} onClick={() => onCompare(player.playerId)}><Swords size={15}/> Compare</button> : status === "outgoing" ? <button className="button button-quiet" type="button" disabled>Request pending</button> : status === "incoming" ? <button className="button button-lime" type="button" disabled={busy || !online} onClick={() => onAction("accept", player.playerId)}><Check size={15}/> Accept request</button> : <button className="button button-lime" type="button" disabled={busy || !online} onClick={() => onAction("send", player.playerId)}><UserPlus size={15}/> Add Friend</button>}<Link href={`/player/${encodeURIComponent(player.canonicalUsername)}`} className="text-link">Open player</Link></div></article>;
+  const unavailable = player.availability === "unavailable";
+  return <article className="friend-card discovery-card"><div className="friend-card-ident"><div className="social-avatar">{!unavailable && player.avatar ? <img src={player.avatar} alt=""/> : <CircleUserRound aria-hidden="true"/>}</div><div><span>BOARDSIGNAL PLAYER</span><h3>{player.canonicalUsername}</h3></div></div>{unavailable ? <p>Currently unavailable for new social interaction.</p> : player.safeHighlight ? <p>{player.safeHighlight}</p> : <p>{player.universePlacement ?? "Active BoardSignal player."}</p>}<div className="friend-card-actions">{unavailable ? <button className="button button-quiet" type="button" disabled>Currently unavailable</button> : status === "friends" ? <button className="button button-blue" type="button" disabled={busy} onClick={() => onCompare(player.playerId)}><Swords size={15}/> Compare</button> : status === "outgoing" ? <button className="button button-quiet" type="button" disabled>Request pending</button> : status === "incoming" ? <button className="button button-lime" type="button" disabled={busy || !online} onClick={() => onAction("accept", player.playerId)}><Check size={15}/> Accept request</button> : <button className="button button-lime" type="button" disabled={busy || !online} onClick={() => onAction("send", player.playerId)}><UserPlus size={15}/> Add Friend</button>}{!unavailable && !player.identityHidden ? <Link href={`/player/${encodeURIComponent(player.canonicalUsername)}`} className="text-link">Open player</Link> : null}</div></article>;
 }
 
 function HeadToHead({ comparison, onClose }: { comparison: HeadToHeadPayload; onClose: () => void }) {

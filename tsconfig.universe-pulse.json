@@ -14,6 +14,7 @@
     "src/lib/boardsignal/memory.ts",
     "src/lib/boardsignal/universe.ts",
     "src/lib/boardsignal/pulse.ts",
+    "src/lib/boardsignal/universeScale.ts",
     "src/lib/boardsignal/account.ts",
     "src/lib/boardsignal/communications.ts",
     "src/lib/boardsignal/auth/callbackUri.ts"

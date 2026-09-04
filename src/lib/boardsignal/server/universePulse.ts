@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import type { BoardSignalAccount } from "../account";
 import type { CurrentEpisodeSummary } from "../memory";
-import type { BoardSignalDesk } from "../types";
+import type { BoardSignalDesk, DeskUniverseStanding } from "../types";
 import { storedReviewLifecycle, type ReviewLifecycle } from "../historyBackfill";
 import {
   PULSE_EVENT_RETENTION_MS,
@@ -30,6 +30,28 @@ import {
   type UniverseEventType,
 } from "../pulse";
 import { buildUniverseBoards, deskToUniverseParticipant, type UniverseParticipant } from "../universe";
+import {
+  UNIVERSE_V2_DISPLAY_LIMIT,
+  UNIVERSE_V2_MIGRATION_PAGE_SIZE,
+  UNIVERSE_V2_RANK_TREE_DEPTH,
+  UNIVERSE_V2_VERSION,
+  beginUniverseV2Migration,
+  buildUniverseV2SortKey,
+  certifyUniverseV2,
+  containsPrivateUniverseV2Field,
+  cutoverUniverseV2,
+  initialUniverseV2Meta,
+  rankFromCountTree,
+  rankTreePath,
+  recordUniverseV2MigrationPage,
+  rollbackUniverseV2,
+  shouldAcceptOfficialPublication,
+  updateOfficialStandingProjection,
+  type UniverseV2Meta,
+  type UniverseV2OfficialStandingProjection,
+  type UniverseV2RankMember,
+  type UniverseV2Standing,
+} from "../universeScale";
 import { foundingBetaField } from "../../../data/universeField";
 import { getAdminDb } from "../../../utils/firebaseAdmin";
 import {
@@ -51,7 +73,7 @@ function nowIso(now = new Date()) { return now.toISOString(); }
 function stableLiveParticipantId(playerId: number | string) { return `live:${String(playerId)}`; }
 
 export type ActiveUniverseState = {
-  version: typeof MATERIALIZED_UNIVERSE_VERSION;
+  version: typeof MATERIALIZED_UNIVERSE_VERSION | typeof UNIVERSE_V2_VERSION;
   revision: number;
   bootstrapComplete: boolean;
   generatedAt: string;
@@ -132,7 +154,6 @@ function participantFromRecord(record: ActiveDeskRecord): UniverseParticipant | 
   };
 }
 
-
 function safePublicEvent(event: PublicUniverseEvent) {
   return event.safePublic === true
     && event.hidden !== true
@@ -199,6 +220,546 @@ function materializedParticipantRef(playerId: number | string) {
 
 function stateRef() { return getAdminDb().collection("publicUniverseState").doc("current"); }
 function bootstrapLeaseRef() { return getAdminDb().collection("publicUniverseState").doc("bootstrapLease"); }
+
+
+const UNIVERSE_V2_BOARD_KEYS = [
+  "rating-climb:rapid", "rating-climb:blitz", "rating-climb:bullet",
+  "winning-run:all",
+  "rating-recovery:rapid", "rating-recovery:blitz", "rating-recovery:bullet",
+  "strong-finish:all",
+  "rapid-rating-leader:rapid",
+  "best-upset:rapid", "best-upset:blitz", "best-upset:bullet",
+  "breakthrough-desk:rapid", "breakthrough-desk:blitz", "breakthrough-desk:bullet",
+  "moment-of-the-week:all",
+] as const;
+const UNIVERSE_V2_LIVE_CACHE_LIMIT = 200;
+
+type StoredUniverseV2Meta = UniverseV2Meta & { sourceSafeCount?: number };
+type StoredUniverseV2Player = {
+  version: typeof UNIVERSE_V2_VERSION;
+  playerId: string;
+  periodEnd: string;
+  reviewLifecycle: ReviewLifecycle;
+  participant: UniverseParticipant;
+  projection: UniverseV2OfficialStandingProjection;
+  updatedAt: string;
+};
+type UniverseV2BoardLanding = {
+  version: typeof UNIVERSE_V2_VERSION;
+  boardKey: string;
+  categoryId: string;
+  categoryTitle: string;
+  boardDescription: string;
+  scopeLabel?: string;
+  minimumLabel: string;
+  memberCount: number;
+  topEntries: UniverseV2RankMember[];
+  updatedAt: string;
+};
+type UniverseV2Landing = {
+  version: typeof UNIVERSE_V2_VERSION;
+  revision: number;
+  generatedAt: string;
+  liveParticipants: UniverseParticipant[];
+  recentEvents: PublicUniverseEvent[];
+};
+
+export type UniverseV2Health = {
+  version: typeof UNIVERSE_V2_VERSION;
+  phase: UniverseV2Meta["phase"];
+  readAuthority: UniverseV2Meta["readAuthority"];
+  officialPlayerCount: number;
+  indexedPlayerCount: number;
+  v1OfficialPlayerCount: number;
+  migrationCursor?: string;
+  sourceExhausted: boolean;
+  staleBoardCount: number;
+  repairRequiredCount: number;
+  updatedAt: string;
+  certifiedAt?: string;
+  cutoverAt?: string;
+};
+
+type UniverseV2PlayerContext = {
+  projection?: UniverseV2OfficialStandingProjection;
+  standings: DeskUniverseStanding[];
+  snapshots: PulseStandingSnapshot[];
+};
+
+function universeV2MetaRef() { return getAdminDb().collection("publicUniverseV2Meta").doc("current"); }
+function universeV2PlayerRef(playerId: number | string) { return getAdminDb().collection("publicUniverseV2Players").doc(String(playerId)); }
+function universeV2LandingRef() { return getAdminDb().collection("publicUniverseV2State").doc("current"); }
+function universeV2BoardRef(boardKey: string) { return getAdminDb().collection("publicUniverseV2Boards").doc(hashId(boardKey).slice(0, 40)); }
+function universeV2MemberRef(boardKey: string, playerId: number | string) { return universeV2BoardRef(boardKey).collection("members").doc(String(playerId)); }
+function universeV2RankTreeRef(boardKey: string, nodeId: string) { return universeV2BoardRef(boardKey).collection("rankTree").doc(nodeId === "_root" ? "root" : nodeId); }
+
+function validUniverseV2Meta(value: unknown): StoredUniverseV2Meta | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const meta = value as Partial<StoredUniverseV2Meta>;
+  if (meta.version !== UNIVERSE_V2_VERSION || typeof meta.phase !== "string" || typeof meta.readAuthority !== "string") return undefined;
+  if (containsPrivateUniverseV2Field(meta) || publicArtifactHasPrivateFields(meta)) throw new Error("Unsafe data was blocked from Universe v2 metadata.");
+  return meta as StoredUniverseV2Meta;
+}
+
+async function loadUniverseV2Meta(now = new Date()): Promise<StoredUniverseV2Meta> {
+  const snapshot = await universeV2MetaRef().get();
+  return snapshot.exists ? validUniverseV2Meta(snapshot.data()) ?? initialUniverseV2Meta(nowIso(now)) : initialUniverseV2Meta(nowIso(now));
+}
+
+function universeV2Secondary(participant: UniverseParticipant, boardKey: string) {
+  if (boardKey === "strong-finish:all") return participant.strongFinish?.games ?? 0;
+  if (boardKey === "rapid-rating-leader:rapid") return participant.pools.find((pool) => pool.pool === "rapid")?.games ?? 0;
+  return participant.score;
+}
+
+function universeV2MembersFromParticipant(document: MaterializedUniverseParticipant): UniverseV2RankMember[] {
+  if (containsPrivateUniverseV2Field(document) || publicArtifactHasPrivateFields(document)) throw new Error("Unsafe data was blocked from a Universe v2 public participant index.");
+  const playerId = document.playerId;
+  return buildUniverseBoards([document.participant]).flatMap((board) => board.entries.slice(0, 1).map((entry) => ({
+    boardKey: board.key,
+    categoryId: board.categoryId,
+    categoryTitle: board.title,
+    boardDescription: board.description,
+    scopeLabel: board.scopeLabel,
+    minimumLabel: board.minimumLabel,
+    playerId,
+    participantId: document.participant.id,
+    player: document.participant.player,
+    value: entry.value,
+    secondary: universeV2Secondary(document.participant, board.key),
+    valueLabel: entry.valueLabel,
+    evidence: entry.evidence,
+    coverageHref: entry.coverageHref,
+    coverageHeadline: entry.coverageHeadline,
+    sortKey: buildUniverseV2SortKey(entry.value, universeV2Secondary(document.participant, board.key), document.participant.player),
+  } satisfies UniverseV2RankMember)));
+}
+
+function sameUniverseV2Member(left: UniverseV2RankMember | undefined, right: UniverseV2RankMember | undefined) {
+  return JSON.stringify(left ? clean(left) : undefined) === JSON.stringify(right ? clean(right) : undefined);
+}
+
+async function applyUniverseV2BoardMember(boardKey: string, playerId: string, desired: UniverseV2RankMember | undefined, now: Date) {
+  const db = getAdminDb();
+  const memberRef = universeV2MemberRef(boardKey, playerId);
+  return db.runTransaction(async (transaction) => {
+    const memberSnapshot = await transaction.get(memberRef);
+    const existing = memberSnapshot.exists ? memberSnapshot.data() as UniverseV2RankMember : undefined;
+    if (sameUniverseV2Member(existing, desired)) return false;
+    const oldPath = existing ? rankTreePath(existing.sortKey) : [];
+    const newPath = desired ? rankTreePath(desired.sortKey) : [];
+    const nodeIds = [...new Set([...oldPath, ...newPath].map((item) => item.nodeId))];
+    const nodeRefs = nodeIds.map((nodeId) => universeV2RankTreeRef(boardKey, nodeId));
+    const [boardSnapshot, ...nodeSnapshots] = await Promise.all([
+      transaction.get(universeV2BoardRef(boardKey)),
+      ...nodeRefs.map((ref) => transaction.get(ref)),
+    ]);
+    const countsByNode = new Map<string, Record<string, number>>(nodeIds.map((nodeId, index) => {
+      const data = nodeSnapshots[index].data() as { counts?: Record<string, number> } | undefined;
+      return [nodeId, { ...(data?.counts ?? {}) }];
+    }));
+    for (const item of oldPath) {
+      const counts = countsByNode.get(item.nodeId)!;
+      counts[item.branch] = Math.max(0, Number(counts[item.branch] ?? 0) - 1);
+      if (counts[item.branch] === 0) delete counts[item.branch];
+    }
+    for (const item of newPath) {
+      const counts = countsByNode.get(item.nodeId)!;
+      counts[item.branch] = Math.max(0, Number(counts[item.branch] ?? 0) + 1);
+    }
+    nodeIds.forEach((nodeId, index) => transaction.set(nodeRefs[index], { counts: countsByNode.get(nodeId), updatedAt: nowIso(now) }, { merge: false }));
+    const existingBoard = boardSnapshot.data() as Partial<UniverseV2BoardLanding> | undefined;
+    const memberCount = Math.max(0, Number(existingBoard?.memberCount ?? 0) + (existing ? -1 : 0) + (desired ? 1 : 0));
+    const descriptor = desired ?? existing;
+    if (descriptor) transaction.set(universeV2BoardRef(boardKey), clean({
+      version: UNIVERSE_V2_VERSION,
+      boardKey,
+      categoryId: descriptor.categoryId,
+      categoryTitle: descriptor.categoryTitle,
+      boardDescription: descriptor.boardDescription,
+      scopeLabel: descriptor.scopeLabel,
+      minimumLabel: descriptor.minimumLabel,
+      memberCount,
+      topEntries: Array.isArray(existingBoard?.topEntries) ? existingBoard!.topEntries : [],
+      updatedAt: nowIso(now),
+    }), { merge: false });
+    if (desired) transaction.set(memberRef, clean(desired), { merge: false });
+    else transaction.delete(memberRef);
+    return true;
+  });
+}
+
+async function refreshUniverseV2BoardLanding(boardKey: string, now: Date) {
+  const boardRef = universeV2BoardRef(boardKey);
+  const [boardSnapshot, membersSnapshot] = await Promise.all([
+    boardRef.get(),
+    boardRef.collection("members").orderBy("sortKey", "asc").limit(UNIVERSE_V2_DISPLAY_LIMIT).get(),
+  ]);
+  if (!boardSnapshot.exists) return;
+  const board = boardSnapshot.data() as UniverseV2BoardLanding;
+  const topEntries = membersSnapshot.docs.map((document) => document.data() as UniverseV2RankMember)
+    .filter((document) => !containsPrivateUniverseV2Field(document) && !publicArtifactHasPrivateFields(document));
+  const next = { ...board, topEntries, updatedAt: nowIso(now) };
+  if (containsPrivateUniverseV2Field(next) || publicArtifactHasPrivateFields(next)) throw new Error("Unsafe data was blocked from a Universe v2 board landing.");
+  await boardRef.set(clean(next), { merge: false });
+}
+
+async function updateUniverseV2LiveCache(participant: UniverseParticipant | undefined, playerId: string, now: Date) {
+  const db = getAdminDb();
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(universeV2LandingRef());
+    const existing = snapshot.data() as UniverseV2Landing | undefined;
+    const liveParticipants = [...(existing?.liveParticipants ?? [])].filter((item) => item.stablePlayerId !== playerId);
+    if (participant) liveParticipants.unshift(participant);
+    const landing: UniverseV2Landing = {
+      version: UNIVERSE_V2_VERSION,
+      revision: (existing?.revision ?? 0) + 1,
+      generatedAt: nowIso(now),
+      liveParticipants: liveParticipants.slice(0, UNIVERSE_V2_LIVE_CACHE_LIMIT),
+      recentEvents: boundedRecentEvents(existing?.recentEvents ?? [], now),
+    };
+    if (containsPrivateUniverseV2Field(landing) || publicArtifactHasPrivateFields(landing)) throw new Error("Unsafe data was blocked from the Universe v2 landing cache.");
+    transaction.set(universeV2LandingRef(), clean(landing), { merge: false });
+  });
+}
+
+async function loadUniverseV2StandingForMember(member: UniverseV2RankMember): Promise<UniverseV2Standing> {
+  const path = rankTreePath(member.sortKey);
+  const [boardSnapshot, ...treeSnapshots] = await Promise.all([
+    universeV2BoardRef(member.boardKey).get(),
+    ...path.map((item) => universeV2RankTreeRef(member.boardKey, item.nodeId).get()),
+  ]);
+  const board = boardSnapshot.data() as UniverseV2BoardLanding | undefined;
+  const counts = treeSnapshots.map((snapshot) => (snapshot.data() as { counts?: Record<string, number> } | undefined)?.counts);
+  const rank = rankFromCountTree(member.sortKey, counts);
+  const members = universeV2BoardRef(member.boardKey).collection("members");
+  const [aboveSnapshot, belowSnapshot] = await Promise.all([
+    members.where("sortKey", "<", member.sortKey).orderBy("sortKey", "desc").limit(1).get(),
+    members.where("sortKey", ">", member.sortKey).orderBy("sortKey", "asc").limit(1).get(),
+  ]);
+  const above = aboveSnapshot.docs[0]?.data() as UniverseV2RankMember | undefined;
+  const below = belowSnapshot.docs[0]?.data() as UniverseV2RankMember | undefined;
+  return {
+    boardKey: member.boardKey,
+    categoryId: member.categoryId,
+    categoryTitle: member.categoryTitle,
+    scopeLabel: member.scopeLabel,
+    rank,
+    denominator: Math.max(rank, Number(board?.memberCount ?? 0)),
+    value: member.value,
+    valueLabel: member.valueLabel,
+    player: member.player,
+    nearestAbove: above ? { player: above.player, valueLabel: above.valueLabel } : undefined,
+    nearestBelow: below ? { player: below.player, valueLabel: below.valueLabel } : undefined,
+  };
+}
+
+async function upsertUniverseV2Index(document: MaterializedUniverseParticipant, now = new Date()) {
+  if (containsPrivateUniverseV2Field(document) || publicArtifactHasPrivateFields(document)) throw new Error("Unsafe data was blocked from Universe v2 indexing.");
+  const playerRef = universeV2PlayerRef(document.playerId);
+  const existingSnapshot = await playerRef.get();
+  const existing = existingSnapshot.exists ? existingSnapshot.data() as StoredUniverseV2Player : undefined;
+  if (existing && !shouldAcceptOfficialPublication({
+    existingPeriodEnd: existing.periodEnd,
+    existingReviewLifecycle: existing.reviewLifecycle,
+    incomingPeriodEnd: document.periodEnd,
+    incomingReviewLifecycle: document.reviewLifecycle,
+  })) return existing.projection;
+  const desired = new Map(universeV2MembersFromParticipant(document).map((member) => [member.boardKey, member] as const));
+  // Fixed-depth validation belongs to the ordinary mutation path; no population scan is permitted here.
+  for (const member of desired.values()) rankTreePath(member.sortKey);
+  const changedBoards: string[] = [];
+  for (const boardKey of UNIVERSE_V2_BOARD_KEYS) {
+    const changed = await applyUniverseV2BoardMember(boardKey, document.playerId, desired.get(boardKey), now);
+    if (changed) changedBoards.push(boardKey);
+  }
+  for (const boardKey of changedBoards) await refreshUniverseV2BoardLanding(boardKey, now);
+  const standings: UniverseV2Standing[] = [];
+  for (const member of desired.values()) standings.push(await loadUniverseV2StandingForMember(member));
+  const projection = updateOfficialStandingProjection({
+    existing: existing?.projection,
+    playerId: document.playerId,
+    periodEnd: document.periodEnd,
+    reviewLifecycle: document.reviewLifecycle,
+    standings,
+    nowIso: nowIso(now),
+  });
+  const stored: StoredUniverseV2Player = {
+    version: UNIVERSE_V2_VERSION,
+    playerId: document.playerId,
+    periodEnd: document.periodEnd,
+    reviewLifecycle: document.reviewLifecycle,
+    participant: document.participant,
+    projection,
+    updatedAt: nowIso(now),
+  };
+  if (containsPrivateUniverseV2Field(stored) || publicArtifactHasPrivateFields(stored)) throw new Error("Unsafe data was blocked from a Universe v2 player projection.");
+  const db = getAdminDb();
+  await db.runTransaction(async (transaction) => {
+    const [currentPlayer, metaSnapshot] = await Promise.all([transaction.get(playerRef), transaction.get(universeV2MetaRef())]);
+    const meta = metaSnapshot.exists ? validUniverseV2Meta(metaSnapshot.data()) ?? initialUniverseV2Meta(nowIso(now)) : initialUniverseV2Meta(nowIso(now));
+    const wasPresent = currentPlayer.exists;
+    transaction.set(playerRef, clean(stored), { merge: false });
+    transaction.set(universeV2MetaRef(), clean({
+      ...meta,
+      indexedPlayerCount: Math.max(0, meta.indexedPlayerCount + (wasPresent ? 0 : 1)),
+      officialPlayerCount: Math.max(0, meta.officialPlayerCount + (wasPresent ? 0 : 1)),
+      revision: meta.revision + 1,
+      updatedAt: nowIso(now),
+    }), { merge: false });
+  });
+  await updateUniverseV2LiveCache(document.participant, document.playerId, now);
+  return projection;
+}
+
+async function removeUniverseV2Index(playerIdInput: number | string, now = new Date()) {
+  const playerId = String(playerIdInput);
+  const playerRef = universeV2PlayerRef(playerId);
+  const existingSnapshot = await playerRef.get();
+  for (const boardKey of UNIVERSE_V2_BOARD_KEYS) {
+    const changed = await applyUniverseV2BoardMember(boardKey, playerId, undefined, now);
+    if (changed) await refreshUniverseV2BoardLanding(boardKey, now);
+  }
+  if (existingSnapshot.exists) {
+    const db = getAdminDb();
+    await db.runTransaction(async (transaction) => {
+      const [currentPlayer, metaSnapshot] = await Promise.all([transaction.get(playerRef), transaction.get(universeV2MetaRef())]);
+      if (!currentPlayer.exists) return;
+      const meta = metaSnapshot.exists ? validUniverseV2Meta(metaSnapshot.data()) ?? initialUniverseV2Meta(nowIso(now)) : initialUniverseV2Meta(nowIso(now));
+      transaction.delete(playerRef);
+      transaction.set(universeV2MetaRef(), clean({
+        ...meta,
+        indexedPlayerCount: Math.max(0, meta.indexedPlayerCount - 1),
+        officialPlayerCount: Math.max(0, meta.officialPlayerCount - 1),
+        revision: meta.revision + 1,
+        updatedAt: nowIso(now),
+      }), { merge: false });
+    });
+  }
+  await updateUniverseV2LiveCache(undefined, playerId, now);
+}
+
+async function loadUniverseV2ActiveState(now = new Date()): Promise<ActiveUniverseState> {
+  const [metaSnapshot, landingSnapshot, ...boardSnapshots] = await Promise.all([
+    universeV2MetaRef().get(),
+    universeV2LandingRef().get(),
+    ...UNIVERSE_V2_BOARD_KEYS.map((boardKey) => universeV2BoardRef(boardKey).get()),
+  ]);
+  const meta = metaSnapshot.exists ? validUniverseV2Meta(metaSnapshot.data()) : undefined;
+  if (!meta || meta.phase !== "v2-active" || meta.readAuthority !== "v2") throw Object.assign(new Error("Universe v2 is not authoritative."), { status: 503, code: "BOARDSIGNAL_UNIVERSE_V2_NOT_ACTIVE" });
+  const landing = landingSnapshot.data() as UniverseV2Landing | undefined;
+  const boards: PulseUniverseBoard[] = boardSnapshots.flatMap((snapshot) => {
+    if (!snapshot.exists) return [];
+    const board = snapshot.data() as UniverseV2BoardLanding;
+    if (!board.memberCount || containsPrivateUniverseV2Field(board) || publicArtifactHasPrivateFields(board)) return [];
+    return [{
+      key: board.boardKey,
+      categoryId: board.categoryId as PulseUniverseBoard["categoryId"],
+      title: board.categoryTitle,
+      description: board.boardDescription,
+      scopeLabel: board.scopeLabel,
+      minimumLabel: board.minimumLabel,
+      fieldLabel: board.memberCount >= 6 ? "BOARDSIGNAL FIELD" as const : "FOUNDING BETA FIELD" as const,
+      comparableLivePlayers: board.memberCount,
+      entries: board.topEntries.slice(0, UNIVERSE_V2_DISPLAY_LIMIT).map((member, index) => ({
+        participantId: member.participantId,
+        stablePlayerId: member.playerId,
+        player: member.player,
+        rank: index + 1,
+        value: member.value,
+        valueLabel: member.valueLabel,
+        evidence: member.evidence,
+        coverageHref: member.coverageHref,
+        coverageHeadline: member.coverageHeadline,
+      })),
+    }];
+  });
+  const events = boundedRecentEvents(landing?.recentEvents ?? [], now);
+  return {
+    version: UNIVERSE_V2_VERSION,
+    revision: meta.revision,
+    bootstrapComplete: true,
+    generatedAt: landing?.generatedAt ?? meta.updatedAt,
+    liveParticipants: (landing?.liveParticipants ?? []).slice(0, UNIVERSE_V2_LIVE_CACHE_LIMIT),
+    boards,
+    groups: buildPulseUniverseGroups(boards),
+    recentEvents: events,
+    whatsHot: rankWhatsHot(events, now),
+    officialPlayerCount: meta.officialPlayerCount,
+  };
+}
+
+async function loadUniverseV2PlayerContext(playerIdInput: number | string): Promise<UniverseV2PlayerContext> {
+  const playerId = String(playerIdInput);
+  const snapshot = await universeV2PlayerRef(playerId).get();
+  if (!snapshot.exists) return { standings: [], snapshots: [] };
+  const player = snapshot.data() as StoredUniverseV2Player;
+  const standings = player.projection.standings.map((standing) => ({
+    categoryId: standing.categoryId,
+    categoryTitle: standing.categoryTitle,
+    scopeLabel: standing.scopeLabel,
+    rank: standing.rank,
+    denominator: standing.denominator,
+    percentile: standing.denominator >= 4 ? Math.round(((standing.denominator - standing.rank + 1) / standing.denominator) * 100) : undefined,
+    valueLabel: standing.valueLabel,
+    nearestAbove: standing.nearestAbove,
+  } satisfies DeskUniverseStanding));
+  const snapshots: PulseStandingSnapshot[] = player.projection.standings.map((standing) => ({
+    key: standing.boardKey,
+    categoryId: standing.categoryId,
+    categoryTitle: standing.categoryTitle,
+    scopeLabel: standing.scopeLabel,
+    rank: standing.rank,
+    denominator: standing.denominator,
+    value: standing.value,
+    valueLabel: standing.valueLabel,
+  }));
+  // Read one neighbour in each direction for every projected board; never scan the population.
+  await Promise.all(player.projection.standings.map(async (standing) => {
+    const members = universeV2BoardRef(standing.boardKey).collection("members");
+    await Promise.all([
+      members.where("sortKey", "<", buildUniverseV2SortKey(standing.value, 0, player.participant.player)).orderBy("sortKey", "desc").limit(1).get().catch(() => undefined),
+      members.where("sortKey", ">", buildUniverseV2SortKey(standing.value, 0, player.participant.player)).orderBy("sortKey", "asc").limit(1).get().catch(() => undefined),
+    ]);
+  }));
+  return { projection: player.projection, standings, snapshots };
+}
+
+async function setUniverseV2Meta(meta: StoredUniverseV2Meta) {
+  if (containsPrivateUniverseV2Field(meta) || publicArtifactHasPrivateFields(meta)) throw new Error("Unsafe data was blocked from Universe v2 metadata.");
+  await universeV2MetaRef().set(clean(meta), { merge: false });
+  return meta;
+}
+
+export async function migrateUniverseV2Page(now = new Date()) {
+  const db = getAdminDb();
+  let meta = await loadUniverseV2Meta(now);
+  if (meta.phase === "v1") {
+    meta = { ...beginUniverseV2Migration(meta, nowIso(now)), sourceSafeCount: 0 };
+    await setUniverseV2Meta(meta);
+  }
+  if (meta.phase !== "migrating") throw new Error("Universe v2 migration requires v1 or migrating phase.");
+  let query = db.collection("publicUniverseParticipants").orderBy("playerId", "asc").limit(UNIVERSE_V2_MIGRATION_PAGE_SIZE);
+  if (meta.migrationCursor) query = query.startAfter(meta.migrationCursor);
+  const snapshot = await query.get();
+  let safeCount = 0;
+  let repairRequiredCount = meta.repairRequiredCount;
+  for (const snapshotDocument of snapshot.docs) {
+    const document = snapshotDocument.data() as MaterializedUniverseParticipant;
+    if (document.version !== MATERIALIZED_UNIVERSE_VERSION || document.participant?.verified !== true || containsPrivateUniverseV2Field(document) || publicArtifactHasPrivateFields(document)) {
+      repairRequiredCount += 1;
+      continue;
+    }
+    safeCount += 1;
+    await upsertUniverseV2Index(document, now);
+  }
+  const updated = await loadUniverseV2Meta(now);
+  const cursor = snapshot.docs.at(-1)?.get("playerId") as string | undefined;
+  const sourceExhausted = snapshot.size < UNIVERSE_V2_MIGRATION_PAGE_SIZE;
+  const recorded = recordUniverseV2MigrationPage({ ...updated, repairRequiredCount }, {
+    indexedPlayerCount: updated.indexedPlayerCount,
+    migrationCursor: cursor,
+    sourceExhausted,
+    nowIso: nowIso(now),
+  });
+  const next: StoredUniverseV2Meta = { ...recorded, sourceSafeCount: (meta.sourceSafeCount ?? 0) + safeCount, repairRequiredCount };
+  await setUniverseV2Meta(next);
+  return { phase: next.phase, readAuthority: next.readAuthority, processed: snapshot.size, safeCount, indexedPlayerCount: next.indexedPlayerCount, sourceSafeCount: next.sourceSafeCount, cursor: next.migrationCursor, sourceExhausted: next.sourceExhausted };
+}
+
+export async function repairUniverseV2Player(playerIdInput: number | string, now = new Date()) {
+  const playerId = String(playerIdInput);
+  const snapshot = await materializedParticipantRef(playerId).get();
+  if (!snapshot.exists) { await removeUniverseV2Index(playerId, now); return { playerId, removed: true }; }
+  const document = snapshot.data() as MaterializedUniverseParticipant;
+  if (document.version !== MATERIALIZED_UNIVERSE_VERSION || document.participant?.verified !== true || containsPrivateUniverseV2Field(document) || publicArtifactHasPrivateFields(document)) throw new Error("Universe v2 repair source is not a canonical safe-public participant.");
+  await upsertUniverseV2Index(document, now);
+  return { playerId, removed: false };
+}
+
+export async function repairUniverseV2Page(cursor?: string, now = new Date()) {
+  const db = getAdminDb();
+  let query = db.collection("publicUniverseParticipants").orderBy("playerId", "asc").limit(UNIVERSE_V2_MIGRATION_PAGE_SIZE);
+  if (cursor) query = query.startAfter(cursor);
+  const snapshot = await query.get();
+  let repaired = 0;
+  for (const snapshotDocument of snapshot.docs) {
+    const document = snapshotDocument.data() as MaterializedUniverseParticipant;
+    if (document.version !== MATERIALIZED_UNIVERSE_VERSION || document.participant?.verified !== true || containsPrivateUniverseV2Field(document) || publicArtifactHasPrivateFields(document)) continue;
+    await upsertUniverseV2Index(document, now);
+    repaired += 1;
+  }
+  return { repaired, cursor: snapshot.docs.at(-1)?.get("playerId") as string | undefined, exhausted: snapshot.size < UNIVERSE_V2_MIGRATION_PAGE_SIZE };
+}
+
+export async function loadUniverseV2Health(): Promise<UniverseV2Health> {
+  const [metaSnapshot, v1Snapshot] = await Promise.all([universeV2MetaRef().get(), stateRef().get()]);
+  const meta = metaSnapshot.exists ? validUniverseV2Meta(metaSnapshot.data()) : undefined;
+  const v1 = v1Snapshot.exists ? validateMaterializedState(v1Snapshot.data()) : undefined;
+  const current = meta ?? initialUniverseV2Meta(nowIso());
+  return {
+    version: UNIVERSE_V2_VERSION,
+    phase: current.phase,
+    readAuthority: current.readAuthority,
+    officialPlayerCount: current.officialPlayerCount,
+    indexedPlayerCount: current.indexedPlayerCount,
+    v1OfficialPlayerCount: v1?.officialPlayerCount ?? 0,
+    migrationCursor: current.migrationCursor,
+    sourceExhausted: current.sourceExhausted,
+    staleBoardCount: current.staleBoardCount,
+    repairRequiredCount: current.repairRequiredCount,
+    updatedAt: current.updatedAt,
+    certifiedAt: current.certifiedAt,
+    cutoverAt: current.cutoverAt,
+  };
+}
+
+export async function loadUniverseV2ActivationProof() {
+  const [meta, sample] = await Promise.all([
+    loadUniverseV2Meta(),
+    getAdminDb().collection("publicUniverseV2Players").orderBy("playerId", "asc").limit(1).get(),
+  ]);
+  const document = sample.docs[0]?.data() as StoredUniverseV2Player | undefined;
+  if (!document) return { available: false, phase: meta.phase, readAuthority: meta.readAuthority, privacySafe: true };
+  const context = await loadUniverseV2PlayerContext(document.playerId);
+  return {
+    available: true,
+    phase: meta.phase,
+    readAuthority: meta.readAuthority,
+    playerId: document.playerId,
+    periodEnd: document.periodEnd,
+    standingCount: context.projection?.standings.length ?? 0,
+    privacySafe: !containsPrivateUniverseV2Field(document) && !publicArtifactHasPrivateFields(document),
+  };
+}
+
+export async function certifyUniverseV2Production(now = new Date()) {
+  const meta = await loadUniverseV2Meta(now);
+  const sourceCount = meta.sourceSafeCount ?? -1;
+  const boardSnapshots = await Promise.all(UNIVERSE_V2_BOARD_KEYS.map((boardKey) => universeV2BoardRef(boardKey).get()));
+  for (const snapshot of boardSnapshots) {
+    if (snapshot.exists && (containsPrivateUniverseV2Field(snapshot.data()) || publicArtifactHasPrivateFields(snapshot.data()))) throw new Error("Unsafe data was blocked during Universe v2 certification.");
+  }
+  const certified = certifyUniverseV2(meta, sourceCount, nowIso(now));
+  await setUniverseV2Meta({ ...certified, sourceSafeCount: sourceCount });
+  return loadUniverseV2Health();
+}
+
+export async function cutoverUniverseV2Production(now = new Date()) {
+  const meta = await loadUniverseV2Meta(now);
+  const cutover = cutoverUniverseV2(meta, nowIso(now));
+  await setUniverseV2Meta({ ...cutover, sourceSafeCount: meta.sourceSafeCount });
+  const proof = await loadUniverseV2ActivationProof();
+  if (!proof.available || proof.readAuthority !== "v2" || proof.privacySafe !== true) throw new Error("Universe v2 activation proof failed after cutover.");
+  return { health: await loadUniverseV2Health(), proof };
+}
+
+export async function rollbackUniverseV2Production(now = new Date()) {
+  const meta = await loadUniverseV2Meta(now);
+  const rolledBack = rollbackUniverseV2(meta, nowIso(now));
+  await setUniverseV2Meta({ ...rolledBack, sourceSafeCount: 0 });
+  return loadUniverseV2Health();
+}
 
 async function bootstrapRecentUniverseEvents(limit = MATERIALIZED_EVENT_LIMIT): Promise<PublicUniverseEvent[]> {
   const snapshot = await getAdminDb().collection("publicUniverseEvents").orderBy("publishedAt", "desc").limit(limit).get().catch(() => ({ docs: [] }));
@@ -347,6 +908,12 @@ export async function loadActiveUniverseState(now = new Date()): Promise<ActiveU
   assertFirestoreCircuitClosed("materialized_universe_read");
   const started = Date.now();
   try {
+    const v2Meta = await loadUniverseV2Meta(now);
+    if (v2Meta?.phase === "v2-active") {
+      const active = await loadUniverseV2ActiveState(now);
+      logFirestoreReadBudget({ operation: "materialized_universe_read", durationMs: Date.now() - started, materialized: "hit", resultSize: active.officialPlayerCount, approxDocumentReads: UNIVERSE_V2_BOARD_KEYS.length + 2 });
+      return active;
+    }
     const snapshot = await stateRef().get();
     const state = snapshot.exists ? validateMaterializedState(snapshot.data()) : undefined;
     if (state?.bootstrapComplete === true) {
@@ -452,6 +1019,9 @@ export async function upsertMaterializedUniverseParticipant(input: {
     return true;
   });
   if (!changed) return loadActiveUniverseState(now);
+  const v2Meta = await loadUniverseV2Meta(now);
+  if (v2Meta.phase !== "v1") await upsertUniverseV2Index(document, now);
+  if (v2Meta.phase === "v2-active") return loadUniverseV2ActiveState(now);
   const currentSnapshot = await stateRef().get();
   const current = currentSnapshot.exists ? validateMaterializedState(currentSnapshot.data()) : undefined;
   if (current?.bootstrapComplete !== true) {
@@ -465,12 +1035,16 @@ export async function upsertMaterializedUniverseParticipant(input: {
 export async function removeMaterializedUniverseParticipant(playerId: number | string, now = new Date()) {
   const ref = materializedParticipantRef(playerId);
   const snapshot = await ref.get();
-  if (!snapshot.exists) return loadActiveUniverseState(now).catch(() => undefined);
+  const v2Meta = await loadUniverseV2Meta(now);
+  if (!snapshot.exists) {
+    if (v2Meta.phase !== "v1") await removeUniverseV2Index(playerId, now);
+    return loadActiveUniverseState(now).catch(() => undefined);
+  }
   await ref.delete();
+  if (v2Meta.phase !== "v1") await removeUniverseV2Index(playerId, now);
+  if (v2Meta.phase === "v2-active") return loadUniverseV2ActiveState(now);
   return rebuildMaterializedUniverseState(now);
 }
-
-
 
 type MaterializedReviewCandidate = {
   periodEnd: string;
@@ -541,6 +1115,17 @@ export async function writePublicUniverseEvent(event: PublicUniverseEvent) {
       whatsHot: rankWhatsHot(recentEvents, new Date()),
     }), { merge: false });
   });
+  const v2Meta = await loadUniverseV2Meta(new Date(event.publishedAt));
+  if (v2Meta.phase !== "v1") {
+    const db2 = getAdminDb();
+    await db2.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(universeV2LandingRef());
+      const existing = snapshot.data() as UniverseV2Landing | undefined;
+      const recentEvents = boundedRecentEvents([event, ...(existing?.recentEvents ?? [])], new Date(event.publishedAt));
+      const landing: UniverseV2Landing = { version: UNIVERSE_V2_VERSION, revision: (existing?.revision ?? 0) + 1, generatedAt: nowIso(), liveParticipants: existing?.liveParticipants ?? [], recentEvents };
+      transaction.set(universeV2LandingRef(), clean(landing), { merge: false });
+    });
+  }
   return event;
 }
 
@@ -713,8 +1298,10 @@ export async function buildPlayerPulse(input: {
   const now = input.now ?? new Date();
   const state = input.state;
   const participantId = stableLiveParticipantId(input.account.chessCom.playerId);
-  const standings = standingsFromActiveBoards(state.boards, participantId);
-  const currentStandings = standingSnapshots(state.boards, participantId);
+  const v2Meta = await loadUniverseV2Meta(now);
+  const v2Context = v2Meta.phase === "v2-active" ? await loadUniverseV2PlayerContext(input.account.chessCom.playerId) : undefined;
+  const standings = v2Context?.standings ?? standingsFromActiveBoards(state.boards, participantId);
+  const currentStandings = v2Context?.snapshots ?? standingSnapshots(state.boards, participantId);
   const reviewMovement = input.currentReviewStanding?.length && input.previousReviewStanding?.length
     ? deriveReviewMovement(input.previousReviewStanding, input.currentReviewStanding)
     : [];
@@ -725,7 +1312,13 @@ export async function buildPlayerPulse(input: {
   const latestReviewPeriodEnd = input.latestDesk?.period.end;
   const sameReviewAsLastVisit = Boolean(previous && previous.latestReviewPeriodEnd === latestReviewPeriodEnd);
   const boardMoved = sameReviewAsLastVisit ? deriveBoardMovement(previous?.standings ?? [], currentStandings) : [];
-  const proximity = deriveProximityCards(state.boards, participantId);
+  const proximity = v2Context?.projection ? v2Context.projection.standings.flatMap((standing) => {
+    const scope = `${standing.categoryTitle}${standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}`;
+    const cards = [];
+    if (standing.nearestAbove) cards.push({ id: `in-reach:${standing.boardKey}:${standing.nearestAbove.player}`, kind: "in-reach" as const, eyebrow: "IN REACH", title: scope, body: `Current official positions: you #${standing.rank}; ${standing.nearestAbove.player} is immediately above.`, categoryId: standing.categoryId, pool: standing.scopeLabel, finality: "official" as const });
+    if (standing.nearestBelow) cards.push({ id: `on-radar:${standing.boardKey}:${standing.nearestBelow.player}`, kind: "on-radar" as const, eyebrow: "ON YOUR RADAR", title: `${standing.nearestBelow.player} is close in ${scope}.`, body: `You are #${standing.rank}; ${standing.nearestBelow.player} is immediately below.`, categoryId: standing.categoryId, pool: standing.scopeLabel, finality: "official" as const });
+    return cards;
+  }).slice(0, 4) : deriveProximityCards(state.boards, participantId);
   let provisional: ReturnType<typeof deriveProvisionalCards> = [];
   if (input.currentEpisode && input.currentEpisode.games > 0) {
     const provisionalParticipant = currentEpisodeToProvisionalParticipant(input.account.chessCom.canonicalUsername, String(input.account.chessCom.playerId), input.currentEpisode);

@@ -1,0 +1,119 @@
+name: BoardSignal P2 Stage 2 Activate
+
+on:
+  push:
+    branches:
+      - boardsignal-p2-stage2-ops-20260904
+
+permissions:
+  contents: read
+
+jobs:
+  activate-p2-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      BOARDSIGNAL_ADMIN_PASSWORD: ${{ secrets.BOARDSIGNAL_ADMIN_PASSWORD }}
+    steps:
+      - name: Execute converged P2 Stage 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://www.adminhub-global.com/api/admin/boardsignal/universe-health'
+          PASSWORD="${ADMIN_PASSWORD:-${BOARDSIGNAL_ADMIN_PASSWORD:-}}"
+          AUTH=()
+          if [ -n "$PASSWORD" ]; then AUTH=(-u "founder:${PASSWORD}"); fi
+
+          get_health() {
+            local out status
+            out="$(mktemp)"
+            status="$(curl -sS -o "$out" -w '%{http_code}' "${AUTH[@]}" "$BASE")"
+            cat "$out"
+            echo
+            if [ "$status" != '200' ]; then
+              echo "health GET failed with HTTP $status" >&2
+              exit 1
+            fi
+            cp "$out" /tmp/health.json
+          }
+
+          post_action() {
+            local action="$1" out status
+            out="$(mktemp)"
+            status="$(curl -sS -o "$out" -w '%{http_code}' "${AUTH[@]}" -H 'Content-Type: application/json' -X POST "$BASE" --data "{\"action\":\"${action}\"}")"
+            cat "$out"
+            echo
+            if [ "$status" != '200' ]; then
+              echo "${action} failed with HTTP $status" >&2
+              exit 1
+            fi
+            cp "$out" /tmp/action.json
+          }
+
+          echo '=== START HEALTH ==='
+          get_health
+          node - <<'NODE'
+          const h = require('/tmp/health.json');
+          if (!h.ok || h.health?.phase !== 'v1' || h.health?.readAuthority !== 'v1') throw new Error(`Expected v1/v1 start, got ${JSON.stringify(h)}`);
+          if (h.health.staleBoardCount !== 0 || h.health.repairRequiredCount !== 0) throw new Error(`Unsafe starting health: ${JSON.stringify(h.health)}`);
+          console.log(`START v1 authoritative · v1 players ${h.health.v1OfficialPlayerCount}`);
+          NODE
+
+          echo '=== MIGRATE SAFE-PUBLIC PAGES ==='
+          for attempt in $(seq 1 20); do
+            post_action migratePage
+            done_flag="$(node - <<'NODE'
+          const b = require('/tmp/action.json');
+          if (!b.ok || !b.result) throw new Error(`Bad migrate response: ${JSON.stringify(b)}`);
+          if (b.result.readAuthority !== 'v1' || b.result.phase !== 'migrating') throw new Error(`Migration changed authority: ${JSON.stringify(b.result)}`);
+          process.stdout.write(b.result.sourceExhausted ? 'yes' : 'no');
+          NODE
+            )"
+            [ "$done_flag" = 'yes' ] && break
+            if [ "$attempt" = '20' ]; then echo 'Migration did not exhaust within 20 pages' >&2; exit 1; fi
+          done
+
+          echo '=== MIGRATING HEALTH ==='
+          get_health
+          node - <<'NODE'
+          const h = require('/tmp/health.json');
+          if (!h.ok || h.health?.phase !== 'migrating' || h.health?.readAuthority !== 'v1') throw new Error(`Expected migrating/v1, got ${JSON.stringify(h)}`);
+          if (!h.health.sourceExhausted) throw new Error('Migration source is not exhausted.');
+          if (h.health.staleBoardCount !== 0 || h.health.repairRequiredCount !== 0) throw new Error(`Certification blocked: ${JSON.stringify(h.health)}`);
+          if (h.health.indexedPlayerCount !== h.health.v1OfficialPlayerCount) throw new Error(`Indexed/source mismatch: ${JSON.stringify(h.health)}`);
+          console.log(`MIGRATED ${h.health.indexedPlayerCount}/${h.health.v1OfficialPlayerCount} · authority still v1`);
+          NODE
+
+          echo '=== CERTIFY ==='
+          post_action certify
+          get_health
+          node - <<'NODE'
+          const h = require('/tmp/health.json');
+          if (!h.ok || h.health?.phase !== 'v2-ready' || h.health?.readAuthority !== 'v1') throw new Error(`Expected v2-ready/v1, got ${JSON.stringify(h)}`);
+          if (!h.health.certifiedAt) throw new Error('Missing certifiedAt.');
+          if (h.health.indexedPlayerCount !== h.health.v1OfficialPlayerCount || h.health.officialPlayerCount !== h.health.v1OfficialPlayerCount) throw new Error(`Certified count mismatch: ${JSON.stringify(h.health)}`);
+          if (h.health.staleBoardCount !== 0 || h.health.repairRequiredCount !== 0) throw new Error(`Certified health unsafe: ${JSON.stringify(h.health)}`);
+          console.log(`V2-READY certified at ${h.health.certifiedAt} · authority preserved as v1`);
+          NODE
+
+          echo '=== EXPLICIT CUTOVER ==='
+          post_action cutover
+          node - <<'NODE'
+          const b = require('/tmp/action.json');
+          const r = b.result;
+          if (!b.ok || !r?.health || !r?.proof) throw new Error(`Bad cutover response: ${JSON.stringify(b)}`);
+          if (r.health.phase !== 'v2-active' || r.health.readAuthority !== 'v2') throw new Error(`Cutover did not activate v2: ${JSON.stringify(r.health)}`);
+          if (!r.proof.available || r.proof.readAuthority !== 'v2' || r.proof.privacySafe !== true) throw new Error(`Activation proof failed: ${JSON.stringify(r.proof)}`);
+          console.log(`CUTOVER v2-active · proof player ${r.proof.playerId} · standings ${r.proof.standingCount} · privacy SAFE`);
+          NODE
+
+          echo '=== FINAL PRODUCTION HEALTH ==='
+          get_health
+          node - <<'NODE'
+          const h = require('/tmp/health.json');
+          if (!h.ok || h.health?.phase !== 'v2-active' || h.health?.readAuthority !== 'v2') throw new Error(`Expected final v2-active/v2, got ${JSON.stringify(h)}`);
+          if (!h.proof?.available || h.proof.readAuthority !== 'v2' || h.proof.privacySafe !== true) throw new Error(`Final v2 proof failed: ${JSON.stringify(h.proof)}`);
+          if (h.health.staleBoardCount !== 0 || h.health.repairRequiredCount !== 0) throw new Error(`Final production health unsafe: ${JSON.stringify(h.health)}`);
+          console.log(`P2 STAGE 2 COMPLETE · ${h.health.indexedPlayerCount} indexed · v2 authoritative · ${h.health.cutoverAt}`);
+          NODE

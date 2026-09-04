@@ -2,7 +2,7 @@ import "server-only";
 
 import type { BoardSignalAccount, StableChessComIdentity } from "../account";
 import { createFoundingBetaAccount, firebaseUidForChessPlayer } from "../account";
-import { resolveChessComPlayer } from "../processor";
+import { resolveChessComIdentityInput } from "../chessComIdentityResolution";
 import { getAdminAuth, getAdminDb } from "../../../utils/firebaseAdmin";
 import { verifyGoogleAccessToken } from "./googleAccess";
 
@@ -39,18 +39,10 @@ function googlePlayerAliasId(playerId: number) {
   return `google_player_${playerId}`;
 }
 
-function validateUsername(value: unknown) {
-  const username = String(value ?? "").trim().replace(/^@/, "");
-  if (!/^[A-Za-z0-9_-]{2,50}$/.test(username)) {
-    throw httpError("GOOGLE_ONBOARDING_USERNAME_INVALID", "Enter a valid Chess.com username.", 400);
-  }
-  return username;
-}
-
-function resolvedIdentity(resolved: Awaited<ReturnType<typeof resolveChessComPlayer>>): StableChessComIdentity {
+function resolvedIdentity(resolved: Awaited<ReturnType<typeof resolveChessComIdentityInput>>): StableChessComIdentity {
   const playerId = Number(resolved.playerId);
   if (!Number.isSafeInteger(playerId) || playerId <= 0) {
-    throw httpError("GOOGLE_ONBOARDING_PLAYER_ID_REQUIRED", "Chess.com did not return the stable player ID BoardSignal requires.", 422);
+    throw httpError("CHESS_COM_UNAVAILABLE", "Chess.com is temporarily unavailable. Your BoardSignal account is fine — try again shortly.", 503);
   }
   return {
     playerId,
@@ -84,8 +76,7 @@ function customTokenClaims(account: BoardSignalAccount, provider: string) {
 
 export async function resolveGoogleOnboardingProfile(googleIdToken: unknown, usernameInput: unknown) {
   await verifyGoogleAccessToken(googleIdToken);
-  const username = validateUsername(usernameInput);
-  const identity = resolvedIdentity(await resolveChessComPlayer(username));
+  const identity = resolvedIdentity(await resolveChessComIdentityInput(usernameInput));
   return {
     playerId: identity.playerId,
     canonicalUsername: identity.canonicalUsername,
@@ -97,8 +88,7 @@ export async function resolveGoogleOnboardingProfile(googleIdToken: unknown, use
 
 export async function claimGoogleOnboardingProfile(googleIdToken: unknown, usernameInput: unknown) {
   const google = await verifyGoogleAccessToken(googleIdToken);
-  const username = validateUsername(usernameInput);
-  const identity = resolvedIdentity(await resolveChessComPlayer(username));
+  const identity = resolvedIdentity(await resolveChessComIdentityInput(usernameInput));
   const uid = firebaseUidForChessPlayer(identity.playerId);
   const db = getAdminDb();
   const subjectRef = db.collection("playerIdentityAliases").doc(googleSubjectAliasId(google.providerUidHash));

@@ -107,9 +107,9 @@ export default function UsernameDeskForm({ compact = false, qaState, initialGoog
 
   async function resolveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const cleanUsername = username.trim().replace(/^@/, "");
-    if (!googleIdToken) { setError("Continue with Google before connecting a Chess.com username."); return; }
-    if (!cleanUsername) { setError("Enter your own Chess.com username."); return; }
+    const identityInput = username.trim();
+    if (!googleIdToken) { setError("Continue with Google before connecting a Chess.com profile."); return; }
+    if (!identityInput) { setError("Enter a valid Chess.com username or Chess.com member profile link."); return; }
     setBusy("resolve");
     setError("");
     setCollision(false);
@@ -120,14 +120,14 @@ export default function UsernameDeskForm({ compact = false, qaState, initialGoog
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ action: "resolveProfile", googleIdToken, username: cleanUsername }),
+        body: JSON.stringify({ action: "resolveProfile", googleIdToken, username: identityInput }),
       });
       const body = await response.json() as { ok?: boolean; result?: ResolvedProfile; error?: string };
-      if (!response.ok || !body.ok || !body.result) throw new Error(body.error ?? "BoardSignal could not find this Chess.com profile.");
+      if (!response.ok || !body.ok || !body.result) throw new Error(body.error ?? "BoardSignal could not resolve this Chess.com profile.");
       setProfile(body.result);
       setUsername(body.result.canonicalUsername);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "BoardSignal could not find this Chess.com profile.");
+      setError(reason instanceof Error ? reason.message : "BoardSignal could not resolve this Chess.com profile.");
     } finally {
       setBusy("");
     }
@@ -261,7 +261,7 @@ export default function UsernameDeskForm({ compact = false, qaState, initialGoog
     <div className={styles.card} data-boardsignal-onboarding-card>
       <OnboardingSteps current={2} />
       <div className={styles.heading}><p className="kicker">YOUR CHESS.COM PROFILE</p><h3>Enter your own Chess.com username.</h3><p>BoardSignal uses your public games to build your private chess picture.</p><p>Use your own Chess.com username. BoardSignal connects your account to the chess profile you choose.</p><p>If you connect the wrong Chess.com profile, correcting it may require an identity review with BoardSignal support.</p></div>
-      <form className={styles.form} onSubmit={resolveProfile}><label className={styles.label} htmlFor={compact ? "username-compact" : "username"}>Chess.com username<div className={styles.inputRow}><span className={styles.inputIcon} aria-hidden="true"><Search size={19}/></span><input id={compact ? "username-compact" : "username"} name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Your Chess.com username" autoComplete="off" spellCheck={false} disabled={busy === "resolve"}/></div></label>{error ? <p className={styles.error} role="alert">{error}</p> : null}<button className={`button button-lime ${styles.primaryAction}`} type="submit" disabled={busy === "resolve"}>{busy === "resolve" ? <><LoaderCircle className="button-spinner" size={17}/> Finding your profile</> : <>FIND MY CHESS.COM PROFILE <ArrowRight size={17}/></>}</button></form>
+      <form className={styles.form} onSubmit={resolveProfile}><label className={styles.label} htmlFor={compact ? "username-compact" : "username"}>Chess.com username or profile link<div className={styles.inputRow}><span className={styles.inputIcon} aria-hidden="true"><Search size={19}/></span><input id={compact ? "username-compact" : "username"} name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username or Chess.com profile link" autoComplete="off" spellCheck={false} disabled={busy === "resolve"}/></div><small className={styles.helpCopy}>Use the current username shown on your Chess.com profile, or paste the Chess.com member profile link.</small></label>{error ? <p className={styles.error} role="alert">{error}</p> : null}<button className={`button button-lime ${styles.primaryAction}`} type="submit" disabled={busy === "resolve"}>{busy === "resolve" ? <><LoaderCircle className="button-spinner" size={17}/> Finding your profile</> : <>FIND MY CHESS.COM PROFILE <ArrowRight size={17}/></>}</button></form>
       <p className={styles.privacy}><ShieldCheck size={15}/> No Chess.com password. Google identifies you to BoardSignal; it does not prove Chess.com-profile ownership.</p>
     </div>
   </section>;

@@ -1,0 +1,201 @@
+name: BoardSignal Chess.com Identity Validation
+
+on:
+  push:
+    branches:
+      - boardsignal-chess-id-validation
+
+permissions:
+  contents: read
+
+jobs:
+  contained-release-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout validation candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Prove contained candidate diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check HEAD~2 HEAD~1
+          ACTUAL="$(git diff --name-only HEAD~2 HEAD~1 | sort)"
+          EXPECTED="$(printf '%s\n' \
+            'src/components/UsernameDeskForm.tsx' \
+            'src/lib/boardsignal/chessComIdentityResolution.ts' \
+            'src/lib/boardsignal/server/googleOnboarding.ts' \
+            'tests/boardsignal-chess-com-identity-resolution.test.ts' | sort)"
+          test "$ACTUAL" = "$EXPECTED"
+          test -z "$(git diff --name-only HEAD~2 HEAD~1 -- package.json package-lock.json)"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Focused Chess.com identity-resolution regression
+        run: npx tsx --test tests/boardsignal-chess-com-identity-resolution.test.ts
+
+      - name: Friends / Rivals focused suite
+        run: |
+          npx tsc -p tsconfig.friends-rivals.json
+          node --test tests/boardsignal-friends-rivals.test.cjs
+
+      - name: P0 public feature pipeline guard
+        run: node --test tests/boardsignal-p0-feature-pipeline.test.cjs
+
+      - name: P1 live capacity recovery guard
+        run: npx tsx --test tests/boardsignal-p1-live-recovery.test.ts
+
+      - name: P2 Universe scale guard
+        run: npm run test:p2-universe-scale
+
+      - name: Reconstruct legacy E.3 deletion manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          E3_BASE="ce270724126aa827bb8e02ec324bc6ee1a20b7de"
+          E3_PATCH="d334c937a1efbbd3601dfd88c14831e98e579e5e"
+          test "$(git rev-parse "${E3_PATCH}^")" = "$E3_BASE"
+          test "$(git show -s --format=%s "$E3_BASE")" = "Clarify player access and repair public highlights"
+          ACTUAL="$(git diff --name-only "$E3_BASE" "$E3_PATCH" | sort)"
+          EXPECTED="$(printf '%s\n' \
+            'src/lib/boardsignal/server/accountDeletion.ts' \
+            'tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs' \
+            'tests/boardsignal-full-account-deletion-reonboarding.test.cjs' | sort)"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            printf 'Unexpected E.3 delta:\n%s\n' "$ACTUAL"
+            exit 1
+          fi
+          {
+            echo "BASELINE"
+            echo "$E3_BASE"
+            git show -s --format=%s "$E3_BASE"
+            echo "ADDED FILES"
+            git diff --name-only --diff-filter=A "$E3_BASE" "$E3_PATCH"
+            echo "DELETED FILES"
+            git diff --name-only --diff-filter=D "$E3_BASE" "$E3_PATCH"
+            echo "E.2.1 Player Access/Public Highlights repair: UNCHANGED"
+            echo "firestore.rules: UNCHANGED"
+            echo "NO NEW FIRESTORE INDEX"
+            echo "package.json: UNCHANGED"
+            echo "package-lock.json: UNCHANGED"
+            echo "B.1 active-week guidance: UNCHANGED"
+            echo "Patch D motion: UNCHANGED"
+            echo "Patch E Ask BoardSignal: UNCHANGED"
+            echo "Stockfish/quality/processor/seven-day logic: UNCHANGED"
+          } > PATCH-MANIFEST.txt
+
+      - name: P0 privacy and account deletion regressions
+        run: node --test tests/boardsignal-full-account-deletion-reonboarding.test.cjs tests/boardsignal-account-deletion-social-cleanup-hotfix.test.cjs
+
+      - name: P0 Universe regressions
+        run: |
+          npm run test:universe-pulse
+          node --test tests/boardsignal-patch-g425-universe-founder-truth.test.cjs
+
+      - name: P0 historical onboarding regression
+        run: npx tsx --test tests/boardsignal-historical-onboarding-recovery.test.ts
+
+      - name: Google onboarding and identity collision regressions
+        run: |
+          node --test tests/boardsignal-google-access-finalization.test.cjs tests/boardsignal-google-player-accounting.test.cjs tests/boardsignal-legacy-beta-access-compat.test.cjs tests/boardsignal-patch-l-founder-access-semantics.test.cjs
+          npm run test:identity
+
+      - name: M6 branding language guard
+        run: node --test tests/boardsignal-patch-m6-branding-language.test.cjs tests/boardsignal-language-information-hierarchy.test.cjs
+
+      - name: M4 engagement and M3 visit semantics
+        run: node --test tests/boardsignal-patch-m4-founder-engagement.test.cjs
+
+      - name: M5 contextual Ask guard
+        run: node --test tests/boardsignal-patch-m5-contextual-ask.test.cjs
+
+      - name: M7 Firestore-safe coaching runtime guard
+        run: node --test tests/boardsignal-m7-firestore-safe-coaching.test.cjs
+
+      - name: M7 progressive coaching guard
+        run: node --test tests/boardsignal-m7-progressive-coaching.test.cjs
+
+      - name: M7.1 Founder player-card guard
+        run: node --test tests/boardsignal-patch-m7-1-founder-player-cards.test.cjs
+
+      - name: M8 living editorial visual-system guard
+        run: node --test tests/boardsignal-patch-m8-living-editorial-visual-system.test.cjs
+
+      - name: M8 final rendered correction guard
+        run: node --test tests/boardsignal-m8-final-render-correction.test.cjs
+
+      - name: Core regressions
+        run: npm run test:core
+
+      - name: Critical regressions
+        run: npm run test:critical
+
+      - name: Ask BoardSignal regressions
+        run: npm run test:ask
+
+      - name: Delivery regressions
+        run: npm run test:delivery
+
+      - name: PWA and offline regressions
+        run: npm run test:pwa
+
+      - name: Active contrast and state regressions
+        run: npm run test:contrast
+
+      - name: Strict TypeScript
+        run: npx tsc --noEmit
+
+      - name: Render onboarding and core release surfaces in real Chrome
+        env:
+          ADMIN_PASSWORD: boardsignal-p0-ci-founder
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchM6Guard000000000000000000000
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-m6-ci.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-m6-ci
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: patch-m6-ci.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+          NEXT_PUBLIC_FIREBASE_VAPID_KEY: boardsignal-p1-ci-vapid-key
+        run: |
+          set -euo pipefail
+          npm run dev -- -p 3100 > /tmp/boardsignal-chess-id-validation.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/onboarding?state=username&theme=light" >/dev/null; then
+              READY=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/boardsignal-chess-id-validation.log
+            exit 1
+          fi
+          curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/onboarding?state=profile&theme=light" >/dev/null
+          curl --fail --silent --show-error "http://127.0.0.1:3100/boardsignal/qa/player-room-coaching?theme=light&level=1" >/dev/null
+          node --experimental-websocket scripts/check-boardsignal-onboarding-render.mjs
+          node --experimental-websocket scripts/check-boardsignal-m8-player-room-render.mjs
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyPatchM6Guard000000000000000000000
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: patch-m6-ci.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: patch-m6-ci
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: patch-m6-ci.appspot.com
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-0000000000
+          NEXT_PUBLIC_FIREBASE_VAPID_KEY: boardsignal-p1-ci-vapid-key
+        run: npm run build

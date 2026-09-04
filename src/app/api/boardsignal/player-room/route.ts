@@ -19,6 +19,7 @@ import {
   acceptFoundingBetaAgreement,
   accountForToken,
   buildPlayerRoomSnapshot,
+  loadPendingFactualReviews,
   publishPrivateDesk,
   savePendingFactualReview,
   requirePlayerToken,
@@ -99,7 +100,6 @@ export async function GET(request: Request) {
     }
 
     const refreshReference = new Date();
-    refreshCurrentArchiveCacheIfNeeded(refreshReference.getTime());
     const alignedPeriod = currentAlignedPeriod(account.cadenceAnchor, refreshReference);
     const currentPeriod = { periodStart: isoDay(alignedPeriod.start), periodEnd: isoDay(alignedPeriod.end) };
     let currentEpisode: CurrentEpisodeWithNextGameGuidance | undefined;
@@ -107,14 +107,10 @@ export async function GET(request: Request) {
     let progressUnavailable: string | undefined;
     let usingLastKnownGood = false;
 
-    try {
-      currentEpisode = await buildCurrentEpisodeSummary(account.chessCom.canonicalUsername, {
-        anchorStart: account.cadenceAnchor,
-        playerKey: account.uid,
-        referenceDate: refreshReference,
-      });
-    } catch (error) {
-      progressUnavailable = "Current episode progress is temporarily unavailable.";
+    // A durable factual draft is already the authoritative input for the unfinished Review.
+    // Reusing it must happen before any second Chess.com archive collection on reload.
+    const confirmedFactualDraft = (await loadPendingFactualReviews(account.uid))[0];
+    if (confirmedFactualDraft) {
       const stored = samePeriodCurrentEpisodeFallback(account.currentEpisodeSummary, currentPeriod);
       if (stored) {
         fallbackCurrentEpisode = {
@@ -124,14 +120,34 @@ export async function GET(request: Request) {
         currentEpisode = fallbackCurrentEpisode;
         usingLastKnownGood = true;
       }
-      const failure = classifyCurrentCollectionFailure(error);
-      console.warn("[boardsignal] current Chess.com collection unavailable", {
-        source: "chesscom",
-        failure: failure.kind,
-        status: failure.status,
-        samePeriodFallbackUsed: usingLastKnownGood,
-        lastSuccessfulCurrentCollectionAt: account.latestProgressCheckedAt ?? account.currentEpisodeSummary?.checkedAt,
-      });
+    } else {
+      refreshCurrentArchiveCacheIfNeeded(refreshReference.getTime());
+      try {
+        currentEpisode = await buildCurrentEpisodeSummary(account.chessCom.canonicalUsername, {
+          anchorStart: account.cadenceAnchor,
+          playerKey: account.uid,
+          referenceDate: refreshReference,
+        });
+      } catch (error) {
+        progressUnavailable = "Current episode progress is temporarily unavailable.";
+        const stored = samePeriodCurrentEpisodeFallback(account.currentEpisodeSummary, currentPeriod);
+        if (stored) {
+          fallbackCurrentEpisode = {
+            ...stored,
+            nextGameGuidance: unavailableActiveWeekGuidance(stored.games),
+          };
+          currentEpisode = fallbackCurrentEpisode;
+          usingLastKnownGood = true;
+        }
+        const failure = classifyCurrentCollectionFailure(error);
+        console.warn("[boardsignal] current Chess.com collection unavailable", {
+          source: "chesscom",
+          failure: failure.kind,
+          status: failure.status,
+          samePeriodFallbackUsed: usingLastKnownGood,
+          lastSuccessfulCurrentCollectionAt: account.latestProgressCheckedAt ?? account.currentEpisodeSummary?.checkedAt,
+        });
+      }
     }
 
     // Only a genuinely fresh collection may be persisted as a successful current checkpoint.

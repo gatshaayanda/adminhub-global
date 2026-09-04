@@ -555,7 +555,7 @@ function RoomNav({ tab, setTab, unreadCount, friendRequestCount }: { tab: RoomTa
 
 function CurrentContinuation({ suggestedPlayerCount, setTab }: { suggestedPlayerCount: number; setTab: (tab: RoomTab) => void }) {
   return <section className="first-value-preview companion-continuation" aria-label="Continue from Current BoardSignal">
-    <div className="companion-continuation-heading"><span className="companion-section-icon"><TrendingUp size={19} aria-hidden="true" /></span><div><p className="kicker">NEXT</p><h2>See how this becomes progress.</h2><p>Your live picture stays in Current. Completed game-bearing Reviews become the deeper history behind it.</p></div></div>
+    <div className="companion-continuation-heading"><span className="companion-section-icon"><TrendingUp size={19} aria-hidden="true" /></span><div><p className="kicker">NEXT</p><h2>See how this becomes progress.</h2><p>Your live picture stays in Current. Completed Reviews stay behind the current picture.</p></div></div>
     <div className="companion-action-grid">
       <button type="button" className="companion-action-button is-primary" onClick={() => setTab("progress")}><TrendingUp size={18} aria-hidden="true" /> <span>Progress</span></button>
       <button type="button" className="companion-action-button" onClick={() => setTab("universe")}><Globe2 size={18} aria-hidden="true" /> <span>Universe</span></button>
@@ -646,7 +646,7 @@ function CurrentEpisodeCard({ episode, uid, online, refreshing, onRefresh }: { e
     </article>
 
     <article className="g3-before-next-game companion-signal-card">
-      <div className="companion-signal-heading"><span className="companion-section-icon"><Target size={19} aria-hidden="true" /></span><div className="companion-signal-copy"><p className="kicker">CURRENT BOARDSIGNAL</p><h2 id="g3-current-board-signal-title">Your current signal</h2><small>{episode.periodLabel} · {episode.daysComplete} of 7 days complete</small></div></div>
+      <div className="companion-signal-heading"><span className="companion-section-icon"><Target size={19} aria-hidden="true" /></span><div className="companion-signal-copy"><p className="kicker">LIVE PLAYER VIEW · CURRENT BOARDSIGNAL</p><h2 id="g3-current-board-signal-title">Your current signal</h2><small>{episode.periodLabel} · {episode.daysComplete} of 7 days complete</small></div></div>
       {hasGuidance ? <><h3>{guidance.title}</h3><p>{guidance.copy}</p>{guidanceSource ? <small>{guidanceSource}</small> : null}{evidenceLabel ? <small className="corner-evidence-count">{evidenceLabel}</small> : null}</> : <><h3>Nothing specific yet.</h3><p>{noGuidanceCopy}</p><small>{guidance.gamesConsidered ? `${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} checked in this period.` : "No current-period evidence yet."}</small></>}
     </article>
 

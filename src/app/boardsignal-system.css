@@ -429,3 +429,287 @@ html[data-bs-theme="dark"] .google-signin-button:active:not(:disabled) { backgro
   .bs-state-banner.is-info { border-left-color: Highlight; }
   .boardsignal-social-proof-mark { border-color: CanvasText; color: LinkText; }
 }
+
+/* ==========================================================
+   BoardSignal Companion UI — post-P2 presentation layer
+   Current is the live companion; Progress keeps the deeper editorial/history
+   layer. Symbols lead scanning, while short visible labels preserve clarity.
+   ========================================================== */
+
+.player-room-authenticated .room-tab-nav .companion-nav-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-width: 0;
+}
+
+.player-room-authenticated .companion-nav-icon {
+  width: 20px;
+  height: 20px;
+  justify-self: end;
+  flex: 0 0 auto;
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated .room-tab-nav .companion-nav-button.active .companion-nav-icon { color: currentColor; }
+.player-room-authenticated .companion-nav-label { min-width: 0; justify-self: start; overflow-wrap: anywhere; }
+
+.player-room-authenticated .companion-last-game {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 1.45rem);
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .companion-last-game-icon,
+.player-room-authenticated .companion-section-icon,
+.player-room-authenticated .companion-action-icon,
+.player-room-authenticated .companion-progress-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: 999px;
+  background: var(--bs-surface-elevated);
+  color: var(--bs-brand-primary);
+}
+
+.player-room-authenticated .companion-last-game-icon { width: 48px; height: 48px; }
+.player-room-authenticated .companion-section-icon,
+.player-room-authenticated .companion-action-icon,
+.player-room-authenticated .companion-progress-icon { width: 38px; height: 38px; }
+
+.player-room-authenticated .companion-last-game-copy,
+.player-room-authenticated .companion-signal-copy,
+.player-room-authenticated .companion-action-copy { min-width: 0; }
+
+.player-room-authenticated .companion-last-game-copy > span,
+.player-room-authenticated .companion-signal-heading .kicker,
+.player-room-authenticated .companion-snapshot-heading .kicker,
+.player-room-authenticated .companion-action-copy > span,
+.player-room-authenticated .companion-progress-kicker {
+  color: var(--bs-text-muted);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.player-room-authenticated .companion-last-game-copy h2 {
+  margin-top: .25rem;
+  color: var(--bs-text-primary);
+  font-size: clamp(1.35rem, 3vw, 2.1rem);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.player-room-authenticated .companion-last-game-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .75rem;
+  margin-top: .4rem;
+  color: var(--bs-text-secondary);
+  font-size: .8rem;
+}
+
+.player-room-authenticated .companion-last-game-note {
+  margin-top: .55rem;
+  max-width: 68ch;
+  color: var(--bs-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.player-room-authenticated .companion-freshness-actions {
+  display: grid;
+  justify-items: end;
+  gap: .5rem;
+  min-width: 0;
+}
+
+.player-room-authenticated .companion-refresh-button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: .55rem .8rem;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.player-room-authenticated .companion-refresh-button:hover:not(:disabled) { border-color: var(--bs-brand-primary); }
+.player-room-authenticated .companion-refresh-button:focus-visible,
+.player-room-authenticated .companion-action-button:focus-visible { outline: 3px solid var(--bs-focus); outline-offset: 3px; }
+.player-room-authenticated .companion-refresh-button:disabled { cursor: not-allowed; opacity: .7; }
+.player-room-authenticated .companion-refresh-button.is-refreshing svg { animation: bs-companion-refresh-spin 720ms linear infinite; }
+.player-room-authenticated .companion-checked-at { max-width: 22ch; color: var(--bs-text-muted); font-size: .72rem; text-align: right; }
+.player-room-authenticated .companion-live-status { position: static; max-width: 100%; }
+
+.player-room-authenticated .companion-signal-card {
+  margin-top: 0;
+  border: 1px solid color-mix(in srgb, var(--bs-brand-primary) 52%, var(--bs-border));
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .companion-signal-heading,
+.player-room-authenticated .companion-snapshot-heading,
+.player-room-authenticated .companion-progress-heading,
+.player-room-authenticated .companion-inline-heading {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 0;
+}
+.player-room-authenticated .companion-signal-heading { margin-bottom: .75rem; }
+.player-room-authenticated .companion-signal-heading .companion-section-icon {
+  border-color: color-mix(in srgb, var(--bs-text-on-inverse) 48%, transparent);
+  background: color-mix(in srgb, var(--bs-text-on-inverse) 8%, transparent);
+  color: var(--bs-text-on-inverse);
+}
+.player-room-authenticated .companion-signal-heading .kicker,
+.player-room-authenticated .companion-signal-heading h2,
+.player-room-authenticated .companion-signal-heading small { color: var(--bs-text-on-inverse); }
+.player-room-authenticated .companion-signal-heading h2 { margin-top: .1rem; font-size: clamp(1.1rem, 2vw, 1.4rem); }
+.player-room-authenticated .companion-signal-heading small { display: block; margin-top: .2rem; opacity: .8; }
+
+.player-room-authenticated .companion-next-game-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem;
+  align-items: start;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+}
+.player-room-authenticated .companion-action-copy strong { display: block; margin-top: .25rem; color: var(--bs-text-primary); font-size: 1rem; }
+.player-room-authenticated .companion-action-copy p { margin-top: .35rem; color: var(--bs-text-secondary); }
+
+.player-room-authenticated .companion-current-snapshot {
+  padding: 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface);
+}
+.player-room-authenticated .companion-snapshot-heading { justify-content: space-between; margin-bottom: .85rem; }
+.player-room-authenticated .companion-snapshot-heading > div:first-of-type { display: flex; align-items: center; gap: .7rem; }
+.player-room-authenticated .companion-snapshot-heading small { color: var(--bs-text-muted); text-align: right; }
+.player-room-authenticated .companion-details-summary { display: inline-flex; align-items: center; gap: .45rem; }
+
+.player-room-authenticated .companion-continuation {
+  margin-top: 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  box-shadow: var(--bs-shadow-1);
+}
+.player-room-authenticated .companion-continuation-heading { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .8rem; align-items: start; }
+.player-room-authenticated .companion-continuation-heading h2 { margin-top: .2rem; color: var(--bs-text-primary); }
+.player-room-authenticated .companion-continuation-heading p:last-child { margin-top: .35rem; color: var(--bs-text-secondary); }
+
+.player-room-authenticated .companion-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .55rem;
+  margin-top: 1rem;
+}
+.player-room-authenticated .companion-action-button {
+  min-width: 0;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: .65rem .7rem;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.player-room-authenticated .companion-action-button.is-primary { border-color: var(--bs-brand-primary); background: var(--bs-surface-inverse); color: var(--bs-text-on-inverse); }
+.player-room-authenticated .companion-action-button:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--bs-brand-primary); }
+
+.player-room-authenticated .companion-progress-heading { align-items: start; }
+.player-room-authenticated .companion-progress-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .7rem;
+  margin-top: 1rem;
+}
+.player-room-authenticated .companion-progress-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: .65rem;
+  padding: .85rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+}
+.player-room-authenticated .companion-progress-card span { display: block; color: var(--bs-text-muted); font-size: .72rem; font-weight: 800; letter-spacing: .045em; text-transform: uppercase; }
+.player-room-authenticated .companion-progress-card strong { display: block; margin-top: .18rem; color: var(--bs-text-primary); overflow-wrap: anywhere; }
+.player-room-authenticated .companion-inline-heading { margin-bottom: .7rem; }
+.player-room-authenticated .companion-inline-heading .kicker { margin: 0; }
+.player-room-authenticated .companion-review-history-disclosure > summary { justify-content: flex-start; }
+
+@keyframes bs-companion-refresh-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .player-room-authenticated .companion-action-grid,
+  .player-room-authenticated .companion-progress-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .player-room-authenticated .room-tab-nav .companion-nav-button {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: .25rem;
+    padding-block: .55rem;
+  }
+  .player-room-authenticated .companion-nav-icon,
+  .player-room-authenticated .companion-nav-label { justify-self: center; }
+  .player-room-authenticated .companion-last-game { grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .75rem; }
+  .player-room-authenticated .companion-freshness-actions { grid-column: 1 / -1; width: 100%; justify-items: stretch; }
+  .player-room-authenticated .companion-refresh-button { width: 100%; }
+  .player-room-authenticated .companion-checked-at { max-width: none; text-align: left; }
+  .player-room-authenticated .companion-snapshot-heading { align-items: flex-start; flex-direction: column; }
+  .player-room-authenticated .companion-snapshot-heading small { text-align: left; }
+  .player-room-authenticated .companion-action-grid,
+  .player-room-authenticated .companion-progress-overview { grid-template-columns: 1fr; }
+  .player-room-authenticated .companion-action-button:hover:not(:disabled) { transform: none; }
+}
+
+@media (max-width: 390px) {
+  .player-room-authenticated .companion-last-game-icon { width: 42px; height: 42px; }
+  .player-room-authenticated .companion-last-game-copy h2 { font-size: 1.25rem; }
+  .player-room-authenticated .companion-section-icon,
+  .player-room-authenticated .companion-action-icon,
+  .player-room-authenticated .companion-progress-icon { width: 34px; height: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-room-authenticated .companion-refresh-button,
+  .player-room-authenticated .companion-action-button { transition: none !important; transform: none !important; }
+  .player-room-authenticated .companion-refresh-button.is-refreshing svg { animation: none !important; transform: none !important; }
+}

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import { BarChart3, CalendarDays, Inbox, LoaderCircle, ShieldCheck, Target, TrendingUp } from "lucide-react";
+import { onAuthStateChanged, signOut, type User as FirebaseUser } from "firebase/auth";
+import { Activity, ArrowRight, BarChart3, BookOpen, CalendarDays, Globe2, History, Home, Inbox, LoaderCircle, MessageCircle, RefreshCw, ShieldCheck, Swords, Target, TrendingUp, User, Users } from "lucide-react";
 import BetaAgreementGate from "@/components/BetaAgreementGate";
 import ChessComLoginPanel from "@/components/ChessComLoginPanel";
 import PlayerInbox from "@/components/PlayerInbox";
@@ -75,12 +75,13 @@ const FOCUS_REFRESH_THROTTLE_MS = 75_000;
 
 export default function BoardSignalPlayerRoom() {
   const connectivity = useBoardSignalConnectivity();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [token, setToken] = useState("");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
   const [tab, setTab] = useState<RoomTab>("desk");
   const [unreadCount, setUnreadCount] = useState(0);
   const [socialPlayers, setSocialPlayers] = useState<Record<string, SocialSummaryPlayer>>({});
@@ -101,7 +102,7 @@ export default function BoardSignalPlayerRoom() {
   const publishedDeskKeyThisSessionRef = useRef<string | undefined>(undefined);
   const refreshGateRef = useRef(new PlayerRoomRefreshGate());
 
-  const loadRoom = useCallback(async (activeUser: User, quiet = false) => {
+  const loadRoom = useCallback(async (activeUser: FirebaseUser, quiet = false) => {
     return refreshGateRef.current.run(async () => {
       if (!quiet) setLoading(true);
       setError("");
@@ -163,6 +164,19 @@ export default function BoardSignalPlayerRoom() {
       }
     }, { quiet });
   }, []);
+
+  const refreshCurrent = useCallback(async () => {
+    if (!user || !connectivity.online || manualRefreshing) return;
+    setManualRefreshing(true);
+    try {
+      const refreshed = await loadRoom(user, true);
+      if (refreshed && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete"));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Current BoardSignal could not be refreshed.");
+    } finally {
+      setManualRefreshing(false);
+    }
+  }, [connectivity.online, loadRoom, manualRefreshing, user]);
 
   useEffect(() => onAuthStateChanged(auth, (activeUser) => {
     const previousUid = activeUidRef.current;
@@ -465,15 +479,13 @@ export default function BoardSignalPlayerRoom() {
 
       {tab === "desk" ? <section id="player-room-panel-desk" role="tabpanel" aria-labelledby="player-room-tab-desk" className="g3-room-panel g3-review-tab">
         <div className="container player-room-memory g3-review-flow">
-          {currentEpisode ? <><CurrentEpisodeCard episode={currentEpisode} uid={user.uid} online={connectivity.online} />{snapshot.progressUnavailable ? <p className="forming-note" role="status"><ShieldCheck size={15} /> Showing your last successfully checked games. BoardSignal couldn&apos;t refresh Chess.com just now. Last successfully checked {new Date(currentEpisode.checkedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}.</p> : null}</> : <div className="founding-field-note"><CalendarDays size={18} /><div><p className="kicker">CURRENT BOARDSIGNAL</p><strong>{snapshot.progressUnavailable ? "Current BoardSignal is temporarily unavailable." : "Your current picture is catching up."}</strong><p>{snapshot.progressUnavailable ? "BoardSignal couldn't check your Chess.com games just now. Your account is set up — try again shortly." : "BoardSignal does not have enough current game data to say more yet. Your completed Review history remains unchanged."}</p></div></div>}
+          {currentEpisode ? <><CurrentEpisodeCard episode={currentEpisode} uid={user.uid} online={connectivity.online} refreshing={manualRefreshing} onRefresh={refreshCurrent} />{snapshot.progressUnavailable ? <p className="forming-note" role="status"><ShieldCheck size={15} /> Showing your last successfully checked games. BoardSignal couldn&apos;t refresh Chess.com just now. Last successfully checked {new Date(currentEpisode.checkedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}.</p> : null}</> : <div className="founding-field-note"><CalendarDays size={18} /><div><p className="kicker">CURRENT BOARDSIGNAL</p><strong>{snapshot.progressUnavailable ? "Current BoardSignal is temporarily unavailable." : "Your current picture is catching up."}</strong><p>{snapshot.progressUnavailable ? "BoardSignal couldn't check your Chess.com games just now. Your account is set up — try again shortly." : "BoardSignal does not have enough current game data to say more yet. Your completed Review history remains unchanged."}</p></div></div>}
           {currentJournalReview ? <div className="g3-review-journal-slot"><PlayerReviewJournal review={currentJournalReview} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} context="current" /></div> : null}
-          <CurrentContinuation suggestedPlayerCount={suggestedPlayerCount} setTab={setTab} />
-          <div className="g3-post-review"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div>
           {latest && quickRead ? <section className="g3-last-completed-review" aria-label="Last completed Review">
             <div className="universal-section-heading"><span><CalendarDays size={16}/></span><div><p className="kicker">HISTORY</p><h2>LAST COMPLETED REVIEW</h2><p>{latest.summary.periodLabel} · {latest.summary.games} games. This Review is complete and immutable; it now sits behind your Current BoardSignal.</p></div></div>
             <PlayerRoomQuickRead quickRead={quickRead} stateLabel="LAST COMPLETED" />
             <details className="g3-disclosure g3-last-completed-review-details">
-              <summary>OPEN FULL REVIEW</summary>
+              <summary><span className="companion-details-summary"><BookOpen size={16} aria-hidden="true" /> OPEN FULL REVIEW</span></summary>
               <div className="g3-disclosure-body">
                 <AuthenticatedUniverseProvider pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable}><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} presentationMode="player-room" embedded /></AuthenticatedUniverseProvider>
                 <PlayerReviewJournal review={{ reviewKey: latest.summary.deskKey, periodStart: latest.summary.periodStart, periodEnd: latest.summary.periodEnd, periodLabel: latest.summary.periodLabel }} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} compact />
@@ -481,11 +493,13 @@ export default function BoardSignalPlayerRoom() {
               </div>
             </details>
           </section> : <div className="founding-field-note"><CalendarDays size={18}/><div><p className="kicker">LAST COMPLETED REVIEW</p><strong>No completed Review yet.</strong><p>When a seven-day period with real games closes and its Review completes, it will move here behind Current BoardSignal. A zero-game period will not consume a retained Review slot.</p></div></div>}
+          <div className="g3-post-review"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div>
+          <CurrentContinuation suggestedPlayerCount={suggestedPlayerCount} setTab={setTab} />
         </div>
         {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : !latest && automaticGenerationRequired ? <div className="container player-room-memory"><div className="founding-field-note"><CalendarDays size={18}/><div><strong>{hasOriginalHistory ? "Your original Review is already here." : "Your first completed Review is forming."}</strong><p>{connectivity.online ? (hasOriginalHistory ? "BoardSignal is building the next eligible completed Review from your preserved seven-day cadence." : "BoardSignal is building your first completed Review. Current BoardSignal, Universe, Friends, Inbox and Profile remain available while it forms.") : "Reconnect before BoardSignal retrieves new Chess.com games for this Review."}</p></div></div>{connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={originalCadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : null}</div> : null}
       </section> : null}
 
-      {tab === "progress" ? <section id="player-room-panel-progress" role="tabpanel" aria-labelledby="player-room-tab-progress" className="g3-room-panel"><div className="container player-room-memory"><ProgressSection history={reviewHistory} reportPeriods={reportPeriods} coverage={snapshot.historyCoverage} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} /></div></section> : null}
+      {tab === "progress" ? <section id="player-room-panel-progress" role="tabpanel" aria-labelledby="player-room-tab-progress" className="g3-room-panel"><div className="container player-room-memory"><ProgressSection history={reviewHistory} reportPeriods={reportPeriods} coverage={snapshot.historyCoverage} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} setTab={setTab} /></div></section> : null}
       {tab === "universe" ? <section id="player-room-panel-universe" role="tabpanel" aria-labelledby="player-room-tab-universe" className="g3-room-panel"><div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div></section> : null}
       {tab === "friends" ? <section id="player-room-panel-friends" role="tabpanel" aria-labelledby="player-room-tab-friends" className="g3-room-panel"><div className="container player-room-memory"><PlayerFriends uid={user.uid} token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div></section> : null}
       {tab === "inbox" ? <section id="player-room-panel-inbox" role="tabpanel" aria-labelledby="player-room-tab-inbox" className="g3-room-panel"><div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div></section> : null}
@@ -503,13 +517,13 @@ function RoomIdentity({ account }: { account: BoardSignalAccount }) {
 }
 
 function RoomNav({ tab, setTab, unreadCount, friendRequestCount }: { tab: RoomTab; setTab: (tab: RoomTab) => void; unreadCount: number; friendRequestCount: number }) {
-  const items: Array<{ id: RoomTab; label: string }> = [
-    { id: "desk", label: "Current" },
-    { id: "progress", label: "Progress" },
-    { id: "universe", label: "Universe" },
-    { id: "friends", label: "Friends" },
-    { id: "inbox", label: "Inbox" },
-    { id: "profile", label: "Profile" },
+  const items = [
+    { id: "desk" as const, label: "Current", icon: Home },
+    { id: "progress" as const, label: "Progress", icon: TrendingUp },
+    { id: "universe" as const, label: "Universe", icon: Globe2 },
+    { id: "friends" as const, label: "Friends", icon: Users },
+    { id: "inbox" as const, label: "Inbox", icon: Inbox },
+    { id: "profile" as const, label: "Profile", icon: User },
   ];
   const activate = (nextTab: RoomTab) => {
     setTab(nextTab);
@@ -527,7 +541,7 @@ function RoomNav({ tab, setTab, unreadCount, friendRequestCount }: { tab: RoomTa
       window.requestAnimationFrame(() => document.getElementById(`player-room-tab-${next.id}`)?.focus());
     }
   };
-  return <nav className="container room-tab-nav" aria-label="My BoardSignal sections"><div role="tablist" aria-label="My BoardSignal">{items.map((item, index) => <button type="button" role="tab" id={`player-room-tab-${item.id}`} aria-controls={`player-room-panel-${item.id}`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} data-nav-group={index < 4 ? "primary" : "utility"} key={item.id} className={tab === item.id ? "active" : ""} onClick={() => activate(item.id)} onKeyDown={(event) => {
+  return <nav className="container room-tab-nav" aria-label="My BoardSignal sections"><div role="tablist" aria-label="My BoardSignal">{items.map((item, index) => { const Icon = item.icon; return <button type="button" role="tab" id={`player-room-tab-${item.id}`} aria-controls={`player-room-panel-${item.id}`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} data-nav-group={index < 4 ? "primary" : "utility"} key={item.id} className={`companion-nav-button ${tab === item.id ? "active" : ""}`} onClick={() => activate(item.id)} onKeyDown={(event) => {
     let nextIndex: number | undefined;
     if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % items.length;
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + items.length) % items.length;
@@ -536,19 +550,23 @@ function RoomNav({ tab, setTab, unreadCount, friendRequestCount }: { tab: RoomTa
     if (nextIndex === undefined) return;
     event.preventDefault();
     focusTab(nextIndex);
-  }}>{item.label}{item.id === "friends" && friendRequestCount > 0 ? <span className="unread-badge" aria-label={`${friendRequestCount} incoming friend request${friendRequestCount === 1 ? "" : "s"}`}>{friendRequestCount}</span> : null}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span> : null}</button>)}</div></nav>;
+  }}><Icon className="companion-nav-icon" size={20} aria-hidden="true" /><span className="companion-nav-label">{item.label}</span>{item.id === "friends" && friendRequestCount > 0 ? <span className="unread-badge" aria-label={`${friendRequestCount} incoming friend request${friendRequestCount === 1 ? "" : "s"}`}>{friendRequestCount}</span> : null}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span> : null}</button>; })}</div></nav>;
 }
 
 function CurrentContinuation({ suggestedPlayerCount, setTab }: { suggestedPlayerCount: number; setTab: (tab: RoomTab) => void }) {
-  return <section className="first-value-preview" aria-label="Continue from Current BoardSignal">
-    <p className="kicker">KEEP GOING</p>
-    <h2>Continue from here.</h2>
-    <p>Explore the Universe, find players, or choose how BoardSignal should bring you back. Completed Reviews stay behind the current picture.</p>
-    <div className="resolved-player-actions"><button type="button" className="button button-outline" onClick={() => setTab("universe")}>OPEN UNIVERSE</button><button type="button" className="button button-quiet" onClick={() => setTab("friends")}>{suggestedPlayerCount > 0 ? `DISCOVER ${suggestedPlayerCount} PLAYERS` : "DISCOVER PLAYERS"}</button><button type="button" className="button button-quiet" onClick={() => setTab("profile")}>STAY CONNECTED</button><a className="button button-quiet" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener">DISCORD</a></div>
+  return <section className="first-value-preview companion-continuation" aria-label="Continue from Current BoardSignal">
+    <div className="companion-continuation-heading"><span className="companion-section-icon"><TrendingUp size={19} aria-hidden="true" /></span><div><p className="kicker">NEXT</p><h2>See how this becomes progress.</h2><p>Your live picture stays in Current. Completed game-bearing Reviews become the deeper history behind it.</p></div></div>
+    <div className="companion-action-grid">
+      <button type="button" className="companion-action-button is-primary" onClick={() => setTab("progress")}><TrendingUp size={18} aria-hidden="true" /> <span>Progress</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("universe")}><Globe2 size={18} aria-hidden="true" /> <span>Universe</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("friends")}><Users size={18} aria-hidden="true" /> <span>{suggestedPlayerCount > 0 ? `Find ${suggestedPlayerCount} players` : "Friends"}</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("profile")}><User size={18} aria-hidden="true" /> <span>Profile</span></button>
+      <a className="companion-action-button" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener"><MessageCircle size={18} aria-hidden="true" /> <span>Discord</span></a>
+    </div>
   </section>;
 }
 
-function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeWithNextGameGuidance; uid: string; online: boolean }) {
+function CurrentEpisodeCard({ episode, uid, online, refreshing, onRefresh }: { episode: CurrentEpisodeWithNextGameGuidance; uid: string; online: boolean; refreshing: boolean; onRefresh: () => void }) {
   const [liveStatus, setLiveStatus] = useState<"new" | "updated" | null>(null);
   const latestGameId = episode.latestGame?.gameId;
 
@@ -611,28 +629,45 @@ function CurrentEpisodeCard({ episode, uid, online }: { episode: CurrentEpisodeW
         ? "BoardSignal saw this game. Next-game guidance isn't available yet."
         : "BoardSignal saw this game. Nothing in the current period has crossed the evidence threshold for a specific next-game cue yet."
       : undefined);
+  const checkedLabel = new Date(episode.checkedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   return <section className="current-episode-card g3-current-week" aria-labelledby="g3-current-board-signal-title">
-    <div className="current-episode-heading"><div><p className="kicker">LIVE PLAYER VIEW</p><h2 id="g3-current-board-signal-title">CURRENT BOARDSIGNAL</h2><p>{episode.games ? `${episode.games} games are shaping what BoardSignal can say about your chess right now.` : "BoardSignal will start adding factual current information as new Chess.com games arrive."}</p></div><small>{episode.periodLabel} · {episode.daysComplete} of 7 days complete</small></div>
-    <div className="current-episode-stats g3-current-week-stats" aria-label="Current BoardSignal facts"><div><span>Games so far</span><strong>{episode.games}</strong></div><div><span>Current record</span><strong>{episode.wins}W · {episode.draws}D · {episode.losses}L</strong></div><div><span>Period progress</span><strong>{episode.daysComplete} of 7 days</strong></div></div>
-    <article className="g3-before-next-game">
-      {liveStatus ? <div className={`corner-live-status ${liveStatus === "new" ? "is-new" : "is-updated"}`} role="status" aria-live="polite"><i className="corner-live-dot" aria-hidden="true" />{liveStatus === "new" ? "NEW GAME SEEN" : "UPDATED AFTER YOUR LAST GAME"}</div> : null}
-      <span>BEFORE YOUR NEXT GAME</span>
-      {guidance.cornerFraming ? <p className="corner-framing">{guidance.cornerFraming}</p> : null}
+    <article className="companion-last-game" aria-label="Your last game">
+      <span className="companion-last-game-icon"><Swords size={23} aria-hidden="true" /></span>
+      <div className="companion-last-game-copy">
+        <span>YOUR LAST GAME</span>
+        {latest ? <><h2>{resultLabel} vs {latest.opponent} · {poolLabel}</h2><div className="companion-last-game-meta">{formatWhen(latest.occurredAt) ? <span>{formatWhen(latest.occurredAt)}</span> : null}{latest.supportsSelectedGuidance ? <span>Supports the current signal</span> : null}</div>{latestNote ? <p className="companion-last-game-note">{latestNote}</p> : null}{latest.supportsSelectedGuidance && latest.supportingSummary ? <p className="corner-supported-summary">{latest.supportingSummary}</p> : null}</> : <><h2>No game yet this period.</h2><p className="companion-last-game-note">BoardSignal is ready to notice the next Chess.com game that enters this seven-day period.</p></>}
+      </div>
+      <div className="companion-freshness-actions">
+        {liveStatus ? <div className={`corner-live-status companion-live-status ${liveStatus === "new" ? "is-new" : "is-updated"}`} role="status" aria-live="polite"><i className="corner-live-dot" aria-hidden="true" />{liveStatus === "new" ? "NEW GAME SEEN" : "UPDATED AFTER YOUR LAST GAME"}</div> : null}
+        <button type="button" className={`companion-refresh-button ${refreshing ? "is-refreshing" : ""}`} onClick={onRefresh} disabled={!online || refreshing} aria-label="Refresh Current BoardSignal"><RefreshCw size={17} aria-hidden="true" /><span>{refreshing ? "Refreshing" : "Refresh"}</span></button>
+        <small className="companion-checked-at">Checked {checkedLabel}{!online ? " · reconnect to refresh" : ""}</small>
+      </div>
+    </article>
+
+    <article className="g3-before-next-game companion-signal-card">
+      <div className="companion-signal-heading"><span className="companion-section-icon"><Target size={19} aria-hidden="true" /></span><div className="companion-signal-copy"><p className="kicker">CURRENT BOARDSIGNAL</p><h2 id="g3-current-board-signal-title">Your current signal</h2><small>{episode.periodLabel} · {episode.daysComplete} of 7 days complete</small></div></div>
       {hasGuidance ? <><h3>{guidance.title}</h3><p>{guidance.copy}</p>{guidanceSource ? <small>{guidanceSource}</small> : null}{evidenceLabel ? <small className="corner-evidence-count">{evidenceLabel}</small> : null}</> : <><h3>Nothing specific yet.</h3><p>{noGuidanceCopy}</p><small>{guidance.gamesConsidered ? `${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} checked in this period.` : "No current-period evidence yet."}</small></>}
     </article>
+
+    <article className="companion-next-game-card" aria-label="Before your next game"><span className="companion-action-icon"><ArrowRight size={18} aria-hidden="true" /></span><div className="companion-action-copy"><span>BEFORE YOUR NEXT GAME</span><strong>{hasGuidance ? guidance.title : "Keep playing normally."}</strong><p>{guidance.cornerFraming ?? (hasGuidance ? "Carry the current signal above into the next game. BoardSignal will keep watching what happens next." : noGuidanceCopy)}</p></div></article>
+
+    <section className="companion-current-snapshot" aria-label="Current BoardSignal facts">
+      <div className="companion-snapshot-heading"><div><span className="companion-section-icon"><BarChart3 size={18} aria-hidden="true" /></span><div><p className="kicker">CURRENT SNAPSHOT</p><strong>{episode.games ? `${episode.games} games are shaping the live picture.` : "Waiting for this period's first game."}</strong></div></div><small>{episode.daysRemaining} day{episode.daysRemaining === 1 ? "" : "s"} remaining</small></div>
+      <div className="current-episode-stats g3-current-week-stats"><div><span>Games so far</span><strong>{episode.games}</strong></div><div><span>Current record</span><strong>{episode.wins}W · {episode.draws}D · {episode.losses}L</strong></div><div><span>Period progress</span><strong>{episode.daysComplete} of 7 days</strong></div></div>
+    </section>
+
     <div className="g3-current-detail-grid">
-      <article><span>WHAT'S STARTING TO STAND OUT?</span><h3>So far, this is factual.</h3><p>{factualStandout}</p><small>This is the live picture; it is not the final completed Review.</small></article>
-      <article><span>WHAT BOARDSIGNAL IS WATCHING</span><h3>What the next games add.</h3><p>BoardSignal is watching whether the current factual events repeat, strengthen or give way to something else as this period continues.</p><small>Position-based conclusions still wait for the completed Review.</small></article>
+      <article><span className="companion-inline-heading"><Activity size={17} aria-hidden="true" /> WHAT&apos;S STARTING TO STAND OUT?</span><h3>So far, this is factual.</h3><p>{factualStandout}</p><small>This is the live picture; it is not the final completed Review.</small></article>
+      <article><span className="companion-inline-heading"><Target size={17} aria-hidden="true" /> WHAT BOARDSIGNAL IS WATCHING</span><h3>What the next games add.</h3><p>BoardSignal is watching whether the current factual events repeat, strengthen or give way to something else as this period continues.</p><small>Position-based conclusions still wait for the completed Review.</small></article>
     </div>
     <p className="g3-review-due"><strong>This period closes into history:</strong> {episode.nextDeskDueAt} · {episode.daysRemaining} day{episode.daysRemaining === 1 ? "" : "s"} remaining. A game-bearing completed Review then moves behind Current BoardSignal.</p>
     <details className="g3-disclosure g3-current-week-details">
-      <summary>MORE CURRENT EVIDENCE</summary>
+      <summary><span className="companion-details-summary"><BookOpen size={16} aria-hidden="true" /> SUPPORTING EVIDENCE</span><span>Current-period detail</span></summary>
       <div className="g3-disclosure-body">
         <div className="current-episode-stats g3-current-detail-stats"><div><span>Sessions</span><strong>{episode.sessions}</strong></div><div><span>Current win run</span><strong>{episode.currentWinRun}</strong></div><div><span>Current loss run</span><strong>{episode.currentLossRun}</strong></div></div>
         {episode.pools.length ? <div className="forming-pools">{episode.pools.map((pool) => <article key={pool.pool}><span>{pool.pool}</span><strong>{pool.games} games</strong><p>{pool.wins}W · {pool.draws}D · {pool.losses}L{pool.ratingDelta !== undefined ? ` · ${pool.ratingDelta >= 0 ? "+" : ""}${pool.ratingDelta}` : ""}</p></article>)}</div> : null}
         <div className="g3-current-detail-grid">
-          {latest ? <article className="corner-latest-game"><span>YOUR LAST GAME</span><strong>{resultLabel} vs {latest.opponent} · {poolLabel}</strong>{formatWhen(latest.occurredAt) ? <small>{formatWhen(latest.occurredAt)}</small> : null}{latestNote ? <p>{latestNote}</p> : null}{latest.supportsSelectedGuidance && latest.supportingSummary ? <p className="corner-supported-summary">{latest.supportingSummary}</p> : null}</article> : null}
           {mostRecentExample ? <article className="corner-recent-example"><span>MOST RECENT SUPPORTING EXAMPLE</span>{mostRecentExample.opponent ? <strong>vs {mostRecentExample.opponent}</strong> : null}{(mostRecentExample.pool || mostRecentExample.occurredAt) ? <small>{[mostRecentExample.pool, formatWhen(mostRecentExample.occurredAt)].filter(Boolean).join(" · ")}</small> : null}{mostRecentExample.movePlayed && mostRecentExample.opponentReply ? <b>{mostRecentExample.movePlayed} → {mostRecentExample.opponentReply}</b> : null}<p>{mostRecentExample.summary}</p>{mostRecentExample.gameUrl ? <a className="text-link" href={mostRecentExample.gameUrl} target="_blank" rel="noreferrer">Open game</a> : null}</article> : null}
           {guidance.reinforcement ? <article className="corner-reinforcement"><span>{guidance.reinforcement.label}</span><p>{guidance.reinforcement.copy}</p></article> : null}
         </div>
@@ -655,7 +690,20 @@ function ReviewHistorySection({ history, reportPeriods, token, online, journal, 
   })}</div></section>;
 }
 
-function ProgressSection({ history, reportPeriods, coverage, progress, patterns, records, token, online, journal, onJournalChanged }: { history: CompletedReviewHistoryItem[]; reportPeriods: CanonicalReportPeriod[]; coverage?: ReviewHistoryCoverage; progress: ProgressSeries[]; patterns: RecurringPattern[]; records: PersonalRecords; token: string; online: boolean; journal: ReviewJournal; onJournalChanged: (journal: ReviewJournal) => void }) {
+function ProgressContinuation({ setTab }: { setTab: (tab: RoomTab) => void }) {
+  return <section className="first-value-preview companion-continuation" aria-label="Continue from Progress">
+    <div className="companion-continuation-heading"><span className="companion-section-icon"><Globe2 size={19} aria-hidden="true" /></span><div><p className="kicker">KEEP MOVING</p><h2>Your history connects to the world around you.</h2><p>Progress stays private and reflective. From here, jump to the wider field, your people, messages or account controls.</p></div></div>
+    <div className="companion-action-grid">
+      <button type="button" className="companion-action-button is-primary" onClick={() => setTab("universe")}><Globe2 size={18} aria-hidden="true" /> <span>Universe</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("friends")}><Users size={18} aria-hidden="true" /> <span>Friends</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("inbox")}><Inbox size={18} aria-hidden="true" /> <span>Inbox</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("profile")}><User size={18} aria-hidden="true" /> <span>Profile</span></button>
+      <a className="companion-action-button" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener"><MessageCircle size={18} aria-hidden="true" /> <span>Discord</span></a>
+    </div>
+  </section>;
+}
+
+function ProgressSection({ history, reportPeriods, coverage, progress, patterns, records, token, online, journal, onJournalChanged, setTab }: { history: CompletedReviewHistoryItem[]; reportPeriods: CanonicalReportPeriod[]; coverage?: ReviewHistoryCoverage; progress: ProgressSeries[]; patterns: RecurringPattern[]; records: PersonalRecords; token: string; online: boolean; journal: ReviewJournal; onJournalChanged: (journal: ReviewJournal) => void; setTab: (tab: RoomTab) => void }) {
   const chronological = [...history].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
   const metric = (label: string, values: Array<number | undefined>, suffix = "") => {
     const present = values.filter((value): value is number => value !== undefined);
@@ -664,13 +712,19 @@ function ProgressSection({ history, reportPeriods, coverage, progress, patterns,
   const totalCount = coverage?.totalCount ?? reportPeriods.length;
   const evaluatedCount = coverage?.evaluatedCount ?? reportPeriods.filter((period) => Boolean(period.outcome)).length;
   return <section className="my-progress-section g3-progress-section g41-progress-section">
-    <div className="universal-section-heading"><span><TrendingUp size={16} /></span><div><p className="kicker">PROGRESS / PAST</p><h2>Your latest four completed Reviews.</h2><p>Only completed Reviews with real games occupy the four retained Review slots. No-activity periods remain cadence history without consuming a Review slot.</p></div></div>
+    <div className="universal-section-heading companion-progress-heading"><span><TrendingUp size={18} /></span><div><p className="kicker">PROGRESS / PAST</p><h2>See what is changing over time.</h2><p>Your latest four game-bearing Reviews form the deeper record. No-activity periods stay in cadence history without pretending to be performance evidence.</p></div></div>
+    <div className="companion-progress-overview" aria-label="Progress overview">
+      <article className="companion-progress-card"><span className="companion-progress-icon"><CalendarDays size={17} aria-hidden="true" /></span><div><span>History coverage</span><strong>{evaluatedCount}/{totalCount} periods evaluated</strong></div></article>
+      <article className="companion-progress-card"><span className="companion-progress-icon"><BarChart3 size={17} aria-hidden="true" /></span><div><span>Personal best</span><strong>{records.personalBestWinRun} straight wins</strong></div></article>
+      <article className="companion-progress-card"><span className="companion-progress-icon"><History size={17} aria-hidden="true" /></span><div><span>Reviews completed</span><strong>{records.desksCompleted}</strong></div></article>
+    </div>
     <div className="g41-history-coverage" role="status"><CalendarDays size={17}/><div><span>HISTORY COVERAGE</span><strong>{evaluatedCount}/{totalCount} completed periods evaluated</strong></div></div>
     <div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Game-bearing Reviews completed</span><strong>{records.desksCompleted}</strong></div></div>
     <PlayerReviewNotesTimeline token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} />
-    {patterns.length ? <div className="recurring-patterns"><p className="kicker">RECURRING PATTERNS · GAME-BEARING REVIEWS ONLY</p>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed Reviews with real games and compatible signal families are needed before BoardSignal can name a recurring pattern. NO ACTIVITY weeks do not count against you.</p></div>}
-    <div className="g3-progress-trends"><p className="kicker">COMPATIBLE TRENDS · GAME-BEARING REVIEWS ONLY</p>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((review) => review.longestWinRun))}{metric("Median game length", chronological.map((review) => review.medianGameLength))}{metric("Black score", chronological.map((review) => review.blackScorePct), "%")}</div></div>
-    <details className="g3-disclosure g3-review-history-disclosure" open><summary>PAST PERIODS</summary><div className="g3-disclosure-body"><ReviewHistorySection history={history} reportPeriods={reportPeriods} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} embedded /></div></details>
+    {patterns.length ? <div className="recurring-patterns"><div className="companion-inline-heading"><Target size={17} aria-hidden="true" /><p className="kicker">RECURRING PATTERNS · GAME-BEARING REVIEWS ONLY</p></div>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed Reviews with real games and compatible signal families are needed before BoardSignal can name a recurring pattern. NO ACTIVITY weeks do not count against you.</p></div>}
+    <div className="g3-progress-trends"><div className="companion-inline-heading"><Activity size={17} aria-hidden="true" /><p className="kicker">COMPATIBLE TRENDS · GAME-BEARING REVIEWS ONLY</p></div>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((review) => review.longestWinRun))}{metric("Median game length", chronological.map((review) => review.medianGameLength))}{metric("Black score", chronological.map((review) => review.blackScorePct), "%")}</div></div>
+    <details className="g3-disclosure g3-review-history-disclosure companion-review-history-disclosure" open><summary><span className="companion-details-summary"><History size={16} aria-hidden="true" /> PAST PERIODS</span></summary><div className="g3-disclosure-body"><ReviewHistorySection history={history} reportPeriods={reportPeriods} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} embedded /></div></details>
+    <ProgressContinuation setTab={setTab} />
   </section>;
 }
 

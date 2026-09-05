@@ -24,7 +24,13 @@
     "test:delivery": "node --test tests/boardsignal-delivery-polish.test.cjs",
     "test:activation": "tsc -p tsconfig.activation-bridge.json && node --test tests/boardsignal-activation-bridge.test.cjs",
     "test:legacy-beta-access": "node --test tests/boardsignal-legacy-beta-access-compat.test.cjs",
-    "test:preview-return": "tsc -p tsconfig.preview-return.json && node --test tests/boardsignal-preview-return-device-access.test.cjs"
+    "test:preview-return": "tsc -p tsconfig.preview-return.json && node --test tests/boardsignal-preview-return-device-access.test.cjs",
+    "bs:preflight": "node scripts/boardsignal-release.mjs preflight",
+    "bs:scope": "node scripts/boardsignal-release.mjs scope",
+    "bs:prove": "node scripts/boardsignal-release.mjs prove",
+    "bs:watch-ci": "node scripts/boardsignal-release.mjs watch-ci",
+    "bs:find-deployment": "node scripts/boardsignal-release.mjs find-deployment",
+    "bs:land": "node scripts/boardsignal-release.mjs land"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",

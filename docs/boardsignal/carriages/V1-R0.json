@@ -1,0 +1,19 @@
+{
+  "id": "V1-R0",
+  "title": "Post-V1 Release Harness",
+  "baselineSha": "92c8ab9440bef22f3d7a77960243a81a6f87b193",
+  "runtimeImpact": "none",
+  "packageLock": "unchanged",
+  "allowedPaths": [
+    ".github/workflows/boardsignal-release-guard.yml",
+    "docs/boardsignal/POST_V1_RELEASE_TRAIN.md",
+    "docs/boardsignal/CURRENT_CARRIAGE.md",
+    "docs/boardsignal/carriages/V1-R0.json",
+    "package.json",
+    "scripts/boardsignal-release.mjs"
+  ],
+  "localChecks": [
+    "node --check scripts/boardsignal-release.mjs",
+    "npx tsc --noEmit"
+  ]
+}

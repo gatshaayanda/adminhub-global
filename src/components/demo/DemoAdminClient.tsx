@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Check, Eye, EyeOff, ImagePlus, Pencil, Plus, RefreshCcw, Save, Trash2, X } from "lucide-react";
+import { Check, Eye, EyeOff, ImagePlus, Pencil, Plus, RefreshCcw, Save, Trash2, X } from "lucide-react";
 import { loadDemoBookings, loadDemoBusiness, loadDemoServices, resetDemoData, saveDemoBusiness, saveDemoService, updateDemoBookingStatus, deleteDemoService } from "@/lib/demo/firestore";
 import { seedBusiness, seedServices } from "@/lib/demo/data";
 import type { BookingStatus, BusinessProfile, DemoBooking, DemoService } from "@/lib/demo/types";
@@ -42,7 +42,7 @@ export default function DemoAdminClient() {
   async function uploadLogo(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; if (!file) return;
     const result = await uploadFiles("fileUploader", { files: [file] });
-    const url = result[0]?.ufsUrl ?? result[0]?.url;
+    const url = result[0]?.url;
     if (url) { const next = { ...business, logoUrl: url }; setBusiness(next); await saveDemoBusiness(next); setNotice("Logo uploaded."); }
   }
 

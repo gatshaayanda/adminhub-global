@@ -2,16 +2,16 @@ import type { Metadata, Viewport } from "next";
 import styles from "./games.module.css";
 
 const canonical = "https://www.adminhub-global.com/games";
-const hallwayUrl = "https://admin-hub-games.vercel.app/";
+const gamesHubUrl = "https://admin-hub-games.vercel.app/";
 
 export const metadata: Metadata = {
-  title: { absolute: "Admin Hub Games — The 11th Iteration of Admin Hub" },
-  description: "Admin Hub Games builds playable web games. Start with Hallway.",
+  title: { absolute: "Admin Hub Games — Browser Games in Development" },
+  description: "Admin Hub Games is an evolving browser-game lab building playable worlds, systems and reusable game foundations.",
   alternates: { canonical },
   robots: { index: true, follow: true },
   openGraph: {
-    title: "Admin Hub Games — The 11th Iteration of Admin Hub",
-    description: "Playable web games built by Admin Hub. Start with Hallway.",
+    title: "Admin Hub Games — Browser Games in Development",
+    description: "Playable browser games and game systems being built by Admin Hub.",
     url: canonical,
     siteName: "Admin Hub",
     type: "website",
@@ -34,46 +34,80 @@ export default function GamesPage() {
           <span className={styles.mark}>AH</span>
           <span><strong>ADMIN HUB</strong><small>GAMES</small></span>
         </a>
-        <a className={styles.navPlay} href={hallwayUrl} target="_blank" rel="noreferrer">Play Hallway ↗</a>
+        <a className={styles.navPlay} href={gamesHubUrl} target="_blank" rel="noreferrer">Enter Game Library ↗</a>
       </header>
 
       <section className={styles.hero}>
         <div className={styles.heroGlow} aria-hidden="true" />
         <div className={styles.heroInner}>
-          <p className={styles.eyebrow}>THE 11TH ITERATION OF ADMIN HUB</p>
-          <h1>We build <em>games.</em></h1>
+          <p className={styles.eyebrow}>ADMIN HUB GAMES · BROWSER GAME DEVELOPMENT</p>
+          <h1>Games are being <em>built here.</em></h1>
           <p className={styles.intro}>
-            Admin Hub Games is where we turn practical web engineering into playable experiences.
+            An evolving game lab where practical web engineering becomes playable systems:
+            movement, combat, interaction, narrative, progression and mobile-first experiences.
           </p>
-          <a className={styles.primary} href={hallwayUrl} target="_blank" rel="noreferrer">
-            Play Hallway ↗
+          <div className={styles.heroActions}>
+            <a className={styles.primary} href={gamesHubUrl} target="_blank" rel="noreferrer">
+              Enter the Game Library ↗
+            </a>
+            <span className={styles.actionNote}>Live builds · experiments · active development</span>
+          </div>
+          <p className={styles.meta}>BOTSWANA · PHASER · TYPESCRIPT · VITE · PWA · WEB</p>
+        </div>
+      </section>
+
+      <section className={styles.current}>
+        <div className={styles.currentCopy}>
+          <p className={styles.eyebrow}>CURRENT BUILD</p>
+          <h2>Shooters Trigger</h2>
+          <p>
+            A mobile-first paintball game now being developed as the next step in the
+            platform: shooting, evasion, equipment, field reporting and a one-on-one arena.
+            The point is not just to make a game — it is to build reusable game systems that
+            can make the next game possible.
+          </p>
+          <a className={styles.secondary} href={gamesHubUrl} target="_blank" rel="noreferrer">
+            Play the current build ↗
           </a>
-          <p className={styles.meta}>BOTSWANA · PHASER · TYPESCRIPT · WEB</p>
+        </div>
+        <div className={styles.systems} aria-label="Current development areas">
+          <span>COMBAT</span>
+          <span>MOBILE CONTROLS</span>
+          <span>GAME STATE</span>
+          <span>AI OPPONENTS</span>
+          <span>PROGRESSION</span>
+          <span>PWA</span>
         </div>
       </section>
 
       <section className={styles.catalog}>
-        <p className={styles.eyebrow}>THE CATALOG</p>
-        <div className={styles.card}>
-          <div className={styles.cardVisual}>
-            <span>AHG / 001</span>
-            <strong>HALLWAY</strong>
-            <small>OPERATIONAL</small>
-          </div>
-          <div className={styles.cardBody}>
-            <p className={styles.status}>PLAYABLE NOW</p>
-            <h2>Hallway</h2>
-            <p>A browser game built with Phaser, TypeScript, Vite and PWA foundations.</p>
-            <a className={styles.primary} href={hallwayUrl} target="_blank" rel="noreferrer">Enter Hallway ↗</a>
-          </div>
+        <p className={styles.eyebrow}>THE DEVELOPMENT PATH</p>
+        <div className={styles.pathGrid}>
+          <article>
+            <span>01 · FOUNDATION</span>
+            <h3>Hall</h3>
+            <p>The early playable world used to establish the shared shell, interaction model and reusable game foundations.</p>
+          </article>
+          <article>
+            <span>02 · STORY SYSTEMS</span>
+            <h3>President&apos;s Shoes</h3>
+            <p>A fictional branching decision game that pushed the platform into data-driven story, consequence and local state.</p>
+          </article>
+          <article className={styles.activePath}>
+            <span>03 · ACTIVE DEVELOPMENT</span>
+            <h3>Shooters Trigger</h3>
+            <p>The current build brings those foundations into a deeper real-time game: movement, combat, pressure, evidence and replayable systems.</p>
+          </article>
         </div>
-        <p className={styles.next}>More games will appear here as they become real, playable releases.</p>
+        <p className={styles.next}>
+          These are not separate one-off projects. Each playable build is a step toward making the next game more capable.
+        </p>
       </section>
 
       <footer className={styles.footer}>
         <div>
           <strong>ADMIN HUB GAMES</strong>
-          <p>The 11th iteration of Admin Hub.</p>
+          <p>Playable software experiments becoming a game platform.</p>
         </div>
         <div className={styles.footerLinks}>
           <a href="/ayanda">Founder & portfolio</a>

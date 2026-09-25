@@ -35,6 +35,9 @@ export const metadata: Metadata = {
   description:
     "AdminHub Global is a custom PWA operating system for managing agents, leads, client onboarding, project delivery, proposals, messaging, and recurring managed support.",
   applicationName: "AdminHub Global",
+  other: {
+    "facebook-domain-verification": "q9f1ywe4owluxtxbz2yze0fzqyohw1",
+  },
   keywords: [
     "AdminHub Global",
     "AdminHub",

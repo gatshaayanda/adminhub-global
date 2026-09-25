@@ -26,6 +26,8 @@ const COMPANY = {
 
 const QUICK_LINKS = [
   { label: "Home", href: "/" },
+  { label: "Apps", href: "/apps" },
+  { label: "Games", href: "/games" },
   { label: "48-Hour Live Proof", href: "/c/rapid-proof" },
   { label: "Business PWA", href: "/c/business-pwa" },
   { label: "Operations PWA", href: "/c/operations-pwa" },

@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BadgeInfo,
   ChevronDown,
+  Gamepad2,
+  Grid2X2,
   ClipboardList,
   Globe2,
   LayoutDashboard,
@@ -50,6 +52,8 @@ const OFFLINE_DB_NAME_HINTS = [
 
 const primaryNav = [
   { label: "Home", href: "/", icon: <Sparkles size={18} /> },
+  { label: "Apps", href: "/apps", icon: <Grid2X2 size={18} /> },
+  { label: "Games", href: "/games", icon: <Gamepad2 size={18} /> },
   { label: "Partner Portal", href: "/partners", icon: <Users size={18} /> },
   { label: "Insights", href: "/blog", icon: <BadgeInfo size={18} /> },
 ];

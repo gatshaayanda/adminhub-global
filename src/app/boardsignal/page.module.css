@@ -1,0 +1,21 @@
+.heroGrid {
+  grid-template-columns: minmax(0, 1.08fr) minmax(20rem, .92fr);
+  align-items: start;
+}
+
+.heroCopy,
+.preview {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 980px) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .preview {
+    width: 100%;
+    max-width: 46rem;
+  }
+}

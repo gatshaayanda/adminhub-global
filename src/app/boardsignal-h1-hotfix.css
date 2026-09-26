@@ -1,0 +1,75 @@
+/* ==========================================================
+   Patch H.1 — temporal-truth presentation + rendered contrast hotfix
+   Loaded after G.3 and before protected F.2 final readability contracts.
+   ========================================================== */
+
+/* Detailed Guidance pocket action: the combined DOM also carries
+   .universal-section, so the specialized surface must own the final cascade. */
+.universal-section.pocket-card {
+  border-color: var(--bs-border-strong);
+  background: var(--bs-surface-inverse);
+  color: var(--bs-text-on-inverse);
+}
+.universal-section.pocket-card :is(h1, h2, h3, h4, strong, label) {
+  color: var(--bs-text-on-inverse);
+}
+.universal-section.pocket-card :is(p, small, .pocket-actions > span) {
+  color: var(--bs-text-on-inverse-secondary);
+}
+.universal-section.pocket-card .kicker { color: var(--bs-lime); }
+.universal-section.pocket-card .signal-orb { background: var(--bs-lime); color: var(--bs-on-lime); }
+.universal-section.pocket-card :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline-color: var(--bs-lime);
+  box-shadow: 0 0 0 1px var(--bs-surface-inverse);
+}
+.universal-section.pocket-card ::selection {
+  background: var(--bs-selection-bg);
+  color: var(--bs-selection-text);
+}
+
+/* Authenticated Profile / Community: replace legacy hard-coded light surfaces
+   with the existing semantic theme contracts. */
+.player-profile-section .profile-settings-card {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+.player-profile-section .profile-settings-card :is(h3, dt, dd, label, strong) { color: var(--bs-text-primary); }
+.player-profile-section .profile-settings-card :is(p, small, .profile-helper) { color: var(--bs-text-secondary); }
+.player-profile-section .profile-toggle { border-color: var(--bs-border); color: var(--bs-text-primary); }
+.player-profile-section .profile-toggle small { color: var(--bs-text-muted); }
+.player-profile-section .profile-settings-card :is(input[type="text"], input[type="email"], select) {
+  border-color: var(--bs-ui-border);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+}
+.player-profile-section .profile-settings-card :is(input[type="text"], input[type="email"], select):focus-visible {
+  outline-color: var(--bs-focus);
+  box-shadow: 0 0 0 1px var(--bs-focus-gap);
+}
+
+.beta-universe-disclosure,
+.agreement-universe-required,
+.required-participation-row {
+  border-left-color: var(--bs-blue-readable);
+  background: var(--bs-blue-soft);
+  color: var(--bs-text-primary);
+}
+.beta-universe-disclosure strong,
+.agreement-universe-required strong,
+.required-participation-row strong { color: var(--bs-text-primary); }
+.beta-universe-disclosure p,
+.agreement-universe-required p,
+.required-participation-row p { color: var(--bs-text-secondary); }
+.required-participation-row svg { color: var(--bs-blue-readable); }
+
+/* Founder keeps Review qualification and historical coverage separate. */
+.founder-history-cell small { display: block; margin-top: .18rem; color: var(--bs-text-muted); line-height: 1.35; }
+.founder-review-date-label { display: block; margin-bottom: .12rem; color: var(--bs-text-muted); font-size: .52rem; font-weight: 850; letter-spacing: .04em; }
+
+@media (min-width: 1101px) {
+  .founder-ops-table-head,
+  .founder-ops-main-row {
+    grid-template-columns: minmax(120px,1.15fr) minmax(78px,.55fr) minmax(120px,.9fr) minmax(120px,.95fr) minmax(85px,.65fr) minmax(92px,.72fr) minmax(110px,.85fr) minmax(110px,.95fr) minmax(80px,.5fr);
+  }
+}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowUpRight, Boxes, FlaskConical, Gamepad2, Network } from "lucide-react";
 
 const destinations = [
-  { label: "Apps", href: "/pipeline", icon: Boxes },
+  { label: "Apps", href: "/apps", icon: Boxes },
   { label: "Games", href: "/games", icon: Gamepad2 },
   { label: "Products", href: "/boardsignal", icon: Network },
   { label: "Experiments", href: "/about", icon: FlaskConical },

@@ -106,7 +106,7 @@ export default function Footer() {
               </span>
               <span className="badge badge-neutral">
                 <ShieldCheck size={14} />
-                9th iteration
+                10th iteration
               </span>
             </div>
 
@@ -275,7 +275,7 @@ export default function Footer() {
 
           <div className="flex flex-col gap-1 lg:text-right">
             <div>
-              Custom 9th-iteration PWA framework for agents, clients, projects,
+              Custom 10th-iteration PWA framework for agents, clients, projects,
               and managed support.
             </div>
             <div>

@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     "admin dashboard",
     "lead pipeline",
     "project delivery system",
-    "48-hour live prototype",
+    "rapid live prototype",
     "managed support platform",
     "Next.js Firebase PWA",
   ],
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "AdminHub Global",
     description:
-      "A custom 9th-iteration PWA framework and operating platform for agent-led SME digital delivery, client portals, project workflows, and managed support.",
+      "A reusable 10th-iteration application build engine and operating platform for agent-led SME digital delivery, client portals, project workflows, and managed support.",
     siteName: "AdminHub Global",
     type: "website",
   },

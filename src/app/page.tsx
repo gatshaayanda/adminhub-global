@@ -63,6 +63,45 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      <section className="border-t border-white/10 bg-slate-950/70">
+        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:px-12">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-300">BUILD WITH ADMIN HUB</p>
+            <h2 className="mt-4 text-4xl font-black tracking-[-0.05em] text-white sm:text-6xl">
+              25GB EACH
+            </h2>
+            <p className="mt-3 text-xl font-bold text-slate-200">APPS + GAMES</p>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-400">
+              Custom business applications, browser games and branded interactive experiences built from the same reusable delivery discipline.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2 text-xs font-bold text-slate-300">
+              {["Business Apps","Ordering","Booking","Dashboards","Browser Games","Mobile Games","Branded Experiences"].map(item => (
+                <span key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-2">{item}</span>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-cyan-300/15 bg-white/[0.04] p-7 sm:p-9">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">CLIENT CAPACITY MODEL</p>
+            <div className="mt-5 grid grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                <strong className="block text-3xl font-black text-white">500</strong>
+                <span className="mt-1 block text-sm text-slate-400">regular users</span>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                <strong className="block text-3xl font-black text-white">25GB</strong>
+                <span className="mt-1 block text-sm text-slate-400">per month model</span>
+              </div>
+            </div>
+            <p className="mt-5 text-sm leading-7 text-slate-400">
+              A simple client-facing planning model for efficient, low-read/low-write applications. Actual capacity depends on the product, workload and backend configuration.
+            </p>
+            <Link href="/contact" className="mt-6 inline-flex items-center gap-2 rounded-full bg-cyan-300 px-5 py-3 text-sm font-extrabold text-slate-950">
+              Have an idea? Let&apos;s build it <ArrowUpRight size={17} />
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

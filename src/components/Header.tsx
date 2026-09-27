@@ -266,7 +266,7 @@ export default function Header() {
           <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
             <ShieldCheck size={15} className="text-[var(--brand-primary)]" />
             <span>
-              Custom 9th-iteration PWA framework for agents, clients, projects,
+              Custom 10th-iteration PWA framework for agents, clients, projects,
               and managed support.
             </span>
           </div>

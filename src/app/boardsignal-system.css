@@ -1,0 +1,715 @@
+/* ==========================================================
+   BoardSignal visual system entrypoint
+
+   Patch L consolidates player-facing presentation behind this single
+   layout import. The imported files below are retained responsibility
+   modules, not independent cascade generations:
+
+   foundation     semantic colour/theme contracts
+   accessibility  focus, contrast, forced-colours and target hardening
+   motion         reduced-motion-safe state transitions
+   player-room    current authenticated room structures
+   universe       current live-field structures
+   weekly-truth   current report-period structures
+
+   Patch F.2 and H.1 are retired as separate cascade layers. Their still-live
+   semantic contracts are consolidated below.
+   ========================================================== */
+
+@import "./boardsignal-foundation.css";
+@import "./boardsignal-accessibility.css";
+@import "./boardsignal-motion.css";
+@import "./boardsignal-player-room-g3.css";
+@import "./boardsignal-g4-universe.css";
+@import "./boardsignal-g41-weekly-truth.css";
+
+/* ----------------------------------------------------------
+   Consolidated compatibility contracts from retired F.2/H.1
+   ---------------------------------------------------------- */
+
+:root {
+  --bs-learning-card: #172e50;
+}
+
+.beta-preview-access-cta,
+.universal-section.universe-learning-section,
+.universal-section.pocket-card {
+  border-color: var(--bs-border-strong);
+  background: var(--bs-surface-inverse);
+  color: var(--bs-text-on-inverse);
+}
+
+.beta-preview-access-cta :is(h1, h2, h3, h4, strong, label),
+.universal-section.universe-learning-section :is(h1, h2, h3, h4, strong, label),
+.universal-section.pocket-card :is(h1, h2, h3, h4, strong, label) {
+  color: var(--bs-text-on-inverse);
+}
+
+.beta-preview-access-cta :is(p, small),
+.universal-section.universe-learning-section :is(p, small),
+.universal-section.pocket-card :is(p, small, .pocket-actions > span) {
+  color: var(--bs-text-on-inverse-secondary);
+}
+
+.beta-preview-access-cta .kicker,
+.universal-section.universe-learning-section .kicker,
+.universal-section.pocket-card .kicker { color: var(--bs-lime); }
+
+.beta-preview-access-cta .button-lime,
+.beta-preview-access-cta .button-lime :is(span, strong, svg) { color: var(--bs-on-lime); }
+
+.beta-preview-next.bs-surface-paper,
+.beta-preview-approval-alert,
+.player-profile-section .profile-settings-card {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+
+.beta-preview-next.bs-surface-paper :is(h1, h2, h3, h4, strong, label),
+.beta-preview-approval-alert :is(h1, h2, h3, h4, strong, label),
+.player-profile-section .profile-settings-card :is(h3, dt, dd, label, strong) { color: var(--bs-text-primary); }
+
+.beta-preview-next.bs-surface-paper :is(p, small),
+.beta-preview-approval-alert :is(p, small),
+.player-profile-section .profile-settings-card :is(p, small, .profile-helper) { color: var(--bs-text-secondary); }
+
+.beta-preview-next.bs-surface-paper .kicker,
+.beta-preview-next.bs-surface-paper .text-link,
+.beta-preview-approval-alert .kicker { color: var(--bs-blue-readable); }
+
+.beta-preview-alert-response { padding-left: .75rem; border-left: 4px solid var(--bs-blue-readable); }
+.beta-preview-approval-alert .state-pill { max-width: min(100%, 34rem); overflow-wrap: anywhere; }
+.beta-preview-approval-alert .beta-return-options button { min-height: 52px; }
+
+.universe-learning-grid > a,
+.universe-learning-grid > article {
+  border: 1px solid var(--bs-border-strong);
+  background: var(--bs-learning-card);
+  color: var(--bs-text-on-inverse);
+}
+.universe-learning-grid > article > a,
+.universe-learning-grid > :is(a, article) :is(h1, h2, h3, h4, strong) { color: var(--bs-text-on-inverse); }
+.universe-learning-grid > :is(a, article) p { color: var(--bs-text-on-inverse-secondary); }
+.universe-learning-grid > :is(a, article) :is(span, small) { color: var(--bs-text-on-inverse-muted); }
+
+.beta-universe-disclosure,
+.agreement-universe-required,
+.required-participation-row {
+  border-left-color: var(--bs-blue-readable);
+  background: var(--bs-blue-soft);
+  color: var(--bs-text-primary);
+}
+.beta-universe-disclosure strong,
+.agreement-universe-required strong,
+.required-participation-row strong { color: var(--bs-text-primary); }
+.beta-universe-disclosure p,
+.agreement-universe-required p,
+.required-participation-row p { color: var(--bs-text-secondary); }
+.required-participation-row svg { color: var(--bs-blue-readable); }
+
+.player-profile-section .profile-toggle { border-color: var(--bs-border); color: var(--bs-text-primary); }
+.player-profile-section .profile-toggle small { color: var(--bs-text-muted); }
+.player-profile-section .profile-settings-card :is(input[type="text"], input[type="email"], select) {
+  border-color: var(--bs-ui-border);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+}
+
+/* ----------------------------------------------------------
+   Patch L component-state contracts
+   ---------------------------------------------------------- */
+
+.boardsignal-entry-primary {
+  display: grid;
+  gap: .85rem;
+  min-width: 0;
+}
+
+/* Google authentication remains Firebase-backed, but its visible control
+   follows Google's current identity-button proportions instead of inheriting
+   BoardSignal CTA styling. */
+.google-signin-button {
+  width: min(100%, 24rem);
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid #747775;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f1f1f;
+  font-family: "Google Sans", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.google-signin-button:hover:not(:disabled) {
+  background: #f8faff;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, .22);
+}
+.google-signin-button:active:not(:disabled) { background: #f1f4f9; }
+.google-signin-button:focus-visible {
+  outline: 3px solid var(--bs-focus);
+  outline-offset: 3px;
+}
+.google-signin-button:disabled { opacity: .65; cursor: wait; }
+.google-signin-mark-shell,
+.google-signin-spacer {
+  width: 20px;
+  height: 20px;
+}
+.google-signin-mark-shell {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1f1f1f;
+}
+.google-signin-mark { width: 18px; height: 18px; }
+.google-signin-label { min-width: 0; text-align: center; white-space: normal; }
+.google-access-action { min-width: 0; max-width: 100%; }
+.google-access-action .google-signin-button { width: 100%; }
+
+html[data-bs-theme="dark"] .google-signin-button {
+  border-color: #8e918f;
+  background: #131314;
+  color: #e3e3e3;
+}
+html[data-bs-theme="dark"] .google-signin-button:hover:not(:disabled) { background: #1f1f20; }
+html[data-bs-theme="dark"] .google-signin-button:active:not(:disabled) { background: #28282a; }
+
+.google-entry-paths {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .6rem;
+  margin-top: .9rem;
+}
+.google-entry-paths p {
+  min-width: 0;
+  padding: .72rem .8rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-sm);
+  background: var(--bs-bg-subtle);
+  color: var(--bs-text-secondary);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+.google-entry-paths strong { color: var(--bs-text-primary); }
+
+/* Consumer credibility is real usage evidence, presented as a human signal
+   rather than founder telemetry. The sheen runs once on entry: it is not a
+   fake live/pulsing counter. */
+.boardsignal-social-proof {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem;
+  align-items: center;
+  max-width: 52rem;
+  margin-top: 1rem;
+  padding: .9rem 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--bs-blue-soft) 70%, var(--bs-surface)) 0%, var(--bs-surface) 56%, color-mix(in srgb, var(--bs-lime-soft) 64%, var(--bs-surface)) 100%);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--bs-text-primary) 10%, transparent);
+}
+.boardsignal-social-proof::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -55%;
+  bottom: -55%;
+  left: -32%;
+  width: 22%;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bs-surface-elevated) 78%, transparent), transparent);
+  animation: bs-proof-sheen 1.1s ease-out .3s 1 both;
+  pointer-events: none;
+}
+@keyframes bs-proof-sheen {
+  from { left: -32%; opacity: 0; }
+  20% { opacity: .72; }
+  to { left: 118%; opacity: 0; }
+}
+.boardsignal-social-proof-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--bs-border);
+  border-radius: 14px;
+  background: var(--bs-blue-soft);
+  color: var(--bs-blue-readable);
+}
+.boardsignal-social-proof-copy { min-width: 0; }
+.boardsignal-social-proof-primary {
+  color: var(--bs-text-primary);
+  font-size: .94rem;
+  font-weight: 780;
+  line-height: 1.42;
+}
+.boardsignal-social-proof-secondary {
+  margin-top: .22rem;
+  color: var(--bs-text-muted);
+  font-size: .77rem;
+  font-weight: 680;
+  line-height: 1.45;
+}
+
+.homepage-universe-entry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .55rem .8rem;
+  margin-top: .85rem;
+}
+.home-universe-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+  min-height: 44px;
+  color: var(--bs-blue-readable);
+  font-size: .78rem;
+  font-weight: 800;
+}
+.home-universe-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.homepage-universe-entry > span { color: var(--bs-text-muted); font-size: .72rem; }
+
+.return-recovery-details {
+  margin-top: .7rem;
+  border-top: 1px solid var(--bs-border);
+  padding-top: .7rem;
+}
+.return-recovery-details > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--bs-text-secondary);
+  font-weight: 750;
+}
+.return-recovery-details[open] > summary { color: var(--bs-text-primary); }
+.return-recovery-options { display: grid; gap: .65rem; padding-top: .65rem; min-width: 0; }
+.return-recovery-options > p { color: var(--bs-text-muted); font-size: .82rem; }
+
+/* Prevent the old return/recovery grid from starving its copy column. This is
+   the release-blocking one-character-per-line regression guard. */
+.chesscom-login-panel {
+  grid-template-columns: auto minmax(16rem, 1fr) minmax(15rem, 23rem);
+  width: 100%;
+  min-width: 0;
+}
+.chesscom-login-copy,
+.chesscom-login-actions,
+.chesscom-login-actions > *,
+.username-desk-shell,
+.username-desk-form,
+.activation-request-form,
+.hero-username-card {
+  min-width: 0;
+  max-width: 100%;
+}
+.chesscom-login-copy :is(h1, h2, h3, p, small),
+.google-access-action :is(p, small),
+.return-recovery-options :is(p, small, label) {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+.chesscom-login-actions {
+  width: 100%;
+  max-width: 23rem;
+  justify-self: end;
+}
+
+.bs-state-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  margin-block: .8rem;
+  padding: .9rem 1rem;
+  border: 1px solid var(--bs-border);
+  border-left-width: 5px;
+  border-radius: var(--bs-radius-sm);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+.bs-state-banner p { color: var(--bs-text-secondary); }
+.bs-state-banner.is-success { border-left-color: var(--bs-positive); background: var(--bs-positive-surface); }
+.bs-state-banner.is-warning { border-left-color: var(--bs-warning); background: var(--bs-warning-surface); }
+.bs-state-banner.is-error { border-left-color: var(--bs-danger); background: var(--bs-danger-surface); }
+.bs-state-banner.is-info { border-left-color: var(--bs-brand-primary); background: var(--bs-blue-soft); }
+
+.review-ready-banner {
+  animation: bs-state-arrive .38s ease-out both;
+}
+@keyframes bs-state-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.progress-start-state {
+  margin-top: 1rem;
+  padding: clamp(1rem, 2.5vw, 1.4rem);
+  border: 1px solid var(--bs-border);
+  border-left: 5px solid var(--bs-brand-primary);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-blue-soft);
+}
+.progress-start-state h3 { color: var(--bs-text-primary); }
+.progress-start-state p { margin-top: .35rem; color: var(--bs-text-secondary); }
+.progress-start-state small { display: block; margin-top: .55rem; color: var(--bs-text-muted); }
+
+.install-card.is-ios-install .install-card-action { display: none; }
+.install-card .ios-install-steps {
+  margin: .65rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--bs-text-secondary);
+}
+.install-card .ios-install-steps li + li { margin-top: .28rem; }
+.install-card .install-store-clarifier { margin-top: .55rem; color: var(--bs-text-muted); font-size: .78rem; }
+
+/* Neutral counts remain visually neutral. Alert treatment belongs only to
+   unread/actionable state classes already emitted by the product. */
+.bs-neutral-count {
+  color: var(--bs-text-secondary);
+  background: var(--bs-bg-subtle);
+  border: 1px solid var(--bs-border);
+}
+
+@media (max-width: 980px) {
+  .chesscom-login-panel { grid-template-columns: auto minmax(0, 1fr); }
+  .chesscom-login-actions {
+    grid-column: 1 / -1;
+    max-width: none;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 680px) {
+  .beta-preview-approval-alert { margin-top: .75rem; }
+  .beta-preview-access-cta { border-radius: 22px; }
+  .beta-preview-approval-alert .beta-return-options { grid-template-columns: 1fr; }
+  .return-recovery-details > summary { min-height: 48px; }
+  .google-entry-paths { grid-template-columns: 1fr; }
+  .google-signin-button { width: 100%; }
+  .boardsignal-social-proof { grid-template-columns: auto minmax(0, 1fr); margin-top: .85rem; padding: .82rem .85rem; }
+  .boardsignal-social-proof-primary { font-size: .88rem; }
+  .boardsignal-social-proof-mark { width: 38px; height: 38px; border-radius: 12px; }
+  .homepage-universe-entry { align-items: flex-start; flex-direction: column; gap: .12rem; }
+  .chesscom-login-panel { grid-template-columns: minmax(0, 1fr); }
+  .chesscom-login-icon { display: none; }
+  .chesscom-login-actions { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-ready-banner { animation: none; }
+  .boardsignal-social-proof::after { display: none; animation: none; }
+}
+
+@media (forced-colors: active) {
+  .bs-state-banner,
+  .progress-start-state,
+  .return-recovery-details,
+  .boardsignal-social-proof,
+  .google-signin-button { border-color: CanvasText; }
+  .bs-state-banner.is-success,
+  .bs-state-banner.is-warning,
+  .bs-state-banner.is-error,
+  .bs-state-banner.is-info { border-left-color: Highlight; }
+  .boardsignal-social-proof-mark { border-color: CanvasText; color: LinkText; }
+}
+
+/* ==========================================================
+   BoardSignal Companion UI — post-P2 presentation layer
+   Current is the live companion; Progress keeps the deeper editorial/history
+   layer. Symbols lead scanning, while short visible labels preserve clarity.
+   ========================================================== */
+
+.player-room-authenticated .room-tab-nav .companion-nav-button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  min-width: 0;
+}
+
+.player-room-authenticated .companion-nav-icon {
+  width: 20px;
+  height: 20px;
+  justify-self: end;
+  flex: 0 0 auto;
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated .room-tab-nav .companion-nav-button.active .companion-nav-icon { color: currentColor; }
+.player-room-authenticated .companion-nav-label { min-width: 0; justify-self: start; overflow-wrap: anywhere; }
+
+.player-room-authenticated .companion-last-game {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 1.45rem);
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .companion-last-game-icon,
+.player-room-authenticated .companion-section-icon,
+.player-room-authenticated .companion-action-icon,
+.player-room-authenticated .companion-progress-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: 999px;
+  background: var(--bs-surface-elevated);
+  color: var(--bs-brand-primary);
+}
+
+.player-room-authenticated .companion-last-game-icon { width: 48px; height: 48px; }
+.player-room-authenticated .companion-section-icon,
+.player-room-authenticated .companion-action-icon,
+.player-room-authenticated .companion-progress-icon { width: 38px; height: 38px; }
+
+.player-room-authenticated .companion-last-game-copy,
+.player-room-authenticated .companion-signal-copy,
+.player-room-authenticated .companion-action-copy { min-width: 0; }
+
+.player-room-authenticated .companion-last-game-copy > span,
+.player-room-authenticated .companion-signal-heading .kicker,
+.player-room-authenticated .companion-snapshot-heading .kicker,
+.player-room-authenticated .companion-action-copy > span,
+.player-room-authenticated .companion-progress-kicker {
+  color: var(--bs-text-muted);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.player-room-authenticated .companion-last-game-copy h2 {
+  margin-top: .25rem;
+  color: var(--bs-text-primary);
+  font-size: clamp(1.35rem, 3vw, 2.1rem);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.player-room-authenticated .companion-last-game-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .75rem;
+  margin-top: .4rem;
+  color: var(--bs-text-secondary);
+  font-size: .8rem;
+}
+
+.player-room-authenticated .companion-last-game-note {
+  margin-top: .55rem;
+  max-width: 68ch;
+  color: var(--bs-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.player-room-authenticated .companion-freshness-actions {
+  display: grid;
+  justify-items: end;
+  gap: .5rem;
+  min-width: 0;
+}
+
+.player-room-authenticated .companion-refresh-button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: .55rem .8rem;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.player-room-authenticated .companion-refresh-button:hover:not(:disabled) { border-color: var(--bs-brand-primary); }
+.player-room-authenticated .companion-refresh-button:focus-visible,
+.player-room-authenticated .companion-action-button:focus-visible { outline: 3px solid var(--bs-focus); outline-offset: 3px; }
+.player-room-authenticated .companion-refresh-button:disabled { cursor: not-allowed; opacity: .7; }
+.player-room-authenticated .companion-refresh-button.is-refreshing svg { animation: bs-companion-refresh-spin 720ms linear infinite; }
+.player-room-authenticated .companion-checked-at { max-width: 22ch; color: var(--bs-text-muted); font-size: .72rem; text-align: right; }
+.player-room-authenticated .companion-live-status { position: static; max-width: 100%; }
+
+.player-room-authenticated .companion-signal-card {
+  margin-top: 0;
+  border: 1px solid color-mix(in srgb, var(--bs-brand-primary) 52%, var(--bs-border));
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .companion-signal-heading,
+.player-room-authenticated .companion-snapshot-heading,
+.player-room-authenticated .companion-progress-heading,
+.player-room-authenticated .companion-inline-heading {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 0;
+}
+.player-room-authenticated .companion-signal-heading { margin-bottom: .75rem; }
+.player-room-authenticated .companion-signal-heading .companion-section-icon {
+  border-color: color-mix(in srgb, var(--bs-text-on-inverse) 48%, transparent);
+  background: color-mix(in srgb, var(--bs-text-on-inverse) 8%, transparent);
+  color: var(--bs-text-on-inverse);
+}
+.player-room-authenticated .companion-signal-heading .kicker,
+.player-room-authenticated .companion-signal-heading h2,
+.player-room-authenticated .companion-signal-heading small { color: var(--bs-text-on-inverse); }
+.player-room-authenticated .companion-signal-heading h2 { margin-top: .1rem; font-size: clamp(1.1rem, 2vw, 1.4rem); }
+.player-room-authenticated .companion-signal-heading small { display: block; margin-top: .2rem; opacity: .8; }
+
+.player-room-authenticated .companion-next-game-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .8rem;
+  align-items: start;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+}
+.player-room-authenticated .companion-action-copy strong { display: block; margin-top: .25rem; color: var(--bs-text-primary); font-size: 1rem; }
+.player-room-authenticated .companion-action-copy p { margin-top: .35rem; color: var(--bs-text-secondary); }
+
+.player-room-authenticated .companion-current-snapshot {
+  padding: 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface);
+}
+.player-room-authenticated .companion-snapshot-heading { justify-content: space-between; margin-bottom: .85rem; }
+.player-room-authenticated .companion-snapshot-heading > div:first-of-type { display: flex; align-items: center; gap: .7rem; }
+.player-room-authenticated .companion-snapshot-heading small { color: var(--bs-text-muted); text-align: right; }
+.player-room-authenticated .companion-details-summary { display: inline-flex; align-items: center; gap: .45rem; }
+
+.player-room-authenticated .companion-continuation {
+  margin-top: 1rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  box-shadow: var(--bs-shadow-1);
+}
+.player-room-authenticated .companion-continuation-heading { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .8rem; align-items: start; }
+.player-room-authenticated .companion-continuation-heading h2 { margin-top: .2rem; color: var(--bs-text-primary); }
+.player-room-authenticated .companion-continuation-heading p:last-child { margin-top: .35rem; color: var(--bs-text-secondary); }
+
+.player-room-authenticated .companion-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .55rem;
+  margin-top: 1rem;
+}
+.player-room-authenticated .companion-action-button {
+  min-width: 0;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: .65rem .7rem;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.player-room-authenticated .companion-action-button.is-primary { border-color: var(--bs-brand-primary); background: var(--bs-surface-inverse); color: var(--bs-text-on-inverse); }
+.player-room-authenticated .companion-action-button:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--bs-brand-primary); }
+
+.player-room-authenticated .companion-progress-heading { align-items: start; }
+.player-room-authenticated .companion-progress-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .7rem;
+  margin-top: 1rem;
+}
+.player-room-authenticated .companion-progress-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: .65rem;
+  padding: .85rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+}
+.player-room-authenticated .companion-progress-card span { display: block; color: var(--bs-text-muted); font-size: .72rem; font-weight: 800; letter-spacing: .045em; text-transform: uppercase; }
+.player-room-authenticated .companion-progress-card strong { display: block; margin-top: .18rem; color: var(--bs-text-primary); overflow-wrap: anywhere; }
+.player-room-authenticated .companion-inline-heading { margin-bottom: .7rem; }
+.player-room-authenticated .companion-inline-heading .kicker { margin: 0; }
+.player-room-authenticated .companion-review-history-disclosure > summary { justify-content: flex-start; }
+
+@keyframes bs-companion-refresh-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .player-room-authenticated .companion-action-grid,
+  .player-room-authenticated .companion-progress-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .player-room-authenticated .room-tab-nav .companion-nav-button {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: .25rem;
+    padding-block: .55rem;
+  }
+  .player-room-authenticated .companion-nav-icon,
+  .player-room-authenticated .companion-nav-label { justify-self: center; }
+  .player-room-authenticated .companion-last-game { grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .75rem; }
+  .player-room-authenticated .companion-freshness-actions { grid-column: 1 / -1; width: 100%; justify-items: stretch; }
+  .player-room-authenticated .companion-refresh-button { width: 100%; }
+  .player-room-authenticated .companion-checked-at { max-width: none; text-align: left; }
+  .player-room-authenticated .companion-snapshot-heading { align-items: flex-start; flex-direction: column; }
+  .player-room-authenticated .companion-snapshot-heading small { text-align: left; }
+  .player-room-authenticated .companion-action-grid,
+  .player-room-authenticated .companion-progress-overview { grid-template-columns: 1fr; }
+  .player-room-authenticated .companion-action-button:hover:not(:disabled) { transform: none; }
+}
+
+@media (max-width: 390px) {
+  .player-room-authenticated .companion-last-game-icon { width: 42px; height: 42px; }
+  .player-room-authenticated .companion-last-game-copy h2 { font-size: 1.25rem; }
+  .player-room-authenticated .companion-section-icon,
+  .player-room-authenticated .companion-action-icon,
+  .player-room-authenticated .companion-progress-icon { width: 34px; height: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-room-authenticated .companion-refresh-button,
+  .player-room-authenticated .companion-action-button { transition: none !important; transform: none !important; }
+  .player-room-authenticated .companion-refresh-button.is-refreshing svg { animation: none !important; transform: none !important; }
+}

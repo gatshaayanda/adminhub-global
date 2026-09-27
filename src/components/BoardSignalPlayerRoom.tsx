@@ -1,0 +1,792 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { onAuthStateChanged, signOut, type User as FirebaseUser } from "firebase/auth";
+import { Activity, ArrowRight, BarChart3, BookOpen, CalendarDays, Globe2, History, Home, Inbox, LoaderCircle, MessageCircle, RefreshCw, ShieldCheck, Swords, Target, TrendingUp, User, Users } from "lucide-react";
+import BetaAgreementGate from "@/components/BetaAgreementGate";
+import ChessComLoginPanel from "@/components/ChessComLoginPanel";
+import PlayerInbox from "@/components/PlayerInbox";
+import PlayerFriends from "@/components/PlayerFriends";
+import PlayerPreferencesGate from "@/components/PlayerPreferencesGate";
+import PlayerProfileNotifications from "@/components/PlayerProfileNotifications";
+import PlayerRoomQuickRead from "@/components/PlayerRoomQuickRead";
+import PlayerReviewJournal, { PlayerReviewNotesTimeline } from "@/components/PlayerReviewJournal";
+import UniversalPlayerDesk from "@/components/UniversalPlayerDesk";
+import ShareMomentActions from "@/components/ShareMomentActions";
+import UsernameDeskForm from "@/components/UsernameDeskForm";
+import { AuthenticatedUniverseProvider, UniverseCategoryCards } from "@/components/UniverseRecognition";
+import { removeBoardSignalBrowserPush } from "@/components/BrowserPushControl";
+import { hasAcceptedCurrentBetaAgreement, type BoardSignalAccount } from "@/lib/boardsignal/account";
+import type { CurrentEpisodeWithNextGameGuidance } from "@/lib/boardsignal/activeWeekGuidance";
+import type { PlayerPulse, PublicUniverseEvent, SafeShareMoment } from "@/lib/boardsignal/pulse";
+import {
+  deskKeyFor,
+  type DeskSummary,
+  type PersonalRecords,
+  type ProgressSeries,
+  type RecurringPattern,
+} from "@/lib/boardsignal/memory";
+import { shouldMountAutomaticReviewGenerator } from "@/lib/boardsignal/firstReviewGeneration.mjs";
+import type { BoardSignalDesk, DeskEngineResult } from "@/lib/boardsignal/types";
+import type { FactualReviewDraft } from "@/lib/boardsignal/factualReview";
+import { reviewHistoryLifecycleLabel, type CompletedReviewHistoryItem } from "@/lib/boardsignal/reviewHistory";
+import type { ReviewJournal } from "@/lib/boardsignal/reviewJournal";
+import { NO_ACTIVITY_COPY, type CanonicalReportPeriod, type ReviewHistoryCoverage } from "@/lib/boardsignal/reviewPeriods";
+import { boardSignalPresentationLabel } from "@/lib/boardsignal/presentationLanguage";
+import { buildPlayerRoomQuickRead } from "@/lib/boardsignal/playerRoomPresentation";
+import { auth } from "@/utils/firebaseConfig";
+import { useBoardSignalConnectivity } from "@/components/ConnectivityProvider";
+import { clearBoardSignalPrivateOfflineData } from "@/lib/boardsignal/offline/db";
+import { loadPlayerRoomOfflineSnapshot, requestPersistentStorageBestEffort, savePlayerRoomOfflineSnapshot } from "@/lib/boardsignal/offline/snapshots";
+import type { OfflinePlayerRoomSnapshot } from "@/lib/boardsignal/offline/types";
+import { markBoardSignalPwaEngaged } from "@/lib/boardsignal/offline/install";
+import { clearBoardSignalAppBadge, syncBoardSignalAppBadge } from "@/lib/boardsignal/offline/badge";
+import OfflinePlayerRoom from "@/components/OfflinePlayerRoom";
+import DeskReturnChannelPrompt from "@/components/DeskReturnChannelPrompt";
+import LiveDataUnavailablePlayerRoom from "@/components/LiveDataUnavailablePlayerRoom";
+import { PlayerRoomRefreshGate, isLiveDataUnavailableResponse } from "@/lib/boardsignal/client/playerRoomRefreshGate";
+import { BOARDSIGNAL_SUPPORT_DISCORD_URL, FIRESTORE_QUOTA_EXHAUSTED_CODE, firestoreQuotaBlocked, markFirestoreQuotaExhausted, noteFirestoreQuotaResponse } from "@/lib/boardsignal/client/firestoreQuota";
+
+type DeskBundle = { desk: BoardSignalDesk; engineResults: Record<string, DeskEngineResult>; summary: DeskSummary };
+type Snapshot = {
+  account: BoardSignalAccount;
+  desks: DeskBundle[];
+  reviewHistory?: CompletedReviewHistoryItem[];
+  reportPeriods?: CanonicalReportPeriod[];
+  historyCoverage?: ReviewHistoryCoverage;
+  originalBetaReturn?: boolean;
+  progress: ProgressSeries[];
+  recurringPatterns: RecurringPattern[];
+  personalRecords: PersonalRecords;
+  currentEpisode?: CurrentEpisodeWithNextGameGuidance;
+  pendingFactualReview?: FactualReviewDraft;
+  progressUnavailable?: string;
+  pulseUnavailable?: string;
+  generationRequired: boolean;
+  pulse?: PlayerPulse;
+  shareMoments?: Array<SafeShareMoment & { activeDesk?: boolean }>;
+  reviewJournal: ReviewJournal;
+};
+type RoomTab = "desk" | "progress" | "universe" | "friends" | "inbox" | "profile";
+type SocialSummaryPlayer = { playerId: number; canonicalUsername: string; relationshipStatus?: "incoming" | "outgoing" | "friends" };
+
+const FOCUS_REFRESH_THROTTLE_MS = 75_000;
+
+export default function BoardSignalPlayerRoom() {
+  const connectivity = useBoardSignalConnectivity();
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [token, setToken] = useState("");
+  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+  const [tab, setTab] = useState<RoomTab>("desk");
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [socialPlayers, setSocialPlayers] = useState<Record<string, SocialSummaryPlayer>>({});
+  const [incomingFriendRequests, setIncomingFriendRequests] = useState(0);
+  const [suggestedPlayerCount, setSuggestedPlayerCount] = useState(0);
+  const [friendCompareTarget, setFriendCompareTarget] = useState<number | undefined>();
+  const [offlineSnapshot, setOfflineSnapshot] = useState<OfflinePlayerRoomSnapshot | null>(null);
+  // null = normal live/offline routing; undefined = live service unavailable with no saved snapshot.
+  const [liveDataUnavailableSnapshot, setLiveDataUnavailableSnapshot] = useState<OfflinePlayerRoomSnapshot | undefined | null>(null);
+  const [liveDataUnavailableCode, setLiveDataUnavailableCode] = useState<string>();
+  const [offlineReadyNotice, setOfflineReadyNotice] = useState(false);
+  const activeUidRef = useRef<string | undefined>(undefined);
+  const reconnectRefreshRef = useRef(false);
+  const focusRefreshRef = useRef(false);
+  const historyRefreshRef = useRef(false);
+  const historyRefreshQueuedRef = useRef(false);
+  const lastFocusRefreshAtRef = useRef(0);
+  const publishedDeskKeyThisSessionRef = useRef<string | undefined>(undefined);
+  const refreshGateRef = useRef(new PlayerRoomRefreshGate());
+
+  const loadRoom = useCallback(async (activeUser: FirebaseUser, quiet = false) => {
+    return refreshGateRef.current.run(async () => {
+      if (!quiet) setLoading(true);
+      setError("");
+      try {
+        if (firestoreQuotaBlocked()) {
+          const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
+          setLiveDataUnavailableCode(FIRESTORE_QUOTA_EXHAUSTED_CODE);
+          setLiveDataUnavailableSnapshot(saved);
+          setOfflineSnapshot(null);
+          return false;
+        }
+        const idToken = await activeUser.getIdToken();
+        setToken(idToken);
+        const response = await fetch("/api/boardsignal/player-room", { headers: { Authorization: `Bearer ${idToken}` }, cache: "no-store" });
+        const body = await response.json() as { ok: boolean; snapshot?: Snapshot; error?: string; code?: string };
+        if (!response.ok || !body.ok || !body.snapshot) {
+          if (typeof navigator !== "undefined" && navigator.onLine && isLiveDataUnavailableResponse(response.status, body.code)) {
+            noteFirestoreQuotaResponse(response.status, body.code, response.headers.get("Retry-After"));
+            const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
+            setLiveDataUnavailableCode(body.code);
+            setLiveDataUnavailableSnapshot(saved);
+            setOfflineSnapshot(null);
+            setError("");
+            return false;
+          }
+          throw new Error(body.error ?? "My BoardSignal could not be loaded.");
+        }
+        setSnapshot(body.snapshot);
+        setOfflineSnapshot(null);
+        setLiveDataUnavailableSnapshot(null);
+        setLiveDataUnavailableCode(undefined);
+        void savePlayerRoomOfflineSnapshot(activeUser.uid, body.snapshot).then(({ firstReady }) => {
+          window.dispatchEvent(new CustomEvent("boardsignal:offline-saved"));
+          if (body.snapshot?.desks?.length) markBoardSignalPwaEngaged();
+          if (firstReady) { setOfflineReadyNotice(true); window.setTimeout(() => setOfflineReadyNotice(false), 4200); void requestPersistentStorageBestEffort(activeUser.uid); }
+        }).catch(() => undefined);
+        try {
+          if (window.sessionStorage.getItem("boardsignal:pwa-recovery-refresh") === "1") {
+            window.sessionStorage.removeItem("boardsignal:pwa-recovery-refresh");
+            window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete"));
+          }
+        } catch { /* recovery acknowledgement is optional */ }
+        return true;
+      } catch (reason) {
+        // Saved/offline routing is only truthful when the browser itself is offline.
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          const saved = await loadPlayerRoomOfflineSnapshot(activeUser.uid).catch(() => undefined);
+          if (saved) {
+            setOfflineSnapshot(saved);
+            setLiveDataUnavailableSnapshot(null);
+            setError("");
+            return false;
+          }
+        }
+        setError(reason instanceof Error ? reason.message : "My BoardSignal could not be loaded.");
+        throw reason;
+      } finally {
+        if (!quiet) setLoading(false);
+      }
+    }, { quiet });
+  }, []);
+
+  const refreshCurrent = useCallback(async () => {
+    if (!user || !connectivity.online || manualRefreshing) return;
+    setManualRefreshing(true);
+    try {
+      const refreshed = await loadRoom(user, true);
+      if (refreshed && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete"));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Current BoardSignal could not be refreshed.");
+    } finally {
+      setManualRefreshing(false);
+    }
+  }, [connectivity.online, loadRoom, manualRefreshing, user]);
+
+  useEffect(() => onAuthStateChanged(auth, (activeUser) => {
+    const previousUid = activeUidRef.current;
+    const nextUid = activeUser?.uid;
+    if (previousUid && previousUid !== nextUid) publishedDeskKeyThisSessionRef.current = undefined;
+    if (previousUid && nextUid && previousUid !== nextUid) {
+      // Invalidate Player A immediately before any Player B read begins. The async purge is defense-in-depth.
+      setSnapshot(null);
+      setOfflineSnapshot(null);
+      setLiveDataUnavailableSnapshot(null);
+      setToken("");
+      setSocialPlayers({});
+      setIncomingFriendRequests(0);
+      setSuggestedPlayerCount(0);
+      setUnreadCount(0);
+      void clearBoardSignalAppBadge();
+      void clearBoardSignalPrivateOfflineData(previousUid);
+    }
+    activeUidRef.current = nextUid;
+    setUser(activeUser);
+    setAuthReady(true);
+    if (activeUser) void loadRoom(activeUser).catch((reason) => { setError(reason instanceof Error ? reason.message : "My BoardSignal could not be loaded."); setLoading(false); });
+    else { setSnapshot(null); setOfflineSnapshot(null); setLiveDataUnavailableSnapshot(null); setLiveDataUnavailableCode(undefined); setToken(""); setLoading(false); }
+  }), [loadRoom]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (["desk", "progress", "universe", "friends", "inbox", "profile"].includes(requestedTab ?? "")) setTab(requestedTab as RoomTab);
+    const compare = Number(new URLSearchParams(window.location.search).get("compare"));
+    if (Number.isSafeInteger(compare) && compare > 0) setFriendCompareTarget(compare);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent("boardsignal:context", { detail: { activeTab: tab } }));
+  }, [tab]);
+
+  const flushQueuedHistoryRefresh = useCallback(() => {
+    if (!historyRefreshQueuedRef.current || typeof window === "undefined") return;
+    historyRefreshQueuedRef.current = false;
+    window.queueMicrotask(() => window.dispatchEvent(new CustomEvent("boardsignal:history-updated")));
+  }, []);
+
+  useEffect(() => {
+    const reconnected = () => {
+      if (!user || reconnectRefreshRef.current || focusRefreshRef.current) return;
+      reconnectRefreshRef.current = true;
+      lastFocusRefreshAtRef.current = Date.now();
+      void loadRoom(user, true)
+        .then((refreshed) => { if (refreshed) window.dispatchEvent(new CustomEvent("boardsignal:refresh-complete")); })
+        .catch(() => undefined)
+        .finally(() => { reconnectRefreshRef.current = false; flushQueuedHistoryRefresh(); });
+    };
+    window.addEventListener("boardsignal:reconnected", reconnected);
+    return () => window.removeEventListener("boardsignal:reconnected", reconnected);
+  }, [flushQueuedHistoryRefresh, loadRoom, user]);
+
+  useEffect(() => {
+    if (!user || !connectivity.online) return;
+
+    const refreshAfterReturn = () => {
+      if (document.visibilityState === "hidden") return;
+      const now = Date.now();
+      if (now - lastFocusRefreshAtRef.current < FOCUS_REFRESH_THROTTLE_MS) return;
+      if (focusRefreshRef.current || reconnectRefreshRef.current) return;
+
+      lastFocusRefreshAtRef.current = now;
+      focusRefreshRef.current = true;
+      void loadRoom(user, true)
+        .catch(() => undefined)
+        .finally(() => { focusRefreshRef.current = false; flushQueuedHistoryRefresh(); });
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshAfterReturn();
+    };
+
+    window.addEventListener("focus", refreshAfterReturn);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", refreshAfterReturn);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [connectivity.online, flushQueuedHistoryRefresh, loadRoom, user]);
+
+  useEffect(() => {
+    const historyUpdated = () => {
+      if (!user || !connectivity.online) return;
+      if (historyRefreshRef.current || reconnectRefreshRef.current || focusRefreshRef.current) {
+        historyRefreshQueuedRef.current = true;
+        return;
+      }
+      historyRefreshRef.current = true;
+      void loadRoom(user, true)
+        .catch(() => undefined)
+        .finally(() => {
+          historyRefreshRef.current = false;
+          flushQueuedHistoryRefresh();
+        });
+    };
+    window.addEventListener("boardsignal:history-updated", historyUpdated);
+    return () => window.removeEventListener("boardsignal:history-updated", historyUpdated);
+  }, [connectivity.online, flushQueuedHistoryRefresh, loadRoom, user]);
+
+  // If a live Player Room loses reachability after it has already rendered,
+  // swap to the same UID-scoped saved shell instead of leaving live-only controls active.
+  useEffect(() => {
+    if (connectivity.state !== "offline" || !user) return;
+    let active = true;
+    void loadPlayerRoomOfflineSnapshot(user.uid)
+      .then((saved) => { if (active && saved) setOfflineSnapshot(saved); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [connectivity.state, user]);
+
+  const refreshSocialSummary = useCallback(async () => {
+    if (!token) return;
+    const headers = { Authorization: `Bearer ${token}` };
+    const [overviewResponse, suggestedResponse] = await Promise.all([
+      fetch("/api/boardsignal/social?view=overview", { headers, cache: "no-store" }),
+      fetch("/api/boardsignal/social?view=suggested", { headers, cache: "no-store" }),
+    ]);
+    const overviewBody = await overviewResponse.json() as { ok?: boolean; overview?: { friends?: SocialSummaryPlayer[]; incoming?: SocialSummaryPlayer[]; outgoing?: SocialSummaryPlayer[] } };
+    if (overviewResponse.ok && overviewBody.ok && overviewBody.overview) {
+      const players = [...(overviewBody.overview.friends ?? []), ...(overviewBody.overview.incoming ?? []), ...(overviewBody.overview.outgoing ?? [])];
+      setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player])));
+      setIncomingFriendRequests(overviewBody.overview.incoming?.length ?? 0);
+    }
+    const suggestedBody = await suggestedResponse.json().catch(() => ({})) as { ok?: boolean; players?: SocialSummaryPlayer[] };
+    if (suggestedResponse.ok && suggestedBody.ok) setSuggestedPlayerCount(suggestedBody.players?.length ?? 0);
+  }, [token]);
+
+  useEffect(() => { if (token && snapshot?.account.preferencesConfirmedAt) void refreshSocialSummary(); }, [refreshSocialSummary, snapshot?.account.preferencesConfirmedAt, token]);
+  const handleFriendsChanged = useCallback((overview: { friends: SocialSummaryPlayer[]; incoming: SocialSummaryPlayer[]; outgoing: SocialSummaryPlayer[] }) => {
+    const players = [...overview.friends, ...overview.incoming, ...overview.outgoing];
+    setSocialPlayers(Object.fromEntries(players.map((player) => [player.canonicalUsername.toLowerCase(), player])));
+    setIncomingFriendRequests(overview.incoming.length);
+  }, []);
+
+  const socialActionFromUniverse = useCallback(async (username: string) => {
+    if (!connectivity.online) { setTab("friends"); return; }
+    const known = socialPlayers[username.toLowerCase()];
+    if (known?.relationshipStatus === "friends") { setFriendCompareTarget(known.playerId); setTab("friends"); return; }
+    if (known) { setTab("friends"); return; }
+    if (!token) return;
+    const search = await fetch(`/api/boardsignal/social?view=search&q=${encodeURIComponent(username)}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    const found = await search.json() as { ok?: boolean; players?: SocialSummaryPlayer[] };
+    const target = found.players?.find((player) => player.canonicalUsername.toLowerCase() === username.toLowerCase());
+    if (!search.ok || !found.ok || !target) { setTab("friends"); return; }
+    await fetch("/api/boardsignal/social", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ action: "send", playerId: target.playerId }) });
+    await refreshSocialSummary();
+  }, [connectivity.online, refreshSocialSummary, socialPlayers, token]);
+
+  useEffect(() => {
+    if (!user || !token || !snapshot?.account.preferencesConfirmedAt) return;
+    fetch("/api/boardsignal/inbox", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" })
+      .then((response) => response.json())
+      .then((body: { ok?: boolean; inbox?: { unreadCount?: number } }) => setUnreadCount(Number(body.inbox?.unreadCount ?? 0)))
+      .catch(() => undefined);
+  }, [snapshot?.account.preferencesConfirmedAt, token, user]);
+
+  useEffect(() => {
+    if (!user?.uid) { void clearBoardSignalAppBadge(); return; }
+    void syncBoardSignalAppBadge(unreadCount).catch(() => undefined);
+  }, [unreadCount, user?.uid]);
+
+  async function acceptAgreement() {
+    if (!connectivity.online) throw new Error("Reconnect before accepting the Founding Access Agreement.");
+    const response = await fetch("/api/boardsignal/player-room", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "acceptAgreement" }),
+    });
+    const body = await response.json() as { ok: boolean; error?: string };
+    if (!response.ok || !body.ok) throw new Error(body.error ?? "The agreement could not be recorded.");
+    if (user) await loadRoom(user);
+  }
+
+  async function confirmPreferences(
+    contact: {
+      preferredContactMethod: import("@/lib/boardsignal/account").BoardSignalContactMethod;
+      preferredContactValue: string;
+      betaContactConsent: true;
+    },
+    notificationPreferences: import("@/lib/boardsignal/account").BoardSignalNotificationPreferences,
+  ) {
+    if (!snapshot) return;
+    if (!connectivity.online) throw new Error("Reconnect before changing BoardSignal account or communication settings.");
+    const response = await fetch("/api/boardsignal/player-room", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "updatePreferences",
+        privacy: { ...snapshot.account.privacy, publicPlayerPage: true, universeCoverage: true },
+        notificationPreferences,
+        contact,
+      }),
+    });
+    const body = await response.json() as { ok: boolean; error?: string };
+    if (!response.ok || !body.ok) throw new Error(body.error ?? "Communication setup could not be saved.");
+    if (user) await loadRoom(user);
+  }
+
+  const saveFactualReview = useCallback(async (desk: BoardSignalDesk) => {
+    if (!connectivity.online) throw new Error("Your factual week is available in this session, but reconnect before BoardSignal can save it for return.");
+    const response = await fetch("/api/boardsignal/player-room", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "saveFactualReview", desk }),
+    });
+    const body = await response.json() as { ok: boolean; error?: string };
+    if (!response.ok || !body.ok) throw new Error(body.error ?? "Your factual week is available in this session, but BoardSignal could not save it for return yet.");
+  }, [connectivity.online, token]);
+
+  const publishDesk = useCallback(async (desk: BoardSignalDesk, engineResults: Record<string, DeskEngineResult>) => {
+    if (!connectivity.online) throw new Error("Reconnect before finishing or saving a review.");
+    const response = await fetch("/api/boardsignal/player-room", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "publishDesk", desk, engineResults }),
+    });
+    const body = await response.json() as { ok: boolean; error?: string; code?: string };
+    if (noteFirestoreQuotaResponse(response.status, body.code, response.headers.get("Retry-After"))) markFirestoreQuotaExhausted(response.headers.get("Retry-After"));
+    if (!response.ok || !body.ok) throw new Error(body.error ?? "The completed review could not be saved.");
+    publishedDeskKeyThisSessionRef.current = deskKeyFor(desk);
+    window.dispatchEvent(new CustomEvent("boardsignal:review-published", {
+      detail: { periodStart: desk.period.start, periodEnd: desk.period.end },
+    }));
+    if (user) await loadRoom(user, true);
+  }, [connectivity.online, loadRoom, token, user]);
+
+  const signOutPlayer = useCallback(async () => {
+    if (token && connectivity.online) await removeBoardSignalBrowserPush(token).catch(() => undefined);
+    if (user?.uid) await clearBoardSignalPrivateOfflineData(user.uid).catch(() => undefined);
+    setOfflineSnapshot(null);
+    setSnapshot(null);
+    setUnreadCount(0);
+    await clearBoardSignalAppBadge().catch(() => false);
+    await signOut(auth);
+  }, [connectivity.online, token, user?.uid]);
+
+  const handleJournalChanged = useCallback((reviewJournal: ReviewJournal) => {
+    setSnapshot((current) => {
+      if (!current || !user) return current;
+      const next = { ...current, reviewJournal };
+      void savePlayerRoomOfflineSnapshot(user.uid, next).then(() => {
+        window.dispatchEvent(new CustomEvent("boardsignal:offline-saved"));
+      }).catch(() => undefined);
+      return next;
+    });
+  }, [user]);
+
+  const latest = snapshot?.desks[0];
+  const currentEpisode = snapshot?.currentEpisode;
+  const quickRead = latest && snapshot ? buildPlayerRoomQuickRead({ latest: latest.desk, recurringPatterns: snapshot.recurringPatterns }) : undefined;
+  const currentJournalReview = snapshot && currentEpisode ? {
+    reviewKey: `forming:${snapshot.account.chessCom.playerId ?? snapshot.account.chessCom.canonicalUsername.toLowerCase()}:${currentEpisode.periodStart}:${currentEpisode.periodEnd}`,
+    periodStart: currentEpisode.periodStart,
+    periodEnd: currentEpisode.periodEnd,
+    periodLabel: currentEpisode.periodLabel,
+  } : undefined;
+  const reviewHistory = snapshot?.reviewHistory ?? [];
+  const reportPeriods = snapshot?.reportPeriods ?? [];
+  const hasOriginalHistory = reviewHistory.some((review) => review.source === "original_beta");
+  const originalCadenceAnchor = snapshot?.account.cadenceAnchor;
+  const automaticGenerationRequired = snapshot ? shouldMountAutomaticReviewGenerator({
+    generationRequired: snapshot.generationRequired,
+    latestDeskKey: latest?.summary.deskKey,
+    publishedDeskKeyThisSession: publishedDeskKeyThisSessionRef.current,
+  }) : false;
+
+  if (!authReady || loading) return <RoomLoading />;
+  if (!user && connectivity.state === "offline") return (
+    <div id="main" className="container player-room-entry bs-surface-paper">
+      <p className="kicker">MY BOARDSIGNAL · OFFLINE</p><h1>Reconnect to sign in.</h1>
+      <p>BoardSignal never performs access verification or authentication offline. If this device already has a saved My BoardSignal, it becomes available only after Firebase recognizes that same signed-in account locally.</p>
+      <Link className="button button-dark" href="/offline/player-room">Open saved My BoardSignal</Link>
+    </div>
+  );
+  if (!user) return (
+    <div id="main" className="container player-room-entry">
+      <p className="kicker">MY BOARDSIGNAL</p><h1>Your games, your BoardSignal, your progress.</h1>
+      <ChessComLoginPanel />
+      <div className="oauth-pending-divider"><span>New to BoardSignal?</span></div>
+      <UsernameDeskForm />
+    </div>
+  );
+  if (liveDataUnavailableSnapshot !== null && user) return <LiveDataUnavailablePlayerRoom initialSnapshot={liveDataUnavailableSnapshot} reasonCode={liveDataUnavailableCode} onRetry={() => loadRoom(user, false)} />;
+  if (offlineSnapshot && user) return <OfflinePlayerRoom uid={user.uid} initialSnapshot={offlineSnapshot} embedded />;
+  if (error || !snapshot) return <RoomError error={error || "My BoardSignal could not be loaded."} />;
+  if (!hasAcceptedCurrentBetaAgreement(snapshot.account)) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<BetaAgreementGate onAccept={acceptAgreement} /></>;
+  if (!snapshot.account.preferencesConfirmedAt || !snapshot.account.contactConfirmedAt) return <>{snapshot.originalBetaReturn ? <OriginalBetaWelcome /> : null}<PlayerPreferencesGate account={snapshot.account} onContinue={confirmPreferences} /></>;
+
+  return (
+    <div id="main" className="player-room-authenticated">
+      <RoomIdentity account={snapshot.account} />
+      <RoomNav tab={tab} setTab={setTab} unreadCount={unreadCount} friendRequestCount={incomingFriendRequests} />
+      {offlineReadyNotice ? <div className="container offline-ready-note" role="status">Your latest BoardSignal is available offline on this device.</div> : null}
+
+      {tab === "desk" ? <section id="player-room-panel-desk" role="tabpanel" aria-labelledby="player-room-tab-desk" className="g3-room-panel g3-review-tab">
+        <div className="container player-room-memory g3-review-flow">
+          {currentEpisode ? <><CurrentEpisodeCard episode={currentEpisode} uid={user.uid} online={connectivity.online} refreshing={manualRefreshing} onRefresh={refreshCurrent} />{snapshot.progressUnavailable ? <p className="forming-note" role="status"><ShieldCheck size={15} /> Showing your last successfully checked games. BoardSignal couldn&apos;t refresh Chess.com just now. Last successfully checked {new Date(currentEpisode.checkedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}.</p> : null}</> : <div className="founding-field-note"><CalendarDays size={18} /><div><p className="kicker">CURRENT BOARDSIGNAL</p><strong>{snapshot.progressUnavailable ? "Current BoardSignal is temporarily unavailable." : "Your current picture is catching up."}</strong><p>{snapshot.progressUnavailable ? "BoardSignal couldn't check your Chess.com games just now. Your account is set up — try again shortly." : "BoardSignal does not have enough current game data to say more yet. Your completed Review history remains unchanged."}</p></div></div>}
+          {currentJournalReview ? <div className="g3-review-journal-slot"><PlayerReviewJournal review={currentJournalReview} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} context="current" /></div> : null}
+          {latest && quickRead ? <section className="g3-last-completed-review" aria-label="Last completed Review">
+            <div className="universal-section-heading"><span><CalendarDays size={16}/></span><div><p className="kicker">HISTORY</p><h2>LAST COMPLETED REVIEW</h2><p>{latest.summary.periodLabel} · {latest.summary.games} games. This Review is complete and immutable; it now sits behind your Current BoardSignal.</p></div></div>
+            <PlayerRoomQuickRead quickRead={quickRead} stateLabel="LAST COMPLETED" />
+            <details className="g3-disclosure g3-last-completed-review-details">
+              <summary><span className="companion-details-summary"><BookOpen size={16} aria-hidden="true" /> OPEN FULL REVIEW</span></summary>
+              <div className="g3-disclosure-body">
+                <AuthenticatedUniverseProvider pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable}><UniversalPlayerDesk requestedUsername={latest.desk.player.username} publishedDesk={latest.desk} publishedEngineResults={latest.engineResults} presentationMode="player-room" embedded /></AuthenticatedUniverseProvider>
+                <PlayerReviewJournal review={{ reviewKey: latest.summary.deskKey, periodStart: latest.summary.periodStart, periodEnd: latest.summary.periodEnd, periodLabel: latest.summary.periodLabel }} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} compact />
+                <ShareMomentsSection moments={(snapshot.shareMoments ?? []).filter((moment) => moment.deskKey === latest.summary.deskKey).slice(0, 3)} />
+              </div>
+            </details>
+          </section> : <div className="founding-field-note"><CalendarDays size={18}/><div><p className="kicker">LAST COMPLETED REVIEW</p><strong>No completed Review yet.</strong><p>When a seven-day period with real games closes and its Review completes, it will move here behind Current BoardSignal. A zero-game period will not consume a retained Review slot.</p></div></div>}
+          <div className="g3-post-review"><DeskReturnChannelPrompt uid={snapshot.account.uid} idToken={token} browserPushEnabled={snapshot.account.notificationPreferences.browserPush === true} emailActive={snapshot.account.notificationPreferences.email === true} onEnabled={async () => { if (user) await loadRoom(user, true); }} /></div>
+          <CurrentContinuation suggestedPlayerCount={suggestedPlayerCount} setTab={setTab} />
+        </div>
+        {snapshot.pendingFactualReview ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={snapshot.account.cadenceAnchor} pendingFactualReview={snapshot.pendingFactualReview} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : !latest && automaticGenerationRequired ? <div className="container player-room-memory"><div className="founding-field-note"><CalendarDays size={18}/><div><strong>{hasOriginalHistory ? "Your original Review is already here." : "Your first completed Review is forming."}</strong><p>{connectivity.online ? (hasOriginalHistory ? "BoardSignal is building the next eligible completed Review from your preserved seven-day cadence." : "BoardSignal is building your first completed Review. Current BoardSignal, Universe, Friends, Inbox and Profile remain available while it forms.") : "Reconnect before BoardSignal retrieves new Chess.com games for this Review."}</p></div></div>{connectivity.online ? <UniversalPlayerDesk requestedUsername={snapshot.account.chessCom.canonicalUsername} ownerToken={token} cadenceAnchor={originalCadenceAnchor} onFactualReviewReady={saveFactualReview} onDeskPublished={publishDesk} embedded /> : null}</div> : null}
+      </section> : null}
+
+      {tab === "progress" ? <section id="player-room-panel-progress" role="tabpanel" aria-labelledby="player-room-tab-progress" className="g3-room-panel"><div className="container player-room-memory"><ProgressSection history={reviewHistory} reportPeriods={reportPeriods} coverage={snapshot.historyCoverage} progress={snapshot.progress} patterns={snapshot.recurringPatterns} records={snapshot.personalRecords} token={token} online={connectivity.online} journal={snapshot.reviewJournal} onJournalChanged={handleJournalChanged} setTab={setTab} /></div></section> : null}
+      {tab === "universe" ? <section id="player-room-panel-universe" role="tabpanel" aria-labelledby="player-room-tab-universe" className="g3-room-panel"><div className="container player-room-memory"><UniverseRoomPanel account={snapshot.account} pulse={snapshot.pulse} unavailable={snapshot.pulseUnavailable} socialPlayers={socialPlayers} onSocialAction={socialActionFromUniverse} /></div></section> : null}
+      {tab === "friends" ? <section id="player-room-panel-friends" role="tabpanel" aria-labelledby="player-room-tab-friends" className="g3-room-panel"><div className="container player-room-memory"><PlayerFriends uid={user.uid} token={token} initialComparePlayerId={friendCompareTarget} onChanged={handleFriendsChanged} /></div></section> : null}
+      {tab === "inbox" ? <section id="player-room-panel-inbox" role="tabpanel" aria-labelledby="player-room-tab-inbox" className="g3-room-panel"><div className="container player-room-memory"><PlayerInbox token={token} onUnreadChange={setUnreadCount} /></div></section> : null}
+      {tab === "profile" ? <section id="player-room-panel-profile" role="tabpanel" aria-labelledby="player-room-tab-profile" className="g3-room-panel"><div className="container player-room-memory"><PlayerProfileNotifications account={snapshot.account} uid={user.uid} token={token} onSaved={async () => { if (user) await loadRoom(user, true); }} onSignOut={signOutPlayer} /><div className="founding-field-note"><ShieldCheck size={18}/><div><strong>Talk to the founder</strong><p>Questions, feedback or something not working? Join the BoardSignal Discord and talk directly with the founder.</p><a className="button button-quiet" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener">Open BoardSignal Discord</a></div></div></div></section> : null}
+    </div>
+  );
+}
+
+function OriginalBetaWelcome() {
+  return <div className="container founding-field-note"><CalendarDays size={18}/><div><p className="kicker">WELCOME BACK TO BOARDSIGNAL</p><strong>You were one of BoardSignal's original beta players.</strong><p>Your first Review is already here.</p></div></div>;
+}
+
+function RoomIdentity({ account }: { account: BoardSignalAccount }) {
+  return <header className="container player-room-identity"><div className="universal-avatar">{account.chessCom.canonicalUsername.slice(0, 2).toUpperCase()}</div><div><span>MY BOARDSIGNAL</span><h1>{account.chessCom.canonicalUsername}</h1><p>Private access · Current BoardSignal</p></div></header>;
+}
+
+function RoomNav({ tab, setTab, unreadCount, friendRequestCount }: { tab: RoomTab; setTab: (tab: RoomTab) => void; unreadCount: number; friendRequestCount: number }) {
+  const items = [
+    { id: "desk" as const, label: "Current", icon: Home },
+    { id: "progress" as const, label: "Progress", icon: TrendingUp },
+    { id: "universe" as const, label: "Universe", icon: Globe2 },
+    { id: "friends" as const, label: "Friends", icon: Users },
+    { id: "inbox" as const, label: "Inbox", icon: Inbox },
+    { id: "profile" as const, label: "Profile", icon: User },
+  ];
+  const activate = (nextTab: RoomTab) => {
+    setTab(nextTab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", nextTab);
+      window.history.replaceState({}, "", url);
+    }
+  };
+  const focusTab = (index: number) => {
+    const next = items[index];
+    if (!next) return;
+    activate(next.id);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => document.getElementById(`player-room-tab-${next.id}`)?.focus());
+    }
+  };
+  return <nav className="container room-tab-nav" aria-label="My BoardSignal sections"><div role="tablist" aria-label="My BoardSignal">{items.map((item, index) => { const Icon = item.icon; return <button type="button" role="tab" id={`player-room-tab-${item.id}`} aria-controls={`player-room-panel-${item.id}`} aria-selected={tab === item.id} tabIndex={tab === item.id ? 0 : -1} data-nav-group={index < 4 ? "primary" : "utility"} key={item.id} className={`companion-nav-button ${tab === item.id ? "active" : ""}`} onClick={() => activate(item.id)} onKeyDown={(event) => {
+    let nextIndex: number | undefined;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % items.length;
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + items.length) % items.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = items.length - 1;
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    focusTab(nextIndex);
+  }}><Icon className="companion-nav-icon" size={20} aria-hidden="true" /><span className="companion-nav-label">{item.label}</span>{item.id === "friends" && friendRequestCount > 0 ? <span className="unread-badge" aria-label={`${friendRequestCount} incoming friend request${friendRequestCount === 1 ? "" : "s"}`}>{friendRequestCount}</span> : null}{item.id === "inbox" && unreadCount > 0 ? <span className="unread-badge" aria-label={`${unreadCount} unread`}>{unreadCount}</span> : null}</button>; })}</div></nav>;
+}
+
+function CurrentContinuation({ suggestedPlayerCount, setTab }: { suggestedPlayerCount: number; setTab: (tab: RoomTab) => void }) {
+  return <section className="first-value-preview companion-continuation" aria-label="Continue from Current BoardSignal">
+    <div className="companion-continuation-heading"><span className="companion-section-icon"><TrendingUp size={19} aria-hidden="true" /></span><div><p className="kicker">NEXT</p><h2>See how this becomes progress.</h2><p>Your live picture stays in Current. Completed Reviews stay behind the current picture.</p></div></div>
+    <div className="companion-action-grid">
+      <button type="button" className="companion-action-button is-primary" onClick={() => setTab("progress")}><TrendingUp size={18} aria-hidden="true" /> <span>Progress</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("universe")}><Globe2 size={18} aria-hidden="true" /> <span>Universe</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("friends")}><Users size={18} aria-hidden="true" /> <span>{suggestedPlayerCount > 0 ? `Find ${suggestedPlayerCount} players` : "Friends"}</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("profile")}><User size={18} aria-hidden="true" /> <span>Profile</span></button>
+      <a className="companion-action-button" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener"><MessageCircle size={18} aria-hidden="true" /> <span>Discord</span></a>
+    </div>
+  </section>;
+}
+
+function CurrentEpisodeCard({ episode, uid, online, refreshing, onRefresh }: { episode: CurrentEpisodeWithNextGameGuidance; uid: string; online: boolean; refreshing: boolean; onRefresh: () => void }) {
+  const [liveStatus, setLiveStatus] = useState<"new" | "updated" | null>(null);
+  const latestGameId = episode.latestGame?.gameId;
+
+  useEffect(() => {
+    if (!online || !latestGameId || typeof window === "undefined") {
+      setLiveStatus(null);
+      return;
+    }
+    const key = `boardsignal:last-current-game:${uid}:${episode.periodStart}`;
+    try {
+      const previous = window.localStorage.getItem(key);
+      window.localStorage.setItem(key, latestGameId);
+      if (!previous || previous === latestGameId) {
+        setLiveStatus(null);
+        return;
+      }
+      setLiveStatus("new");
+      const settle = window.setTimeout(() => setLiveStatus("updated"), 2600);
+      return () => window.clearTimeout(settle);
+    } catch {
+      setLiveStatus(null);
+    }
+  }, [episode.periodStart, latestGameId, online, uid]);
+
+  const strongestRun = episode.currentWinRun >= episode.currentLossRun
+    ? episode.currentWinRun > 1 ? `${episode.currentWinRun} consecutive wins are the strongest live run so far.` : undefined
+    : episode.currentLossRun > 1 ? `${episode.currentLossRun} consecutive losses are the longest negative run so far.` : undefined;
+  const leadPool = [...episode.pools].filter((pool) => pool.ratingDelta !== undefined).sort((a, b) => Math.abs(b.ratingDelta ?? 0) - Math.abs(a.ratingDelta ?? 0))[0];
+  const factualStandout = strongestRun
+    ?? (leadPool?.ratingDelta !== undefined ? `${leadPool.pool} is currently ${leadPool.ratingDelta >= 0 ? "+" : ""}${leadPool.ratingDelta} across ${leadPool.games} game${leadPool.games === 1 ? "" : "s"}.` : undefined)
+    ?? (episode.games ? `${episode.games} games are already shaping the current record.` : "BoardSignal is waiting for the first games of this period.");
+  const guidance = episode.nextGameGuidance;
+  const hasGuidance = guidance.status === "available" || guidance.status === "fallback_previous_review";
+  const isCurrentGuidance = guidance.status === "available" && guidance.source !== "previous_review";
+  const evidenceCount = guidance.evidenceCount ?? 0;
+  const evidenceLabel = isCurrentGuidance
+    ? guidance.family === "loss_run"
+      ? `Current run: ${evidenceCount} loss${evidenceCount === 1 ? "" : "es"} · ${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} this period.`
+      : `Seen in ${evidenceCount} of ${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} this period.`
+    : undefined;
+  const guidanceSource = guidance.source === "previous_review"
+    ? `FROM YOUR LAST REVIEW${guidance.previousReviewPeriod ? ` · ${guidance.previousReviewPeriod}` : ""}`
+    : isCurrentGuidance ? "CURRENT PERIOD · PROVISIONAL" : undefined;
+  // B.1 rendered `Based on ${guidance.gamesConsidered}` before F.4 introduced evidence-aware counts.
+  const noGuidanceCopy = guidance.reason === "no_games"
+    ? "Play the first game of this period and BoardSignal will look for one safe thing to carry into the next one."
+    : guidance.reason === "derivation_unavailable"
+      ? "BoardSignal has your current games. Next-game guidance isn't available yet."
+      : "Nothing in the current games has enough factual support for a useful next-game action yet.";
+  const latest = episode.latestGame;
+  const mostRecentExample = isCurrentGuidance && guidance.family !== "loss_run" ? guidance.supportingFacts[0] : undefined;
+  const formatWhen = (occurredAt?: number) => occurredAt
+    ? new Date(occurredAt * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : undefined;
+  const resultLabel = latest ? `${latest.result.slice(0, 1).toUpperCase()}${latest.result.slice(1)}` : "";
+  const poolLabel = latest ? `${latest.pool.slice(0, 1).toUpperCase()}${latest.pool.slice(1)}` : "";
+  const latestNote = guidance.latestGameNote
+    ?? (latest
+      ? guidance.reason === "derivation_unavailable"
+        ? "BoardSignal saw this game. Next-game guidance isn't available yet."
+        : "BoardSignal saw this game. Nothing in the current period has crossed the evidence threshold for a specific next-game cue yet."
+      : undefined);
+  const checkedLabel = new Date(episode.checkedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  return <section className="current-episode-card g3-current-week" aria-labelledby="g3-current-board-signal-title">
+    <article className="companion-last-game" aria-label="Your last game">
+      <span className="companion-last-game-icon"><Swords size={23} aria-hidden="true" /></span>
+      <div className="companion-last-game-copy">
+        <span>YOUR LAST GAME</span>
+        {latest ? <><h2>{resultLabel} vs {latest.opponent} · {poolLabel}</h2><div className="companion-last-game-meta">{formatWhen(latest.occurredAt) ? <span>{formatWhen(latest.occurredAt)}</span> : null}{latest.supportsSelectedGuidance ? <span>Supports the current signal</span> : null}</div>{latestNote ? <p className="companion-last-game-note">{latestNote}</p> : null}{latest.supportsSelectedGuidance && latest.supportingSummary ? <p className="corner-supported-summary">{latest.supportingSummary}</p> : null}</> : <><h2>No game yet this period.</h2><p className="companion-last-game-note">BoardSignal will start adding factual current information as new Chess.com games arrive.</p></>}
+      </div>
+      <div className="companion-freshness-actions">
+        {liveStatus ? <div className={`corner-live-status companion-live-status ${liveStatus === "new" ? "is-new" : "is-updated"}`} role="status" aria-live="polite"><i className="corner-live-dot" aria-hidden="true" />{liveStatus === "new" ? "NEW GAME SEEN" : "UPDATED AFTER YOUR LAST GAME"}</div> : null}
+        <button type="button" className={`companion-refresh-button ${refreshing ? "is-refreshing" : ""}`} onClick={onRefresh} disabled={!online || refreshing} aria-label="Refresh Current BoardSignal"><RefreshCw size={17} aria-hidden="true" /><span>{refreshing ? "Refreshing" : "Refresh"}</span></button>
+        <small className="companion-checked-at">Checked {checkedLabel}{!online ? " · reconnect to refresh" : ""}</small>
+      </div>
+    </article>
+
+    <article className="g3-before-next-game companion-signal-card">
+      <div className="companion-signal-heading"><span className="companion-section-icon"><Target size={19} aria-hidden="true" /></span><div className="companion-signal-copy"><p className="kicker">LIVE PLAYER VIEW · CURRENT BOARDSIGNAL</p><h2 id="g3-current-board-signal-title">Your current signal</h2><small>{episode.periodLabel} · {episode.daysComplete} of 7 days complete</small></div></div>
+      {hasGuidance ? <><h3>{guidance.title}</h3><p>{guidance.copy}</p>{guidanceSource ? <small>{guidanceSource}</small> : null}{evidenceLabel ? <small className="corner-evidence-count">{evidenceLabel}</small> : null}</> : <><h3>Nothing specific yet.</h3><p>{noGuidanceCopy}</p><small>{guidance.gamesConsidered ? `${guidance.gamesConsidered} game${guidance.gamesConsidered === 1 ? "" : "s"} checked in this period.` : "No current-period evidence yet."}</small></>}
+    </article>
+
+    <article className="companion-next-game-card" aria-label="Before your next game"><span className="companion-action-icon"><ArrowRight size={18} aria-hidden="true" /></span><div className="companion-action-copy"><span>BEFORE YOUR NEXT GAME</span><strong>{hasGuidance ? guidance.title : "Keep playing normally."}</strong><p>{guidance.cornerFraming ?? (hasGuidance ? "Carry the current signal above into the next game. BoardSignal will keep watching what happens next." : noGuidanceCopy)}</p></div></article>
+
+    <section className="companion-current-snapshot" aria-label="Current BoardSignal facts">
+      <div className="companion-snapshot-heading"><div><span className="companion-section-icon"><BarChart3 size={18} aria-hidden="true" /></span><div><p className="kicker">CURRENT SNAPSHOT</p><strong>{episode.games ? `${episode.games} games are shaping the live picture.` : "Waiting for this period's first game."}</strong></div></div><small>{episode.daysRemaining} day{episode.daysRemaining === 1 ? "" : "s"} remaining</small></div>
+      <div className="current-episode-stats g3-current-week-stats"><div><span>Games so far</span><strong>{episode.games}</strong></div><div><span>Current record</span><strong>{episode.wins}W · {episode.draws}D · {episode.losses}L</strong></div><div><span>Period progress</span><strong>{episode.daysComplete} of 7 days</strong></div></div>
+    </section>
+
+    <div className="g3-current-detail-grid">
+      <article><span className="companion-inline-heading"><Activity size={17} aria-hidden="true" /> WHAT&apos;S STARTING TO STAND OUT?</span><h3>So far, this is factual.</h3><p>{factualStandout}</p><small>This is the live picture; it is not the final completed Review.</small></article>
+      <article><span className="companion-inline-heading"><Target size={17} aria-hidden="true" /> WHAT BOARDSIGNAL IS WATCHING</span><h3>What the next games add.</h3><p>BoardSignal is watching whether the current factual events repeat, strengthen or give way to something else as this period continues.</p><small>Position-based conclusions still wait for the completed Review.</small></article>
+    </div>
+    <p className="g3-review-due"><strong>This period closes into history:</strong> {episode.nextDeskDueAt} · {episode.daysRemaining} day{episode.daysRemaining === 1 ? "" : "s"} remaining. A game-bearing completed Review then moves behind Current BoardSignal.</p>
+    <details className="g3-disclosure g3-current-week-details">
+      <summary><span className="companion-details-summary"><BookOpen size={16} aria-hidden="true" /> SUPPORTING EVIDENCE</span><span>Current-period detail</span></summary>
+      <div className="g3-disclosure-body">
+        <div className="current-episode-stats g3-current-detail-stats"><div><span>Sessions</span><strong>{episode.sessions}</strong></div><div><span>Current win run</span><strong>{episode.currentWinRun}</strong></div><div><span>Current loss run</span><strong>{episode.currentLossRun}</strong></div></div>
+        {episode.pools.length ? <div className="forming-pools">{episode.pools.map((pool) => <article key={pool.pool}><span>{pool.pool}</span><strong>{pool.games} games</strong><p>{pool.wins}W · {pool.draws}D · {pool.losses}L{pool.ratingDelta !== undefined ? ` · ${pool.ratingDelta >= 0 ? "+" : ""}${pool.ratingDelta}` : ""}</p></article>)}</div> : null}
+        <div className="g3-current-detail-grid">
+          {mostRecentExample ? <article className="corner-recent-example"><span>MOST RECENT SUPPORTING EXAMPLE</span>{mostRecentExample.opponent ? <strong>vs {mostRecentExample.opponent}</strong> : null}{(mostRecentExample.pool || mostRecentExample.occurredAt) ? <small>{[mostRecentExample.pool, formatWhen(mostRecentExample.occurredAt)].filter(Boolean).join(" · ")}</small> : null}{mostRecentExample.movePlayed && mostRecentExample.opponentReply ? <b>{mostRecentExample.movePlayed} → {mostRecentExample.opponentReply}</b> : null}<p>{mostRecentExample.summary}</p>{mostRecentExample.gameUrl ? <a className="text-link" href={mostRecentExample.gameUrl} target="_blank" rel="noreferrer">Open game</a> : null}</article> : null}
+          {guidance.reinforcement ? <article className="corner-reinforcement"><span>{guidance.reinforcement.label}</span><p>{guidance.reinforcement.copy}</p></article> : null}
+        </div>
+        <p className="forming-note"><ShieldCheck size={15} /> Your next-game cue is deliberately narrow. When this period closes, the completed Review remains the authority for durable Signals and position conclusions.</p>
+      </div>
+    </details>
+  </section>;
+}
+
+function ReviewHistorySection({ history, reportPeriods, token, online, journal, onJournalChanged, embedded = false }: { history: CompletedReviewHistoryItem[]; reportPeriods: CanonicalReportPeriod[]; token: string; online: boolean; journal: ReviewJournal; onJournalChanged: (journal: ReviewJournal) => void; embedded?: boolean }) {
+  if (!reportPeriods.length) return null;
+  const byStart = new Map(history.map((review) => [review.periodStart, review]));
+  const ordered = [...reportPeriods].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
+  return <section className={embedded ? "g3-review-history-section g41-report-history" : "my-progress-section g41-report-history"}><div className="universal-section-heading"><span><CalendarDays size={16}/></span><div><p className="kicker">REPORT-PERIOD HISTORY</p><h2>Your latest completed seven-day periods.</h2><p>Every closed week stays in the chronology. Only weeks with real games become chess-performance evidence.</p></div></div><div className="desk-sequence g41-report-period-sequence">{ordered.map((period, index) => {
+    const review = period.outcome === "review" ? byStart.get(period.periodStart) : undefined;
+    if (period.outcome === "no_activity") return <article key={period.periodStart} className="g41-no-activity-card"><span>WEEK {index + 1} · NO ACTIVITY</span><strong>{period.periodLabel}</strong><p>{NO_ACTIVITY_COPY}</p><small>This week remains part of your history and contributes zero chess-performance evidence.</small></article>;
+    if (!period.outcome) return <article key={period.periodStart} className="g41-syncing-card"><span>WEEK {index + 1} · SYNCHRONIZING</span><strong>{period.periodLabel}</strong><p>BoardSignal is checking this completed report period now.</p><small>No performance conclusion is made until the period result is known.</small></article>;
+    if (!review) return <article key={period.periodStart} className="g41-review-card"><span>WEEK {index + 1} · REVIEW</span><strong>{period.periodLabel}</strong><p>This completed week contains real games and is part of the performance record.</p><small>The retained Review detail is synchronizing.</small></article>;
+    return <article key={review.reviewKey} className="g41-review-card"><span>WEEK {index + 1} · REVIEW · {reviewHistoryLifecycleLabel(review)}</span><strong>{review.periodLabel}</strong><p>{review.games} games · {review.wins}W · {review.draws}D · {review.losses}L · {review.scorePct.toFixed(1)}%</p><p>{review.headline}</p>{review.source === "original_beta" ? <><small>{review.sourceRichness} · {review.provenanceLabel}</small>{review.green ? <p><b>Green:</b> {review.green.title}</p> : null}{review.red ? <p><b>Red:</b> {review.red.title}</p> : null}{review.blue ? <p><b>Blue:</b> {review.blue.copy || review.blue.title}</p> : null}{review.publicCoverageHref ? <Link className="text-link" href={review.publicCoverageHref}>Open historical public story</Link> : null}</> : null}<PlayerReviewJournal review={{ reviewKey: review.reviewKey, periodStart: review.periodStart, periodEnd: review.periodEnd, periodLabel: review.periodLabel }} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} compact /></article>;
+  })}</div></section>;
+}
+
+function ProgressContinuation({ setTab }: { setTab: (tab: RoomTab) => void }) {
+  return <section className="first-value-preview companion-continuation" aria-label="Continue from Progress">
+    <div className="companion-continuation-heading"><span className="companion-section-icon"><Globe2 size={19} aria-hidden="true" /></span><div><p className="kicker">KEEP MOVING</p><h2>Your history connects to the world around you.</h2><p>Progress stays private and reflective. From here, jump to the wider field, your people, messages or account controls.</p></div></div>
+    <div className="companion-action-grid">
+      <button type="button" className="companion-action-button is-primary" onClick={() => setTab("universe")}><Globe2 size={18} aria-hidden="true" /> <span>Universe</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("friends")}><Users size={18} aria-hidden="true" /> <span>Friends</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("inbox")}><Inbox size={18} aria-hidden="true" /> <span>Inbox</span></button>
+      <button type="button" className="companion-action-button" onClick={() => setTab("profile")}><User size={18} aria-hidden="true" /> <span>Profile</span></button>
+      <a className="companion-action-button" href={BOARDSIGNAL_SUPPORT_DISCORD_URL} target="_blank" rel="noreferrer noopener"><MessageCircle size={18} aria-hidden="true" /> <span>Discord</span></a>
+    </div>
+  </section>;
+}
+
+function ProgressSection({ history, reportPeriods, coverage, progress, patterns, records, token, online, journal, onJournalChanged, setTab }: { history: CompletedReviewHistoryItem[]; reportPeriods: CanonicalReportPeriod[]; coverage?: ReviewHistoryCoverage; progress: ProgressSeries[]; patterns: RecurringPattern[]; records: PersonalRecords; token: string; online: boolean; journal: ReviewJournal; onJournalChanged: (journal: ReviewJournal) => void; setTab: (tab: RoomTab) => void }) {
+  const chronological = [...history].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
+  const metric = (label: string, values: Array<number | undefined>, suffix = "") => {
+    const present = values.filter((value): value is number => value !== undefined);
+    return present.length >= 2 ? <article><span>{label}</span><strong>{present.map((value) => `${value}${suffix}`).join(" → ")}</strong></article> : null;
+  };
+  const totalCount = coverage?.totalCount ?? reportPeriods.length;
+  const evaluatedCount = coverage?.evaluatedCount ?? reportPeriods.filter((period) => Boolean(period.outcome)).length;
+  return <section className="my-progress-section g3-progress-section g41-progress-section">
+    <div className="universal-section-heading companion-progress-heading"><span><TrendingUp size={18} /></span><div><p className="kicker">PROGRESS / PAST</p><h2>See what is changing over time.</h2><p>Your latest four game-bearing Reviews form the deeper record. No-activity periods stay in cadence history without pretending to be performance evidence.</p></div></div>
+    <div className="companion-progress-overview" aria-label="Progress overview">
+      <article className="companion-progress-card"><span className="companion-progress-icon"><CalendarDays size={17} aria-hidden="true" /></span><div><span>History coverage</span><strong>{evaluatedCount}/{totalCount} periods evaluated</strong></div></article>
+      <article className="companion-progress-card"><span className="companion-progress-icon"><BarChart3 size={17} aria-hidden="true" /></span><div><span>Personal best</span><strong>{records.personalBestWinRun} straight wins</strong></div></article>
+      <article className="companion-progress-card"><span className="companion-progress-icon"><History size={17} aria-hidden="true" /></span><div><span>Reviews completed</span><strong>{records.desksCompleted}</strong></div></article>
+    </div>
+    <div className="g41-history-coverage" role="status"><CalendarDays size={17}/><div><span>HISTORY COVERAGE</span><strong>{evaluatedCount}/{totalCount} completed periods evaluated</strong></div></div>
+    <div className="personal-record-strip"><BarChart3 size={18} /><div><span>Personal record</span><strong>{records.personalBestWinRun} straight wins</strong></div><div><span>Game-bearing Reviews completed</span><strong>{records.desksCompleted}</strong></div></div>
+    <PlayerReviewNotesTimeline token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} />
+    {patterns.length ? <div className="recurring-patterns"><div className="companion-inline-heading"><Target size={17} aria-hidden="true" /><p className="kicker">RECURRING PATTERNS · GAME-BEARING REVIEWS ONLY</p></div>{patterns.map((pattern) => <article key={`${pattern.family}:${pattern.status}`}><Target size={16} /><div><strong>{pattern.family.replaceAll("_", " ")}</strong><p>{pattern.message}</p></div></article>)}</div> : <div className="universe-empty"><p>More completed Reviews with real games and compatible signal families are needed before BoardSignal can name a recurring pattern. NO ACTIVITY weeks do not count against you.</p></div>}
+    <div className="g3-progress-trends"><div className="companion-inline-heading"><Activity size={17} aria-hidden="true" /><p className="kicker">COMPATIBLE TRENDS · GAME-BEARING REVIEWS ONLY</p></div>{progress.map((series) => <div className="pool-progress" key={series.pool}><h3>{series.pool} progress</h3><div>{metric("Score", series.points.map((point) => point.scorePct), "%")}{metric("Rating movement", series.points.map((point) => point.ratingDelta))}</div></div>)}<div className="cross-desk-metrics">{metric("Winning run", chronological.map((review) => review.longestWinRun))}{metric("Median game length", chronological.map((review) => review.medianGameLength))}{metric("Black score", chronological.map((review) => review.blackScorePct), "%")}</div></div>
+    <details className="g3-disclosure g3-review-history-disclosure companion-review-history-disclosure" open><summary><span className="companion-details-summary"><History size={16} aria-hidden="true" /> PAST PERIODS</span></summary><div className="g3-disclosure-body"><ReviewHistorySection history={history} reportPeriods={reportPeriods} token={token} online={online} journal={journal} onJournalChanged={onJournalChanged} embedded /></div></details>
+    <ProgressContinuation setTab={setTab} />
+  </section>;
+}
+
+function ShareMomentsSection({ moments }: { moments: SafeShareMoment[] }) {
+  if (!moments.length) return null;
+  return <section className="share-moments-section"><div className="universal-section-heading"><span>↗</span><div><p className="kicker">YOUR SHAREABLE MOMENTS</p><h2>Up to three public-safe facts from this completed review.</h2><p>Private improvement guidance, reviewed positions and recurring patterns never become public highlights.</p></div></div><div className="share-moment-grid">{moments.map((moment) => <article key={moment.id} className="share-moment-card"><span>{moment.statLabel}</span><h3>{moment.headline}</h3><strong>{moment.statValue}</strong><p>{moment.supportingFact}</p><ShareMomentActions moment={moment} /></article>)}</div></section>;
+}
+
+function PulseCards({ cards }: { cards: NonNullable<PlayerPulse["boardMoved"]> }) {
+  if (!cards.length) return null;
+  return <div className="pulse-card-grid g4-pulse-card-grid">{cards.map((card) => <article className={`pulse-card pulse-${card.kind} g4-pulse-card`} key={card.id}><div className="pulse-card-label"><span>{card.eyebrow}</span><b>{card.finality === "provisional" ? "PROVISIONAL" : "OFFICIAL"}</b></div><h3>{card.title}</h3><p>{card.body}</p>{card.facts?.length ? <ul>{card.facts.map((fact) => <li key={fact}>{fact}</li>)}</ul> : null}</article>)}</div>;
+}
+
+function UniverseEventCards({ events, heading, account, socialPlayers, onSocialAction }: { events: PublicUniverseEvent[]; heading: string; account: BoardSignalAccount; socialPlayers: Record<string, SocialSummaryPlayer>; onSocialAction: (username: string) => Promise<void> }) {
+  if (!events.length) return null;
+  return <section className="pulse-universe-block g4-universe-block"><div className="pulse-block-heading"><p className="kicker">{heading}</p></div><div className="pulse-event-grid g4-event-grid">{events.map((event) => { const social = socialPlayers[event.canonicalUsername.toLowerCase()]; const canConnect = event.playerId !== String(account.chessCom.playerId); return <article key={event.eventId}><div className="pulse-event-meta"><span>{boardSignalPresentationLabel(event.eventType)}</span><b>OFFICIAL</b></div><h3>{event.headline}</h3><p>{event.supportingFact}</p><small>{new Date(event.publishedAt).toLocaleDateString()}</small>{canConnect ? <button type="button" className="text-link social-text-button" onClick={() => void onSocialAction(event.canonicalUsername)}>{social?.relationshipStatus === "friends" ? "Compare" : social ? "Open Friends" : "Add Friend"}</button> : null}</article>; })}</div></section>;
+}
+
+function UniverseRoomPanel({ account, pulse, unavailable, socialPlayers, onSocialAction }: { account: BoardSignalAccount; pulse?: PlayerPulse; unavailable?: string; socialPlayers: Record<string, SocialSummaryPlayer>; onSocialAction: (username: string) => Promise<void> }) {
+  const standings = pulse?.standings ?? [];
+  const groups = pulse?.groups ?? [];
+  const strongest = [...standings].sort((a, b) => a.rank - b.rank || b.denominator - a.denominator).slice(0, 3);
+  const fieldEventIds = new Set((pulse?.fieldMoved ?? []).map((event) => event.eventId));
+  const justIn = (pulse?.justIn ?? []).filter((event) => !fieldEventIds.has(event.eventId));
+  const justInIds = new Set(justIn.map((event) => event.eventId));
+  const whatsHot = (pulse?.whatsHot ?? []).filter((event) => !justInIds.has(event.eventId) && !fieldEventIds.has(event.eventId));
+  const fromField = groups.flatMap((group) => group.boards.flatMap((board) => board.entries.slice(0, 1).map((entry) => ({ group, board, entry })))).filter(({ entry }) => entry.player.toLowerCase() !== account.chessCom.canonicalUsername.toLowerCase()).filter((item, index, all) => all.findIndex((other) => other.entry.stablePlayerId ? other.entry.stablePlayerId === item.entry.stablePlayerId && other.board.categoryId === item.board.categoryId : other.entry.player.toLowerCase() === item.entry.player.toLowerCase() && other.board.categoryId === item.board.categoryId) === index).slice(0, 6);
+
+  if (!pulse) return <section className="player-universe-panel g4-universe-panel"><div className="g4-live-field-header"><p className="kicker">THE BOARDSIGNAL UNIVERSE</p><h2>LIVE FIELD</h2><p>Current official field state is temporarily unavailable. {unavailable ?? "Your completed Review and private progress remain unchanged."}</p></div><div className="g4-universe-unavailable" role="status"><strong>CURRENT FIELD TEMPORARILY UNAVAILABLE</strong><p>BoardSignal will not substitute the old founding field as if it were current.</p></div></section>;
+
+  return <section className="player-universe-panel g4-universe-panel">
+    <header className="g4-live-field-header">
+      <p className="kicker">THE BOARDSIGNAL UNIVERSE</p>
+      <div className="g4-live-field-title"><h2>LIVE FIELD</h2><span>{pulse.officialPlayerCount} player{pulse.officialPlayerCount === 1 ? "" : "s"} represented</span></div>
+      <p>See what&apos;s happening across BoardSignal, discover players, and connect around the chess you&apos;re already playing. Official standings use each player&apos;s latest eligible completed Review; current-period comparisons stay private and provisional until the Review closes.</p>
+      <Link href={`/player/${encodeURIComponent(account.chessCom.canonicalUsername)}`} className="button button-outline">Open my highlights</Link>
+    </header>
+
+    <section className="pulse-universe-block g4-universe-block g4-own-position"><div className="pulse-block-heading"><p className="kicker">YOUR OFFICIAL POSITION</p></div>{strongest.length ? <div className="g4-official-position-grid">{strongest.map((standing) => <article key={`${standing.categoryId}:${standing.scopeLabel ?? "all"}`}><span>OFFICIAL</span><strong>#{standing.rank} OF {standing.denominator}</strong><h3>{standing.categoryTitle}{standing.scopeLabel ? ` · ${standing.scopeLabel}` : ""}</h3><p>{standing.valueLabel}</p></article>)}</div> : <div className="universe-empty"><p>No official board position yet.</p></div>}</section>
+
+    {pulse.reviewMovement.length ? <section className="pulse-universe-block g4-universe-block"><p className="kicker">YOUR REVIEW MOVEMENT</p><PulseCards cards={pulse.reviewMovement} /></section> : null}
+
+    {(pulse.boardMoved.length || pulse.fieldMoved.length || pulse.sinceAway) ? <section className="pulse-universe-block g4-universe-block"><p className="kicker">SINCE YOUR LAST VISIT</p>{pulse.boardMoved.length ? <PulseCards cards={pulse.boardMoved} /> : null}{pulse.sinceAway ? <PulseCards cards={[pulse.sinceAway]} /> : null}{pulse.fieldMoved.length ? <UniverseEventCards events={pulse.fieldMoved} heading="THE FIELD AROUND YOU" account={account} socialPlayers={socialPlayers} onSocialAction={onSocialAction} /> : null}</section> : null}
+
+    {pulse.provisional.length ? <section className="pulse-universe-block g4-universe-block g4-provisional-block"><p className="kicker">CURRENT PERIOD · PROVISIONAL</p><p className="g4-block-intro">Your forming period has not become official. These private comparisons do not change the field or create public activity.</p><PulseCards cards={pulse.provisional} /></section> : null}
+
+    {pulse.proximity.length ? <section className="pulse-universe-block g4-universe-block"><p className="kicker">IN REACH / ON YOUR RADAR</p><PulseCards cards={pulse.proximity} /></section> : null}
+
+    <UniverseEventCards events={justIn} heading="JUST IN" account={account} socialPlayers={socialPlayers} onSocialAction={onSocialAction} />
+    <UniverseEventCards events={whatsHot} heading="WHAT'S HOT" account={account} socialPlayers={socialPlayers} onSocialAction={onSocialAction} />
+
+    {fromField.length ? <section className="pulse-universe-block g4-universe-block"><p className="kicker">FROM THE FIELD</p><div className="universe-learning-grid g4-from-field-grid">{fromField.map(({ group, board, entry }) => { const social = socialPlayers[entry.player.toLowerCase()]; const canConnect = Boolean(entry.stablePlayerId && entry.stablePlayerId !== String(account.chessCom.playerId)); const content = <><span>#1 {group.title}{board.scopeLabel ? ` · ${board.scopeLabel}` : ""}</span><h3>{entry.player}</h3><strong>{entry.valueLabel}</strong><p>{entry.coverageHeadline ?? entry.evidence}</p>{entry.coverageHref ? <small>Open highlight</small> : <small>Official field performance</small>}</>; return <article key={`${board.key}:${entry.stablePlayerId ?? entry.player}`}>{entry.coverageHref ? <Link href={entry.coverageHref}>{content}</Link> : <div className="g4-field-card-static">{content}</div>}{canConnect ? <button type="button" className="text-link social-text-button" onClick={() => void onSocialAction(entry.player)}>{social?.relationshipStatus === "friends" ? "Compare" : social ? "Open Friends" : "Add Friend"}</button> : null}</article>; })}</div></section> : null}
+
+    <section className="pulse-universe-block g4-universe-block g4-official-boards"><div className="pulse-block-heading"><p className="kicker">OFFICIAL STANDINGS</p>{pulse.fieldLabels.length ? <span>{pulse.fieldLabels.map(boardSignalPresentationLabel).join(" · ")}</span> : null}</div>{groups.some((group) => group.boards.length) ? <UniverseCategoryCards groups={groups} /> : <div className="inbox-empty"><Inbox size={20} /><div><strong>The official boards are still forming.</strong><p>No current comparison category has enough eligible completed Review evidence yet.</p></div></div>}</section>
+
+    <section className="pulse-universe-block g4-universe-block g4-universe-archive" id="g4-universe-archive"><p className="kicker">ARCHIVE</p><h3>Earlier BoardSignal coverage remains historical context.</h3><p>Older founding coverage and completed Review history stay available without being presented as fresh field activity.</p><div className="g4-archive-links"><Link href="/feed#archive" className="text-link">Open founding coverage archive</Link></div></section>
+  </section>;
+}
+function RoomLoading() {
+  return <div id="main" className="desk-processing-page"><section className="container desk-processing-card"><div className="processing-orb"><LoaderCircle /></div><p className="kicker">MY BOARDSIGNAL</p><h1>Loading your private BoardSignal state</h1></section></div>;
+}
+
+function RoomError({ error }: { error: string }) {
+  return <div id="main" className="desk-processing-page"><section className="container desk-processing-card error-card"><ShieldCheck /><p className="kicker">MY BOARDSIGNAL HELD SAFELY</p><h1>Your private BoardSignal could not be loaded</h1><p>{error}</p></section></div>;
+}

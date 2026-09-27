@@ -2,12 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 
-import InstallPrompt from "@/components/InstallPrompt";
-import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import Loader from "@/components/AdminHubLoader";
-import ChatWidget from "@/components/ChatWidget";
+import AdminHubShell from "@/components/AdminHubShell";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 import { Analytics } from "@vercel/analytics/next";
@@ -49,7 +44,7 @@ export const metadata: Metadata = {
     "admin dashboard",
     "lead pipeline",
     "project delivery system",
-    "48-hour live prototype",
+    "rapid live prototype",
     "managed support platform",
     "Next.js Firebase PWA",
   ],
@@ -62,7 +57,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "AdminHub Global",
     description:
-      "A custom 9th-iteration PWA framework and operating platform for agent-led SME digital delivery, client portals, project workflows, and managed support.",
+      "A reusable 10th-iteration application build engine and operating platform for agent-led SME digital delivery, client portals, project workflows, and managed support.",
     siteName: "AdminHub Global",
     type: "website",
   },
@@ -96,22 +91,8 @@ export default function RootLayout({
         suppressHydrationWarning
         className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans antialiased"
       >
-        <Loader />
-
         <AnalyticsProvider>
-          <div className="flex min-h-screen flex-col bg-[var(--background)]">
-            <div className="sticky top-0 z-40 border-b border-[var(--border)] bg-[rgba(6,10,18,0.82)] shadow-[0_10px_35px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-              <Header />
-            </div>
-
-            <main className="flex-1">{children}</main>
-
-            <Footer />
-          </div>
-
-          <ServiceWorkerRegister />
-          <InstallPrompt />
-          <ChatWidget />
+          <AdminHubShell>{children}</AdminHubShell>
           <Analytics />
           <SpeedInsights />
         </AnalyticsProvider>

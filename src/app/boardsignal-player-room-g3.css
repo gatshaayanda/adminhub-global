@@ -1,0 +1,779 @@
+/* BoardSignal G.3 — authenticated Player Room hierarchy only. */
+.player-room-authenticated {
+  --g3-reading-width: 72rem;
+}
+
+.player-room-authenticated .player-room-identity {
+  width: min(100% - 1rem, var(--g3-reading-width));
+  padding-block: .7rem;
+}
+
+.player-room-authenticated .player-room-identity .universal-avatar {
+  width: 44px;
+  height: 44px;
+  font-size: .75rem;
+}
+
+.player-room-authenticated .player-room-identity h1 {
+  font-size: clamp(1.45rem, 3vw, 2.4rem);
+}
+
+.player-room-authenticated .room-tab-nav {
+  width: min(100% - 1rem, var(--g3-reading-width));
+  overflow: visible;
+  padding: .35rem;
+}
+
+.player-room-authenticated .room-tab-nav > [role="tablist"] {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: .25rem;
+  width: 100%;
+}
+
+.player-room-authenticated .room-tab-nav [role="tab"] {
+  min-width: 0;
+  min-height: 48px;
+  padding: .55rem .5rem;
+  white-space: normal;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.player-room-authenticated .unread-badge {
+  min-width: 20px;
+  height: 20px;
+  background: var(--bs-danger-surface);
+  border: 1px solid var(--bs-danger);
+  color: var(--bs-danger);
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+.player-room-authenticated .room-tab-nav [role="tab"][data-nav-group="utility"] {
+  border-color: color-mix(in srgb, var(--bs-border-strong) 45%, transparent);
+}
+
+.player-room-authenticated .room-tab-nav [role="tab"]:focus-visible,
+.player-room-authenticated .g3-disclosure > summary:focus-visible,
+.player-room-authenticated .g3-nested-disclosure > summary:focus-visible,
+.player-room-authenticated .g3-proof-link:focus-visible {
+  outline: 3px solid var(--bs-focus);
+  outline-offset: 3px;
+}
+
+.player-room-authenticated .g3-room-panel {
+  min-width: 0;
+}
+
+.player-room-authenticated .g3-review-flow,
+.player-room-authenticated .g3-post-review,
+.player-room-authenticated .g3-player-room-desk-shell {
+  width: min(100% - 1rem, var(--g3-reading-width));
+}
+
+.player-room-authenticated .g3-review-flow {
+  display: grid;
+  gap: 1rem;
+  padding-block: 1rem 0;
+}
+
+.player-room-authenticated .g3-quick-read {
+  padding: clamp(1rem, 2.5vw, 1.75rem);
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .g3-quick-read-heading,
+.player-room-authenticated .g3-layer-heading,
+.player-room-authenticated .g3-proof-subheading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+}
+
+.player-room-authenticated .g3-quick-read-heading > p,
+.player-room-authenticated .g3-layer-heading > p,
+.player-room-authenticated .g3-proof-subheading > p {
+  max-width: 48ch;
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated .g3-quick-read-heading h2,
+.player-room-authenticated .g3-layer-heading h2 {
+  margin-top: .25rem;
+  color: var(--bs-text-primary);
+  font-size: clamp(1.75rem, 4vw, 3.2rem);
+  line-height: 1;
+}
+
+.player-room-authenticated .g3-quick-read-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
+  margin-top: 1.25rem;
+}
+
+.player-room-authenticated .g3-quick-item {
+  min-width: 0;
+  padding: 1rem;
+  border-top: 1px solid var(--bs-border-strong);
+  background: transparent;
+}
+
+.player-room-authenticated .g3-quick-item > span,
+.player-room-authenticated .g3-before-next-game > span,
+.player-room-authenticated .g3-current-detail-grid article > span,
+.player-room-authenticated .g3-proof-signal > span {
+  display: block;
+  color: var(--bs-text-muted);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.player-room-authenticated .g3-quick-item h3,
+.player-room-authenticated .g3-before-next-game > h3,
+.player-room-authenticated .g3-proof-signal h3 {
+  margin-top: .45rem;
+  color: var(--bs-text-primary);
+  font-size: clamp(1.05rem, 2vw, 1.45rem);
+}
+
+.player-room-authenticated .g3-quick-item p,
+.player-room-authenticated .g3-proof-signal p {
+  margin-top: .45rem;
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated .g3-quick-item small {
+  display: block;
+  margin-top: .7rem;
+  color: var(--bs-text-muted);
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+.player-room-authenticated .g3-quick-happened {
+  border-top-width: 4px;
+  border-top-color: var(--bs-brand-primary);
+}
+
+.player-room-authenticated .g3-quick-before {
+  border: 0;
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-inverse);
+}
+
+.player-room-authenticated .g3-quick-before > span,
+.player-room-authenticated .g3-quick-before h3,
+.player-room-authenticated .g3-quick-before p,
+.player-room-authenticated .g3-quick-before small {
+  color: var(--bs-text-on-inverse);
+}
+
+.player-room-authenticated .g3-quick-working {
+  border-top-color: var(--bs-positive);
+}
+
+.player-room-authenticated .g3-quick-costing {
+  border-top-color: var(--bs-danger);
+}
+
+.player-room-authenticated .g3-record-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem 1rem;
+  margin-top: .85rem;
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated .g3-record-line b {
+  color: var(--bs-brand-primary);
+}
+
+.player-room-authenticated .g3-current-week {
+  margin: 0;
+  padding: clamp(1rem, 2.5vw, 1.75rem);
+  border-top-width: 1px;
+}
+
+.player-room-authenticated .g3-current-week .current-episode-heading h2 {
+  font-size: clamp(1.65rem, 4vw, 2.8rem);
+}
+
+.player-room-authenticated .g3-current-week-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.player-room-authenticated .g3-before-next-game {
+  position: relative;
+  margin-top: 1rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-inverse);
+}
+
+.player-room-authenticated .g3-before-next-game > span,
+.player-room-authenticated .g3-before-next-game > h3,
+.player-room-authenticated .g3-before-next-game > p,
+.player-room-authenticated .g3-before-next-game > small {
+  color: var(--bs-text-on-inverse);
+}
+
+.player-room-authenticated .g3-before-next-game > small {
+  display: block;
+  margin-top: .55rem;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.player-room-authenticated .g3-review-due {
+  margin-top: .85rem;
+  color: var(--bs-text-secondary);
+  font-size: .82rem;
+}
+
+.player-room-authenticated .g3-disclosure,
+.player-room-authenticated .g3-nested-disclosure {
+  margin-top: .75rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface);
+}
+
+.player-room-authenticated details.g3-disclosure > summary,
+.player-room-authenticated details.g3-nested-disclosure > summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .85rem 1rem;
+  color: var(--bs-text-primary);
+  font-size: .76rem;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.player-room-authenticated details.g3-disclosure > summary span,
+.player-room-authenticated details.g3-nested-disclosure > summary span {
+  color: var(--bs-text-muted);
+  font-size: .75rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.player-room-authenticated details.g3-disclosure[open] > summary,
+.player-room-authenticated details.g3-nested-disclosure[open] > summary {
+  border-bottom: 1px solid var(--bs-border);
+}
+
+.player-room-authenticated .g3-disclosure-body {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.player-room-authenticated .g3-current-detail-stats {
+  margin-top: 0;
+}
+
+.player-room-authenticated .g3-current-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
+}
+
+.player-room-authenticated .g3-current-detail-grid > article {
+  min-width: 0;
+  padding: .9rem;
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-surface-elevated);
+}
+
+.player-room-authenticated .g3-current-detail-grid article p,
+.player-room-authenticated .g3-current-detail-grid article small {
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated .g3-player-room-desk {
+  min-height: 0;
+  padding-block: 1rem 0;
+  background: transparent;
+}
+
+.player-room-authenticated .g3-player-room-desk-shell {
+  max-width: var(--g3-reading-width);
+}
+
+.player-room-authenticated .g3-review-proof,
+.player-room-authenticated .g3-deeper-review {
+  padding: clamp(1rem, 2.5vw, 1.75rem);
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .g3-deeper-review {
+  margin-top: 1rem;
+  box-shadow: none;
+}
+
+.player-room-authenticated .g3-proof-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+  margin-top: 1.25rem;
+}
+
+.player-room-authenticated .g3-proof-signal {
+  min-width: 0;
+  padding: .9rem 0;
+  border-top: 3px solid var(--bs-border-strong);
+}
+
+.player-room-authenticated .g3-proof-green { border-top-color: var(--bs-positive); }
+.player-room-authenticated .g3-proof-red { border-top-color: var(--bs-danger); }
+.player-room-authenticated .g3-proof-amber { border-top-color: var(--bs-warning); }
+.player-room-authenticated .g3-proof-blue { border-top-color: var(--bs-brand-primary); }
+
+.player-room-authenticated .g3-proof-link {
+  display: inline-block;
+  margin-top: .7rem;
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+.player-room-authenticated .g3-linked-evidence {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--bs-border);
+}
+
+.player-room-authenticated .g3-proof-subheading h3 {
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated .g3-evidence-list article {
+  grid-template-columns: 108px minmax(0, 1fr) auto;
+  background: var(--bs-surface-elevated);
+}
+
+.player-room-authenticated .g3-evidence-list article.g3-linked-evidence-card {
+  grid-template-columns: 108px minmax(0, 1fr) auto;
+}
+
+.player-room-authenticated .g3-evidence-supports {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+
+.player-room-authenticated .g3-evidence-supports span {
+  padding: .3rem .5rem;
+  border: 1px solid var(--bs-border-strong);
+  border-radius: 999px;
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+
+.player-room-authenticated .g3-evidence-list .evidence-eval strong {
+  color: var(--bs-text-secondary);
+  font-size: .9rem;
+}
+
+.player-room-authenticated .g3-inline-review-section {
+  padding-top: 1rem;
+  border-top: 1px solid var(--bs-border);
+}
+
+.player-room-authenticated .g3-deeper-review > .g3-disclosure {
+  margin-top: .6rem;
+}
+
+.player-room-authenticated .g3-deeper-review .universal-timeline {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.player-room-authenticated .g3-review-notes .desk-caveats {
+  margin-top: 0;
+}
+
+.player-room-authenticated .g3-around-review .private-universe-section {
+  margin-top: 0;
+}
+
+.player-room-authenticated .g3-post-review {
+  padding-top: 0;
+}
+
+.player-room-authenticated .g3-post-review .share-moments-section {
+  margin-top: 1rem;
+}
+
+.player-room-authenticated .g3-progress-section {
+  max-width: var(--g3-reading-width);
+}
+
+.player-room-authenticated .g3-progress-trends,
+.player-room-authenticated .g3-progress-section .recurring-patterns {
+  margin-top: 1.25rem;
+}
+
+.player-room-authenticated .g3-review-history-section .universal-section-heading {
+  margin-bottom: 1rem;
+}
+
+.player-room-authenticated .g3-review-history-section .desk-sequence {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .player-room-authenticated .g3-quick-read-grid,
+  .player-room-authenticated .g3-proof-signal-grid,
+  .player-room-authenticated .g3-current-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .player-room-authenticated .g3-deeper-review .universal-timeline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .player-room-authenticated {
+    padding-top: .35rem;
+  }
+
+  .player-room-authenticated .player-room-identity {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: .65rem;
+    padding: .55rem .35rem;
+  }
+
+  .player-room-authenticated .player-room-identity .universal-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .player-room-authenticated .player-room-identity h1 {
+    font-size: 1.35rem;
+  }
+
+  .player-room-authenticated .player-room-identity p {
+    margin-top: .1rem;
+    font-size: .75rem;
+  }
+
+  .player-room-authenticated .room-tab-nav {
+    position: relative;
+    top: auto;
+    margin-top: .35rem;
+    border-radius: var(--bs-radius-md);
+  }
+
+  .player-room-authenticated .room-tab-nav > [role="tablist"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .player-room-authenticated .room-tab-nav [role="tab"] {
+    padding-inline: .35rem;
+    font-size: .76rem;
+  }
+
+  .player-room-authenticated .g3-quick-read,
+  .player-room-authenticated .g3-current-week,
+  .player-room-authenticated .g3-review-proof,
+  .player-room-authenticated .g3-deeper-review {
+    padding: 1rem;
+    border-radius: var(--bs-radius-md);
+  }
+
+  .player-room-authenticated .g3-quick-read-heading,
+  .player-room-authenticated .g3-layer-heading,
+  .player-room-authenticated .g3-proof-subheading,
+  .player-room-authenticated .current-episode-heading {
+    display: grid;
+    align-items: start;
+  }
+
+  .player-room-authenticated .g3-current-week-stats,
+  .player-room-authenticated .g3-current-detail-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .player-room-authenticated .g3-current-week-stats > div,
+  .player-room-authenticated .g3-current-detail-stats > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--bs-border);
+  }
+
+  .player-room-authenticated .g3-current-week-stats > div:last-child,
+  .player-room-authenticated .g3-current-detail-stats > div:last-child {
+    border-bottom: 0;
+  }
+
+  .player-room-authenticated .g3-evidence-list article,
+  .player-room-authenticated .g3-evidence-list article.g3-linked-evidence-card {
+    grid-template-columns: 1fr;
+  }
+
+  .player-room-authenticated .g3-evidence-supports {
+    grid-column: auto;
+  }
+
+  .player-room-authenticated .g3-evidence-list article .button {
+    width: 100%;
+  }
+
+  .player-room-authenticated .g3-deeper-review .universal-timeline {
+    grid-template-columns: 1fr;
+  }
+
+  .player-room-authenticated .g3-deeper-review .replay-callouts,
+  .player-room-authenticated .g3-deeper-review .desk-fact-grid,
+  .player-room-authenticated .g3-deeper-review .desk-detail-columns,
+  .player-room-authenticated .g3-deeper-review .universal-signal-grid,
+  .player-room-authenticated .g3-progress-section .pool-progress > div,
+  .player-room-authenticated .g3-progress-section .cross-desk-metrics,
+  .player-room-authenticated .g3-review-history-section .desk-sequence {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .player-room-authenticated .room-tab-nav [role="tab"] {
+    min-height: 52px;
+    font-size: .76rem;
+  }
+
+  .player-room-authenticated .unread-badge {
+    min-width: 20px;
+    height: 20px;
+    margin-left: .2rem;
+    font-size: .75rem;
+  }
+}
+
+/* Patch J — private Review journal. Neutral signifiers only; note types are not grades. */
+.player-room-authenticated .g3-review-journal-slot {
+  width: min(100% - 1rem, var(--g3-reading-width));
+  padding-block: 1rem;
+}
+
+.player-room-authenticated .review-journal,
+.player-room-authenticated .review-journal-progress {
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .review-journal { padding: clamp(1rem, 2.5vw, 1.5rem); }
+.player-room-authenticated .review-journal.is-compact { margin-top: 1rem; padding: 1rem; box-shadow: none; }
+.player-room-authenticated .review-journal-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.player-room-authenticated .review-journal-heading h3 { margin: .2rem 0; }
+.player-room-authenticated .review-journal-heading p:not(.kicker),
+.player-room-authenticated .review-journal-empty,
+.player-room-authenticated .review-journal-field-help,
+.player-room-authenticated .review-journal-body-label span,
+.player-room-authenticated .review-journal-note small,
+.player-room-authenticated .review-journal-progress summary small { color: var(--bs-text-secondary); }
+.player-room-authenticated .review-journal-heading > span,
+.player-room-authenticated .review-journal-period,
+.player-room-authenticated .review-journal-note-type { font-size: .75rem; font-weight: 800; letter-spacing: .07em; }
+.player-room-authenticated .review-journal-heading > span { padding: .35rem .55rem; border: 1px solid var(--bs-border-strong); border-radius: 999px; }
+.player-room-authenticated .review-journal-add,
+.player-room-authenticated .review-journal-note-actions button { min-height: 44px; border: 1px solid var(--bs-border-strong); border-radius: var(--bs-radius-md); background: transparent; color: var(--bs-text-primary); font: inherit; font-weight: 800; cursor: pointer; }
+.player-room-authenticated .review-journal-add { margin-top: 1rem; padding: .7rem .9rem; }
+.player-room-authenticated .review-journal-note-actions button { padding: .55rem .75rem; }
+.player-room-authenticated .review-journal-add:disabled,
+.player-room-authenticated .review-journal-note-actions button:disabled { cursor: not-allowed; opacity: .7; }
+.player-room-authenticated .review-journal-add:focus-visible,
+.player-room-authenticated .review-journal-note-actions button:focus-visible,
+.player-room-authenticated .review-journal-editor button:focus-visible,
+.player-room-authenticated .review-journal-editor textarea:focus-visible,
+.player-room-authenticated .review-journal-type-grid input:focus-visible,
+.player-room-authenticated .review-journal-progress > summary:focus-visible { outline: 3px solid var(--bs-focus); outline-offset: 3px; }
+.player-room-authenticated .review-journal-note-list { display: grid; gap: .75rem; margin-top: 1rem; }
+.player-room-authenticated .review-journal-note { padding: 1rem; border: 1px solid var(--bs-border); border-radius: var(--bs-radius-md); background: var(--bs-surface-soft); }
+.player-room-authenticated .review-journal-note > p { margin: .55rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.player-room-authenticated .review-journal-period { display: block; margin-bottom: .25rem; color: var(--bs-text-secondary); }
+.player-room-authenticated .review-journal-note-actions,
+.player-room-authenticated .review-journal-editor-actions,
+.player-room-authenticated .review-journal-delete-confirm > div { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.player-room-authenticated .review-journal-editor { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--bs-border); }
+.player-room-authenticated .review-journal-editor fieldset { margin: 0; padding: 0; border: 0; }
+.player-room-authenticated .review-journal-editor legend,
+.player-room-authenticated .review-journal-body-label > strong { font-weight: 800; }
+.player-room-authenticated .review-journal-type-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin-top: .75rem; }
+.player-room-authenticated .review-journal-type-grid label { display: flex; min-height: 64px; gap: .55rem; align-items: flex-start; padding: .75rem; border: 1px solid var(--bs-border); border-radius: var(--bs-radius-md); cursor: pointer; }
+.player-room-authenticated .review-journal-type-grid label.is-selected { border-color: var(--bs-border-strong); background: var(--bs-surface-soft); }
+.player-room-authenticated .review-journal-type-grid input { width: 20px; height: 20px; margin-top: .1rem; }
+.player-room-authenticated .review-journal-type-grid span,
+.player-room-authenticated .review-journal-body-label { display: grid; gap: .2rem; }
+.player-room-authenticated .review-journal-type-grid small { color: var(--bs-text-secondary); }
+.player-room-authenticated .review-journal-body-label { margin-top: 1rem; }
+.player-room-authenticated .review-journal-editor textarea { width: 100%; min-height: 110px; margin-top: .5rem; padding: .75rem; border: 1px solid var(--bs-border-strong); border-radius: var(--bs-radius-md); background: var(--bs-surface); color: var(--bs-text-primary); font: inherit; resize: vertical; }
+.player-room-authenticated .review-journal-editor-meta { display: flex; justify-content: space-between; gap: .75rem; margin-top: .35rem; }
+.player-room-authenticated .review-journal-error,
+.player-room-authenticated .review-journal-offline { margin-top: .75rem; color: var(--bs-text-secondary); }
+.player-room-authenticated .review-journal-delete-confirm { margin-top: .75rem; padding: .75rem; border: 1px solid var(--bs-border-strong); border-radius: var(--bs-radius-md); }
+.player-room-authenticated .review-journal-progress { margin: 1rem 0; }
+.player-room-authenticated .review-journal-progress > summary { min-height: 48px; display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: 1rem; cursor: pointer; }
+.player-room-authenticated .review-journal-progress > summary span { display: grid; gap: .2rem; }
+.player-room-authenticated .review-journal-progress-body { padding: 0 1rem 1rem; }
+@media (max-width: 720px) {
+  .player-room-authenticated .review-journal-type-grid { grid-template-columns: 1fr; }
+  .player-room-authenticated .review-journal-heading,
+  .player-room-authenticated .review-journal-editor-meta,
+  .player-room-authenticated .review-journal-progress > summary { align-items: stretch; flex-direction: column; }
+}
+
+/* ==========================================================
+   Patch M8 — living editorial Player Room
+   Familiar shell; live/current interior; completed Review calm.
+   ========================================================== */
+
+.player-room-authenticated .current-boardsignal-lead {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1rem, 2.6vw, 1.65rem);
+  border: 1px solid var(--bs-border);
+  border-top: 4px solid var(--bs-brand-primary);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .current-boardsignal-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .65rem 1rem;
+}
+
+.player-room-authenticated .current-boardsignal-heading :is(h1, h2) {
+  max-width: 18ch;
+  line-height: 1;
+}
+
+.player-room-authenticated .current-boardsignal-state {
+  padding: .75rem .9rem;
+  border: 1px solid var(--bs-border);
+  border-left: 4px solid var(--bs-blue-readable);
+  border-radius: var(--bs-radius-md);
+  background: var(--bs-blue-soft);
+  color: var(--bs-text-primary);
+}
+
+.player-room-authenticated .current-boardsignal-state :is(p, small) {
+  color: var(--bs-text-secondary);
+}
+
+.player-room-authenticated .corner-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-height: 32px;
+  max-width: 100%;
+  padding: .35rem .6rem;
+  border: 1px solid var(--bs-blue-readable);
+  border-radius: 999px;
+  background: var(--bs-blue-soft);
+  color: var(--bs-blue-readable);
+  font-size: .75rem;
+  font-weight: 850;
+  letter-spacing: .05em;
+  overflow-wrap: anywhere;
+}
+
+.player-room-authenticated .corner-live-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.player-room-authenticated .current-episode-card.g3-current-week {
+  border: 1px solid var(--bs-border);
+  border-left: 4px solid var(--bs-brand-primary);
+  border-radius: var(--bs-radius-lg);
+  background: var(--bs-surface-elevated);
+  box-shadow: none;
+}
+
+.player-room-authenticated .g3-before-next-game {
+  border: 1px solid var(--bs-border-strong);
+  border-left: 5px solid var(--bs-lime);
+  box-shadow: var(--bs-shadow-1);
+}
+
+.player-room-authenticated .g3-before-next-game > h3 {
+  max-width: 24ch;
+  font-size: clamp(1.2rem, 2.4vw, 1.65rem);
+  line-height: 1.12;
+}
+
+.player-room-authenticated .g3-before-next-game > p {
+  max-width: 62ch;
+}
+
+.player-room-authenticated :is(.last-completed-review, .g3-review-proof, .g3-deeper-review) {
+  border-color: var(--bs-border);
+  background: var(--bs-surface);
+  box-shadow: none;
+}
+
+.player-room-authenticated :is(.last-completed-review, .g3-review-proof, .g3-deeper-review, #what-mattered, #focus-next) :is(p, li) {
+  max-width: 68ch;
+}
+
+.player-room-authenticated .g3-progress-section :is(.personal-record-strip, .pool-progress, .recurring-patterns, .desk-sequence) {
+  padding-left: clamp(.8rem, 2vw, 1.15rem);
+  border-left: 3px solid var(--bs-border-strong);
+}
+
+.player-room-authenticated .review-journal-add:disabled,
+.player-room-authenticated .review-journal-note-actions button:disabled {
+  opacity: 1;
+  border-color: var(--bs-ui-border);
+  background: var(--bs-bg-subtle);
+  color: var(--bs-text-secondary);
+}
+
+@media (max-width: 680px) {
+  .player-room-authenticated .current-boardsignal-lead {
+    padding: 1rem;
+    border-radius: var(--bs-radius-md);
+  }
+
+  .player-room-authenticated .current-boardsignal-heading {
+    display: grid;
+    align-items: start;
+  }
+
+  .player-room-authenticated .g3-progress-section :is(.personal-record-strip, .pool-progress, .recurring-patterns, .desk-sequence) {
+    padding-left: .7rem;
+    border-left-width: 2px;
+  }
+}

@@ -713,3 +713,91 @@ html[data-bs-theme="dark"] .google-signin-button:active:not(:disabled) { backgro
   .player-room-authenticated .companion-action-button { transition: none !important; transform: none !important; }
   .player-room-authenticated .companion-refresh-button.is-refreshing svg { animation: none !important; transform: none !important; }
 }
+
+
+/* ----------------------------------------------------------
+   Contrast hardening — public BoardSignal homepage theme parity
+
+   The homepage still contains retained light-only surfaces from the
+   earlier publication layer. Keep the layout/content unchanged, but bind
+   those surfaces to the BoardSignal semantic theme tokens so the page keeps
+   readable separation when dark appearance is selected.
+   ---------------------------------------------------------- */
+
+html[data-bs-theme="dark"] .personal-home {
+  background: var(--bs-bg);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .personal-hero {
+  background:
+    radial-gradient(circle at 78% 22%, color-mix(in srgb, var(--bs-brand-primary) 22%, transparent), transparent 28rem),
+    radial-gradient(circle at 95% 90%, color-mix(in srgb, var(--bs-lime) 14%, transparent), transparent 22rem),
+    linear-gradient(145deg, var(--bs-surface-elevated) 0%, var(--bs-bg-subtle) 100%);
+}
+
+html[data-bs-theme="dark"] .personal-home :is(h1, h2, h3, h4, strong, label) {
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .personal-home :is(p, small) {
+  color: var(--bs-text-secondary);
+}
+
+html[data-bs-theme="dark"] .personal-home .hero-deck,
+html[data-bs-theme="dark"] .personal-home .secondary-footer p {
+  color: var(--bs-text-secondary);
+}
+
+html[data-bs-theme="dark"] .personal-home .hero-username-card,
+html[data-bs-theme="dark"] .personal-home .resolved-player-card,
+html[data-bs-theme="dark"] .personal-home .personal-flow-grid article,
+html[data-bs-theme="dark"] .personal-home .secondary-heading > p,
+html[data-bs-theme="dark"] .personal-home .secondary-story {
+  border-color: var(--bs-border-strong);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .personal-home .username-entry-row {
+  border-color: var(--bs-ui-border);
+  background: var(--bs-surface);
+}
+
+html[data-bs-theme="dark"] .personal-home .username-entry-row input,
+html[data-bs-theme="dark"] .personal-home .username-prefix {
+  background: var(--bs-surface);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .personal-home .username-entry-row input::placeholder {
+  color: var(--bs-text-muted);
+}
+
+html[data-bs-theme="dark"] .personal-home .secondary-heading > p {
+  border-left-color: var(--bs-brand-primary);
+}
+
+html[data-bs-theme="dark"] .personal-home .secondary-story > div span,
+html[data-bs-theme="dark"] .personal-home .username-privacy,
+html[data-bs-theme="dark"] .personal-home .username-trust {
+  color: var(--bs-text-secondary);
+}
+
+html[data-bs-theme="dark"] .personal-home .button-outline,
+html[data-bs-theme="dark"] .personal-home .btn-outline {
+  border-color: var(--bs-ui-border);
+  background: var(--bs-surface-elevated);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .personal-home .button-outline:hover,
+html[data-bs-theme="dark"] .personal-home .btn-outline:hover {
+  border-color: var(--bs-brand-primary);
+  background: var(--bs-bg-subtle);
+  color: var(--bs-text-primary);
+}
+
+html[data-bs-theme="dark"] .personal-home .shell-boundary {
+  background: var(--bs-blue-soft);
+}

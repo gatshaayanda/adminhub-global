@@ -4,7 +4,7 @@ import UsernameDeskForm, { type OnboardingQaState } from "@/components/UsernameD
 import OnboardingQaProbe from "@/components/OnboardingQaProbe";
 import type { PublicBoardSignalProof } from "@/lib/boardsignal/server/publicProof";
 import type { PublicBoardSignalTrafficProof } from "@/lib/boardsignal/server/publicTrafficProof";
-import homeStyles from "../../../page.module.css";
+import homeStyles from "../../page.module.css";
 
 const states = new Set<OnboardingQaState>(["google", "username", "profile", "collision"]);
 const QA_PROOF: PublicBoardSignalProof = {

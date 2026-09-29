@@ -6,9 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "prepare:stockfish": "node scripts/prepare-stockfish.mjs",
-    "postinstall": "npm run prepare:stockfish"
+    "lint": "next lint"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",
@@ -22,8 +20,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "uploadthing": "^7.7.4",
-    "chess.js": "^1.4.0",
-    "stockfish": "18.0.8"
+    "chess.js": "^1.4.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

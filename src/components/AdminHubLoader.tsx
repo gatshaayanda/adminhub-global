@@ -1,1 +1,11 @@
-"use client";import {useEffect,useState}from"react";export default function AdminHubLoader(){const[visible,setVisible]=useState(true),[fading,setFading]=useState(false);useEffect(()=>{const fade=window.setTimeout(()=>setFading(true),1200),hide=window.setTimeout(()=>setVisible(false),1750);return()=>{window.clearTimeout(fade);window.clearTimeout(hide)}},[]);if(!visible)return null;return <div role="status" aria-label="Loading Admin Hub" className={"fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#060a12] transition-opacity duration-500 "+(fading?"opacity-0":"opacity-100")}><div className="relative z-10 text-center"><div className="text-[0.78rem] font-extrabold uppercase tracking-[0.28em] text-[var(--brand-primary)]">ADMIN HUB</div><div className="mt-3 text-2xl font-extrabold tracking-[-0.04em] text-[var(--text-primary)]">Build Engine</div><div className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">10th iteration · configure · revise · ship</div></div></div>;}
+"use client";
+
+import { useEffect, useState } from "react";
+import LogoMktMark from "@/components/LogoMktMark";
+
+export default function AdminHubLoader(){
+  const [visible,setVisible]=useState(true); const [fading,setFading]=useState(false);
+  useEffect(()=>{const fade=window.setTimeout(()=>setFading(true),1050);const hide=window.setTimeout(()=>setVisible(false),1550);return()=>{window.clearTimeout(fade);window.clearTimeout(hide)}},[]);
+  if(!visible)return null;
+  return <div role="status" aria-label="Loading Admin Hub" className={"adminhub-loader "+(fading?"is-fading":"")}><div className="adminhub-loader-grid" aria-hidden="true"/><div className="adminhub-loader-glow" aria-hidden="true"/><div className="adminhub-loader-inner"><div className="adminhub-loader-mark"><LogoMktMark className="h-16 w-16"/></div><div className="adminhub-loader-kicker">ADMIN HUB</div><div className="adminhub-loader-title">APPS <span>+</span> GAMES</div><div className="adminhub-loader-line"><i/><i/><i/><i/><i/></div><div className="adminhub-loader-caption">build · revise · ship</div></div></div>;
+}

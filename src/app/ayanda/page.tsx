@@ -55,20 +55,12 @@ const work = [
     period: "Jul – Aug 2026",
     copy:
       "Marketplace research, product evaluation and lead-tracking work for a Canadian e-commerce operation.",
-  },
-  {
-    title: "Translend TMS",
-    role: "Current client product work through Admin Hub",
-    period: "2026 – Present",
-    copy:
-      "Operational SaaS work spanning delivery workflows, fleet visibility, telematics, organisation identity, offline behaviour and production deployment.",
-    href: "https://translend-tms.vercel.app/pipeline",
-    label: "Live system",
-  },
+  }
 ];
 
 const adminHubWork = [
-  ["BoardSignal", "Founder-built live product", "/boardsignal"],
+  ["BoardSignal", "Founder-built live product · 100+ users", "/boardsignal"],
+  ["Translend TMS", "Current client product work through Admin Hub · 2026 – Present", "https://translend-tms.vercel.app/pipeline"],
   ["PurePress", "Client product", "https://purepress-omega.vercel.app/"],
   ["Meating Place", "Client product", "https://meating-place.vercel.app/"],
   ["Namane Tyres", "Business application", "http://namane-tyres.vercel.app/"],
@@ -80,6 +72,11 @@ const evidence = [
   ["Admin Hub", "Company, products and additional project evidence.", "https://adminhub-global.com"],
   ["Independent reviews", "Public customer reviews for Admin Hub.", "https://www.trustpilot.com/review/adminhub-global.com"],
   ["LinkedIn", "Professional history and recommendations.", "https://www.linkedin.com/in/ayandagatsha"],
+  ["CommissionCrowd", "Long-term international remote business-operations relationship.", "https://www.commissioncrowd.com/team/"],
+  ["Journalism portfolio", "Published writing, media work and project history.", "https://www.ayandakopanogatsha.com/projects"],
+  ["The Other Press", "Published journalism from 2016.", "https://theotherpress.ca/study-now-summer-later/"],
+  ["The Odin Project", "Structured project-based full-stack development path.", "https://www.theodinproject.com/paths/full-stack-javascript"],
+  ["Remote professional profile", "Additional public employment and skills record.", "https://himalayas.app/@ayandagatsha"],
 ];
 
 function ExternalLinkRow({
@@ -239,7 +236,8 @@ export default function AyandaPage() {
             <div>
               <p className="mb-5 leading-7 text-black/65">
                 Admin Hub is the umbrella for my independent product work. The examples below are
-                evidence of the range of work rather than separate companies or separate career identities.
+                direct links to the products and systems behind that work. Translend TMS is included here
+                because it is current client product work delivered through Admin Hub, not a separate company.
               </p>
               <div className="border-y border-black/10">
                 {adminHubWork.map(([title, type, href]) =>

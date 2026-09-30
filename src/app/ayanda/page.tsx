@@ -32,8 +32,8 @@ const work = [
     period: "2016 – Present",
     copy:
       "Long-term international remote work across client communication, research, follow-up, data handling and SaaS business operations.",
-    href: "https://www.commissioncrowd.com",
-    label: "Company",
+    href: "https://drive.google.com/file/d/1WDlMlzdXPAmwH3ajtnBFKhvpx8puDQac/view?usp=sharing",
+    label: "CommissionCrowd reference",
   },
   {
     title: "RedPlanet",
@@ -41,6 +41,8 @@ const work = [
     period: "Jul – Aug 2026",
     copy:
       "Short technical operations engagement involving automation, browser profiles, APIs, PowerShell, monitoring, QA and recovery work.",
+    href: "https://docs.google.com/document/d/1DuUwA1Ms8Nrr9GsPrXE5vZ5z3UJdfPjBH_YaAqKB2mQ/edit?usp=sharing",
+    label: "Technical project record",
   },
   {
     title: "Markee Books / Markee Media",
@@ -48,6 +50,8 @@ const work = [
     period: "Jun – Jul 2026",
     copy:
       "Client-facing sales and operational work across outreach, workflow coordination, research and support.",
+    href: "https://docs.google.com/document/d/15VS0xBd_YLetSi-rkG2l4ICgRyCrEg_7KPJ1_bf85Bc/edit?tab=t.0#heading=h.k2wc9b9q8grx",
+    label: "Operational performance report",
   },
   {
     title: "Northshore Supply",
@@ -55,12 +59,14 @@ const work = [
     period: "Jul – Aug 2026",
     copy:
       "Marketplace research, product evaluation and lead-tracking work for a Canadian e-commerce operation.",
+    href: "https://docs.google.com/spreadsheets/d/1Ma02xy6E8O9rrhLXb_qBXqpB4NfsqWVODgjzetXNXbk/edit?gid=1090512502#gid=1090512502",
+    label: "Northshore live lead tracker",
   }
 ];
 
 const adminHubWork = [
   ["BoardSignal", "Founder-built live product · 100+ users", "/boardsignal"],
-  ["Translend TMS", "Current client product work through Admin Hub · 2026 – Present", "https://translend-tms.vercel.app/pipeline"],
+  ["Translend TMS", "Current client product work through Admin Hub", "https://translend-tms.vercel.app/pipeline"],
   ["PurePress", "Client product", "https://purepress-omega.vercel.app/"],
   ["Meating Place", "Client product", "https://meating-place.vercel.app/"],
   ["Namane Tyres", "Business application", "http://namane-tyres.vercel.app/"],
@@ -69,14 +75,16 @@ const adminHubWork = [
 
 const evidence = [
   ["GitHub development history", "Public software development record since 2020.", "https://github.com/gatshaayanda"],
-  ["Admin Hub", "Company, products and additional project evidence.", "https://adminhub-global.com"],
-  ["Independent reviews", "Public customer reviews for Admin Hub.", "https://www.trustpilot.com/review/adminhub-global.com"],
   ["LinkedIn", "Professional history and recommendations.", "https://www.linkedin.com/in/ayandagatsha"],
-  ["CommissionCrowd", "Long-term international remote business-operations relationship.", "https://www.commissioncrowd.com/team/"],
-  ["Journalism portfolio", "Published writing, media work and project history.", "https://www.ayandakopanogatsha.com/projects"],
-  ["The Other Press", "Published journalism from 2016.", "https://theotherpress.ca/study-now-summer-later/"],
-  ["The Odin Project", "Structured project-based full-stack development path.", "https://www.theodinproject.com/paths/full-stack-javascript"],
-  ["Remote professional profile", "Additional public employment and skills record.", "https://himalayas.app/@ayandagatsha"],
+  ["Independent reviews", "Public customer reviews for Admin Hub.", "https://www.trustpilot.com/review/adminhub-global.com"],
+  ["CommissionCrowd reference", "Long-term independent-contractor reference from CommissionCrowd.", "https://drive.google.com/file/d/1WDlMlzdXPAmwH3ajtnBFKhvpx8puDQac/view?usp=sharing"],
+  ["BoardSignal project record", "Product and business-operations case study.", "https://docs.google.com/document/d/1sFsrmiBoNg8Q9jqTpWJEvuLZCjJiNavqBnVPmLfERBE/edit?tab=t.0#heading=h.yb7rpc0vo3y"],
+  ["RedPlanet technical case study", "Automation and technical-operations project record.", "https://docs.google.com/document/d/1DuUwA1Ms8Nrr9GsPrXE5vZ5z3UJdfPjBH_YaAqKB2mQ/edit?usp=sharing"],
+  ["Markee operational report", "Operational learning and performance report.", "https://docs.google.com/document/d/15VS0xBd_YLetSi-rkG2l4ICgRyCrEg_7KPJ1_bf85Bc/edit?tab=t.0#heading=h.k2wc9b9q8grx"],
+  ["Northshore live lead tracker", "Live research and sourcing work record.", "https://docs.google.com/spreadsheets/d/1Ma02xy6E8O9rrhLXb_qBXqpB4NfsqWVODgjzetXNXbk/edit?gid=1090512502#gid=1090512502"],
+  ["The Navigator", "Published journalism and service writing.", "https://thenav.ca/sports-life/lifestyle/a-guide-to-adulting-university-edition/"],
+  ["The Other Press", "Published journalism and reporting.", "https://theotherpress.ca/?s=Ayanda"],
+  ["Current CV", "Current recruiter-facing CV and professional record.", "https://docs.google.com/document/d/1KY3iqIML-gVlRaAgNgf5_GrcO5tLerBlw_3X4aF6rp0/edit?usp=sharing"],
 ];
 
 function ExternalLinkRow({
@@ -236,7 +244,7 @@ export default function AyandaPage() {
             <div>
               <p className="mb-5 leading-7 text-black/65">
                 Admin Hub is the umbrella for my independent product work. The examples below are
-                direct links to the products and systems behind that work. Translend TMS is included here
+                the products and client work behind that umbrella. Translend TMS is included here
                 because it is current client product work delivered through Admin Hub, not a separate company.
               </p>
               <div className="border-y border-black/10">

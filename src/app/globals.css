@@ -917,3 +917,259 @@ hr {
 .boardsignal-root .text-link {
   color: var(--brand-primary-strong);
 }
+
+
+/* =========================================================
+   Admin Hub shell + Ayanda profile readability
+   Explicit light-system styling prevents the global dark
+   runtime from making navigation/footer text unreadable.
+   ========================================================= */
+
+.ah-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  width: 100%;
+  border-bottom: 1px solid #d9d9d2;
+  background: rgba(247, 247, 243, 0.96);
+  color: #111318;
+  backdrop-filter: blur(14px);
+}
+
+.ah-skip {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  padding: 0.7rem 1rem;
+  border-radius: 0.6rem;
+  background: #111318;
+  color: #ffffff !important;
+  font-weight: 800;
+}
+
+.ah-skip:focus {
+  top: 0.75rem;
+}
+
+.ah-nav {
+  width: min(1240px, 100%);
+  min-height: 64px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ah-brand,
+.ah-desktop-nav a {
+  color: #111318 !important;
+}
+
+.ah-brand {
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.ah-desktop-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ah-desktop-nav a {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 750;
+}
+
+.ah-desktop-nav a:hover,
+.ah-desktop-nav a:focus-visible,
+.ah-desktop-nav a.active {
+  background: #e8e8e2;
+  color: #111318 !important;
+  outline: none;
+}
+
+.ah-footer {
+  border-top: 1px solid #d9d9d2;
+  background: #111318;
+  color: #ffffff;
+}
+
+.ah-footer a,
+.ah-footer-brand,
+.ah-footer-copy,
+.ah-footer-column,
+.ah-footer-bottom {
+  color: #ffffff;
+}
+
+.ah-footer-top {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: 3.5rem 1rem;
+}
+
+.ah-footer-main {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 1fr;
+  gap: 3rem;
+}
+
+.ah-footer-brand {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.ah-footer-tagline {
+  margin-top: 0.4rem;
+  color: #ffffff !important;
+  font-weight: 700;
+}
+
+.ah-footer-copy {
+  margin-top: 1rem;
+  max-width: 32rem;
+  color: #d7d9df !important;
+  line-height: 1.7;
+}
+
+.ah-footer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  color: #ffffff;
+}
+
+.ah-footer-column a:hover,
+.ah-footer-column a:focus-visible,
+.ah-footer-brand:hover {
+  color: #ffffff !important;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.ah-footer-label {
+  margin-bottom: 0.2rem;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ah-footer-muted {
+  color: #b9bec8;
+}
+
+.ah-footer-bottom {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: 1rem;
+  border-top: 1px solid #343740;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  color: #cdd1d8;
+  font-size: 0.82rem;
+}
+
+.ah-footer-bottom a {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.ayanda-profile {
+  background: #f7f7f3 !important;
+  color: #111318 !important;
+}
+
+.ayanda-profile p,
+.ayanda-profile li {
+  color: #30343a;
+}
+
+.ayanda-profile h1,
+.ayanda-profile h2,
+.ayanda-profile h3 {
+  color: #111318;
+}
+
+.ayanda-profile a {
+  color: #173ea5;
+}
+
+.ayanda-profile a:hover,
+.ayanda-profile a:focus-visible {
+  color: #0d2c7d !important;
+}
+
+.ayanda-profile nav a,
+.ayanda-profile .border-b,
+.ayanda-profile .border-y {
+  border-color: #b9bbc0;
+}
+
+.ayanda-profile .text-black\/35 {
+  color: #4e535a !important;
+}
+
+.ayanda-profile .text-black\/45,
+.ayanda-profile .text-black\/50,
+.ayanda-profile .text-black\/55 {
+  color: #555b63 !important;
+}
+
+.ayanda-profile .text-black\/60,
+.ayanda-profile .text-black\/65,
+.ayanda-profile .text-black\/70,
+.ayanda-profile .text-black\/75,
+.ayanda-profile .text-black\/80 {
+  color: #30343a !important;
+}
+
+.ayanda-profile .bg-white {
+  background: #ffffff !important;
+}
+
+.ayanda-profile .border-black\/10,
+.ayanda-profile .border-black\/15,
+.ayanda-profile .border-black\/30 {
+  border-color: #b9bbc0 !important;
+}
+
+.ayanda-profile .text-blue-700 {
+  color: #173ea5 !important;
+}
+
+.ayanda-profile .text-blue-900 {
+  color: #0d2c7d !important;
+}
+
+.ayanda-profile button,
+.ayanda-profile a.rounded-full {
+  font-weight: 800;
+}
+
+.ayanda-profile a.rounded-full:focus-visible {
+  outline: 3px solid #173ea5;
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .ah-nav {
+    min-height: 58px;
+  }
+
+  .ah-footer-main {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}

@@ -811,3 +811,109 @@ hr {
     animation: none !important;
   }
 }
+
+/* =========================================================
+   BoardSignal route isolation
+   BoardSignal has its own light product system. These
+   root-scoped overrides prevent the Admin Hub dark runtime
+   from leaking into its contrast, controls, and typography.
+   ========================================================= */
+
+.boardsignal-root {
+  --background: #f4f0e7;
+  --foreground: #101923;
+  --surface: #fffdf8;
+  --surface-2: #e8e4dc;
+  --surface-3: #d2cec5;
+  --border: #a7a39a;
+  --border-strong: #5f6468;
+  --text-primary: #101923;
+  --text-secondary: #303b46;
+  --text-muted: #56616b;
+  --text-subtle: #68737c;
+  --brand-primary: #3157ff;
+  --brand-primary-strong: #1733b8;
+  --brand-secondary: #b9e83f;
+  --brand-tint: #e3e9ff;
+  --ring: rgba(49, 87, 255, 0.28);
+
+  isolation: isolate;
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: light;
+}
+
+.boardsignal-root,
+.boardsignal-root button,
+.boardsignal-root input,
+.boardsignal-root textarea,
+.boardsignal-root select {
+  color: var(--text-primary);
+}
+
+.boardsignal-root p {
+  color: var(--text-secondary);
+}
+
+.boardsignal-root small,
+.boardsignal-root .muted {
+  color: var(--text-muted);
+}
+
+.boardsignal-root .site-main {
+  background: var(--background);
+}
+
+.boardsignal-root .site-header,
+.boardsignal-root .edition-strip,
+.boardsignal-root .paper-band,
+.boardsignal-root .coverage-card,
+.boardsignal-root .info-card,
+.boardsignal-root .form-card,
+.boardsignal-root .card,
+.boardsignal-root .card-elevated,
+.boardsignal-root .button-quiet,
+.boardsignal-root .btn-ghost {
+  color: var(--text-primary);
+}
+
+.boardsignal-root .field input,
+.boardsignal-root .field select,
+.boardsignal-root input,
+.boardsignal-root textarea,
+.boardsignal-root select {
+  color: var(--text-primary);
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+.boardsignal-root input::placeholder,
+.boardsignal-root textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.boardsignal-root :focus-visible {
+  outline: 3px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+
+.boardsignal-root .button-outline,
+.boardsignal-root .btn-outline {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.boardsignal-root .button-outline:hover,
+.boardsignal-root .btn-outline:hover {
+  background: var(--text-primary);
+  color: var(--surface);
+}
+
+.boardsignal-root .kicker,
+.boardsignal-root .story-kicker,
+.boardsignal-root .text-link {
+  color: var(--brand-primary-strong);
+}

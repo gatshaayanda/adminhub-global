@@ -111,7 +111,7 @@ function ExternalLinkRow({
 
 export default function AyandaPage() {
   return (
-    <main className="bg-[#f7f7f3] text-[#111318]">
+    <main className="ayanda-profile bg-[#f7f7f3] text-[#111318]">
       <div className="mx-auto max-w-5xl px-5 py-12 md:px-8 md:py-20">
         <header className="border-b border-black/15 pb-10">
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-black/50">

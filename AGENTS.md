@@ -89,3 +89,32 @@ These are factual background notes for writing project descriptions/case-study c
   - QueryWing — https://querywing.com/careers
   - NexCode Nova / ExiusCart — https://www.exiuscart.com/careers
 - Search rule for future opportunity research: start from the current date and work backwards; prefer small/founder-led/global companies and direct human routes; exclude generic job boards, faceless recruiter routes, US-only/region-locked roles, and opportunities that are only vaguely described as “remote.” Verify global eligibility and a direct official company route before presenting an opportunity as confirmed. Include games/browser/Phaser opportunities alongside apps, SaaS, product, technical operations, support, and systems work.
+
+- Additional 2026-09-30 application checkpoint: user has now applied to the relevant opportunities from the next search batch. Do not return these as new opportunities unless the user explicitly asks for a follow-up, a different role, or a materially new opening:
+  - Nexorlio — https://nexorlio.com/careers
+  - New Machine — https://newmachine.com.ph/careers/
+  - Vision Game Studios — https://www.visiongst.com/careers.html
+  - Games Mostly — https://games-mostly.com/careers/
+  - Wysera — https://wysera.ai/careers
+  - Hopsule — https://hopsule.com/careers
+  - Ziploy — https://ziploy.io/careers
+  - Shally.io — https://shally.io/careers
+  - SaaSTweaks — https://saastweaks.com/careers
+  - CodeLearn Academy — https://www.codelearnacademy.com/careers
+  - Fyutrex — https://www.fyutrex.com/careers
+  - Shally.app — https://shally.app/career
+
+## Permanent opportunity-search exclusions and requirements
+- Never return "might be global" opportunities. If worldwide/global eligibility is not explicitly verified, do not present it as a confirmed global opportunity.
+- Do not use generic job boards, faceless recruiter routes, anonymous application funnels, mass-application platforms, or intermediary approaches when a direct company/human route is available.
+- Do not prioritize mass faceless corporations. Prefer small owner-led, founder-led, family-run, independent, boutique, indie, or genuinely small online businesses and product companies where a real person can realistically see the full application.
+- Do not recommend approaches that require pretending to be a different seniority, specialization, location, or experience level.
+- Search for actual businesses that have a real online presence or operate an online/digital business and could benefit from someone who can both build and operate practical software/products.
+- The user's target is broader than conventional developer jobs: identify small businesses that could hire or contract a hybrid product builder / technical operator / customer-support or implementation person.
+- Search context for the user must include both reusable engines: (1) the business-app/PWA engine that can produce installable mobile-first business/customer systems and (2) the browser/PWA game engine that can produce additional games/interactive experiences.
+- Treat the user's 10+ years as an independent remote contractor for a UK web-app company, plus shorter paid projects/contracts such as Markee and RedPlanet, as relevant operational evidence.
+- Treat paid client work as evidence of real commercial delivery, distinguishing ongoing, preliminary/pilot, and complete work rather than collapsing all projects into one status.
+- Treat the user's Canadian New Media Journalism education, international publication through Canadian student presses, certificates and continuing learning/development as evidence of research, communication, documentation, source evaluation, interviewing and learning ability.
+- Include small businesses that may need product implementation, technical customer success, support engineering, SaaS operations, business systems, frontend/product development, QA, research/content, game development, community/customer work, or a hybrid role.
+- When searching, work from the current date backwards and favor newly active opportunities first. For each result, verify the business/company itself, the actual opportunity or plausible direct hiring need, the human/direct route, and why the user's combined evidence is relevant.
+

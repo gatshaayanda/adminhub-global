@@ -1,21 +1,19 @@
-"use client";
-
 import Link from "next/link";
 
 const apps = [
-  ["BoardSignal", "Chess performance system", "/apps/boardsignal"],
-  ["Translend", "Transport & workflow management", "/apps"],
-  ["BOEMO", "Mobile food ordering", "/apps"],
-  ["Namane Tyres", "Business application", "/apps"],
-  ["PurePress", "Business application", "/apps"],
-  ["Meating Place", "Food & business application", "/apps"],
-  ["Avram Kids", "Interactive application", "/apps"],
+  ["BoardSignal", "Chess performance system", "/boardsignal", false],
+  ["Translend", "Transport & workflow management", "https://translend-tms.vercel.app/pipeline", true],
+  ["BOEMO", "Mobile kitchen ordering", "https://boemo-joos-food-deals.vercel.app/", true],
+  ["Namane Tyres", "Customer booking & work progress", "http://namane-tyres.vercel.app/", true],
+  ["PurePress", "Business application", "https://purepress-omega.vercel.app/", true],
+  ["Meating Place", "Food & business application", "https://meating-place.vercel.app/", true],
+  ["Avram Kids", "Interactive application", "/apps", false],
 ] as const;
 
 const games = [
-  ["Shooters Trigger", "Playable paintball experience", "/games"],
-  ["President's Shoes", "Interactive story", "/games"],
-  ["Hall", "Interactive world", "/games"],
+  ["Shooters Trigger", "Playable paintball experience", "https://admin-hub-games.vercel.app/", true],
+  ["President's Shoes", "Interactive story", "https://admin-hub-games.vercel.app/", true],
+  ["Hall", "Interactive world", "https://admin-hub-games.vercel.app/", true],
 ] as const;
 
 function ProjectRow({
@@ -23,14 +21,29 @@ function ProjectRow({
   title,
   type,
   href,
+  external,
 }: {
   number: string;
   title: string;
   type: string;
   href: string;
+  external: boolean;
 }) {
+  const className = "admin-project-row";
+
+  if (external) {
+    return (
+      <a href={href} className={className} target="_blank" rel="noreferrer">
+        <span className="admin-project-number">{number}</span>
+        <span className="admin-project-name">{title}</span>
+        <span className="admin-project-type">{type}</span>
+        <span className="admin-project-arrow" aria-hidden="true">↗</span>
+      </a>
+    );
+  }
+
   return (
-    <Link href={href} className="admin-project-row">
+    <Link href={href} className={className}>
       <span className="admin-project-number">{number}</span>
       <span className="admin-project-name">{title}</span>
       <span className="admin-project-type">{type}</span>
@@ -75,12 +88,12 @@ export default function HomePage() {
       <section className="admin-proof">
         <div>
           <p className="admin-kicker">WHAT THIS IS</p>
-          <h2>I build this stuff.</h2>
+          <h2>Built by Admin Hub.</h2>
         </div>
         <p>
           From business apps and ordering systems to browser games and interactive
-          experiences — Admin Hub takes an idea from problem to something people
-          can actually use.
+          experiences — Admin Hub takes an idea from a real problem to something
+          people can actually use.
         </p>
       </section>
 
@@ -90,13 +103,14 @@ export default function HomePage() {
           <h2>Real businesses.<br />Real products.</h2>
         </div>
         <div className="admin-project-list">
-          {apps.map(([title, type, href], index) => (
+          {apps.map(([title, type, href, external], index) => (
             <ProjectRow
               key={title}
               number={String(index + 1).padStart(2, "0")}
               title={title}
               type={type}
               href={href}
+              external={external}
             />
           ))}
         </div>
@@ -108,13 +122,14 @@ export default function HomePage() {
           <h2>Playable ideas.<br />Built to work.</h2>
         </div>
         <div className="admin-project-list">
-          {games.map(([title, type, href], index) => (
+          {games.map(([title, type, href, external], index) => (
             <ProjectRow
               key={title}
               number={String(index + 1).padStart(2, "0")}
               title={title}
               type={type}
               href={href}
+              external={external}
             />
           ))}
         </div>

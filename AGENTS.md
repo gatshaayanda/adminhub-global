@@ -67,3 +67,25 @@ These are factual background notes for writing project descriptions/case-study c
 - Keep external project links accurate; never invent a project URL.
 - Keep accessible focus states, usable touch targets, and prefers-reduced-motion support.
 - The 25GB/500-user language is a planning model, not a universal quota or unlimited-capacity guarantee.
+
+## Opportunity search — already applied / do not repeat
+- Added 2026-09-30 as an application-tracking checkpoint.
+- The following companies were already researched and applied to. Do not return them as new opportunities unless the user explicitly asks for a follow-up, a different role, or a materially new opening:
+  - Banzena — https://www.banzena.com/careers
+  - Crawlability.ai — https://crawlability.ai/company/careers
+  - Gleam — https://gleam.io/jobs
+  - Meza AI — https://meza.ai/careers
+  - Channlize — https://landing.channlize.com/careers
+  - TheDeskMonitor — https://thedeskmonitor.com/careers
+  - Passion.io — https://passion.io/
+  - Stat Sniper — https://statsniper.com/tr/careers/
+  - Pickar — https://www.pickar.ng/careers
+  - DashRDP — https://dashrdp.com/careers
+  - Kwamle Media — https://kwamlemedia.com/careers
+  - Nastrum — https://nastrum.com/careers
+  - SecureCheap — https://securecheap.com/careers
+  - Cartlytics — https://cartlytics.co/careers
+  - Nexa — https://www.nexa.courses/careers
+  - QueryWing — https://querywing.com/careers
+  - NexCode Nova / ExiusCart — https://www.exiuscart.com/careers
+- Search rule for future opportunity research: start from the current date and work backwards; prefer small/founder-led/global companies and direct human routes; exclude generic job boards, faceless recruiter routes, US-only/region-locked roles, and opportunities that are only vaguely described as “remote.” Verify global eligibility and a direct official company route before presenting an opportunity as confirmed. Include games/browser/Phaser opportunities alongside apps, SaaS, product, technical operations, support, and systems work.

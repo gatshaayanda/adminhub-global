@@ -116,6 +116,28 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="admin-note">
+        <div>
+          <p className="admin-kicker">A NOTE FROM AYANDA K. GATSHA</p>
+          <h2>I built Admin Hub around things that needed to work.</h2>
+        </div>
+        <div className="admin-note-copy">
+          <p>
+            I’m Ayanda K. Gatsha. Admin Hub is the company and product home I built
+            to turn real problems, ideas and experiments into software people can use.
+            The work here comes from building, testing, listening to people using it,
+            and improving what actually needs improving.
+          </p>
+          <p>
+            BoardSignal started as an app I built to help me improve at chess. I shared
+            it with other chess players, marketed it, and more than 100 players have
+            engaged with the system I built around it. Other projects started from
+            businesses asking for something specific — ordering, workflow, bookings,
+            customer progress or a better way to run part of the business.
+          </p>
+        </div>
+      </section>
+
       <section className="admin-work admin-games">
         <div className="admin-section-intro">
           <p className="admin-kicker">02 / GAMES</p>
@@ -150,7 +172,7 @@ export default function HomePage() {
       <section className="admin-start" id="start">
         <p className="admin-kicker">04 / START SOMETHING</p>
         <h2>Have an idea?<br />Let&apos;s build it.</h2>
-        <a className="admin-primary-button admin-primary-button-large" href="mailto:hello@adminhub-global.com">
+        <a className="admin-primary-button admin-primary-button-large" href="mailto:gatshaayanda@gmail.com">
           Talk to Admin Hub <span>↗</span>
         </a>
       </section>

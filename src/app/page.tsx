@@ -172,7 +172,7 @@ export default function HomePage() {
       <section className="admin-start" id="start">
         <p className="admin-kicker">04 / START SOMETHING</p>
         <h2>Have an idea?<br />Let&apos;s build it.</h2>
-        <a className="admin-primary-button admin-primary-button-large" href="mailto:gatshaayanda@gmail.com">
+        <a className="admin-primary-button admin-primary-button-large" href="mailto:adminhubglobal@gmail.com?subject=Admin%20Hub%20Inquiry&body=Name%3A%20%0ACompany%2FProject%3A%20%0AWhat%20I%27d%20like%20to%20discuss%3A%20%0ABest%20way%20to%20contact%20me%3A%20%0APreferred%20contact%20details%3A%20%0AReference%20request%20(if%20applicable)%3A%20%0A">
           Talk to Admin Hub <span>↗</span>
         </a>
       </section>

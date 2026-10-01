@@ -1,12 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import AdminDashboardClient from "./ClientDashboard";
 import {
   FOUNDER_SESSION_COOKIE,
   verifyFounderSession,
-} from "../../../lib/boardsignal/founderSession.mjs";
+} from "../../lib/boardsignal/founderSession.mjs";
 
-export default async function AdminDashboardPage() {
+export default async function AdminEntryPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get(FOUNDER_SESSION_COOKIE)?.value;
   const authorized = await verifyFounderSession(
@@ -14,9 +13,9 @@ export default async function AdminDashboardPage() {
     process.env.ADMIN_PASSWORD,
   );
 
-  if (!authorized) {
-    redirect("/login-secret-login-for-admins97F4B2NXQ");
-  }
-
-  return <AdminDashboardClient />;
+  redirect(
+    authorized
+      ? "/admin/dashboard"
+      : "/login-secret-login-for-admins97F4B2NXQ",
+  );
 }

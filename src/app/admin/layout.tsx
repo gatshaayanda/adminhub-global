@@ -3,6 +3,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import {
+  FOUNDER_SESSION_COOKIE,
+  verifyFounderSession,
+} from "../../lib/boardsignal/founderSession.mjs";
 
 export const metadata: Metadata = {
   title: {
@@ -23,9 +27,13 @@ export default async function AdminLayout({
   children: ReactNode;
 }) {
   const store = await cookies();
-  const token = store.get("admin_token")?.value;
+  const session = store.get(FOUNDER_SESSION_COOKIE)?.value;
+  const authorized = await verifyFounderSession(
+    session,
+    process.env.ADMIN_PASSWORD,
+  );
 
-  if (!token) {
+  if (!authorized) {
     redirect("/login-secret-login-for-admins97F4B2NXQ");
   }
 

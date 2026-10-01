@@ -37,5 +37,5 @@ export default async function AdminLayout({
     redirect("/login-secret-login-for-admins97F4B2NXQ");
   }
 
-  return <>{children}</>;
+  return <div className="admin-hub-control">{children}</div>;
 }

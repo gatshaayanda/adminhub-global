@@ -32,6 +32,10 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatViews(value: number) {
+  return new Intl.NumberFormat("en-GB").format(value);
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -59,7 +63,7 @@ export default async function BuildLogEntryPage({
   if (!update) notFound();
 
   return (
-    <div className="ah-build-detail">
+    <main className="ah-build-detail">
       <ViewCounter slug={update.slug} />
 
       <section className="ah-build-detail-shell">
@@ -70,10 +74,14 @@ export default async function BuildLogEntryPage({
           <span>{formatDate(update.publishedAt || update.createdAt)}</span>
         </div>
 
+        <div className="ah-build-detail-kicker">ADMIN HUB / BUILD LOG</div>
+
         <div className="ah-build-detail-meta">
-          <span>{statusLabel[update.status] || update.status}</span>
+          <span className="ah-build-detail-status">
+            {statusLabel[update.status] || update.status}
+          </span>
           <span>{categoryLabel[update.category] || update.category}</span>
-          <span>Views {update.viewCount}</span>
+          <span>{formatViews(update.viewCount)} recorded views</span>
         </div>
 
         <h1>{update.title}</h1>
@@ -94,6 +102,6 @@ export default async function BuildLogEntryPage({
           <Link href="/updates">View the full build log →</Link>
         </div>
       </section>
-    </div>
+    </main>
   );
 }

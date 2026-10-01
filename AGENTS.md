@@ -127,3 +127,14 @@ These are factual background notes for writing project descriptions/case-study c
 - Include small businesses that may need product implementation, technical customer success, support engineering, SaaS operations, business systems, frontend/product development, QA, research/content, game development, community/customer work, or a hybrid role.
 - When searching, work from the current date backwards and favor newly active opportunities first. For each result, verify the business/company itself, the actual opportunity or plausible direct hiring need, the human/direct route, and why the user's combined evidence is relevant.
 
+
+## Build Log feature
+- The approved Build Log is a contained evidence feature: public /updates chronological history, public /updates/[slug] detail pages, and a restrained latest-update signal near the homepage hero.
+- Admin CRUD lives at /admin/updates and uses the existing protected admin area.
+- Build Log records use the server-side Firebase Admin SDK through Next.js route handlers. Public visitors never receive Firebase credentials and the new buildUpdates collection intentionally falls through to the existing deny-all rule.
+- Do not seed Build Log content. The first public entry should be created deliberately through the admin UI.
+- View counts are aggregate counts only. A short-lived first-party cookie prevents the same browser from incrementing the same update repeatedly within a 15-minute window; no IP addresses or visitor identities are stored.
+- Status lifecycle: Exploring → Building → Testing → Live → Paused → Archived.
+- Categories: Build / Release / Research / Client / Platform.
+- Preserve the existing homepage golden baseline. Build Log is an additive evidence layer; do not redesign the homepage around it.
+- The existing Firestore rules for legacy blogs / projects are not part of this feature's migration. Do not broaden or replace those rules while implementing Build Log.

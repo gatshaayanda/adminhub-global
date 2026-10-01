@@ -154,3 +154,9 @@ These are factual background notes for writing project descriptions/case-study c
 - Categories: Build / Release / Research / Client / Platform.
 - Preserve the existing homepage golden baseline. Build Log is an additive evidence layer; do not redesign the homepage around it.
 - The existing Firestore rules for legacy blogs / projects are not part of this feature's migration. Do not broaden or replace those rules while implementing Build Log.
+
+## Build Log presentation
+- Public /updates is a visible Admin Hub evidence surface and must be CV/client-safe: light editorial styling, strong contrast, clear chronology, restrained status/category metadata, readable summaries, and responsive mobile layout.
+- Public update detail pages at /updates/[slug] use the same light editorial system and must not fall back to the legacy dark operations UI.
+- The homepage BUILDING NOW block may show the latest update's aggregate recorded view count; /updates may show aggregate recorded update views. These are Firestore Build Log read counts, not Vercel site-traffic totals.
+- Vercel Web Analytics remains a separate aggregate traffic system. Do not label Build Log read counts as visitors or Vercel analytics.

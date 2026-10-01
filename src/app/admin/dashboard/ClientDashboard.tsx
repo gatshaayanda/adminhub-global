@@ -244,6 +244,12 @@ export default function AdminDashboard() {
         href: "/admin/dashboard/highlights",
       },
       {
+        title: "Build Updates",
+        desc: "Create, publish, edit, archive, and review the public chronological Admin Hub Build Log.",
+        icon: <Workflow size={22} />,
+        href: "/admin/updates",
+      },
+      {
         title: "Solutions Catalogue",
         desc: "Maintain solution/package content such as 48-Hour Live Proof, Business PWA, Operations PWA, and support tiers.",
         icon: <Workflow size={22} />,

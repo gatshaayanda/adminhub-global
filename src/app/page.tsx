@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BuildNow from "@/components/BuildNow";
 
 const apps = [
   ["BoardSignal", "Chess performance system", "/boardsignal", false],
@@ -86,6 +87,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <BuildNow />
 
       <section className="admin-proof">
         <div>

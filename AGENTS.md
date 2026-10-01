@@ -15,6 +15,13 @@
 - Avoid unnecessary visual effects, heavy gradients, glass panels, oversized dark-canvas typography, or dark-flyer styling.
 - Keep mobile-first and make the desktop composition feel intentional too.
 
+## Golden baseline / scope lock
+- The current Admin Hub homepage, shell, typography, layout, project presentation, and existing project destinations are the approved golden baseline.
+- Do not redesign, refactor, reorder, rename, or "clean up" unrelated homepage content while making catalog/PWA changes.
+- For the current catalog update, the only intended product changes are: (1) refresh/cache-bust the existing Admin Hub PWA logo/icon references and (2) add the two newly created app links listed below.
+- Do not modify the two newly created products themselves from this repository.
+- Unexpected result = STOP → inspect reality → then act. Do not make compensating or speculative changes.
+
 ## Hero video
 - public/video/admin-ad.mp4 is the Admin Hub landing/showreel video.
 - The video must preserve its native aspect ratio. Never crop it with object-fit: cover merely to fill a desktop rectangle.
@@ -45,6 +52,8 @@ Use real project destinations when a project is named. Current known destination
 - Namane Tyres: http://namane-tyres.vercel.app/
 - PurePress: https://purepress-omega.vercel.app/
 - Admin Hub Games: https://admin-hub-games.vercel.app/
+- Exquisite Waterproof Services: https://exquisite-waterproof-services.vercel.app/
+- Atlas Service Centre: https://atlas-service-centre.vercel.app/
 - Shooters Trigger currently lives within Admin Hub Games; do not invent a separate URL unless one is actually created.
 - President's Shoes and Hall are games within the Admin Hub Games catalogue unless separate verified routes are available.
 

@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+const icon = "/icon?v=3";
+const appleIcon = "/apple-icon?v=3";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Admin Hub",
@@ -17,19 +20,19 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["business", "productivity", "entertainment"],
     icons: [
       {
-        src: "/icon",
+        src: icon,
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icon",
+        src: icon,
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/apple-icon",
+        src: appleIcon,
         sizes: "180x180",
         type: "image/png",
         purpose: "any",
@@ -41,21 +44,21 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: "Home",
         description: "Open the Admin Hub home.",
         url: "/",
-        icons: [{ src: "/icon", sizes: "512x512", type: "image/png" }],
+        icons: [{ src: icon, sizes: "512x512", type: "image/png" }],
       },
       {
         name: "Games",
         short_name: "Games",
         description: "Open Admin Hub Games.",
         url: "/games",
-        icons: [{ src: "/icon", sizes: "512x512", type: "image/png" }],
+        icons: [{ src: icon, sizes: "512x512", type: "image/png" }],
       },
       {
         name: "Apps",
         short_name: "Apps",
         description: "Open Admin Hub Apps.",
         url: "/apps",
-        icons: [{ src: "/icon", sizes: "512x512", type: "image/png" }],
+        icons: [{ src: icon, sizes: "512x512", type: "image/png" }],
       },
     ],
   };

@@ -7,6 +7,8 @@ const apps = [
   ["Namane Tyres", "Customer booking & work progress", "http://namane-tyres.vercel.app/", true],
   ["PurePress", "Business application", "https://purepress-omega.vercel.app/", true],
   ["Meating Place", "Food & business application", "https://meating-place.vercel.app/", true],
+  ["Exquisite Waterproof Services", "Waterproofing & renovation services", "https://exquisite-waterproof-services.vercel.app/", true],
+  ["Atlas Service Centre", "Vehicle service & workshop system", "https://atlas-service-centre.vercel.app/", true],
   ["Avram Kids", "Interactive application", "/apps", false],
 ] as const;
 

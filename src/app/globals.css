@@ -1173,3 +1173,220 @@ hr {
     gap: 2rem;
   }
 }
+
+
+/* =========================================================
+   Admin Hub Control — light contrast boundary
+   Admin routes use a light visual system. This scope overrides
+   legacy dark shared primitives without changing public routes
+   or BoardSignal styling.
+   ========================================================= */
+
+.admin-hub-control {
+  --background: #f7f7f3;
+  --foreground: #111318;
+  --surface: #ffffff;
+  --surface-2: #f0f0eb;
+  --surface-3: #e8e8e2;
+  --surface-4: #deded7;
+  --surface-soft: #ffffff;
+  --border: #d7d8d1;
+  --border-strong: #b9bbc0;
+  --border-glow: #9da1a8;
+  --brand-primary: #173ea5;
+  --brand-primary-strong: #0d2c7d;
+  --brand-secondary: #276534;
+  --brand-tint: #edf2ff;
+  --brand-deep: #0d2c7d;
+  --text-primary: #111318;
+  --text-secondary: #4e535a;
+  --text-muted: #686d74;
+  --text-subtle: #8a8f96;
+  --text-on-brand: #ffffff;
+  --ring: rgba(23, 62, 165, 0.2);
+  --shadow-sm: 0 8px 22px rgba(17, 19, 24, 0.06);
+  --shadow-md: 0 18px 46px rgba(17, 19, 24, 0.08);
+  --shadow-lg: 0 30px 90px rgba(17, 19, 24, 0.1);
+  --shadow-blue: 0 18px 42px rgba(23, 62, 165, 0.12);
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: light;
+}
+
+.admin-hub-control h1,
+.admin-hub-control h2,
+.admin-hub-control h3,
+.admin-hub-control h4,
+.admin-hub-control h5,
+.admin-hub-control h6 {
+  color: #111318;
+}
+
+.admin-hub-control p,
+.admin-hub-control li {
+  color: #4e535a;
+}
+
+.admin-hub-control small,
+.admin-hub-control .muted,
+.admin-hub-control .field-hint {
+  color: #686d74;
+}
+
+.admin-hub-control a {
+  color: inherit;
+}
+
+.admin-hub-control a:hover,
+.admin-hub-control a:focus-visible {
+  color: #173ea5;
+}
+
+.admin-hub-control .eyebrow {
+  color: #173ea5;
+}
+
+.admin-hub-control .eyebrow::before {
+  background: #276534;
+  box-shadow: none;
+}
+
+.admin-hub-control .card,
+.admin-hub-control .card-elevated,
+.admin-hub-control .card-outline-gold,
+.admin-hub-control .card-outline-accent,
+.admin-hub-control .glass-panel,
+.admin-hub-control .command-panel,
+.admin-hub-control .frame-gold,
+.admin-hub-control .frame-accent {
+  background: #ffffff;
+  color: #111318;
+  border-color: #d7d8d1;
+  box-shadow: 0 12px 30px rgba(17, 19, 24, 0.06);
+}
+
+.admin-hub-control .card-inner {
+  color: #111318;
+}
+
+.admin-hub-control .btn {
+  color: #111318;
+}
+
+.admin-hub-control .btn-primary {
+  background: #111318;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.admin-hub-control .btn-primary:hover,
+.admin-hub-control .btn-primary:focus-visible {
+  background: #173ea5;
+  color: #ffffff;
+}
+
+.admin-hub-control .btn-outline {
+  background: #ffffff;
+  color: #111318;
+  border-color: #b9bbc0;
+  box-shadow: none;
+}
+
+.admin-hub-control .btn-outline:hover,
+.admin-hub-control .btn-outline:focus-visible {
+  background: #f0f0eb;
+  color: #111318;
+  border-color: #111318;
+}
+
+.admin-hub-control .btn-ghost {
+  background: transparent;
+  color: #4e535a;
+}
+
+.admin-hub-control .btn-ghost:hover,
+.admin-hub-control .btn-ghost:focus-visible {
+  background: #f0f0eb;
+  color: #173ea5;
+}
+
+.admin-hub-control .input,
+.admin-hub-control .textarea,
+.admin-hub-control .select {
+  background: #ffffff;
+  color: #111318;
+  border-color: #b9bbc0;
+  box-shadow: inset 0 1px 2px rgba(17, 19, 24, 0.05);
+}
+
+.admin-hub-control .input::placeholder,
+.admin-hub-control .textarea::placeholder {
+  color: #8a8f96;
+}
+
+.admin-hub-control .input:focus,
+.admin-hub-control .textarea:focus,
+.admin-hub-control .select:focus {
+  background: #ffffff;
+  border-color: #173ea5;
+  box-shadow: 0 0 0 4px rgba(23, 62, 165, 0.12);
+}
+
+.admin-hub-control .label {
+  color: #111318;
+}
+
+.admin-hub-control .empty-state {
+  background: #f7f7f3;
+  color: #4e535a;
+  border-color: #b9bbc0;
+}
+
+.admin-hub-control .table-shell {
+  background: #ffffff;
+  border-color: #d7d8d1;
+}
+
+.admin-hub-control .table-shell th {
+  color: #111318;
+  background: #f0f0eb;
+}
+
+.admin-hub-control .table-shell td {
+  color: #4e535a;
+  border-color: #d7d8d1;
+}
+
+/* Legacy Tailwind dark-surface utilities used by older admin pages. */
+.admin-hub-control [class*="bg-[rgba(15,23,42"] {
+  background: #ffffff !important;
+  color: #111318 !important;
+  border-color: #d7d8d1 !important;
+}
+
+.admin-hub-control [class*="bg-[rgba(6,10,18"] {
+  background: #ffffff !important;
+  color: #111318 !important;
+}
+
+.admin-hub-control [class*="text-[var(--text-primary)"] {
+  color: #111318 !important;
+}
+
+.admin-hub-control [class*="text-[var(--text-secondary)"] {
+  color: #4e535a !important;
+}
+
+.admin-hub-control [class*="text-[var(--text-muted)"] {
+  color: #686d74 !important;
+}
+
+.admin-hub-control [class*="text-[var(--text-subtle)"] {
+  color: #8a8f96 !important;
+}
+
+.admin-hub-control :focus-visible {
+  outline: 3px solid #173ea5;
+  outline-offset: 3px;
+}

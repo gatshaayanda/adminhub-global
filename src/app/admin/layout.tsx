@@ -10,8 +10,8 @@ import {
 
 export const metadata: Metadata = {
   title: {
-    default: "Admin Hub Admin",
-    template: "%s | Admin Hub Admin",
+    default: "Admin Hub Control",
+    template: "%s | Admin Hub Control",
   },
   description:
     "Protected Admin Hub workspace for managing products, projects, content, client work, and build evidence.",

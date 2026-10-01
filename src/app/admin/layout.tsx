@@ -10,11 +10,11 @@ import {
 
 export const metadata: Metadata = {
   title: {
-    default: "AdminHub Global Control",
-    template: "%s | AdminHub Global Control",
+    default: "Admin Hub Admin",
+    template: "%s | Admin Hub Admin",
   },
   description:
-    "Protected AdminHub Global admin area for managing agents, leads, clients, projects, proposals, onboarding, support, and platform operations.",
+    "Protected Admin Hub workspace for managing products, projects, content, client work, and build evidence.",
   robots: {
     index: false,
     follow: false,

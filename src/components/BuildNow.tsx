@@ -31,6 +31,10 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatViews(value: number) {
+  return new Intl.NumberFormat("en-GB").format(value);
+}
+
 export default function BuildNow() {
   const [update, setUpdate] = useState<LatestUpdate | null>(null);
 
@@ -77,7 +81,11 @@ export default function BuildNow() {
         <Link className="admin-primary-button" href="/updates">
           View build log <span>↗</span>
         </Link>
-        {update ? <span>Views {update.viewCount}</span> : <span>No updates published</span>}
+        {update ? (
+          <span>{formatViews(update.viewCount)} recorded views</span>
+        ) : (
+          <span>No updates published</span>
+        )}
       </div>
     </section>
   );

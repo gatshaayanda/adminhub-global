@@ -44,7 +44,7 @@ export default async function BuildLogPage() {
   const totalViews = updates.reduce((sum, update) => sum + update.viewCount, 0);
 
   return (
-    <main className="ah-build-log">
+    <div className="ah-build-log">
       <section className="ah-build-log-hero">
         <div className="ah-build-log-hero-inner">
           <div className="ah-build-log-heading">
@@ -138,6 +138,6 @@ export default async function BuildLogPage() {
           Back to Admin Hub <span>↗</span>
         </Link>
       </section>
-    </main>
+    </div>
   );
 }

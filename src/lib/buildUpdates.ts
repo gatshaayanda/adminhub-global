@@ -1,4 +1,4 @@
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, type DocumentData } from "firebase-admin/firestore";
 import { adminDb } from "@/utils/firebaseAdmin";
 
 export const BUILD_UPDATES_COLLECTION = "buildUpdates";
@@ -54,7 +54,7 @@ function toIso(value: unknown) {
 
 export function serializeBuildUpdate(
   id: string,
-  data: FirebaseFirestore.DocumentData
+  data: DocumentData
 ): BuildUpdate {
   return {
     id,

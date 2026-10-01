@@ -26,7 +26,7 @@ export default async function AdminLayout({
   const token = store.get("admin_token")?.value;
 
   if (!token) {
-    redirect("/login");
+    redirect("/login-secret-login-for-admins97F4B2NXQ");
   }
 
   return <>{children}</>;

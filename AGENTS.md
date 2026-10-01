@@ -77,6 +77,13 @@ These are factual background notes for writing project descriptions/case-study c
 - Keep accessible focus states, usable touch targets, and prefers-reduced-motion support.
 - The 25GB/500-user language is a planning model, not a universal quota or unlimited-capacity guarantee.
 
+## Deployment checkpoint discipline
+- A "push" is not complete for user QA until the intended commit is actually on main, Vercel has produced the corresponding deployment, the deployment is READY, and the production URL has been checked for the changed route(s) when practical.
+- Do not report a push as ready to test while production is still serving an older deployment.
+- If a deployment trigger does not fire, inspect Vercel/Git integration and resolve the deployment state before asking the user to test.
+- Prefer promoting a verified READY deployment over creating unnecessary code changes.
+- Never change Firebase rules or unrelated application code merely to force a deployment.
+
 ## Opportunity search — already applied / do not repeat
 - Added 2026-09-30 as an application-tracking checkpoint.
 - The following companies were already researched and applied to. Do not return them as new opportunities unless the user explicitly asks for a follow-up, a different role, or a materially new opening:
@@ -127,34 +134,9 @@ These are factual background notes for writing project descriptions/case-study c
 - Include small businesses that may need product implementation, technical customer success, support engineering, SaaS operations, business systems, frontend/product development, QA, research/content, game development, community/customer work, or a hybrid role.
 - When searching, work from the current date backwards and favor newly active opportunities first. For each result, verify the business/company itself, the actual opportunity or plausible direct hiring need, the human/direct route, and why the user's combined evidence is relevant.
 
-
-
-- Additional 2026-09-30 opportunity-search checkpoint: the following businesses/companies were already researched in the latest batch. Do not return them as new opportunities unless the user explicitly asks for a follow-up, a different role, or a materially new opening:
-  - Runflow — https://www.runflow.io/careers
-  - CodeX Systems — https://www.codxsystems.com/careers
-  - XPDevs — https://xpdevs.github.io/jobs.html
-  - Merkel.Games — https://www.merkel.games/
-  - Small Team, Big Worlds — https://sbteam.live/
-  - RainByte Studios — https://rainbytestudio.com/
-  - Yaksera — https://yaksera.com/hire
-  - Threxil Systems — https://www.threxil.com/careers
-  - iSyntaxo — https://www.isyntaxo.com/careers
-  - Genaya — https://genaya.com/careers
-  - NorthRadar Media — https://northradarmedia.com/careers/
-  - Noovid — https://noovid.com/en/careers
-  - Gamers Home — https://gamershome.gg/career
-  - Lymo Games — https://lymogames.com/
-  - Decnet Games — https://www.decnetgames.com/contact
-  - Overbaked Studio — https://overbaked.studio/
-  - Oshki Games — https://oshkigames.com/were-hiring/
-  - Forgeworks — https://www.forgeworks.hr/contact
-  - CoreAxis Solutions — https://coreaxissolutions.ca/
-  - AUMOXO — https://aumoxo.tech/careers
-
 ## Small-business direct-offering search expansion
-
 - Additional opportunity-search expansion (2026-10-01): in addition to software companies and indie game studios, search for small real-world businesses in Europe and North America that have the same characteristics as businesses such as Atlas Service Centre: owner-operated or independently run service businesses, workshops, repair shops, trades, automotive/trucking, transport/logistics, equipment/service companies, local professional services, specialist retailers, and other established small businesses with a real online/local presence but weak or missing digital systems.
-- These businesses are potential direct-offering targets, not only conventional job vacancies. Look for businesses that could plausibly benefit from a custom customer-facing app/PWA, booking/request workflow, job/status tracking, ordering, CRM/customer portal, dashboard, notifications, offline-capable field workflow, internal operations system, or branded interactive/game experience.
+- These businesses are potential direct-offering targets, not only conventional job vacancies. Look for businesses that could plausibly benefit from a custom customer-facing app/PWA, booking/request workflow, job/status tracking, ordering, CRM/customer portal, dashboard, notifications, offline-capable field workflow, or branded interactive/game experience.
 - Europe and North America are specifically in scope for this business-prospecting search. Prefer businesses where an owner/founder/manager can be contacted directly through an official website email, contact form, phone/WhatsApp where publicly provided, or another clearly human route.
 - Treat a Google Maps/local-business profile with a real business name, address, phone, category, operating presence, reviews/photos, and/or missing website as a useful lead signal. A missing website is not proof that the business needs software; verify the business and look for a concrete digital opportunity before presenting it.
 - Search these small-business prospect categories alongside software/game companies: truck/auto repair and service centres; mechanics and garages; transport/fleet businesses; tyre and parts shops; construction/trades; equipment rental/service; industrial/service workshops; cleaning/maintenance companies; local wholesalers/distributors; specialist retailers; clinics/professional practices where appropriate; hospitality/food operators; schools/training providers; independent agencies; and other small service businesses whose workflow could reasonably be improved by software.

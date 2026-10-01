@@ -63,7 +63,7 @@ export default async function BuildLogEntryPage({
   if (!update) notFound();
 
   return (
-    <main className="ah-build-detail">
+    <div className="ah-build-detail">
       <ViewCounter slug={update.slug} />
 
       <section className="ah-build-detail-shell">
@@ -102,6 +102,6 @@ export default async function BuildLogEntryPage({
           <Link href="/updates">View the full build log →</Link>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

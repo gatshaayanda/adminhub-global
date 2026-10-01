@@ -128,6 +128,29 @@ These are factual background notes for writing project descriptions/case-study c
 - When searching, work from the current date backwards and favor newly active opportunities first. For each result, verify the business/company itself, the actual opportunity or plausible direct hiring need, the human/direct route, and why the user's combined evidence is relevant.
 
 
+
+- Additional 2026-09-30 opportunity-search checkpoint: the following businesses/companies were already researched in the latest batch. Do not return them as new opportunities unless the user explicitly asks for a follow-up, a different role, or a materially new opening:
+  - Runflow — https://www.runflow.io/careers
+  - CodeX Systems — https://www.codxsystems.com/careers
+  - XPDevs — https://xpdevs.github.io/jobs.html
+  - Merkel.Games — https://www.merkel.games/
+  - Small Team, Big Worlds — https://sbteam.live/
+  - RainByte Studios — https://rainbytestudio.com/
+  - Yaksera — https://yaksera.com/hire
+  - Threxil Systems — https://www.threxil.com/careers
+  - iSyntaxo — https://www.isyntaxo.com/careers
+  - Genaya — https://genaya.com/careers
+  - NorthRadar Media — https://northradarmedia.com/careers/
+  - Noovid — https://noovid.com/en/careers
+  - Gamers Home — https://gamershome.gg/career
+  - Lymo Games — https://lymogames.com/
+  - Decnet Games — https://www.decnetgames.com/contact
+  - Overbaked Studio — https://overbaked.studio/
+  - Oshki Games — https://oshkigames.com/were-hiring/
+  - Forgeworks — https://www.forgeworks.hr/contact
+  - CoreAxis Solutions — https://coreaxissolutions.ca/
+  - AUMOXO — https://aumoxo.tech/careers
+
 ## Small-business direct-offering search expansion
 
 - Additional opportunity-search expansion (2026-10-01): in addition to software companies and indie game studios, search for small real-world businesses in Europe and North America that have the same characteristics as businesses such as Atlas Service Centre: owner-operated or independently run service businesses, workshops, repair shops, trades, automotive/trucking, transport/logistics, equipment/service companies, local professional services, specialist retailers, and other established small businesses with a real online/local presence but weak or missing digital systems.

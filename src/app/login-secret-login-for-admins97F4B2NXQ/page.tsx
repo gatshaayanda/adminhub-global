@@ -4,38 +4,20 @@ import Link from "next/link";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ClipboardList,
-  LayoutDashboard,
-  Loader2,
-  Lock,
-  LockKeyhole,
-  Network,
-  ShieldCheck,
-  Wifi,
-  WifiOff,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Lock, ShieldCheck, Wifi, WifiOff } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-
   const [pw, setPw] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
-    const updateOnlineStatus = () => {
-      setOnline(navigator.onLine);
-    };
-
+    const updateOnlineStatus = () => setOnline(navigator.onLine);
     updateOnlineStatus();
-
     window.addEventListener("online", updateOnlineStatus);
     window.addEventListener("offline", updateOnlineStatus);
-
     return () => {
       window.removeEventListener("online", updateOnlineStatus);
       window.removeEventListener("offline", updateOnlineStatus);
@@ -45,16 +27,11 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-
     if (!online) {
-      setError(
-        "Admin login needs an internet connection. Public cached pages may still open offline, but AdminHub Global Control must be verified online."
-      );
+      setError("Admin access requires an internet connection so the server can verify your credentials.");
       return;
     }
-
     setLoading(true);
-
     try {
       const res = await fetch("/api/login", {
         method: "POST",
@@ -62,22 +39,15 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: pw }),
       });
-
       if (res.ok) {
-        router.push("/admin/dashboard");
+        router.replace("/admin/dashboard");
         return;
       }
-
-      const { error: msg } = await res
-        .json()
-        .catch(() => ({ error: "Login failed" }));
-
+      const { error: msg } = await res.json().catch(() => ({ error: "Login failed" }));
       setError(msg || "Login failed");
       setPw("");
     } catch {
-      setError(
-        "Something went wrong. Please check your connection and try again."
-      );
+      setError("Something went wrong. Check your connection and try again.");
       setPw("");
     } finally {
       setLoading(false);
@@ -85,224 +55,100 @@ export default function LoginPage() {
   }
 
   return (
-    <main
-      id="main"
-      className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"
-    >
-      <section className="section-shell relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 panel-grid opacity-60" />
-        <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[rgba(77,163,255,0.12)] blur-3xl" />
-        <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[rgba(24,199,184,0.1)] blur-3xl" />
+    <main id="main" className="min-h-screen bg-[#f7f7f3] text-[#111318]">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 py-5 sm:px-8 lg:px-10">
+        <header className="flex items-center justify-between border-b border-[#deded7] pb-4">
+          <Link href="/" prefetch={false} className="inline-flex min-h-11 items-center gap-2 text-sm font-extrabold text-[#111318] hover:text-[#173ea5]">
+            <ArrowLeft size={17} />
+            Admin Hub
+          </Link>
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#d7d8d1] bg-white px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.12em] text-[#4e535a]">
+            {online ? <Wifi size={14} /> : <WifiOff size={14} />}
+            {online ? "Online" : "Offline"}
+          </div>
+        </header>
 
-        <div className="container relative">
-          <div className="mx-auto max-w-5xl">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <Link
-                href="/"
-                prefetch={false}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand-primary)] transition hover:opacity-80"
-              >
-                <ArrowLeft size={16} />
-                Back to Home
-              </Link>
-
-              <div
-                className={`inline-flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-sm font-bold ${
-                  online
-                    ? "border-[rgba(34,197,94,0.32)] bg-[rgba(34,197,94,0.12)] text-[#86efac]"
-                    : "border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] text-[#fcd34d]"
-                }`}
-              >
-                {online ? <Wifi size={16} /> : <WifiOff size={16} />}
-                {online ? "Online" : "Offline-aware"}
+        <div className="flex flex-1 items-center justify-center py-12 sm:py-16">
+          <div className="grid w-full max-w-4xl gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <section className="lg:pr-8">
+              <div className="mb-4 inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-[#173ea5]">
+                <ShieldCheck size={15} />
+                Internal access
               </div>
-            </div>
+              <h1 className="max-w-[11ch] text-5xl font-black leading-[0.98] tracking-[-0.055em] sm:text-6xl">
+                Admin Hub Control.
+              </h1>
+              <p className="mt-5 max-w-[52ch] text-base leading-8 text-[#4e535a]">
+                The private workspace for managing Admin Hub&apos;s apps, games, projects, content, and build evidence.
+              </p>
 
-            {!online ? (
-              <div className="mb-5 rounded-[1.25rem] border border-[rgba(245,158,11,0.32)] bg-[rgba(245,158,11,0.12)] px-4 py-3 text-sm leading-7 text-[#fcd34d]">
-                <div className="flex items-start gap-2">
-                  <WifiOff size={17} className="mt-1 shrink-0" />
-                  <p>
-                    You are offline. Public pages may still load from saved PWA
-                    cache, but admin login requires internet because access must
-                    be verified by the server.
-                  </p>
+              <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                {[
+                  ["Apps", "Product work"],
+                  ["Games", "Interactive work"],
+                  ["Build Log", "Public proof"],
+                ].map(([title, copy]) => (
+                  <div key={title} className="border-l-2 border-[#111318] pl-3">
+                    <p className="text-sm font-black text-[#111318]">{title}</p>
+                    <p className="mt-1 text-xs leading-5 text-[#686d74]">{copy}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-[1.4rem] border border-[#d7d8d1] bg-white p-6 shadow-[0_20px_60px_rgba(17,19,24,0.08)] sm:p-8">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#111318] text-white">
+                <Lock size={21} />
+              </div>
+              <div className="mt-6">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[#686d74]">Admin login</p>
+                <h2 className="mt-2 text-2xl font-black tracking-[-0.03em]">Continue to the dashboard</h2>
+                <p className="mt-2 text-sm leading-6 text-[#686d74]">
+                  Enter the internal admin password. Access is verified online before the dashboard opens.
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+                <div>
+                  <label htmlFor="password" className="block text-sm font-extrabold text-[#111318]">Admin password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="Enter admin password"
+                    value={pw}
+                    onChange={(e) => setPw(e.target.value)}
+                    className="mt-2 min-h-12 w-full rounded-xl border border-[#b9bbc0] bg-[#fbfbf8] px-4 text-base text-[#111318] outline-none transition placeholder:text-[#8a8f96] focus:border-[#173ea5] focus:ring-4 focus:ring-[#173ea5]/10"
+                    required
+                    autoComplete="current-password"
+                    disabled={loading || !online}
+                  />
                 </div>
-              </div>
-            ) : null}
-
-            <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-              <div className="card-elevated overflow-hidden">
-                <div className="relative overflow-hidden bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.96)_48%,rgba(24,199,184,0.12)_100%)] p-6 md:p-10">
-                  <div className="pointer-events-none absolute inset-0 panel-grid opacity-40" />
-
-                  <div className="relative">
-                    <div className="eyebrow">
-                      <ShieldCheck size={15} />
-                      AdminHub Global • Internal Access
-                    </div>
-
-                    <h1 className="max-w-[12ch]">
-                      Secure access for AdminHub Global Control.
-                    </h1>
-
-                    <p className="mt-4 max-w-[62ch] text-base leading-8 text-[var(--text-secondary)]">
-                      This area is reserved for authorized AdminHub Global
-                      management. Use the internal password to access dashboard
-                      tools for leads, agents, clients, projects, proposals,
-                      messaging, uploads, support, and platform operations.
-                    </p>
-
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
-                        <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
-                          <LockKeyhole
-                            size={16}
-                            className="text-[var(--brand-primary)]"
-                          />
-                          Protected control area
-                        </p>
-                        <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                          Built for internal business management, not public
-                          browsing.
-                        </p>
-                      </div>
-
-                      <div className="rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
-                        <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
-                          <Wifi
-                            size={16}
-                            className="text-[var(--brand-primary)]"
-                          />
-                          Online-only verification
-                        </p>
-                        <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                          Admin access stays online-only so the app does not
-                          pretend protected tools are available without server
-                          verification.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                      <Link
-                        href="/contact"
-                        prefetch={false}
-                        className="btn btn-outline"
-                      >
-                        <ClipboardList size={18} />
-                        Request Access Review
-                      </Link>
-
-                      <Link
-                        href="/solutions"
-                        prefetch={false}
-                        className="btn btn-ghost"
-                      >
-                        <Network size={18} />
-                        View Solutions
-                      </Link>
-                    </div>
+                <button
+                  type="submit"
+                  disabled={loading || !online}
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#111318] px-5 text-sm font-black text-white transition hover:bg-[#173ea5] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+                  {loading ? "Signing in..." : online ? "Open Admin Hub Control" : "Offline"}
+                </button>
+                {error ? (
+                  <div role="alert" className="rounded-xl border border-[#e0b7b7] bg-[#fff5f5] px-4 py-3 text-sm leading-6 text-[#9d2424]">
+                    {error}
                   </div>
-                </div>
-              </div>
+                ) : null}
+              </form>
 
-              <div className="card-outline-gold self-start">
-                <div className="card-inner md:p-8">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary)]">
-                    <Lock size={24} />
-                  </div>
-
-                  <div className="mt-5 text-center">
-                    <div className="eyebrow justify-center">
-                      <Lock size={15} />
-                      AdminHub Global Control
-                    </div>
-
-                    <h2 className="mt-2 text-2xl">Admin Login</h2>
-
-                    <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                      Enter the internal admin password to continue to the
-                      dashboard.
-                    </p>
-                  </div>
-
-                  <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                    <div>
-                      <label htmlFor="password" className="label">
-                        Admin Password
-                      </label>
-
-                      <input
-                        id="password"
-                        type="password"
-                        placeholder="Enter admin password"
-                        value={pw}
-                        onChange={(e) => setPw(e.target.value)}
-                        className="input mt-2"
-                        required
-                        autoComplete="current-password"
-                        disabled={loading || !online}
-                      />
-
-                      {!online ? (
-                        <p className="mt-2 text-xs leading-6 text-[var(--text-muted)]">
-                          Login is disabled while offline.
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading || !online}
-                      className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {loading ? (
-                        <Loader2 size={18} className="animate-spin" />
-                      ) : (
-                        <Lock size={18} />
-                      )}
-                      {loading
-                        ? "Logging In..."
-                        : online
-                          ? "Login to Control"
-                          : "Offline"}
-                    </button>
-
-                    {error ? (
-                      <div className="rounded-[1rem] border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-7 text-red-200">
-                        {error}
-                      </div>
-                    ) : null}
-                  </form>
-
-                  <div className="mt-6 rounded-[1.25rem] border border-[var(--border)] bg-[rgba(15,23,42,0.72)] p-4">
-                    <p className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
-                      <LayoutDashboard
-                        size={16}
-                        className="text-[var(--brand-primary)]"
-                      />
-                      Access note
-                    </p>
-                    <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                      AdminHub Global Control manages internal workflows such as
-                      leads, agents, clients, onboarding, projects, proposals,
-                      recurring support, and activity tracking.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 frame-gold p-5 text-sm leading-7 text-[var(--text-secondary)]">
-              <b className="text-[var(--text-primary)]">Contact policy:</b>{" "}
-              Direct personal phone and email details are not displayed publicly.
-              Access problems should go through structured inquiry capture first,
-              so identity and context are recorded before private follow-up.
-            </div>
+              <p className="mt-6 border-t border-[#ecece6] pt-5 text-xs leading-5 text-[#686d74]">
+                Private admin access only. No public content or personal contact details are exposed by this login screen.
+              </p>
+            </section>
           </div>
         </div>
-      </section>
+
+        <footer className="border-t border-[#deded7] pt-4 text-xs text-[#686d74]">
+          ADMIN HUB <span className="mx-2">·</span> Internal control
+        </footer>
+      </div>
     </main>
   );
 }

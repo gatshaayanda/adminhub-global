@@ -160,3 +160,7 @@ These are factual background notes for writing project descriptions/case-study c
 - Public update detail pages at /updates/[slug] use the same light editorial system and must not fall back to the legacy dark operations UI.
 - The homepage BUILDING NOW block may show the latest update's aggregate recorded view count; /updates may show aggregate recorded update views. These are Firestore Build Log read counts, not Vercel site-traffic totals.
 - Vercel Web Analytics remains a separate aggregate traffic system. Do not label Build Log read counts as visitors or Vercel analytics.
+
+
+## Direct-business prospect exclusions — 2026-10-01
+- Permanently exclude the first 16 prospects from the 2026-10-01 direct-business search batch; do not return them as new targets unless explicitly requested.

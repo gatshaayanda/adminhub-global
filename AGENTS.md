@@ -205,3 +205,14 @@ These are factual background notes for writing project descriptions/case-study c
 - Public update detail pages at /updates/[slug] use the same light editorial system and must not fall back to the legacy dark operations UI.
 - The homepage BUILDING NOW block may show the latest update's aggregate recorded view count; /updates may show aggregate recorded update views. These are Firestore Build Log read counts, not Vercel site-traffic totals.
 - Vercel Web Analytics remains a separate aggregate traffic system. Do not label Build Log read counts as visitors or Vercel analytics.
+
+
+## Mandatory two-track fresh opportunity search — 2026-10-03
+- **EVERY fresh opportunity search must contain BOTH tracks. Never return only one.**
+- **TRACK A — JOBS / CONTRACT WORK:** actual current global employment or contract opportunities the user can apply/contact for, including small/founder-led software companies, SaaS, product, technical operations, implementation, support, QA, frontend/product development, research/content, and indie/browser/game/Phaser work.
+- **TRACK B — DIRECT CUSTOMER PITCHES:** actual new businesses the user can directly approach as a potential paying customer for Admin Hub's business-app/PWA or relevant game/interactive capability, using the strict no-web-app/no-digital-system filter and all permanent prospect exclusions.
+- The final answer must visibly separate the two tracks with headings such as **JOBS / CONTRACTS** and **DIRECT CUSTOMER PITCHES**.
+- A search is **incomplete** if either track is missing, even when one track produces fewer results. If one track has no verified new targets, explicitly say so rather than silently omitting it.
+- Apply the appropriate exclusion list to each track: employment/application exclusions for TRACK A; all permanent direct-business exclusions plus the no-web-app/no-digital-system filter for TRACK B.
+- Do not let the direct-customer search replace the jobs search. Do not let the jobs search replace the direct-customer search.
+- For TRACK A, verify global/Botswana compatibility before calling an opportunity confirmed global; for TRACK B, verify the business and its digital-presence/workflow gap before calling it a serious pitch prospect.

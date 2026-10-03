@@ -271,3 +271,138 @@ These are factual background notes for writing project descriptions/case-study c
 - **Do not pad the first-customer list with businesses that merely have WhatsApp.** A WhatsApp route is valuable because it makes the owner/customer reachable; it does not prove software need. The no-web-app/no-digital-system and concrete workflow tests remain mandatory.
 - **Direct-contact output must make the evidence auditable:** show exactly where WhatsApp was confirmed, how no independent website was checked, the visible manual workflow, and the direct human route. Never fabricate a WhatsApp link from a phone number.
 - **First set quality over quantity:** return fewer targets rather than weakening the intersection. A first set of 3–5 genuinely strong prospects is preferable to 10 generic businesses.
+
+
+## JOBS + DIRECT PITCH SEARCH — REPLACEMENT STANDARD — 2026-10-03
+
+**This section supersedes all earlier opportunity-search parameters that conflict with it.** The older narrow "no website + WhatsApp + no web app" intersection is no longer the master filter.
+
+### PRIMARY OBJECTIVE
+Every fresh opportunity search starts with **actual JOBS / CONTRACT WORK first**. The second lane is **DIRECT HUMAN BUSINESS PITCHES** for small businesses that could realistically hire or contract Ayanda. Never present a pitch prospect as a job vacancy.
+
+### HARD EXCLUSIONS
+Never return:
+- "might be global", "probably worldwide", "remote so maybe Botswana", or any inferred geography.
+- Roles whose location eligibility is not explicitly compatible with Botswana or explicitly worldwide/international/contractor-friendly.
+- Faceless job boards, scraped job aggregators, generic remote-job lists, mass-application funnels, signup-first marketplaces, or intermediary approaches when a direct employer route exists.
+- Upwork, Fiverr, OnlineJobs.ph, Wellfound-style marketplace hunting, or equivalent intermediary marketplaces.
+- Anonymous recruiters where the actual employer/opportunity cannot be established.
+- Mass/faceless corporations as the default target.
+- Roles materially incompatible with Ayanda's real experience, evidence, seniority or technical/product direction.
+- Commission-only sales, unpaid work disguised as employment, speculative assessments, stale/closed vacancies, or broken application routes.
+- Any company already in the employment/application exclusion ledger.
+- Any business already in the direct-pitch exclusion ledger.
+- Recycled targets presented as new because a different generic role, branch, location, repost or title appeared.
+
+### WHAT COUNTS AS A REAL JOB
+A JOB must have:
+1. A real employer.
+2. A currently open role or credible current hiring need.
+3. Explicit Botswana/worldwide/international eligibility or explicit worldwide contractor acceptance.
+4. A verified direct employer application/contact route.
+5. Material overlap with Ayanda's evidence.
+
+Preferred routes: official company careers page, official employer ATS, official application form, public company hiring email, named founder/hiring manager/team contact, or a direct company hiring/social route. Job boards may be discovery clues only; they are not the final route when the employer's direct route can be found.
+
+### WHO TO SEARCH FOR
+Search aggressively for **small owner-led, founder-led, family-run, independent, boutique, micro-SaaS, indie studio, small agency, specialist software company, educational company, digital publisher, interactive/game company and other genuinely small teams**. The objective is human accessibility + realistic hiring/contracting + work that matches Ayanda, not "small" as a meaningless label.
+
+### AYANDA'S ACTUAL ROLE PROFILE
+Search the whole profile, not just "developer":
+- Technical Operations & Product Systems Specialist
+- Product builder / product operator
+- Business-systems implementation
+- PWA/app systems
+- React / Next.js / TypeScript / JavaScript
+- QA, troubleshooting and release verification
+- Technical customer support
+- Implementation / onboarding / customer operations
+- SaaS/product operations
+- Research, documentation and process improvement
+- Independent client delivery
+- Browser games / HTML5 / Canvas / Phaser / JavaScript
+- Game QA, production, technical design and interactive experiences
+- Practical AI/automation implementation
+
+Prioritize hybrid roles where one person can investigate a customer/business problem, translate it into a workable system, build/configure it, test it, explain it, support it and iterate from feedback. Do not force conventional senior software-engineering or senior-product-management roles when the actual requirements are a poor match.
+
+### COMMERCIAL EVIDENCE
+Use as concrete matching evidence:
+- 10+ years as an independent remote contractor for a UK web-app company.
+- Paid ongoing, preliminary/pilot and complete client work including Markee, RedPlanet and current Admin Hub client systems.
+- Two reusable engines: a business-app/PWA engine and a browser/PWA game engine.
+- Existing paid client systems and real product builds.
+- Ability to produce additional apps/games from reusable systems rather than starting from zero.
+- Canadian New Media Journalism education.
+- International publication through Canadian student presses.
+- Certificates and continuing learning/development.
+- Research, documentation, interviewing, source evaluation, communication and practical product ownership.
+- Playable games and an engine designed to accelerate future game production.
+
+Do not exaggerate revenue, scale, users or outcomes.
+
+### DIRECT HUMAN BUSINESS PITCHES
+When there is no vacancy, search for **real small businesses with real humans** that could plausibly hire/contract Ayanda. They may have a proper website, basic website, Facebook/Instagram, Google/Maps listing, online catalogue, WhatsApp, email/phone, or a mixture.
+
+**A website is NOT a disqualifier.** Do not automatically prefer "no website" over a stronger business. The business, human access, workflow and buying reason come first.
+
+Search businesses including workshops/repair, field service, trades, contractors, transport/fleet, specialist retail, equipment/service, hospitality/food, education/training, publishing/media, independent agencies, tourism/events, small online businesses, small software/product companies and indie games/interactive businesses.
+
+### DIRECT-PITCH TEST
+Before returning a serious pitch target, establish:
+1. Real and active business.
+2. Human owner/founder/manager or clearly human contact route.
+3. Genuine operational/customer workflow.
+4. Plausible reason to hire/contract someone.
+5. Direct mapping to Ayanda's capability.
+6. Public direct contact route.
+7. Not already excluded.
+
+Do **not** require no website, no software, or confirmed WhatsApp. Those are signals, not master criteria.
+
+### WHAT TO PITCH
+Lead with the business problem, not "I am a developer." Potential entry points include customer/request intake, jobs/work orders, customer progress/status, quotes/follow-up, field workflows, customer portals, dashboards, offline mobile workflows, document/photo collection, ordering, booking/request handling, automation/integrations, technical support/implementation, product QA, product operations, interactive customer experiences, training/education games and promotional/engagement games.
+
+The reusable PWA engine is the main commercial engine. The game engine is a real second capability and should be used when the business has a genuine game/interactive use case.
+
+### SEARCH ORDER
+For every new search:
+1. **START WITH JOBS / CONTRACTS.**
+2. Search current opportunities from the current date backwards.
+3. Find small human-led employers first.
+4. Verify role, geography and direct route.
+5. Match against the complete evidence.
+6. Only then search direct-pitch businesses.
+7. Check the separate employment and direct-pitch exclusion ledgers.
+8. Return strongest verified opportunities first.
+9. Never pad the count.
+10. If a category has no genuine result, say so.
+
+### REQUIRED OUTPUT
+**JOBS / CONTRACTS**
+- Company
+- Exact role
+- Current/open evidence and date
+- Explicit Botswana/worldwide eligibility
+- Concrete match to Ayanda's evidence
+- Direct application or human route
+- Application-health status
+
+**DIRECT HUMAN PITCHES**
+- Business
+- Location
+- Human/owner route
+- Existing online presence
+- Concrete workflow/opportunity
+- What Ayanda could offer first
+- Direct contact route
+- Why the business could plausibly hire/contract him
+
+Never substitute one section for the other.
+
+### QUALITY CONTROL
+The governing question is:
+
+> **"Is there a real human on the other end who could actually hire Ayanda, contract him, or buy the capability — and is there evidence that the opportunity exists now?"**
+
+If the evidence does not support that answer, do not present the target as actionable. The goal is not a long list; it is **real, reachable, compatible opportunities that can actually turn into paid work**.

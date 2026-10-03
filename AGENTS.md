@@ -40,7 +40,7 @@
   - Apps
   - Games
   - Idea → build → test → improve
-  - Direct “Have an idea? Let’s build it.” CTA
+  - Direct "Have an idea? Let’s build it." CTA
 - Keep copy factual. Do not exaggerate client outcomes, revenue, scale, or technical capability.
 
 ## Project links and evidence
@@ -104,7 +104,7 @@ These are factual background notes for writing project descriptions/case-study c
   - Nexa — https://www.nexa.courses/careers
   - QueryWing — https://querywing.com/careers
   - NexCode Nova / ExiusCart — https://www.exiuscart.com/careers
-- Search rule for future opportunity research: start from the current date and work backwards; prefer small/founder-led/global companies and direct human routes; exclude generic job boards, faceless recruiter routes, US-only/region-locked roles, and opportunities that are only vaguely described as “remote.” Verify global eligibility and a direct official company route before presenting an opportunity as confirmed. Include games/browser/Phaser opportunities alongside apps, SaaS, product, technical operations, support, and systems work.
+- Search rule for future opportunity research: start from the current date and work backwards; prefer small/founder-led/global companies and direct human routes; exclude generic job boards, faceless recruiter routes, US-only/region-locked roles, and opportunities that are only vaguely described as "remote." Verify global eligibility and a direct official company route before presenting an opportunity as confirmed global. Include games/browser/Phaser opportunities alongside apps, SaaS, product, technical operations, support, and systems work.
 
 - Additional 2026-09-30 application checkpoint: user has now applied to the relevant opportunities from the next search batch. Do not return these as new opportunities unless the user explicitly asks for a follow-up, a different role, or a materially new opening:
   - Nexorlio — https://nexorlio.com/careers
@@ -144,30 +144,6 @@ These are factual background notes for writing project descriptions/case-study c
 - For these business prospects, do not require a published job vacancy. The search should identify businesses that could plausibly buy/contract the user's capability or create a hybrid implementation/operations role. Clearly label the distinction between an advertised job and a direct business-development/contract prospect.
 - Continue to apply all existing exclusions: never return a business/company already researched or applied to as a new target; never use generic job boards or faceless intermediaries when a direct route exists; never describe a prospect as globally accessible/hiring unless that is verified. For Europe/North America prospecting, the geographic requirement means the business itself is located/operating there; it does not mean the business is required to advertise a global job.
 
-## Build Log feature
-- The approved Build Log is a contained evidence feature: public /updates chronological history, public /updates/[slug] detail pages, and a restrained latest-update signal near the homepage hero.
-- Admin CRUD lives at /admin/updates and uses the existing protected admin area.
-- Build Log records use the server-side Firebase Admin SDK through Next.js route handlers. Public visitors never receive Firebase credentials and the new buildUpdates collection intentionally falls through to the existing deny-all rule.
-- Do not seed Build Log content. The first public entry should be created deliberately through the admin UI.
-- View counts are aggregate counts only. A short-lived first-party cookie prevents the same browser from incrementing the same update repeatedly within a 15-minute window; no IP addresses or visitor identities are stored.
-- Status lifecycle: Exploring → Building → Testing → Live → Paused → Archived.
-- Categories: Build / Release / Research / Client / Platform.
-- Preserve the existing homepage golden baseline. Build Log is an additive evidence layer; do not redesign the homepage around it.
-- The existing Firestore rules for legacy blogs / projects are not part of this feature's migration. Do not broaden or replace those rules while implementing Build Log.
-
-## Build Log presentation
-- Public /updates is a visible Admin Hub evidence surface and must be CV/client-safe: light editorial styling, strong contrast, clear chronology, restrained status/category metadata, readable summaries, and responsive mobile layout.
-- Public update detail pages at /updates/[slug] use the same light editorial system and must not fall back to the legacy dark operations UI.
-- The homepage BUILDING NOW block may show the latest update's aggregate recorded view count; /updates may show aggregate recorded update views. These are Firestore Build Log read counts, not Vercel site-traffic totals.
-- Vercel Web Analytics remains a separate aggregate traffic system. Do not label Build Log read counts as visitors or Vercel analytics.
-
-
-## Direct-business prospect exclusions — 2026-10-01
-- Permanently exclude the first 16 prospects from the 2026-10-01 direct-business search batch; do not return them as new targets unless explicitly requested.
-
-- The excluded first 16 are: Truck Doctor; Wrench Power Truck Repair; Pooni Truck Repair; Central Truck and Tire; Sahlani's Truck Centre; Tridem Services; Coates Contracting & Rentals; RTT Equipment Rental; Outcrop Equipment Sales & Rental; Wawa Rent-All; Steves Rental; BDM Equipment; Cockerham Commercials; Alltrucks Aberdeen / Kirkside Garage; Richmond Plant & Tool Hire; Walker Hire.
-
-
 ## Customer acquisition / buyer-priority refinement — 2026-10-03
 - The direct-business search is now a **customer-acquisition search**, not merely a search for businesses that could theoretically use software. Rank prospects by likelihood of becoming the user's **first/next paying customer**.
 - Prioritize businesses that combine: (1) obvious recurring operational pain, (2) an owner/founder/manager who can decide directly, (3) existing evidence that they spend money on software/services/equipment/marketing, (4) a workflow that can be improved incrementally, (5) a small enough organization to avoid procurement friction, and (6) a concrete ROI story that can be demonstrated quickly.
@@ -186,6 +162,25 @@ These are factual background notes for writing project descriptions/case-study c
 - The user's strongest commercial positioning is: **build and operate practical business systems**, not simply "freelance developer." The search should favor prospects where the user can investigate the workflow, build the first useful slice, troubleshoot it, operate/support it after launch, and expand it as the business proves value.
 - For every future customer-prospect search, work from current date backwards and return the **highest buyer-readiness targets first**, with a concise reason for why each is likely to buy, what specific workflow to pitch, the likely entry-level offer, and the direct human contact route. Continue permanent exclusions and never repeat researched/applied prospects.
 
+## Strict no-web-app / no-digital-system prospect filter — 2026-10-03
+- The direct customer-acquisition search must now favor businesses that are **behind the digital curve**, not businesses that already have a web app, customer portal, online booking system, quote/request platform, scheduling dashboard, ecommerce workflow, or other substantial custom digital product.
+- A polished website alone is **not** disqualifying. The key question is whether the business already has a meaningful software system serving its operational/customer workflow.
+- **Strong positive signal:** no website at all, only a Google/Maps/local listing, Facebook/Instagram page, directory listing, phone number, WhatsApp, email, or word-of-mouth presence. These should be searched aggressively because they are more likely to have a real digitisation gap.
+- **Also strong:** a basic brochure website with static pages, phone/email contact, opening hours, photos, and no customer portal, booking workflow, account area, live availability, job tracking, quote workflow, online ordering, scheduling, or other app-like functionality.
+- **Do not return as priority prospects:** businesses with an existing customer-facing web app/PWA, online portal, online booking/request workflow, ecommerce system, customer login/account area, live inventory/availability, job-status tracking, integrated CRM/customer portal, or a sophisticated scheduling/operations platform. If such a system exists, the prospect is normally excluded from the first-customer search rather than pitched a replacement.
+- **Do not be fooled by a modern marketing site:** inspect the actual customer journey. A company can have an attractive website and still be an excellent prospect if customers are ultimately told to call, email, WhatsApp, visit, or fill out a simple static contact form.
+- **Explicit negative signals:** "Book online", "Schedule service", "Customer portal", "Client login", "Track my job/order", "Request a quote" with a structured workflow, online checkout, live stock/availability, app download, customer dashboard, self-service account, or obvious SaaS-backed operations.
+- **Positive workflow signals:** "Call us", "Text us", "WhatsApp us", "email us", "walk-ins welcome", "appointments by phone", paper forms, spreadsheet references, manual quotes, phone-based dispatch, manual follow-up, or no visible digital workflow beyond basic communication.
+- **No-website rule:** when a verified business has **no independent website**, elevate it substantially in the prospecting queue if there is enough evidence of an active business, direct human contact, and a plausible workflow pain. Do not automatically assume that no website means they need software; verify activity and identify the specific operational gap.
+- **Do not substitute weak websites with hidden apps:** search results that show a business through a directory, marketplace, booking aggregator, or social page must be checked for whether the underlying business has its own app-like workflow. Do not treat an aggregator listing as evidence that the business itself has a digital system.
+- **Discovery method:** use local/business search plus web search where useful. For each serious prospect, inspect the official website if one exists, then inspect its actual customer/contact flow. If there is no official website, use the strongest available business listing/social/contact evidence and explicitly mark "no independent website found" rather than inventing one.
+- **First-customer bias:** if two otherwise similar prospects exist, prefer the one with the **less developed digital presence** but a clearer operational workflow to digitise. The purpose is to find a business that can plausibly say, "we currently do this by phone/WhatsApp/paper/spreadsheet; can you make it easier?"
+- **Do not pitch software where software is already the core product:** SaaS/software companies with mature internal/customer platforms belong in employment/contract searches, not this no-web-app first-customer prospect pool.
+- **Required prospect evidence before returning a target:** identify (a) current digital presence level, (b) whether a meaningful app-like workflow already exists, (c) the concrete manual workflow visible from public evidence, (d) the owner/human contact route, and (e) why the first small PWA/app slice would solve a real problem. If these cannot be established, do not return the business as a high-priority prospect.
+
+## Direct-business prospect exclusions — 2026-10-01
+- Permanently exclude the first 16 prospects from the 2026-10-01 direct-business search batch; do not return them as new targets unless explicitly requested.
+- The excluded first 16 are: Truck Doctor; Wrench Power Truck Repair; Pooni Truck Repair; Central Truck and Tire; Sahlani's Truck Centre; Tridem Services; Coates Contracting & Rentals; RTT Equipment Rental; Outcrop Equipment Sales & Rental; Wawa Rent-All; Steves Rental; BDM Equipment; Cockerham Commercials; Alltrucks Aberdeen / Kirkside Garage; Richmond Plant & Tool Hire; Walker Hire.
 
 ## Permanent direct-business prospect exclusions — 2026-10-03
 - Treat BOTH previously researched direct-business prospect sets as permanently excluded from all future customer-acquisition searches unless the user explicitly asks for a follow-up, re-contact, different opportunity, or materially new development.
@@ -193,3 +188,20 @@ These are factual background notes for writing project descriptions/case-study c
 - Set 2: Toucan Hire; Castlegate UK Ltd; FJC Hire; North London Plant Hire; T.Handley Plant Hire; ADG Plant Hire; Dulwich Diggers; DAP Hire; Breckland Plant & Tool Hire; Purple Hire Solutions; S.E. Davis & Son; Teward Bros; CanLift Equipment; ANT Equipment Group; Bercon Rentals; Pacific Truck & Trailer Service; DK Auto & Diesel Services; Flawless Diesel Repair; Modern Diesel; Rapid Rescue; Kinetic Repair Services; RentX; Austin Rent Way.
 - These exclusions apply whether the future search is for a vacancy, contract opportunity, direct software/PWA pitch, business-development prospect, or game/interactive-service pitch. Never recycle them as "new" targets.
 - Future direct-business searches must maintain a separate exclusion check against both sets before returning any prospect, while employment/application searches must continue using their existing separate exclusion list.
+
+## Build Log feature
+- The approved Build Log is a contained evidence feature: public /updates chronological history, public /updates/[slug] detail pages, and a restrained latest-update signal near the homepage hero.
+- Admin CRUD lives at /admin/updates and uses the existing protected admin area.
+- Build Log records use the server-side Firebase Admin SDK through Next.js route handlers. Public visitors never receive Firebase credentials and the new buildUpdates collection intentionally falls through to the existing deny-all rule.
+- Do not seed Build Log content. The first public entry should be created deliberately through the admin UI.
+- View counts are aggregate counts only. A short-lived first-party cookie prevents the same browser from incrementing the same update repeatedly within a 15-minute window; no IP addresses or visitor identities are stored.
+- Status lifecycle: Exploring → Building → Testing → Live → Paused → Archived.
+- Categories: Build / Release / Research / Client / Platform.
+- Preserve the existing homepage golden baseline. Build Log is an additive evidence layer; do not redesign the homepage around it.
+- The existing Firestore rules for legacy blogs / projects are not part of this feature's migration. Do not broaden or replace those rules while implementing Build Log.
+
+## Build Log presentation
+- Public /updates is a visible Admin Hub evidence surface and must be CV/client-safe: light editorial styling, strong contrast, clear chronology, restrained status/category metadata, readable summaries, and responsive mobile layout.
+- Public update detail pages at /updates/[slug] use the same light editorial system and must not fall back to the legacy dark operations UI.
+- The homepage BUILDING NOW block may show the latest update's aggregate recorded view count; /updates may show aggregate recorded update views. These are Firestore Build Log read counts, not Vercel site-traffic totals.
+- Vercel Web Analytics remains a separate aggregate traffic system. Do not label Build Log read counts as visitors or Vercel analytics.

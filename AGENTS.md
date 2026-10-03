@@ -406,3 +406,84 @@ The governing question is:
 > **"Is there a real human on the other end who could actually hire Ayanda, contract him, or buy the capability — and is there evidence that the opportunity exists now?"**
 
 If the evidence does not support that answer, do not present the target as actionable. The goal is not a long list; it is **real, reachable, compatible opportunities that can actually turn into paid work**.
+
+
+## Opportunity search hardening — ZERO BOARD / ZERO STALE / ZERO OUT-OF-REACH — 2026-10-03
+This is a mandatory refinement of the opportunity-search standard above.
+
+### SOURCE ROUTE IS A HARD FILTER
+- **Wellfound is explicitly prohibited**, including when the underlying employer is a small company. Do not use Wellfound as the presented application route or as the basis for calling a prospect actionable.
+- Also prohibit LinkedIn Jobs, Indeed, Glassdoor, ZipRecruiter, Remote OK, We Work Remotely, FlexJobs, Remote.co, Remotive, Relomote, job aggregators, recruiter marketplaces, scraped vacancy sites, and equivalent intermediary/faceless job boards as final routes.
+- Discovery through a search engine or third-party source is allowed only to find a company; once found, verify the opening on the **company's own current careers/hiring page or direct human route**. If that cannot be verified, discard it.
+- A small company does **not** become acceptable merely because it appears on a prohibited board. The route must be direct.
+
+### FRESHNESS HAS TO BE PROVEN
+- "Found today" does NOT mean "fresh."
+- Record the actual **posted/updated date** where available.
+- For a job search on 2026-10-03, a listing posted months earlier is not a fresh result merely because it remains indexed.
+- Do not return a listing with an obviously stale date as a current prospect unless the employer's own page clearly confirms it is still actively hiring/open.
+- If the company page says the vacancy is closed, filled, expired, archived, or no longer accepts applications, exclude it.
+- If an aggregator shows a role but the employer page does not, exclude it.
+- If a role was previously surfaced to Ayanda, treat it as processed even if a search engine presents it again with a different title, repost date, location tag, or board.
+- **Fresh = not previously returned/applied + current employer confirmation + actionable direct route.**
+
+### FIT HAS TO BE DEMONSTRABLE
+Do not return a role because Ayanda could theoretically learn the skills.
+The role must map to work he can point to now:
+- PWA/web-app building
+- React/Next.js/TypeScript/JavaScript
+- product systems / technical operations
+- implementation / onboarding
+- technical support / troubleshooting
+- QA / release verification
+- customer/product operations
+- documentation/research
+- HTML5/Canvas/Phaser/browser games
+- practical automation/AI implementation
+
+Reject roles that primarily require:
+- advanced ML/AI research
+- senior infrastructure/DevOps/SRE
+- deep security engineering
+- advanced native mobile engineering
+- senior enterprise architecture
+- 5–10+ years in a narrowly specialized stack
+- senior sales/business development where technical product work is incidental
+- credentials or geography Ayanda does not have
+
+A role can be a realistic stretch only when the **core work** is demonstrably close to his existing work.
+
+### COMPANY SCALE
+- Do not call a role "small-team" without evidence.
+- Prefer owner/founder-led, micro-SaaS, indie studios, boutique agencies, specialist software companies and genuinely small teams.
+- A larger employer may appear only when the role is an unusually direct match and the employer's route is direct, but it must not crowd out genuinely small targets.
+- Do not turn a conventional corporate engineering vacancy into a "mom-and-pop" prospect merely because it is remote.
+
+### OUTPUT DISCIPLINE
+Before returning a job, internally verify this exact chain:
+**NEW → CURRENT → DIRECT → WORLDWIDE/BOTSWANA → DEMONSTRABLE FIT → REALISTIC SENIORITY → NOT EXCLUDED.**
+If any link fails, do not return it.
+
+Do not tell Ayanda what was rejected unless he asks. Do not fill space with rejected listings, stale listings, or "almost" opportunities. The user wants the **clean result set only**.
+
+For direct pitches, use the equivalent chain:
+**NEW BUSINESS → HUMAN ACCESS → ACTIVE → CONCRETE WORKFLOW → BUYING REASON → CAPABILITY FIT → DIRECT CONTACT.**
+
+### SEARCH BEHAVIOUR
+- Search deeply rather than broadly.
+- Prefer official company pages, small-team hiring pages, founder posts on the company's own site, GitHub project hiring pages, and direct company contact pages.
+- Search multiple role families matching the profile instead of repeatedly searching "full stack developer."
+- Search browser-game/Phaser/HTML5 opportunities as a genuine lane.
+- Search implementation, support, product operations and technical customer work as genuine lanes.
+- Search small agencies and vertical SaaS companies where Ayanda's ability to build + implement + support is the differentiator.
+- For pitches, look for businesses where the PWA engine can solve a visible workflow quickly; do not send generic web-development prospects.
+
+### PREVIOUSLY MISSED / BAD RESULT PROTECTION
+The following are explicitly processed/excluded and must not reappear as fresh:
+- PMSuite
+- Zinex Solutions
+- KrissDevHub
+- Careerswift
+- LaunchBrightly
+- AI Scaling / the Wellfound Senior Full-Stack Product Engineer listing
+- Any Wellfound listing regardless of employer

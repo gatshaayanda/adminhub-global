@@ -164,3 +164,5 @@ These are factual background notes for writing project descriptions/case-study c
 
 ## Direct-business prospect exclusions — 2026-10-01
 - Permanently exclude the first 16 prospects from the 2026-10-01 direct-business search batch; do not return them as new targets unless explicitly requested.
+
+- The excluded first 16 are: Truck Doctor; Wrench Power Truck Repair; Pooni Truck Repair; Central Truck and Tire; Sahlani's Truck Centre; Tridem Services; Coates Contracting & Rentals; RTT Equipment Rental; Outcrop Equipment Sales & Rental; Wawa Rent-All; Steves Rental; BDM Equipment; Cockerham Commercials; Alltrucks Aberdeen / Kirkside Garage; Richmond Plant & Tool Hire; Walker Hire.

@@ -1,17 +1,6 @@
 import Link from "next/link";
 import BuildNow from "@/components/BuildNow";
-
-const apps = [
-  ["BoardSignal", "Chess performance system", "/boardsignal", false],
-  ["Translend", "Transport & workflow management", "https://translend-tms.vercel.app/pipeline", true],
-  ["BOEMO", "Mobile kitchen ordering", "https://boemo-joos-food-deals.vercel.app/", true],
-  ["Namane Tyres", "Customer booking & work progress", "http://namane-tyres.vercel.app/", true],
-  ["PurePress", "Business application", "https://purepress-omega.vercel.app/", true],
-  ["Meating Place", "Food & business application", "https://meating-place.vercel.app/", true],
-  ["Exquisite Waterproof Services", "Waterproofing & renovation services", "https://exquisite-waterproof-services.vercel.app/", true],
-  ["Atlas Service Centre", "Vehicle service & workshop system", "https://atlas-service-centre.vercel.app/", true],
-  ["Avram Kids", "Interactive application", "/apps", false],
-] as const;
+import ProjectShowcase from "@/components/ProjectShowcase";
 
 const games = [
   ["Shooters Trigger", "Playable paintball experience", "https://admin-hub-games.vercel.app/", true],
@@ -107,19 +96,7 @@ export default function HomePage() {
           <p className="admin-kicker">01 / APPS</p>
           <h2>Real businesses.<br />Real products.</h2>
         </div>
-        <div className="admin-project-list">
-          {apps.map(([title, type, href, external], index) => (
-            <ProjectRow
-              key={title}
-              number={String(index + 1).padStart(2, "0")}
-              title={title}
-              type={type}
-              href={href}
-              external={external}
-            />
-          ))}
-        </div>
-      </section>
+        <ProjectShowcase />     </section>
 
       <section className="admin-note">
         <div>

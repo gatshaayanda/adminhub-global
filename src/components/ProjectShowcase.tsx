@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import type React from "react";
+
 type Project = { number:string; title:string; type:string; href:string; status:string; statusTone:"live"|"active"|"followup"; summary:string; video:string };
 
 const projects: Project[] = [
@@ -18,8 +20,10 @@ const projects: Project[] = [
 ];
 
 function ProjectPreview({project,onOpen}:{project:Project;onOpen:()=>void}) {
-  return <button className="ah-project-card" type="button" onClick={onOpen} aria-label={"Open "+project.title+" project preview"}>
-    <span className="ah-project-card-media"><video src={project.video} muted loop playsInline preload="none" aria-hidden="true"/><span className="ah-project-card-poster"/><span className="ah-project-card-overlay"><span>Preview</span><span>↗</span></span></span>
+  const playPreview=(event:React.MouseEvent<HTMLButtonElement>)=>{ const video=event.currentTarget.querySelector("video"); if(video){video.currentTime=0; void video.play().catch(()=>{});} };
+  const stopPreview=(event:React.MouseEvent<HTMLButtonElement>)=>{ const video=event.currentTarget.querySelector("video"); if(video){video.pause(); video.currentTime=0;} };
+  return <button className="ah-project-card" type="button" onClick={onOpen} onMouseEnter={playPreview} onMouseLeave={stopPreview} aria-label={"Open "+project.title+" project preview"}>
+    <span className="ah-project-card-media"><video src={project.video} muted loop playsInline preload="metadata" aria-hidden="true"/><span className="ah-project-card-overlay"><span>Preview</span><span>↗</span></span></span>
     <span className="ah-project-card-copy"><span className="admin-project-number">{project.number}</span><span className="ah-project-card-title">{project.title}</span><span className="ah-project-card-type">{project.type}</span></span>
   </button>;
 }

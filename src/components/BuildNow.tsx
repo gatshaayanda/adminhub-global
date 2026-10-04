@@ -53,6 +53,8 @@ export default function BuildNow() {
     };
   }, []);
 
+  if (!update) return null;
+
   return (
     <section className="ah-building-now" aria-labelledby="building-now-title">
       <div className="ah-building-now-copy">
@@ -65,15 +67,6 @@ export default function BuildNow() {
             <h2 id="building-now-title">{update.title}</h2>
             <p>{update.summary}</p>
           </>
-        ) : (
-          <>
-            <div className="ah-building-now-date">BUILD LOG · READY</div>
-            <h2 id="building-now-title">The next update goes here.</h2>
-            <p>
-              Public build updates will appear here as they are published from
-              the Admin Hub control area.
-            </p>
-          </>
         )}
       </div>
 
@@ -81,11 +74,7 @@ export default function BuildNow() {
         <Link className="admin-primary-button" href="/updates">
           View build log <span>↗</span>
         </Link>
-        {update ? (
-          <span>{formatViews(update.viewCount)} recorded views</span>
-        ) : (
-          <span>No updates published</span>
-        )}
+        <span>{formatViews(update.viewCount)} recorded views</span>
       </div>
     </section>
   );

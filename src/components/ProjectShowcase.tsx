@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 
 import type React from "react";
 
-type Project = { number:string; title:string; type:string; href:string; status:string; statusTone:"live"|"active"|"followup"; summary:string; video:string };
+type Project = { number:string; title:string; type:string; href:string; status:string; statusTone:"live"|"active"|"followup"; summary:string; video?:string; youtubeUrl?:string };
 
 const projects: Project[] = [
-  {number:"01",title:"BoardSignal",type:"Chess performance system",href:"/boardsignal",status:"LIVE · 100+ USERS",statusTone:"live",summary:"A live chess improvement product built around deterministic analysis, player guidance and real user activity.",video:"/video/projects/boardsignal.mp4"},
+  {number:"01",title:"BoardSignal",type:"Chess performance system",href:"/boardsignal",status:"LIVE · 100+ USERS",statusTone:"live",summary:"A live chess improvement product built around deterministic analysis, player guidance and real user activity.",youtubeUrl:"https://www.youtube.com/watch?v=oeivw1Cch40"},
   {number:"02",title:"Translend",type:"Transport & workflow management",href:"https://translend-tms.vercel.app/pipeline",status:"CLIENT WORK · ACTIVE",statusTone:"active",summary:"A transport and workflow system built for client operations, with the engagement continuing into paid work.",video:"/video/projects/translend.mp4"},
   {number:"03",title:"BOEMO",type:"Mobile kitchen ordering",href:"https://boemo-joos-food-deals.vercel.app/",status:"CLIENT WORK · ACTIVE",statusTone:"active",summary:"A mobile ordering experience built around the day-to-day workflow of a food business.",video:"/video/projects/boemo.mp4"},
   {number:"04",title:"Namane Tyres",type:"Customer booking & work progress",href:"https://namane-tyres.vercel.app/",status:"CLIENT WORK · ACTIVE",statusTone:"active",summary:"A roadside tyre business system connecting customer requests, booking and work progress.",video:"/video/projects/namane-tyres.mp4"},
@@ -23,7 +23,7 @@ function ProjectPreview({project,onOpen}:{project:Project;onOpen:()=>void}) {
   const playPreview=(event:React.MouseEvent<HTMLButtonElement>)=>{ const video=event.currentTarget.querySelector("video"); if(video){video.currentTime=0; void video.play().catch(()=>{});} };
   const stopPreview=(event:React.MouseEvent<HTMLButtonElement>)=>{ const video=event.currentTarget.querySelector("video"); if(video){video.pause(); video.currentTime=0;} };
   return <button className="ah-project-card" type="button" onClick={onOpen} onMouseEnter={playPreview} onMouseLeave={stopPreview} aria-label={"Open "+project.title+" project preview"}>
-    <span className="ah-project-card-media"><video src={project.video} muted loop playsInline preload="metadata" aria-hidden="true"/><span className="ah-project-card-overlay"><span>Preview</span><span>↗</span></span></span>
+    <span className="ah-project-card-media">{project.video ? <video src={project.video} muted loop playsInline preload="metadata" aria-hidden="true"/> : <img className="ah-project-card-poster" src={"https://img.youtube.com/vi/"+project.youtubeUrl?.split("v=")[1]+"/hqdefault.jpg"} alt="" aria-hidden="true"/>}<span className="ah-project-card-overlay"><span>{project.youtubeUrl ? "Watch" : "Preview"}</span><span>↗</span></span></span>
     <span className="ah-project-card-copy"><span className="admin-project-number">{project.number}</span><span className="ah-project-card-title">{project.title}</span><span className="ah-project-card-type">{project.type}</span></span>
   </button>;
 }
@@ -36,7 +36,7 @@ export default function ProjectShowcase(){
     {selected && <div className="ah-project-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
       <button className="ah-project-modal-backdrop" type="button" aria-label="Close project preview" onClick={()=>setSelected(null)}/>
       <div className="ah-project-modal-panel">
-        <div className="ah-project-modal-media"><video src={selected.video} controls autoPlay muted playsInline preload="metadata"/></div>
+        <div className="ah-project-modal-media">{selected.youtubeUrl ? <iframe src={"https://www.youtube.com/embed/"+selected.youtubeUrl.split("v=")[1]+"?autoplay=1&rel=0"} title={selected.title+" video"} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen style={{width:"100%",height:"100%",border:0}}/> : <video src={selected.video} controls autoPlay muted playsInline preload="metadata"/>}</div>
         <div className="ah-project-modal-content"><div><p className="admin-kicker">{selected.number} / APP</p><div className={"ah-project-modal-status "+selected.statusTone}>{selected.status}</div><h2 id="project-modal-title">{selected.title}</h2><p className="ah-project-modal-type">{selected.type}</p><p className="ah-project-modal-summary">{selected.summary}</p></div>
           <div className="ah-project-modal-actions"><a className="admin-primary-button" href={selected.href} target="_blank" rel="noreferrer">Open live project <span>↗</span></a><button className="admin-text-link" type="button" onClick={()=>setSelected(null)}>Close preview</button></div>
         </div>

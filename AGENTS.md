@@ -84,6 +84,36 @@ These are factual background notes for writing project descriptions/case-study c
 - Prefer promoting a verified READY deployment over creating unnecessary code changes.
 - Never change Firebase rules or unrelated application code merely to force a deployment.
 
+## OPPORTUNITY TRIGGER
+
+**Trigger word: `HUNT`**
+
+When the user sends exactly **HUNT** (case-insensitive), immediately execute the complete Opportunity Research protocol below.
+
+Do not ask what the user means.
+Do not explain the protocol.
+Do not provide commentary before the results.
+Do not repeat old results.
+Do not return a planning response.
+
+A **HUNT** must produce a fresh set using the current repository/live-site inspection, exclusion ledgers, job filters and business-pitch filters defined below.
+
+The response must contain only the resulting opportunity set:
+1. **JOBS / CONTRACTS**
+2. **DIRECT BUSINESS PITCHES**
+
+For every returned opportunity, include its direct link(s) and the required verification details defined below.
+
+After producing the new set, update this AGENTS.md in the same working session with the new results:
+- add each returned company/job to the relevant job exclusion ledger so it will not be returned as a fresh result in a later HUNT;
+- add each returned business to the business exclusion ledger;
+- record the HUNT date and the result status where useful;
+- do not overwrite or remove earlier exclusion entries;
+- do not add rejected candidates to the exclusion ledger merely because they were considered;
+- only add candidates actually returned to the user.
+
+If the user says **HUNT** again in a new chat, treat it as a completely new search cycle: inspect the current Admin Hub repo/live site first, read the accumulated exclusion ledgers, search today backwards, and return only new qualifying results.
+
 ## Opportunity research — RESET / STRICT OPERATING PROTOCOL — 2026-10-05
 
 This section replaces all previous opportunity-search parameters. The old search strategy is scrapped. Keep the exclusion ledger below, but do not inherit old search assumptions, categories, rankings, or prospecting preferences.

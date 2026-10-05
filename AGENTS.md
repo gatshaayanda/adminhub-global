@@ -557,3 +557,16 @@ The goal is **the smallest set of real opportunities most likely to turn into pa
 - **Source-of-truth references:** BoardSignal FCM registration: `src/hooks/useInitializeFCM.ts`; BoardSignal background service worker: `public/firebase-messaging-sw.js`; BOEMO server sender: `src/lib/server/pickup-reminder-runner.ts`; BOEMO test endpoint: `src/app/api/notifications/test/route.ts`; BOEMO reminder endpoint/workflow: `src/app/api/notifications/reminders/route.ts` and `.github/workflows/pickup-reminders.yml`.
 - **Verified lesson:** BOEMO's test notification has now been proven end-to-end on a real device with the tab closed. Treat this as verified architecture. BoardSignal independently confirms the FCM client/service-worker pattern. Future notification work should start from these references and only change what the new product actually requires.
 
+
+
+## HUNT RESULT — 2026-10-05
+
+Fresh HUNT completed after current repo/live inspection and exclusion-ledger review.
+
+Returned jobs:
+- Whippy — Software Engineer: Frontend — Remote Worldwide — direct Ashby application: https://jobs.ashbyhq.com/whippy/da02ad44-9668-4f93-94e3-bf1a6e09ad8b
+- Clipboard — Technical Support Engineer — Remote Global / Non-U.S. — direct company application route verified through Clipboard's current ATS listing.
+
+Business lane: no new direct-pitch business passed every hard gate with sufficient current evidence for no website + public WhatsApp + active additional social presence. No business added to the exclusion ledger.
+
+The returned job companies are now excluded from future fresh HUNT results unless Ayanda explicitly requests a follow-up or materially different opening.

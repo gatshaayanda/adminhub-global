@@ -8,13 +8,46 @@ type Game = {
   type: string;
   href: string;
   video?: string;
+  summary: string;
 };
 
 const games: Game[] = [
-  { number: "01", title: "Wardrobe", type: "Interactive experience", href: "https://admin-hub-games.vercel.app/", video: "/video/games/wardrobe.mp4" },
-  { number: "02", title: "Shooters Trigger", type: "Playable paintball experience", href: "https://admin-hub-games.vercel.app/", video: "/video/games/ahgames.mp4" },
-  { number: "03", title: "President's Shoes", type: "Interactive story", href: "https://admin-hub-games.vercel.app/", video: "/video/games/president.mp4" },
-  { number: "04", title: "Hall", type: "Interactive world", href: "https://admin-hub-games.vercel.app/", video: "/video/games/hall.mp4" },
+  {
+    number: "01",
+    title: "Wardrobe",
+    type: "Interactive experience",
+    href: "https://admin-hub-games.vercel.app/",
+    video: "/video/games/wardrobe.mp4",
+    summary:
+      "Wardrobe is where character looks and actions can be experimented with — a playable space for testing how characters present, move and behave before those ideas are carried into wider game experiences.",
+  },
+  {
+    number: "02",
+    title: "Shooters Trigger",
+    type: "Playable paintball experience",
+    href: "https://admin-hub-games.vercel.app/",
+    video: "/video/games/ahgames.mp4",
+    summary:
+      "Shooters Trigger is an action system that can be replicated and adapted for other game genres. Its playable foundation explores how responsive movement, aiming, encounters and action loops can become reusable building blocks for new games.",
+  },
+  {
+    number: "03",
+    title: "President's Shoes",
+    type: "Interactive story",
+    href: "https://admin-hub-games.vercel.app/",
+    video: "/video/games/president.mp4",
+    summary:
+      "President's Shoes is a baseline for consequential storytelling — an experiment in building interactive stories where choices, actions and their consequences can shape how the experience unfolds.",
+  },
+  {
+    number: "04",
+    title: "Hall",
+    type: "Interactive world",
+    href: "https://admin-hub-games.vercel.app/",
+    video: "/video/games/hall.mp4",
+    summary:
+      "Hall kick-started world exploration and shared online note taking: a foundation for interactive spaces where people can move through a world, discover context and contribute to a shared experience together.",
+  },
 ];
 
 export default function GameShowcase() {
@@ -83,6 +116,7 @@ export default function GameShowcase() {
                 <p className="admin-kicker">{selected.number} / GAME</p>
                 <h2 id="game-modal-title">{selected.title}</h2>
                 <p className="ah-project-modal-type">{selected.type}</p>
+                <p className="ah-project-modal-summary">{selected.summary}</p>
               </div>
               <div className="ah-project-modal-actions">
                 <a className="admin-primary-button" href={selected.href} target="_blank" rel="noreferrer">

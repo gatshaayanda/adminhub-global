@@ -21,7 +21,7 @@ function ProjectPreview({project,onOpen}:{project:Project;onOpen:()=>void}) {
   const stopPreview=(event:React.MouseEvent<HTMLButtonElement>)=>{ const video=event.currentTarget.querySelector("video"); if(video){video.pause(); video.currentTime=0;} };
   return <button className="ah-project-card" type="button" onClick={onOpen} onMouseEnter={playPreview} onMouseLeave={stopPreview} aria-label={"Open "+project.title+" project preview"}>
     <span className="ah-project-card-media">{project.video ? <video src={project.video} muted loop playsInline preload="metadata" aria-hidden="true"/> : <img className="ah-project-card-poster" src={"https://img.youtube.com/vi/"+project.youtubeUrl?.split("v=")[1]+"/hqdefault.jpg"} alt="" aria-hidden="true"/>}<span className="ah-project-card-overlay"><span>{project.youtubeUrl ? "Watch" : "Preview"}</span><span>↗</span></span></span>
-    <span className="ah-project-card-copy"><span className="admin-project-number">{project.number}</span><span className="ah-project-card-title">{project.title}</span><span className="ah-project-card-type">{project.type}</span></span>
+    <span className="ah-project-card-copy"><span className="admin-project-number">{project.number}</span><span className="ah-project-card-title">{project.title}</span><span className="ah-project-card-type">{project.type}</span><span className="ah-project-card-action">Open preview <span>↗</span></span></span>
   </button>;
 }
 

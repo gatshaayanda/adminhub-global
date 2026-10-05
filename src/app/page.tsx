@@ -1,48 +1,7 @@
 import Link from "next/link";
 import BuildNow from "@/components/BuildNow";
 import ProjectShowcase from "@/components/ProjectShowcase";
-
-const games = [
-  ["Shooters Trigger", "Playable paintball experience", "https://admin-hub-games.vercel.app/", true],
-  ["President's Shoes", "Interactive story", "https://admin-hub-games.vercel.app/", true],
-  ["Hall", "Interactive world", "https://admin-hub-games.vercel.app/", true],
-] as const;
-
-function ProjectRow({
-  number,
-  title,
-  type,
-  href,
-  external,
-}: {
-  number: string;
-  title: string;
-  type: string;
-  href: string;
-  external: boolean;
-}) {
-  const className = "admin-project-row";
-
-  if (external) {
-    return (
-      <a href={href} className={className} target="_blank" rel="noreferrer">
-        <span className="admin-project-number">{number}</span>
-        <span className="admin-project-name">{title}</span>
-        <span className="admin-project-type">{type}</span>
-        <span className="admin-project-arrow" aria-hidden="true">↗</span>
-      </a>
-    );
-  }
-
-  return (
-    <Link href={href} className={className}>
-      <span className="admin-project-number">{number}</span>
-      <span className="admin-project-name">{title}</span>
-      <span className="admin-project-type">{type}</span>
-      <span className="admin-project-arrow" aria-hidden="true">↗</span>
-    </Link>
-  );
-}
+import GameShowcase from "@/components/GameShowcase";
 
 export default function HomePage() {
   return (
@@ -98,41 +57,17 @@ export default function HomePage() {
         </div>
         <ProjectShowcase />     </section>
 
-      <section className="admin-process">
-        <div>
-          <p className="admin-kicker">02 / HOW WE BUILD</p>
-          <h2>Useful first.<br />Polished through use.</h2>
-        </div>
-        <div className="admin-process-grid">
-          <div><span>01</span><strong>Understand</strong><p>Start with the real problem, workflow or idea.</p></div>
-          <div><span>02</span><strong>Build</strong><p>Turn it into a working product people can actually try.</p></div>
-          <div><span>03</span><strong>Test</strong><p>Watch what works, what breaks and what people need next.</p></div>
-          <div><span>04</span><strong>Improve</strong><p>Keep the useful parts and make the product better.</p></div>
-        </div>
-      </section>
-
       <section className="admin-work admin-games">
         <div className="admin-section-intro">
-          <p className="admin-kicker">03 / GAMES</p>
+          <p className="admin-kicker">02 / GAMES</p>
           <h2>Playable ideas.<br />Built to work.</h2>
         </div>
-        <div className="admin-project-list">
-          {games.map(([title, type, href, external], index) => (
-            <ProjectRow
-              key={title}
-              number={String(index + 1).padStart(2, "0")}
-              title={title}
-              type={type}
-              href={href}
-              external={external}
-            />
-          ))}
-        </div>
+        <GameShowcase />
       </section>
 
       <section className="admin-build">
         <div>
-          <p className="admin-kicker">04 / THE BUILD</p>
+          <p className="admin-kicker">03 / THE BUILD</p>
           <h2>Idea → build → test → improve.</h2>
         </div>
         <div className="admin-build-stats">
@@ -143,7 +78,7 @@ export default function HomePage() {
       </section>
 
       <section className="admin-start" id="start">
-        <p className="admin-kicker">05 / START SOMETHING</p>
+        <p className="admin-kicker">04 / START SOMETHING</p>
         <h2>Have an idea?<br />Let&apos;s build it.</h2>
         <a className="admin-primary-button admin-primary-button-large" href="mailto:adminhubglobal@gmail.com?subject=Admin%20Hub%20Inquiry&body=Name%3A%20%0ACompany%2FProject%3A%20%0AWhat%20I%27d%20like%20to%20discuss%3A%20%0ABest%20way%20to%20contact%20me%3A%20%0APreferred%20contact%20details%3A%20%0AReference%20request%20(if%20applicable)%3A%20%0A">
           Talk to Admin Hub <span>↗</span>

@@ -80,7 +80,7 @@ export default function GameShowcase() {
                 <span className="ah-project-card-poster" aria-hidden="true" />
               )}
               <span className="ah-project-card-overlay">
-                <span>{game.video ? "Preview" : "Video to follow"}</span>
+                <span>Preview</span>
                 <span>↗</span>
               </span>
             </span>
@@ -88,6 +88,9 @@ export default function GameShowcase() {
               <span className="admin-project-number">{game.number}</span>
               <span className="ah-project-card-title">{game.title}</span>
               <span className="ah-project-card-type">{game.type}</span>
+              <span className="ah-project-card-action">
+                Open preview <span>↗</span>
+              </span>
             </span>
           </button>
         ))}

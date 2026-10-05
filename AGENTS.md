@@ -180,7 +180,20 @@ Never inflate client count, revenue, users, scale, employment status or project 
 
 This is always searched **first**.
 
-#### Geography — HARD FILTER
+#### REQUIRED HUNT RESULT COUNT — JOBS
+
+Every HUNT must aim to return a **set of 10 qualifying jobs/contracts**.
+
+- Search deeply enough to identify 10 real qualifying opportunities, not merely the first 10 search results.
+- Search from **today backwards** and continue through additional queries/pages/sources as needed until 10 candidates pass every hard filter.
+- Do not substitute weaker candidates just to reach 10. If fewer than 10 genuinely pass every hard filter after a thorough current search, return only the number that actually pass and state that the qualifying pool was exhausted.
+- Every returned job must have a working, current direct link that leads to the **exact live vacancy/application page** for the named role.
+
+### ACTUAL JOB LINK VERIFICATION — HARD FILTER
+
+Before returning a job, open/check the direct link itself. It must resolve, match the exact company and role, show the role is currently open, and be usable as the actual application route. Reject links to generic careers pages, company homepages, search results, aggregators, expired/closed postings, 404s, or unrelated roles. Search snippets and URL appearance are not proof.
+
+### Geography — HARD FILTER
 
 Only search:
 - **North America:** United States and Canada.
@@ -359,6 +372,19 @@ Only search this lane **after the job search**.
 
 This is a **customer-acquisition / direct-contract search**, not a job search.
 
+### REQUIRED HUNT RESULT COUNT — BUSINESSES
+
+Every HUNT must then aim to return a **set of 5 qualifying direct business prospects**.
+
+- Search deeply enough to identify 5 real qualifying businesses, not merely the first 5 directory results.
+- Search from **today backwards** for current activity and continue through additional queries/sources as needed until 5 businesses pass every hard filter.
+- Do not substitute weaker businesses just to reach 5. If fewer than 5 genuinely pass every hard filter after a thorough current search, return only the number that actually pass and state that the qualifying pool was exhausted.
+- Every returned business must have verified current public contact/social links that actually lead to the business.
+
+### BUSINESS LINK VERIFICATION — HARD FILTER
+
+Before returning a business, verify each required route itself: the business identity/location matches, the public WhatsApp route resolves to the business/contact route, the other social profile belongs to the business and is active, and the no-website condition has been checked against the business's current public presence. Generic directory/search pages are not sufficient.
+
 ### BUSINESS TARGET — HARD FILTER
 
 The target must be:
@@ -466,6 +492,10 @@ Never return a business as new if it was already:
 - already part of an active client pipeline.
 
 When a new business is presented and the user subsequently confirms it was contacted, add it to this ledger in the next AGENTS.md checkpoint.
+
+### REQUIRED RESULT SET
+
+The normal target is **10 jobs/contracts followed by 5 direct business pitches** in every HUNT. Never pad with weak candidates: fewer are acceptable only after a genuinely thorough search has exhausted qualifying opportunities.
 
 ### REQUIRED OUTPUT ORDER
 

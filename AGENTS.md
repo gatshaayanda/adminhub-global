@@ -488,6 +488,15 @@ The following are explicitly processed/excluded and must not reappear as fresh:
 - AI Scaling / the Wellfound Senior Full-Stack Product Engineer listing
 - Any Wellfound listing regardless of employer
 
+## Game showcase video import protocol — 2026-10-05
+- The Games catalogue is four entries in this fixed order: Wardrobe, Shooters Trigger, President's Shoes, Hall.
+- The existing `src/components/GameShowcase.tsx` already has the correct card/modal architecture and a `video` field on each game. Do not redesign or rebuild the showcase when adding the videos.
+- When the prepared game preview videos are available, move the actual supplied video files into `public/video/games/` in `adminhub-global`, preserve their exact supplied filenames, then wire those exact paths into the matching game entry.
+- Do not invent filenames, substitute unrelated gameplay footage, screen-record the live game, or use placeholder/poster content when the real supplied video is unavailable.
+- Keep the four-game order unchanged and keep all four games linked to `https://admin-hub-games.vercel.app/` unless verified separate routes are created.
+- After the files and mappings are added: verify every referenced file exists, run the production build, confirm the modal/card video behavior, update this AGENTS.md only with confirmed decisions, commit to `main`, wait for the corresponding Vercel deployment to become READY, and verify the production Games section.
+- Current inspection on 2026-10-05 found no game `.mp4`, `.webm`, `.mov`, or `.m4v` files in the connected `gatshaayanda/admin-hub-games` source repository or the relevant connected Admin Hub repositories. Do not claim the game-video import is complete until the actual source video files are available to the connected workspace.
+
 ## Homepage catalog structure — current direction — 2026-10-05
 - The homepage no longer uses the 02 / HOW WE BUILD process section. Do not reintroduce it unless explicitly requested.
 - Current homepage sequence is:

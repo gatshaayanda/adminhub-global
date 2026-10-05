@@ -59,15 +59,11 @@ export default function BuildNow() {
     <section className="ah-building-now" aria-labelledby="building-now-title">
       <div className="ah-building-now-copy">
         <p className="admin-kicker">BUILDING NOW</p>
-        {update ? (
-          <>
-            <div className="ah-building-now-date">
-              {formatDate(update.publishedAt)} · {statusLabel[update.status] || update.status}
-            </div>
-            <h2 id="building-now-title">{update.title}</h2>
-            <p>{update.summary}</p>
-          </>
-        )}
+        <div className="ah-building-now-date">
+          {formatDate(update.publishedAt)} · {statusLabel[update.status] || update.status}
+        </div>
+        <h2 id="building-now-title">{update.title}</h2>
+        <p>{update.summary}</p>
       </div>
 
       <div className="ah-building-now-action">

@@ -612,3 +612,17 @@ Returned jobs:
 Business lane: no new direct-pitch business passed every hard gate with sufficient current evidence for no website + public WhatsApp + active additional social presence. No business added to the exclusion ledger.
 
 The returned job company is now excluded from future fresh HUNT results unless Ayanda explicitly requests a follow-up or materially different opening.
+
+
+## HUNT RESULT — 2026-10-05 — THIRD CYCLE
+
+Fresh HUNT completed after current Admin Hub GitHub/live inspection and exclusion-ledger review.
+
+Returned jobs:
+- Canonical — Enterprise Customer Success Manager — Home based / Worldwide — direct current Canonical vacancy verified: https://canonical.com/careers/6856788/enterprise-customer-success-manager-remote
+- Automattic — Experienced Software Engineer — Remote worldwide — direct current Automattic vacancy verified: https://automattic.com/work-with-us/job/experienced-software-engineer/
+
+Returned direct business prospect:
+- Galadent Prim SRL — Cahul, Moldova — active dental practice; current public Facebook page with recent 2026 activity; no website listed/confirmed; public WhatsApp +373 601 01 110; owner/administrator Valeriu Galațanu identified in public company records. Direct social/contact route: https://www.facebook.com/galadentprim/
+
+The returned job companies and business are now excluded from future fresh HUNT results unless Ayanda explicitly requests a follow-up or materially different opening.

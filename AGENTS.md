@@ -487,3 +487,21 @@ The following are explicitly processed/excluded and must not reappear as fresh:
 - LaunchBrightly
 - AI Scaling / the Wellfound Senior Full-Stack Product Engineer listing
 - Any Wellfound listing regardless of employer
+
+## Homepage catalog structure — current direction — 2026-10-05
+- The homepage no longer uses the 02 / HOW WE BUILD process section. Do not reintroduce it unless explicitly requested.
+- Current homepage sequence is:
+  - 01 / APPS — real business/product showcase using the existing project-card format with video previews where available.
+  - 02 / GAMES — game showcase using the same project-card visual format as Apps.
+  - 03 / THE BUILD — concise technical/build proof.
+  - 04 / START SOMETHING — direct CTA.
+- The Games catalogue currently contains exactly these four entries, in this order:
+  1. Wardrobe
+  2. Shooters Trigger
+  3. President's Shoes
+  4. Hall
+- All four games currently live within Admin Hub Games at https://admin-hub-games.vercel.app/; do not invent separate game URLs unless verified routes are actually created.
+- Game cards should use the same editorial media-row/card treatment as Apps. Do not revert Games to the older plain text-only project-row list.
+- Final game preview videos are not yet supplied. When Ayanda provides them, add them to the game showcase data using the exact supplied filenames/paths; do not invent filenames or substitute unrelated videos.
+- Keep the game order above unless Ayanda explicitly changes it.
+- Wardrobe is a real part of the current Admin Hub Games catalogue and must not be omitted from the homepage games list.

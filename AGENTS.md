@@ -570,3 +570,15 @@ Returned jobs:
 Business lane: no new direct-pitch business passed every hard gate with sufficient current evidence for no website + public WhatsApp + active additional social presence. No business added to the exclusion ledger.
 
 The returned job companies are now excluded from future fresh HUNT results unless Ayanda explicitly requests a follow-up or materially different opening.
+
+
+## HUNT RESULT — 2026-10-05 — SECOND CYCLE
+
+Fresh HUNT completed after current repo/live inspection and exclusion-ledger review.
+
+Returned jobs:
+- fal — Technical Support Engineer — Remote Global — direct Ashby application: https://jobs.ashbyhq.com/fal-ai/03249a74-11b8-4049-b432-2ee72bfccb32
+
+Business lane: no new direct-pitch business passed every hard gate with sufficient current evidence for no website + public WhatsApp + active additional social presence. No business added to the exclusion ledger.
+
+The returned job company is now excluded from future fresh HUNT results unless Ayanda explicitly requests a follow-up or materially different opening.

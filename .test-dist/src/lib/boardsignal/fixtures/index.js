@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.snoopyFixture = exports.harshhmishraFixture = exports.edwardFixture = exports.alexcet8Fixture = void 0;
+var alexcet8_1 = require("./alexcet8");
+Object.defineProperty(exports, "alexcet8Fixture", { enumerable: true, get: function () { return alexcet8_1.alexcet8Fixture; } });
+var edward_1 = require("./edward");
+Object.defineProperty(exports, "edwardFixture", { enumerable: true, get: function () { return edward_1.edwardFixture; } });
+var harshhmishra_1 = require("./harshhmishra");
+Object.defineProperty(exports, "harshhmishraFixture", { enumerable: true, get: function () { return harshhmishra_1.harshhmishraFixture; } });
+var snoopy_1 = require("./snoopy");
+Object.defineProperty(exports, "snoopyFixture", { enumerable: true, get: function () { return snoopy_1.snoopyFixture; } });

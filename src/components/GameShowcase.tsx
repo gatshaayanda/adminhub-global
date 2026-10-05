@@ -11,10 +11,10 @@ type Game = {
 };
 
 const games: Game[] = [
-  { number: "01", title: "Wardrobe", type: "Interactive experience", href: "https://admin-hub-games.vercel.app/" },
-  { number: "02", title: "Shooters Trigger", type: "Playable paintball experience", href: "https://admin-hub-games.vercel.app/" },
-  { number: "03", title: "President's Shoes", type: "Interactive story", href: "https://admin-hub-games.vercel.app/" },
-  { number: "04", title: "Hall", type: "Interactive world", href: "https://admin-hub-games.vercel.app/" },
+  { number: "01", title: "Wardrobe", type: "Interactive experience", href: "https://admin-hub-games.vercel.app/", video: "/video/games/wardrobe.mp4" },
+  { number: "02", title: "Shooters Trigger", type: "Playable paintball experience", href: "https://admin-hub-games.vercel.app/", video: "/video/games/ahgames.mp4" },
+  { number: "03", title: "President's Shoes", type: "Interactive story", href: "https://admin-hub-games.vercel.app/", video: "/video/games/president.mp4" },
+  { number: "04", title: "Hall", type: "Interactive world", href: "https://admin-hub-games.vercel.app/", video: "/video/games/hall.mp4" },
 ];
 
 export default function GameShowcase() {

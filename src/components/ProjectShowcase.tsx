@@ -7,7 +7,7 @@ import type React from "react";
 type Project = { number:string; title:string; type:string; href:string; status:string; statusTone:"live"|"active"|"followup"; summary:string; video?:string; youtubeUrl?:string };
 
 const projects: Project[] = [
-  {number:"01",title:"BOEMO",type:"Mobile kitchen ordering",href:"https://boemo-joos-food-deals.vercel.app/",status:"CLIENT WORK · ACTIVE",statusTone:"active",summary:"A mobile ordering experience built around the day-to-day workflow of a food business.",},
+  {number:"01",title:"BOEMO",type:"Mobile kitchen ordering",href:"https://boemo-joos-food-deals.vercel.app/",status:"CLIENT WORK · ACTIVE",statusTone:"active",summary:"A mobile ordering experience built around the day-to-day workflow of a food business.",video:"/video/projects/boemo.mp4"},
   {number:"02",title:"PurePress",type:"Business application",href:"https://purepress-omega.vercel.app/",status:"CLIENT WORK · FOLLOW-UP",statusTone:"followup",summary:"A business application developed for a real operating workflow, with further client engagement to follow.",video:"/video/projects/purepress-team.mp4"},
   {number:"03",title:"Translend",type:"Transport & workflow management",href:"https://translend-tms.vercel.app/pipeline",status:"CLIENT WORK · ACTIVE",statusTone:"active",summary:"A transport and workflow system built for client operations, with the engagement continuing into paid work.",video:"/video/projects/translend.mp4"},
   {number:"04",title:"Namane Tyres",type:"Customer booking & work progress",href:"https://namane-tyres.vercel.app/",status:"CLIENT WORK · ACTIVE",statusTone:"active",summary:"A roadside tyre business system connecting customer requests, booking and work progress.",video:"/video/projects/namane-tyre-work.mp4"},

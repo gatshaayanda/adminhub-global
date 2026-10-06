@@ -9,6 +9,8 @@ type Game = {
   href: string;
   video?: string;
   summary: string;
+  role: string;
+  tags: string[];
 };
 
 const games: Game[] = [
@@ -20,6 +22,8 @@ const games: Game[] = [
     video: "/video/games/wardrobe.mp4",
     summary:
       "Wardrobe is where character looks and actions can be experimented with — a playable space for testing how characters present, move and behave before those ideas are carried into wider game experiences.",
+    role: "Admin Hub game-system experiment",
+    tags: ["Character systems", "Movement", "Interactive design"],
   },
   {
     number: "02",
@@ -29,6 +33,8 @@ const games: Game[] = [
     video: "/video/games/ahgames.mp4",
     summary:
       "Shooters Trigger is an action system that can be replicated and adapted for other game genres. Its playable foundation explores how responsive movement, aiming, encounters and action loops can become reusable building blocks for new games.",
+    role: "Reusable game mechanics system",
+    tags: ["Action systems", "Aiming", "Reusable mechanics"],
   },
   {
     number: "03",
@@ -38,6 +44,8 @@ const games: Game[] = [
     video: "/video/games/president.mp4",
     summary:
       "President's Shoes is a baseline for consequential storytelling — an experiment in building interactive stories where choices, actions and their consequences can shape how the experience unfolds.",
+    role: "Interactive storytelling experiment",
+    tags: ["Choices", "Consequences", "Story systems"],
   },
   {
     number: "04",
@@ -47,6 +55,8 @@ const games: Game[] = [
     video: "/video/games/hall.mp4",
     summary:
       "Hall kick-started world exploration and shared online note taking: a foundation for interactive spaces where people can move through a world, discover context and contribute to a shared experience together.",
+    role: "Shared-world interaction experiment",
+    tags: ["Exploration", "Shared spaces", "Online interaction"],
   },
 ];
 
@@ -56,9 +66,14 @@ export default function GameShowcase() {
   useEffect(() => {
     if (!selected) return;
     const previous = document.body.style.overflow;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelected(null);
+    };
     document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
     };
   }, [selected]);
 
@@ -75,7 +90,21 @@ export default function GameShowcase() {
           >
             <span className="ah-project-card-media">
               {game.video ? (
-                <video src={game.video} muted loop playsInline preload="metadata" aria-hidden="true" />
+                <video
+                  src={game.video}
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  onMouseEnter={(event) =>
+                    void event.currentTarget.play().catch(() => {})
+                  }
+                  onMouseLeave={(event) => {
+                    event.currentTarget.pause();
+                    event.currentTarget.currentTime = 0;
+                  }}
+                  aria-hidden="true"
+                />
               ) : (
                 <span className="ah-project-card-poster" aria-hidden="true" />
               )}
@@ -97,7 +126,12 @@ export default function GameShowcase() {
       </div>
 
       {selected && (
-        <div className="ah-project-modal" role="dialog" aria-modal="true" aria-labelledby="game-modal-title">
+        <div
+          className="ah-project-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="game-modal-title"
+        >
           <button
             className="ah-project-modal-backdrop"
             type="button"
@@ -107,27 +141,51 @@ export default function GameShowcase() {
           <div className="ah-project-modal-panel">
             <div className="ah-project-modal-media">
               {selected.video ? (
-                <video src={selected.video} controls autoPlay muted playsInline preload="metadata" />
+                <video
+                  src={selected.video}
+                  controls
+                  autoPlay
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
               ) : (
-                <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", color: "#fff", fontSize: "14px", fontWeight: 700 }}>
+                <div className="ah-project-modal-empty">
                   Game video will be added here.
                 </div>
               )}
             </div>
             <div className="ah-project-modal-content">
+              <button
+                type="button"
+                className="ah-project-modal-close"
+                onClick={() => setSelected(null)}
+                aria-label="Close game preview"
+              >
+                Close <span>×</span>
+              </button>
               <div>
-                <p className="admin-kicker">{selected.number} / GAME</p>
+                <p className="admin-kicker">
+                  {selected.number} / GAME · {selected.type}
+                </p>
                 <h2 id="game-modal-title">{selected.title}</h2>
-                <p className="ah-project-modal-type">{selected.type}</p>
+                <p className="ah-project-modal-type">{selected.role}</p>
                 <p className="ah-project-modal-summary">{selected.summary}</p>
+                <div className="ah-project-modal-tags">
+                  {selected.tags.map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
+                </div>
               </div>
               <div className="ah-project-modal-actions">
-                <a className="admin-primary-button" href={selected.href} target="_blank" rel="noreferrer">
+                <a
+                  className="admin-primary-button"
+                  href={selected.href}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Open game <span>↗</span>
                 </a>
-                <button className="admin-text-link" type="button" onClick={() => setSelected(null)}>
-                  Close preview
-                </button>
               </div>
             </div>
           </div>

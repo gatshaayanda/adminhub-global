@@ -315,7 +315,7 @@ export default function ChatWidget() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 grid h-14 w-14 place-items-center rounded-full border border-[rgba(77,163,255,0.34)] text-[var(--text-on-brand)] shadow-[var(--shadow-blue)] transition hover:-translate-y-0.5"
+          className="ah-chat-launch fixed bottom-6 right-6 z-50 grid h-14 w-14 place-items-center rounded-full border border-[rgba(77,163,255,0.34)] text-[var(--text-on-brand)] shadow-[var(--shadow-blue)] transition hover:-translate-y-0.5"
           style={{
             background:
               "linear-gradient(135deg, var(--brand-primary-strong), var(--brand-primary))",
@@ -340,7 +340,7 @@ export default function ChatWidget() {
 
       {open && (
         <div
-          className="fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden rounded-[1.5rem] border border-[var(--border-strong)] bg-[rgba(11,18,32,0.98)] shadow-[var(--shadow-lg)]"
+          className="ah-chat-panel fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden rounded-[1.5rem] border border-[var(--border-strong)] bg-[rgba(11,18,32,0.98)] shadow-[var(--shadow-lg)]"
           style={{
             width: "min(92vw, 24rem)",
             height: leadOpen ? "39rem" : "33rem",

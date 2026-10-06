@@ -40,7 +40,7 @@ export default function HomePage() {
         <IndustryProjectShowcase />
       </section>
 
-      <section className="admin-work admin-games">
+      <section className="admin-work admin-games" id="games">
         <div className="admin-section-intro">
           <p className="admin-kicker">02 / GAMES</p>
           <h2>Playable ideas.<br />Built to work.</h2>

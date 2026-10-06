@@ -676,3 +676,16 @@ The Admin Hub public site is a commercial product/work showcase, not a generic a
 - Preserve working project links, media, and existing functionality unless explicitly replaced.
 - For substantial public UX changes, verify the build and visually inspect the result before declaring completion.
 - Use research as design evidence; prioritize clarity, relevance, progressive disclosure, accessibility, and real product evidence.
+
+## PUBLIC HOMEPAGE READABILITY LOCK — 2026-10-06
+
+This is a permanent design-system rule for the public Admin Hub homepage.
+
+- The public homepage uses the approved light/editorial golden baseline: #f7f7f3 background and #111318 primary text.
+- All normal body/supporting text must use an explicitly readable dark neutral. Use #30343a / #4d5057 or darker; do not use faint grey text for meaningful content.
+- Small labels, kickers, metadata and dates must use a readable neutral (#5f636b or darker). Do not use the old #777a82, #73756f, #858890, or similar low-contrast values for meaningful public copy.
+- Headings, product names, status text, descriptions and calls to action must remain explicitly scoped to readable colors and must not inherit the global dark-theme variables accidentally.
+- Do not solve readability by randomly changing individual colors. Add/maintain the scoped .admin-home readability lock in src/app/home.css.
+- Do not introduce transparent text, low-opacity text, gradients used as text, or theme-inherited text on the public homepage.
+- Treat readability as locked baseline behavior: if a future change makes public text faint or inconsistent, STOP, compare against the golden baseline, and restore the readability lock before continuing.
+- WCAG contrast is the floor, not the design target: meaningful normal text should visibly read as solid dark editorial copy on the light background. WCAG AA requires at least 4.5:1 for normal text and 3:1 for large text.

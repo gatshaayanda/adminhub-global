@@ -696,3 +696,19 @@ This is a permanent design-system rule for the public Admin Hub homepage.
 - Its publishedAt and updatedAt now reflect 06 Oct 2026.
 - The temporary one-time repair logic was removed immediately after the production read confirmed the persisted source date.
 - Do not hard-code a BUILDING NOW date in the UI. BuildNow must continue to render the publishedAt returned by /api/updates/latest.
+
+## COMMERCIAL / TRUST SURFACE — 2026-10-06
+- Public commercial information is now consolidated at `/business` so pricing/payment/trust details do not clutter the homepage.
+- Public ongoing app support range is **USD $7–$18 per app/month**, the USD presentation of the previously agreed BWP 100–250 range. Do not silently change the range; update it only as an explicit commercial decision.
+- Position the monthly amount as an operating/support contribution after a useful product exists — not as the cost of building custom software.
+- Suitable small-business pilot/partnership work may have initial setup/build labour waived. Larger or unusual scope must be quoted and agreed in writing before work begins. Never imply that all custom development is free.
+- Use a low-friction, transparent sequence: start with the smallest useful workflow → evaluate real use for 30 days → agree whether to continue/improve/change scope. Do not manufacture urgency, fake discounts, or manipulative scarcity.
+- Competitor research on 2026-10-06 found a broad Botswana/Southern Africa market: low-cost website packages and care plans sit far below full custom-app work, while published custom-app offers/guides range from roughly low-thousands of USD into several-thousand-dollar builds and higher. Admin Hub's $7–$18 monthly figure must be framed as ongoing support/operation, not as a competitor-style custom-build price.
+- Pricing psychology guidance: use transparent framing, a clear reference point, and visible value; avoid deceptive anchoring, fake discounts, or pressure. The published work itself is the primary proof.
+- Business verification surface: `/business` identifies **ADMIN HUB PTY LTD** as CIPA-registered and links to the official CIPA site. Do not invent a CIPA registration number or an unverified deep-search URL.
+- Payment details are intentionally behind a disclosure on `/business`: ADMIN HUB PTY LTD, FNB Botswana, BUSINESS CHEQUE ACCOUNT, AIRPORT JUNCTION, branch code 288267, account 62936626467, SWIFT FIRNBWGX, plus the supplied FNB eWallet/Orange Money route. Keep the instruction to confirm the agreed scope/invoice/reference before payment.
+- Ask Admin Hub now answers basic pricing, setup-fee, CIPA and payment questions and routes visitors to `/business`. Keep the assistant factual and do not impersonate Ayanda.
+- Games modal is intentionally aligned with the Apps modal architecture: Escape/backdrop/close control, contained media, role/context, tags and Open game action. Preserve the four-game order and existing URLs/media.
+- Homepage Games section has a stable `#games` anchor for assistant navigation.
+- Do not remove the existing Apps categorization/modal work when touching these surfaces.
+

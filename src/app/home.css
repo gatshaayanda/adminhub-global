@@ -1184,3 +1184,88 @@
 .ah-project-modal-actions{display:flex;flex-direction:column;align-items:flex-end;gap:14px}
 @media(max-width:800px){.ah-project-card{grid-template-columns:150px minmax(0,1fr);gap:16px}.ah-project-card-media{height:82px}.ah-project-card-copy{grid-template-columns:38px minmax(0,1fr);gap:10px}.ah-project-card-type{grid-column:2}.ah-project-modal-content{grid-template-columns:1fr;gap:28px}.ah-project-modal-actions{align-items:flex-start}}
 @media(max-width:520px){.ah-project-card{grid-template-columns:110px minmax(0,1fr);min-height:100px}.ah-project-card-media{height:70px}.ah-project-card-title{font-size:20px}.ah-project-card-type{font-size:12px}.ah-project-card-action{font-size:9px}.ah-project-modal{padding:12px}.ah-project-modal-panel{max-height:calc(100dvh - 24px)}.ah-project-modal-content{padding:22px 18px}.ah-project-modal-content h2{font-size:46px}}
+
+/* =========================================================
+   PUBLIC HOMEPAGE READABILITY LOCK — GOLDEN BASELINE
+   The public Admin Hub homepage is light/editorial. Text must
+   stay explicitly readable; do not introduce faint grey copy,
+   low-contrast labels, or inherited dark-theme text here.
+   ========================================================= */
+
+.admin-home {
+  background: #f7f7f3;
+  color: #111318;
+}
+
+.admin-home,
+.admin-home * {
+  --ah-text: #111318;
+  --ah-copy: #30343a;
+  --ah-secondary: #4d5057;
+  --ah-muted-readable: #5f636b;
+  --ah-line-readable: #d9d9d2;
+}
+
+.admin-home p,
+.admin-home span,
+.admin-home li {
+  color: var(--ah-copy);
+}
+
+.admin-home h1,
+.admin-home h2,
+.admin-home h3,
+.admin-home h4,
+.admin-home strong {
+  color: var(--ah-text);
+}
+
+.admin-home .admin-kicker,
+.admin-home .admin-project-number,
+.admin-home .admin-project-type,
+.admin-home .ah-building-now-date,
+.admin-home .ah-building-now-action > span {
+  color: var(--ah-muted-readable) !important;
+}
+
+.admin-home .admin-hero-lead,
+.admin-home .admin-proof > p,
+.admin-home .ah-building-now-copy > p:last-child,
+.admin-home .admin-build-stats span,
+.admin-home .admin-text-link {
+  color: var(--ah-secondary) !important;
+}
+
+.admin-home .admin-text-link:hover,
+.admin-home .admin-text-link:focus-visible,
+.admin-home .ah-project-card-action,
+.admin-home .ah-project-card:hover .ah-project-card-action,
+.admin-home .ah-project-card:focus-visible .ah-project-card-action {
+  color: #173ea5 !important;
+}
+
+.admin-home .ah-project-card-type {
+  color: #4d5057 !important;
+}
+
+.admin-home .ah-project-card-title {
+  color: #111318 !important;
+}
+
+.admin-home .ah-project-card {
+  color: #111318;
+}
+
+.admin-home .ah-project-card:focus-visible {
+  outline: 3px solid #173ea5;
+  outline-offset: -3px;
+}
+
+.admin-home .ah-building-now,
+.admin-home .admin-proof,
+.admin-home .admin-work,
+.admin-home .admin-build,
+.admin-home .admin-start,
+.admin-home .admin-note {
+  border-color: var(--ah-line-readable);
+}

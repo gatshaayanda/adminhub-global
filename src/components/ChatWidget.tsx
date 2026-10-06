@@ -202,7 +202,7 @@ export default function ChatWidget() {
     setLeadOpen(true);
     setStage("lead");
     pushBot(
-      Sure. I’ll keep this practical: tell me who you are, what you’re working on and how you’d like Admin Hub to reach you. You can leave the reference field empty if there isn’t one.,
+      "Sure. I’ll keep this practical: tell me who you are, what you’re working on and how you’d like Admin Hub to reach you. You can leave the reference field empty if there isn’t one.",
       []
     );
   };

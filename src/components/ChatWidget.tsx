@@ -24,11 +24,11 @@ type Stage = "browse" | "inquire" | "lead" | "handoff";
 
 type Lead = {
   name: string;
-  contact: string;
-  role: string;
-  business: string;
-  country: string;
+  companyProject: string;
   need: string;
+  contactMethod: string;
+  contactDetails: string;
+  referenceRequest: string;
 };
 
 const STORAGE_KEY = "adminhub_global_chat_history_v1";
@@ -71,29 +71,28 @@ export default function ChatWidget() {
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [lead, setLead] = useState<Lead>({
     name: "",
-    contact: "",
-    role: "",
-    business: "",
-    country: "",
+    companyProject: "",
     need: "",
+    contactMethod: "",
+    contactDetails: "",
+    referenceRequest: "",
   });
 
   const FALLBACKS = useMemo(
     () => [
-      "I can help you understand AdminHub Global, the 48-hour live proof process, Partner Portal, Client Hub, admin dashboard, project delivery workflow, and managed support model. Tell me what you want to do next.",
-      "You can ask about agents, leads, client onboarding, proposal PDFs, project workspaces, messaging, uploads, recurring support, or how the custom PWA framework works.",
-      "For the fastest next step, tap “Start inquiry” and I’ll help collect the right details before AdminHub follows up privately.",
+      "I can help you explore Admin Hub's published products by industry, open a live product, or start an enquiry.",
+      "Tell me what kind of business or workflow you are interested in and I can point you to the closest published work.",
+      "If you have an idea of your own, I can collect the project details for Admin Hub to review without interrupting your browsing.",
     ],
     []
   );
 
   const DEFAULT_SUGGESTIONS = useMemo(
     () => [
-      "What can I do on this page?",
-      "48-hour proof",
-      "Partner Portal",
-      "Client Hub",
-      "Start inquiry",
+      "Explore apps",
+      "Find work like mine",
+      "Explore games",
+      "Start an enquiry",
     ],
     []
   );
@@ -137,14 +136,11 @@ export default function ChatWidget() {
     setUnread(0);
 
     if (messages.length === 0) {
-      setStage("inquire");
-      setMessages([
-        {
-          sender: "bot",
-          text:
-            "Hi 👋 I’m the AdminHub Global assistant.\n\nI can help you understand the platform, the 48-hour live proof process, Partner Portal, Client Hub, admin dashboard, project delivery workflow, and managed support model.\n\nYou can ask things like:\n• What can I do on this page?\n• How does the 48-hour proof work?\n• What can agents sell?\n• What does the Client Hub do?\n• How is this different from a DIY website builder?\n\nWhat would you like help with today?",
-        },
-      ]);
+      setStage("browse");
+      setMessages([{
+        sender: "bot",
+        text: "Hi — I’m Ask Admin Hub. I can help you explore published products, find work relevant to your industry, explore the games, or collect a project enquiry for Admin Hub to review. What are you looking for?",
+      }]);
       setSuggestions(DEFAULT_SUGGESTIONS);
     }
 
@@ -206,52 +202,29 @@ export default function ChatWidget() {
     setLeadOpen(true);
     setStage("lead");
     pushBot(
-      "Sure — fill in these quick details first. AdminHub can review the inquiry and follow up privately from there.",
+      Sure. I’ll keep this practical: tell me who you are, what you’re working on and how you’d like Admin Hub to reach you. You can leave the reference field empty if there isn’t one.,
       []
     );
   };
 
   const onSuggestion = (s: string) => {
-    if (s === "Start inquiry" || s === "Get a quote") {
+    if (s === "Start an enquiry" || s === "Start inquiry" || s === "Get a quote") {
       openInquiryForm();
       return;
     }
 
-    if (s === "48-hour proof" || s === "Rapid Proof Sprint") {
-      window.location.href = "/c/rapid-proof";
+    if (s === "Explore apps") {
+      window.location.href = "/#work";
       return;
     }
-
-    if (s === "Business PWA") {
-      window.location.href = "/c/business-pwa";
+    if (s === "Explore games") {
+      window.location.href = "/#games";
       return;
     }
-
-    if (s === "Operations PWA") {
-      window.location.href = "/c/operations-pwa";
+    if (s === "Find work like mine") {
+      sendMessage("Show me work relevant to my industry");
       return;
     }
-
-    if (s === "Partner Portal") {
-      window.location.href = "/partners";
-      return;
-    }
-
-    if (s === "Client Hub") {
-      window.location.href = "/client/dashboard";
-      return;
-    }
-
-    if (s === "Admin Dashboard" || s === "AdminHub Global Control") {
-      window.location.href = "/admin/dashboard";
-      return;
-    }
-
-    if (s === "Contact" || s === "Submit inquiry") {
-      window.location.href = "/contact";
-      return;
-    }
-
     sendMessage(s);
   };
 
@@ -260,18 +233,15 @@ export default function ChatWidget() {
 
     const clean: Lead = {
       name: lead.name.trim(),
-      contact: lead.contact.trim(),
-      role: lead.role.trim(),
-      business: lead.business.trim(),
-      country: lead.country.trim(),
+      companyProject: lead.companyProject.trim(),
       need: lead.need.trim(),
+      contactMethod: lead.contactMethod.trim(),
+      contactDetails: lead.contactDetails.trim(),
+      referenceRequest: lead.referenceRequest.trim(),
     };
 
-    if (!clean.name || !clean.contact || !clean.need) {
-      pushBot(
-        "Please add at least your name, preferred contact detail, and what you need before submitting the inquiry.",
-        []
-      );
+    if (!clean.name || !clean.need || !clean.contactDetails) {
+      pushBot("Please add your name, what you would like to discuss, and the contact detail you want Admin Hub to use.", []);
       return;
     }
 
@@ -287,11 +257,11 @@ export default function ChatWidget() {
         project: "AdminHub Global",
         status: "new",
         name: clean.name,
-        contact: clean.contact,
-        role: clean.role,
-        business: clean.business,
-        country: clean.country,
+        companyProject: clean.companyProject,
         need: clean.need,
+        contactMethod: clean.contactMethod,
+        contactDetails: clean.contactDetails,
+        referenceRequest: clean.referenceRequest,
         page: getCurrentPath(),
         transcript: messages.slice(-10).map((m) => ({
           sender: m.sender,
@@ -303,8 +273,8 @@ export default function ChatWidget() {
       setLeadOpen(false);
       setStage("handoff");
       pushBot(
-        "Done — your inquiry details have been captured. AdminHub can review the request and follow up privately. You can also continue to the contact page if you want to add more structured details.",
-        ["48-hour proof", "Partner Portal", "Client Hub", "Contact"]
+        "Thanks — I’ve captured the project details for Admin Hub to review. Your details are also remembered in this browser so you can return to the enquiry later. If you did not choose to submit, nothing is sent for follow-up.",
+        ["Explore apps", "Explore games"]
       );
     } catch (error) {
       console.error("Inquiry capture failed:", error);
@@ -312,8 +282,8 @@ export default function ChatWidget() {
       setLeadOpen(false);
       setStage("handoff");
       pushBot(
-        "I saved the inquiry details locally in this browser, but the online submission could not be completed. Please continue to the contact page and submit the request there.",
-        ["Contact", "48-hour proof", "Partner Portal", "Client Hub"]
+        "I kept the enquiry details in this browser, but the online submission could not be completed. You can retry later without re-entering the saved project details.",
+        ["Explore apps", "Start an enquiry"]
       );
     } finally {
       setLeadSubmitting(false);
@@ -332,7 +302,7 @@ export default function ChatWidget() {
       {
         sender: "bot",
         text:
-          "Chat cleared. 👋\nI can help with AdminHub Global, the 48-hour proof process, Partner Portal, Client Hub, admin workflow, proposal PDFs, messaging, uploads, managed support, and PWA questions.\n\nWhat would you like help with?",
+          "Chat cleared. 👋\nI’m Ask Admin Hub. I can help you explore published products, find relevant work, explore games, or start a project enquiry.\n\nWhat would you like to explore?",
       },
     ]);
     setSuggestions(DEFAULT_SUGGESTIONS);
@@ -377,7 +347,7 @@ export default function ChatWidget() {
             animation: "adminHubSlideIn 0.34s cubic-bezier(0.45,0,0.25,1)",
           }}
           role="dialog"
-          aria-label="AdminHub Global Assistant"
+          aria-label="Ask Admin Hub"
           aria-modal="false"
         >
           <div className="border-b border-[var(--border)] bg-[linear-gradient(135deg,rgba(77,163,255,0.16)_0%,rgba(15,23,42,0.98)_48%,rgba(24,199,184,0.12)_100%)] px-4 py-3">
@@ -390,7 +360,7 @@ export default function ChatWidget() {
                 <div className="min-w-0 leading-tight">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="truncate text-sm font-extrabold text-[var(--text-primary)]">
-                      AdminHub Global Assistant
+                      Ask Admin Hub
                     </div>
 
                     <span
@@ -398,14 +368,14 @@ export default function ChatWidget() {
                       style={{ fontSize: 12, padding: "0.18rem 0.55rem" }}
                     >
                       <ShieldCheck size={14} />
-                      PWA guide
+                      PUBLIC GUIDE
                     </span>
                   </div>
 
                   <div className="mt-1 text-[11px] text-[var(--text-muted)]">
                     {stage === "lead"
                       ? "Inquiry capture"
-                      : "Platform guide • Agents • Clients • Support"}
+                      : "Products • Industries • Projects"}
                   </div>
                 </div>
               </div>
@@ -497,16 +467,11 @@ export default function ChatWidget() {
             <div className="border-t border-[var(--border)] bg-[rgba(11,18,32,0.98)] p-3">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="inline-flex items-center gap-2 text-sm font-extrabold text-[var(--text-primary)]">
-                  <ClipboardList
-                    size={16}
-                    className="text-[var(--brand-primary)]"
-                  />
-                  Inquiry details
+                  <ClipboardList size={16} className="text-[var(--brand-primary)]" />
+                  Project enquiry
                 </div>
-
-                <LinkButtonLike href="/contact" label="Full form" />
+                <span className="text-[11px] text-[var(--text-muted)]">You choose what to share</span>
               </div>
-
               <div className="space-y-2.5">
                 <div>
                   <label className="label">Name</label>
@@ -519,78 +484,29 @@ export default function ChatWidget() {
                     className="input"
                   />
                 </div>
-
                 <div>
-                  <label className="label">Preferred contact detail</label>
-                  <input
-                    value={lead.contact}
-                    onChange={(e) =>
-                      setLead((s) => ({ ...s, contact: e.target.value }))
-                    }
-                    placeholder="Email, phone, or preferred reply method"
-                    className="input"
-                  />
+                  <label className="label">Company / Project</label>
+                  <input value={lead.companyProject} onChange={(e)=>setLead(s=>({...s,companyProject:e.target.value}))} placeholder="Company, project or idea name" className="input" />
                 </div>
-
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <div>
-                    <label className="label">Interest</label>
-                    <input
-                      value={lead.role}
-                      onChange={(e) =>
-                        setLead((s) => ({
-                          ...s,
-                          role: e.target.value,
-                        }))
-                      }
-                      placeholder="Client / Agent / Partner"
-                      className="input"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="label">Country / Region</label>
-                    <input
-                      value={lead.country}
-                      onChange={(e) =>
-                        setLead((s) => ({ ...s, country: e.target.value }))
-                      }
-                      placeholder="Country or region"
-                      className="input"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="label">Business / Organisation</label>
-                  <input
-                    value={lead.business}
-                    onChange={(e) =>
-                      setLead((s) => ({ ...s, business: e.target.value }))
-                    }
-                    placeholder="Business name"
-                    className="input"
-                  />
+                  <label className="label">What I’d like to discuss</label>
+                  <textarea rows={3} value={lead.need} onChange={(e)=>setLead(s=>({...s,need:e.target.value}))} placeholder="Tell Admin Hub what you are trying to build, improve or explore." className="textarea" />
                 </div>
-
                 <div>
-                  <label className="label">What do you need?</label>
-                  <textarea
-                    rows={3}
-                    value={lead.need}
-                    onChange={(e) =>
-                      setLead((s) => ({ ...s, need: e.target.value }))
-                    }
-                    placeholder="Example: 48-hour prototype, client portal, admin dashboard, agent partnership, managed support..."
-                    className="textarea"
-                  />
+                  <label className="label">Best way to contact me</label>
+                  <select value={lead.contactMethod} onChange={(e)=>setLead(s=>({...s,contactMethod:e.target.value}))} className="select">
+                    <option value="">Choose one</option><option>Email</option><option>WhatsApp</option><option>Phone</option><option>Other</option>
+                  </select>
                 </div>
-
-                <p className="text-xs leading-6 text-[var(--text-muted)]">
-                  This captures the inquiry first. Direct private follow-up
-                  happens only after the request is reviewed.
-                </p>
-
+                <div>
+                  <label className="label">Preferred contact details</label>
+                  <input value={lead.contactDetails} onChange={(e)=>setLead(s=>({...s,contactDetails:e.target.value}))} placeholder="Email address, phone number or other detail" className="input" />
+                </div>
+                <div>
+                  <label className="label">Reference request (if applicable)</label>
+                  <input value={lead.referenceRequest} onChange={(e)=>setLead(s=>({...s,referenceRequest:e.target.value}))} placeholder="A product, site or example you want Admin Hub to reference" className="input" />
+                </div>
+                <p className="text-xs leading-6 text-[var(--text-muted)]">Your saved project memory stays in this browser. Submitting sends the enquiry to Admin Hub for review.</p>
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
@@ -645,7 +561,7 @@ export default function ChatWidget() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") sendMessage();
                 }}
-                placeholder="Ask about AdminHub Global..."
+                placeholder="Ask about the work or your project..."
                 className="input flex-1"
                 aria-label="Type your message"
               />

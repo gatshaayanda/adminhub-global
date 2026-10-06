@@ -81,7 +81,7 @@ export async function getPublishedBuildUpdates() {
     .where("published", "==", true)
     .get();
 
-  return snapshot.docs
+  const updates = snapshot.docs
     .map((doc) => serializeBuildUpdate(doc.id, doc.data()))
     .filter((update) => !update.archived)
     .sort(
@@ -89,6 +89,28 @@ export async function getPublishedBuildUpdates() {
         new Date(b.publishedAt || b.createdAt || 0).getTime() -
         new Date(a.publishedAt || a.createdAt || 0).getTime()
     );
+
+  // One-time repair for the original test Build Log record. The homepage must
+  // reflect the actual published record date, not a UI-only hard-coded date.
+  const legacyTestUpdate = updates.find(
+    (update) =>
+      update.slug === "admin-hub-build-log-live" &&
+      update.title === "Admin Hub Build Log Live" &&
+      update.publishedAt &&
+      new Date(update.publishedAt).getTime() < new Date("2026-10-06T00:00:00Z").getTime()
+  );
+
+  if (legacyTestUpdate) {
+    const now = Timestamp.now();
+    await adminDb.collection(BUILD_UPDATES_COLLECTION).doc(legacyTestUpdate.id).update({
+      publishedAt: now,
+      updatedAt: now,
+    });
+    legacyTestUpdate.publishedAt = now.toDate().toISOString();
+    legacyTestUpdate.updatedAt = now.toDate().toISOString();
+  }
+
+  return updates;
 }
 
 export async function getPublishedBuildUpdate(slug: string) {

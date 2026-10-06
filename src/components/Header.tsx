@@ -1,4 +1,26 @@
 "use client";
+
 import Link from "next/link";
-import {usePathname} from "next/navigation";
-export default function Header(){const pathname=usePathname();const active=(href:string)=>pathname?.startsWith(href);return <header className="ah-header"><a href="#main" className="ah-skip">Skip to content</a><div className="ah-nav"><Link href="/" className="ah-brand" aria-label="Admin Hub home"><span className="ah-brand-word">ADMIN HUB</span></Link><nav className="ah-desktop-nav" aria-label="Primary navigation"><Link href="/apps" className={active("/apps")?"active":""}>Apps</Link><Link href="/games" className={active("/games")?"active":""}>Games</Link></nav></div></header>}
+import { usePathname } from "next/navigation";
+
+export default function Header() {
+  const pathname = usePathname();
+  const active = (href: string) => pathname?.startsWith(href);
+
+  return (
+    <header className="ah-header">
+      <a href="#main" className="ah-skip">Skip to content</a>
+      <div className="ah-nav">
+        <Link href="/" className="ah-brand" aria-label="Admin Hub home">
+          <span className="ah-brand-word">ADMIN HUB</span>
+        </Link>
+
+        <nav className="ah-desktop-nav" aria-label="Primary navigation">
+          <Link href="/apps" className={active("/apps") ? "active" : ""}>Apps</Link>
+          <Link href="/games" className={active("/games") ? "active" : ""}>Games</Link>
+          <Link href="/business" className={active("/business") ? "active" : ""}>Rates</Link>
+        </nav>
+      </div>
+    </header>
+  );
+}

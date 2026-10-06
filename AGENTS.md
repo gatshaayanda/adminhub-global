@@ -626,3 +626,53 @@ Returned direct business prospect:
 - Galadent Prim SRL — Cahul, Moldova — active dental practice; current public Facebook page with recent 2026 activity; no website listed/confirmed; public WhatsApp +373 601 01 110; owner/administrator Valeriu Galațanu identified in public company records. Direct social/contact route: https://www.facebook.com/galadentprim/
 
 The returned job companies and business are now excluded from future fresh HUNT results unless Ayanda explicitly requests a follow-up or materially different opening.
+
+
+## GOLDEN BASELINE — ADMIN HUB VISITOR EXPERIENCE — 2026-10-06
+
+A rollback baseline has been preserved before the visitor-experience redesign:
+- Golden branch: `golden/adminhub-global-pre-visitor-experience-2026-10-06`
+- Baseline source: the `main` state immediately before the visitor-experience work began.
+- If the redesign produces an unexpected result, STOP → inspect reality → compare against the golden branch before making further changes.
+- Do not delete or rewrite the golden branch unless the product owner explicitly requests it.
+
+## ADMIN HUB PUBLIC EXPERIENCE RULES — 2026-10-06
+
+The Admin Hub public site is a commercial product/work showcase, not a generic agency portfolio.
+
+### Published work hierarchy
+- Organize client products primarily by visitor-relevant industry/use case, not an arbitrary featured-project ranking.
+- Current categories: Food & Hospitality (BOEMO); Transport & Automotive (Translend, Namane Tyres, Atlas Service Centre); Education & Tutoring (TutorMe); Events & Equipment Hire (Avram Kids); Business & Operations (PurePress).
+- BoardSignal is a personal/independent project and must remain visually subordinate/buried. Do not repeatedly feature it as a lead commercial proof point.
+- Preserve the distinction between paid/client work and personal/experimental work.
+- Each published product should explain the industry/problem, what it does, and where the visitor can open/try it.
+- Prefer dedicated, indexable product/work pages over relying only on modal previews when practical.
+
+### Visitor relevance
+- Help visitors self-identify: “this is relevant to my industry/problem.”
+- Do not force every visitor through a single featured-project sequence.
+- Use category headings, short context, product previews, and clear Open product / See how it works actions.
+- Product descriptions must remain factual; do not invent outcomes, testimonials, customer counts, or performance claims.
+
+### Admin Hub Assistant
+- The public chatbot is Ask Admin Hub, an on-site guide to published work and project enquiries.
+- It should help visitors explore products, find relevant work by industry/use case, or start a project enquiry.
+- It must not pretend to be Ayanda.
+- Primary enquiry fields: Name; Company/Project; What I'd like to discuss; Best way to contact me; Preferred contact details; Reference request (if applicable).
+- Collect progressively where possible instead of presenting a large intimidating form immediately.
+- With explicit visitor understanding/permission, persist lightweight visitor/project memory in the browser so returning visitors can resume. Do not silently claim cross-device memory.
+- Persist submitted enquiries to the existing Firebase inquiries collection with useful source/page/transcript metadata. Never store secrets.
+- The assistant must remain useful even without an enquiry.
+
+### Cinematic intelligence layer
+- Use restrained original Admin Hub cues: small signalers, status lights, subtle entrance/section motion, preview motion, and responsive micro-interactions.
+- Motion must guide attention or communicate state, not compete with product content.
+- Respect prefers-reduced-motion.
+- Do not copy Tony Stark/Iron Man/Marvel visual identity.
+- Existing light editorial Admin Hub public styling remains the baseline; do not reintroduce dark admin-dashboard styling into the public homepage.
+
+### Evidence and implementation discipline
+- Inspect GitHub source and deployment state before public UX changes.
+- Preserve working project links, media, and existing functionality unless explicitly replaced.
+- For substantial public UX changes, verify the build and visually inspect the result before declaring completion.
+- Use research as design evidence; prioritize clarity, relevance, progressive disclosure, accessibility, and real product evidence.

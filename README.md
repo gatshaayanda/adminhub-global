@@ -37,3 +37,4 @@ Check out [the Vercel deployment documentation](https://nextjs.org/docs/app/buil
 
 <!-- deployment checkpoint -->
 <!-- deployment trigger 2026-10-05 -->
+<!-- deployment probe 2026-10-06 -->

@@ -28,11 +28,12 @@ export default function BusinessPage() {
             </div>
           </div>
           <div className="admin-business-note">
-            <strong>USD $7–$18</strong>
+            <strong>Let&apos;s talk about the real cost.</strong>
             <span>
-              Typical ongoing support / operating range per app, per month.
-              This is the current public equivalent of the BWP 100–250 range;
-              actual scope is agreed before anything is billed.
+              Setup/build fees and ongoing operating costs are discussed in USD,
+              against the actual scope, expected usage and the business budget.
+              Suitable pilot or partnership work may qualify for a waived or
+              discounted setup fee.
             </span>
           </div>
         </section>
@@ -41,21 +42,22 @@ export default function BusinessPage() {
           <div className="admin-business-grid">
             <div>
               <p className="admin-kicker">01 / THE MODEL</p>
-              <h2>The number is for keeping a useful product running.</h2>
+              <h2>There is no fake one-size-fits-all price.</h2>
             </div>
             <div className="admin-business-copy">
               <p>
-                The monthly fee is not a surprise licence for access to a
-                template. It is a small operating and support contribution for
-                an app that Admin Hub has built with the business.
+                The goal is a useful business asset, not a surprise software
+                bill. We first agree what should be built, what the business
+                can reasonably invest, and what it needs the product to do.
               </p>
               <div className="admin-business-price">
-                <strong>$7–$18 / app / month</strong>
+                <strong>Setup + operating cost, agreed in USD</strong>
                 <span>
-                  The exact level depends on the app and the support it needs.
-                  New features, substantial redesigns and third-party charges
-                  are scoped separately rather than quietly added to the
-                  monthly number.
+                  The initial build/setup fee is quoted from the real scope. It
+                  can be waived or discounted for a suitable pilot or
+                  partnership. After launch, the ongoing fee is kept as low as
+                  practical and reflects hosting, storage, usage and agreed
+                  support rather than an arbitrary licence price.
                 </span>
               </div>
               <div className="admin-business-cards">
@@ -64,12 +66,12 @@ export default function BusinessPage() {
                   <p>Begin with the smallest workflow that can prove the idea in real use.</p>
                 </div>
                 <div className="admin-business-card">
-                  <strong>30-day evaluation</strong>
-                  <p>Use the first month to see whether the product is actually useful to the business.</p>
+                  <strong>Fund it deliberately</strong>
+                  <p>Decide whether the business has capital to invest upfront, or whether the product should help generate the money needed to keep it running.</p>
                 </div>
                 <div className="admin-business-card">
                   <strong>Agree the next step</strong>
-                  <p>Continue, improve or change scope based on what the business actually learned.</p>
+                  <p>Continue, improve or change scope based on real use, actual costs and what the business can sustain.</p>
                 </div>
               </div>
             </div>
@@ -120,6 +122,7 @@ export default function BusinessPage() {
               <div className="admin-business-list">
                 <div><b>Working software</b><span>A real mobile-first product, not just a proposal or mock-up.</span></div>
                 <div><b>Business workflow</b><span>Ordering, booking, requests, progress, dashboards or another clearly defined first workflow.</span></div>
+                <div><b>Funding model</b><span>We can discuss upfront capital, a minimal operating contribution, or whether orders/bookings facilitated by the product can help fund its ongoing cost.</span></div>
                 <div><b>Iteration</b><span>Feedback from real use can shape the next change instead of guessing everything upfront.</span></div>
                 <div><b>Support</b><span>Small operational fixes and agreed ongoing support are kept separate from larger new development.</span></div>
                 <div><b>Clear scope</b><span>New features, third-party services and substantial changes are discussed before they become charges.</span></div>

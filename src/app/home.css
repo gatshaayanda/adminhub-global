@@ -1558,3 +1558,36 @@
  .admin-business .admin-business-list div{grid-template-columns:1fr;gap:7px}
  .admin-business .admin-business-bank{grid-template-columns:1fr}
 }
+
+
+/* Ask Admin Hub: light/editorial public-chat treatment. */
+.admin-home ~ .ah-chat-launch,
+.ah-public-shell .ah-chat-launch{
+  background:#111318!important;color:#fff!important;border:1px solid #111318!important;box-shadow:0 12px 30px rgba(17,19,24,.16)!important;
+}
+.ah-public-shell .ah-chat-launch:hover{background:#173ea5!important}
+.ah-public-shell .ah-chat-panel{
+  width:min(92vw,25rem)!important;max-height:calc(100dvh - 32px);height:min(39rem,calc(100dvh - 32px))!important;
+  border:1px solid #d9d9d2!important;border-radius:18px!important;background:#f7f7f3!important;color:#111318!important;
+  box-shadow:0 24px 80px rgba(17,19,24,.18)!important;
+}
+.ah-public-shell .ah-chat-panel .border-b,
+.ah-public-shell .ah-chat-panel .border-t{border-color:#d9d9d2!important}
+.ah-public-shell .ah-chat-panel .bg-\[linear-gradient\(135deg\,rgba\(77\,163\,255\,0\.16\)_0\%\,rgba\(15\,23\,42\,0\.98\)_48\%\,rgba\(24\,199\,184\,0\.12\)_100\%\)\]{background:#fbfbf8!important}
+.ah-public-shell .ah-chat-panel .bg-\[rgba\(11\,18\,32\,0\.98\)\],
+.ah-public-shell .ah-chat-panel .bg-\[linear-gradient\(180deg\,rgba\(6\,10\,18\,0\.98\)_0\%\,rgba\(11\,18\,32\,0\.96\)_100\%\)\]{background:#fbfbf8!important}
+.ah-public-shell .ah-chat-panel .text-\[var\(--text-primary\)\]{color:#111318!important}
+.ah-public-shell .ah-chat-panel .text-\[var\(--text-secondary\)\]{color:#4d5057!important}
+.ah-public-shell .ah-chat-panel .text-\[var\(--text-muted\)\]{color:#5f636b!important}
+.ah-public-shell .ah-chat-panel .badge{background:#f0f0eb;color:#111318;border-color:#d9d9d2}
+.ah-public-shell .ah-chat-panel .input,
+.ah-public-shell .ah-chat-panel .textarea,
+.ah-public-shell .ah-chat-panel .select{background:#fff;color:#111318;border-color:#b9bbc0;box-shadow:none}
+.ah-public-shell .ah-chat-panel .input::placeholder,
+.ah-public-shell .ah-chat-panel .textarea::placeholder{color:#777a82}
+.ah-public-shell .ah-chat-panel .btn-primary{background:#111318;color:#fff;box-shadow:none}
+.ah-public-shell .ah-chat-panel .btn-primary:hover{background:#173ea5}
+.ah-public-shell .ah-chat-panel .btn-outline{background:#fff;color:#111318;border-color:#b9bbc0;box-shadow:none}
+.ah-public-shell .ah-chat-panel .btn-outline:hover{background:#eeeeea;color:#111318}
+.ah-public-shell .ah-chat-panel .btn-ghost{color:#4d5057}
+.ah-public-shell .ah-chat-panel .btn-ghost:hover{background:#eeeeea;color:#111318}

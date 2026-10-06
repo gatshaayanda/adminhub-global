@@ -689,3 +689,10 @@ This is a permanent design-system rule for the public Admin Hub homepage.
 - Do not introduce transparent text, low-opacity text, gradients used as text, or theme-inherited text on the public homepage.
 - Treat readability as locked baseline behavior: if a future change makes public text faint or inconsistent, STOP, compare against the golden baseline, and restore the readability lock before continuing.
 - WCAG contrast is the floor, not the design target: meaningful normal text should visibly read as solid dark editorial copy on the light background. WCAG AA requires at least 4.5:1 for normal text and 3:1 for large text.
+
+## BUILD LOG SOURCE REPAIR — 2026-10-06
+
+- The stale admin-hub-build-log-live Firestore record was repaired at the data source on 06 Oct 2026.
+- Its publishedAt and updatedAt now reflect 06 Oct 2026.
+- The temporary one-time repair logic was removed immediately after the production read confirmed the persisted source date.
+- Do not hard-code a BUILDING NOW date in the UI. BuildNow must continue to render the publishedAt returned by /api/updates/latest.

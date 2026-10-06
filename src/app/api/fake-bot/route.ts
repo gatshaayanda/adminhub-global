@@ -28,7 +28,7 @@ function productReply(text:string){
 }
 
 function detect(text:string):BotResponse{
-  if(!text) return reply("Hi — I’m Ask Admin Hub. I can help you explore published products, find work relevant to your industry, explore games, or collect a project enquiry.",["Explore apps","Explore games","Start an enquiry"]);
+  if(!text) return reply("Hi — I’m Ask Admin Hub. I can help you explore published products, find work relevant to your industry, explore games, or collect a project enquiry.",["Explore apps","Explore games","How pricing works","Start an enquiry"]);
   if(/\b(hello|hi|hey|morning|afternoon|evening|dumela)\b/.test(text)) return reply("Hi — I’m Ask Admin Hub. What would you like to explore?",["Explore apps","Explore games","Find work like mine","Start an enquiry"]);
   if(/\b(explore apps|apps|products|portfolio|work)\b/.test(text)) return reply("Admin Hub’s published client work is organized by industry so you can jump to the products closest to your business: Food & Hospitality; Transport & Logistics; Automotive & Workshops; Education & Tutoring; Events & Equipment Hire; and Business & Operations.",["Find work like mine","Start an enquiry"]);
   if(/\b(game|games|playable|interactive)\b/.test(text)) return reply("The Games section is for Admin Hub’s reusable interactive work: Wardrobe, Shooters Trigger, President’s Shoes and Hall. Open a game preview to see the experience rather than just reading about it.",["Explore games","Start an enquiry"]);

@@ -1,0 +1,23 @@
+export type PublicProduct = {
+  slug:string; number:string; title:string; industry:string; type:string; href:string; status:string;
+  summary:string; detail:string; video?:string; youtubeUrl?:string; tags:string[];
+};
+
+export const publicProducts: PublicProduct[] = [
+  {slug:"boemo",number:"01",title:"BOEMO",industry:"Food & Hospitality",type:"Mobile kitchen ordering",href:"https://boemo-joos-food-deals.vercel.app/",status:"CLIENT WORK · ACTIVE",summary:"Mobile ordering built around a real food-business workflow.",detail:"A customer ordering experience shaped around menus, ordering days, quantities, receipts, account access and notifications.",video:"/video/projects/boemo.mp4",tags:["Ordering","Customer experience","Food operations"]},
+  {slug:"translend",number:"02",title:"Translend",industry:"Transport & Logistics",type:"Transport & workflow management",href:"https://translend-tms.vercel.app/pipeline",status:"CLIENT WORK · ACTIVE",summary:"A working transport and workflow system for client operations.",detail:"A transport-management workflow that turns an existing operational direction into a usable system for moving work through a pipeline.",video:"/video/projects/translend.mp4",tags:["Transport","Workflow","Operations"]},
+  {slug:"namane-tyres",number:"03",title:"Namane Tyres",industry:"Automotive & Tyre Services",type:"Customer booking & work progress",href:"https://namane-tyres.vercel.app/",status:"CLIENT WORK · ACTIVE",summary:"Customer booking and work-progress workflow for a tyre business.",detail:"A mobile-first system connecting customer requests, booking and work progress for a real tyre-fitting business.",video:"/video/projects/namane-tyre-work.mp4",tags:["Bookings","Automotive","Customer workflow"]},
+  {slug:"atlas-service-centre",number:"04",title:"Atlas Service Centre",industry:"Automotive & Workshops",type:"Vehicle service & workshop system",href:"https://atlas-service-centre.vercel.app/",status:"CLIENT WORK · ACTIVE",summary:"A workshop system shaped around mechanical, electrical and customer-service workflows.",detail:"A business application for a vehicle service centre, bringing customer-facing information and workshop operations into one mobile-first product.",video:"/video/projects/atlasvid.mp4",tags:["Workshop","Service operations","Automotive"]},
+  {slug:"tutorme",number:"05",title:"TutorMe",industry:"Education & Tutoring",type:"Education & tutoring application",href:"https://tutorme-two.vercel.app/",status:"CLIENT WORK · ACTIVE",summary:"An education and tutoring application built around learning workflows.",detail:"A product direction for connecting learners and tutoring activity through a focused digital experience.",video:"/video/projects/tutorme.mp4",tags:["Education","Tutoring","Learning"]},
+  {slug:"avram-kids",number:"06",title:"Avram Kids",industry:"Events & Equipment Hire",type:"Event equipment booking & operations",href:"https://avram-kids.vercel.app/",status:"CLIENT WORK · ACTIVE",summary:"Booking and operations foundation for children’s event equipment hire.",detail:"A mobile-first booking and operations product designed around event equipment rental and the work required to manage requests.",video:"/video/projects/avram.mp4",tags:["Bookings","Events","Equipment hire"]},
+  {slug:"purepress",number:"07",title:"PurePress",industry:"Business & Operations",type:"Business application",href:"https://purepress-omega.vercel.app/",status:"CLIENT WORK · FOLLOW-UP",summary:"A business application developed around a real operating workflow.",detail:"A reusable business-application direction showing how a focused workflow can move from a problem into a working digital product.",video:"/video/projects/purepress-team.mp4",tags:["Business systems","Operations","Workflow"]},
+];
+
+export const productIndustries = [
+  {name:"Food & Hospitality",intro:"Ordering and customer workflows for food and service businesses.",slugs:["boemo"]},
+  {name:"Transport & Logistics",intro:"Systems for moving jobs, requests and operational work through a business.",slugs:["translend"]},
+  {name:"Automotive & Workshops",intro:"Customer and workshop workflows for automotive service businesses.",slugs:["namane-tyres","atlas-service-centre"]},
+  {name:"Education & Tutoring",intro:"Digital experiences for learners, tutors and education workflows.",slugs:["tutorme"]},
+  {name:"Events & Equipment Hire",intro:"Booking and operational tools for businesses that rent or coordinate equipment.",slugs:["avram-kids"]},
+  {name:"Business & Operations",intro:"Focused business systems for teams whose work does not fit a generic website.",slugs:["purepress"]},
+];

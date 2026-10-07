@@ -101,8 +101,7 @@ function buildInquirySummary(form: InquiryForm) {
     "",
     "Extra notes:",
     form.notes || "-",
-  ].join("
-");
+  ].join("\n");
 }
 
 function saveDraft(form: InquiryForm) {

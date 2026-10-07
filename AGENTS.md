@@ -717,14 +717,13 @@ This is a permanent design-system rule for the public Admin Hub homepage.
 ## PORTFOLIO CATALOG ADDITIONS — 2026-10-06
 - Added the verified live product **The Meating Place** to the public Apps catalogue.
   - URL: https://meating-place.vercel.app/
-  - Industry: Food & Hospitality.
-  - Status shown publicly: CLIENT WORK · FOLLOW-UP.
-  - Positioning: customer-facing product for a real car-wash, food and braai business, including booking flows.
-- Added the verified live product **The Wall** to the public Apps catalogue.
-  - URL: https://the-wall-ruby.vercel.app/
-  - Industry: Local Commerce & Experiences.
-  - Status shown publicly: INDEPENDENT · PROTOTYPE.
-  - Positioning: digital destination ecosystem connecting events, businesses, food, markets and opportunities around The Wall / Great Wall, Molepolole.
-- The two products are grouped by visitor-relevant industry rather than appended to a generic project list: Meating Place sits with BOEMO under Food & Hospitality; The Wall has its own Local Commerce & Experiences category because its verified live product spans events, discovery, market and participation rather than equipment hire alone.
-- Verified live URLs directly on 2026-10-06 before catalog implementation. Do not invent separate routes or claim client/payment status beyond the labels above.
-- Preserve all existing project order/content unless a future explicit product-owner request changes it.
+
+## PORTFOLIO CATALOG ADDITION — 2026-10-07
+- Added the verified live product **Tripple S Wellness Spa** to the public Apps catalogue.
+  - URL: https://tripple-s-wellness-spa.vercel.app/
+  - Industry: Health & Wellness.
+  - Status shown publicly: CLIENT WORK · ACTIVE.
+  - Positioning: Tripple S's digital receptionist + client-care system for medical aesthetics, IV wellness, skin health and body contouring.
+- The catalogue uses a locally coded editorial preview graphic for Tripple S rather than inventing a client-supplied logo or relying on a missing video asset.
+- The Wall now also has a locally coded editorial preview graphic so its existing live catalogue entry is visually represented in the same card/media treatment as projects with video.
+- Preserve the verified live URLs and existing catalogue structure; do not claim unsupported outcomes or commercial status.

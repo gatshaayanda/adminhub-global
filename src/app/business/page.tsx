@@ -175,7 +175,46 @@ export default function BusinessPage() {
         <section className="admin-business-section">
           <div className="admin-business-grid">
             <div>
-              <p className="admin-kicker">05 / PAYMENT</p>
+              <p className="admin-kicker">05 / INDEPENDENT REVIEWS</p>
+              <h2>See what customers say.</h2>
+            </div>
+            <div className="admin-business-copy">
+              <p>
+                Admin Hub is also reviewed independently on Trustpilot. The
+                profile currently shows a <strong>4.0/5 TrustScore from 10 reviews</strong>.
+                Read the full review history, including both positive feedback
+                and constructive criticism, directly on Trustpilot.
+              </p>
+              <div className="admin-business-actions">
+                <a
+                  className="admin-primary-button"
+                  href="https://www.trustpilot.com/review/adminhub-global.com"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Read Admin Hub reviews <span>↗</span>
+                </a>
+                <a
+                  className="admin-text-link"
+                  href="https://www.trustpilot.com/review/adminhub-global.com"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Leave a review
+                </a>
+              </div>
+              <p className="admin-business-small">
+                Reviews are hosted and moderated by Trustpilot. Admin Hub does
+                not control which reviews are published.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-business-section">
+          <div className="admin-business-grid">
+            <div>
+              <p className="admin-kicker">06 / PAYMENT</p>
               <h2>Payment details when you need them.</h2>
             </div>
             <div className="admin-business-copy admin-business-disclosure">
@@ -204,7 +243,7 @@ export default function BusinessPage() {
         <section className="admin-business-section">
           <div className="admin-business-grid">
             <div>
-              <p className="admin-kicker">06 / INTERNATIONAL PAYMENT</p>
+              <p className="admin-kicker">07 / INTERNATIONAL PAYMENT</p>
               <h2>Pay from where you are.</h2>
             </div>
             <div className="admin-business-copy">
@@ -256,7 +295,7 @@ export default function BusinessPage() {
         <section className="admin-business-section">
           <div className="admin-business-grid">
             <div>
-              <p className="admin-kicker">07 / REFERRALS</p>
+              <p className="admin-kicker">08 / REFERRALS</p>
               <h2>Bring the right customer. Share in the result.</h2>
             </div>
             <div className="admin-business-copy">
@@ -279,7 +318,7 @@ export default function BusinessPage() {
         <section className="admin-business-section" style={{ borderBottom: 0 }}>
           <div className="admin-business-grid">
             <div>
-              <p className="admin-kicker">08 / THE POINT</p>
+              <p className="admin-kicker">09 / THE POINT</p>
               <h2>Less sales theatre. More evidence.</h2>
             </div>
             <div className="admin-business-copy">

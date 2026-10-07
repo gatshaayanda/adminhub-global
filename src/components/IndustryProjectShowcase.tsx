@@ -6,7 +6,7 @@ import { productIndustries, publicProducts, type PublicProduct } from "@/data/pu
 function Card({project,onOpen}:{project:PublicProduct;onOpen:(p:PublicProduct)=>void}) {
   return <button type="button" onClick={()=>onOpen(project)} className="admin-client-card group text-left">
     <span className="admin-client-card-media">
-      {project.video ? <video src={project.video} muted loop playsInline preload="metadata" onMouseEnter={e=>void e.currentTarget.play().catch(()=>{})} onMouseLeave={e=>{e.currentTarget.pause();e.currentTarget.currentTime=0}} aria-hidden="true"/> : project.image ? <img src={project.image} alt="" aria-hidden="true"/> : null}
+      {project.video ? <video src={project.video} muted loop playsInline preload="metadata" onMouseEnter={e=>void e.currentTarget.play().catch(()=>{})} onMouseLeave={e=>{e.currentTarget.pause();e.currentTarget.currentTime=0}} aria-hidden="true"/> : project.image ? <img src={project.image} alt="" aria-hidden="true" style={{display:"block",width:"100%",height:"100%",objectFit:"cover"}}/> : null}
       <span className="admin-client-card-preview">Open preview <span>↗</span></span>
     </span>
     <span className="admin-client-card-copy">
@@ -37,7 +37,7 @@ export default function IndustryProjectShowcase(){
     {selected && <div className="admin-client-modal" role="dialog" aria-modal="true" aria-labelledby="client-preview-title">
       <button type="button" className="admin-client-modal-backdrop" aria-label="Close preview" onClick={()=>setSelected(null)}/>
       <div className="admin-client-modal-panel">
-        <div className="admin-client-modal-media">{selected.video ? <video src={selected.video} controls autoPlay muted playsInline preload="metadata"/> : selected.youtubeUrl ? <iframe src={"https://www.youtube.com/embed/"+selected.youtubeUrl.split("v=")[1]+"?autoplay=1&rel=0"} title={selected.title+" video"} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen/> : selected.image ? <img src={selected.image} alt={selected.title+" preview"}/> : null}</div>
+        <div className="admin-client-modal-media">{selected.video ? <video src={selected.video} controls autoPlay muted playsInline preload="metadata"/> : selected.youtubeUrl ? <iframe src={"https://www.youtube.com/embed/"+selected.youtubeUrl.split("v=")[1]+"?autoplay=1&rel=0"} title={selected.title+" video"} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen/> : selected.image ? <img src={selected.image} alt={selected.title+" preview"} style={{display:"block",width:"100%",height:"100%",objectFit:"contain"}}/> : null}</div>
         <div className="admin-client-modal-content">
           <button type="button" className="admin-client-modal-close" onClick={()=>setSelected(null)} aria-label="Close preview">Close <span>×</span></button>
           <div className="admin-client-modal-copy">

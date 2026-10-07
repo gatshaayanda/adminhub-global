@@ -282,7 +282,7 @@ export default function ContactPage() {
                   </div>
 
                   <h1 className="max-w-[12ch]">
-                    Submit details before private follow-up.
+                    Start with the problem. We’ll work out the product.
                   </h1>
 
                   <p className="mt-4 max-w-[64ch] text-base leading-8 text-[var(--text-secondary)]">
@@ -293,27 +293,27 @@ export default function ContactPage() {
                   </p>
 
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    <a href="#inquiry-form" className="btn btn-primary">
+                    <a href="#cost" className="btn btn-primary">
                       <ClipboardList size={18} />
-                      Start Inquiry
+                      See the cost context
                     </a>
 
                     <Link
-                      href="/solutions"
+                      href="#inquiry-form"
                       prefetch={false}
                       className="btn btn-outline"
                     >
-                      View Solutions
+                      Start an enquiry
                       <ArrowRight size={18} />
                     </Link>
 
                     <Link
-                      href="/partners"
+                      href="/#work"
                       prefetch={false}
                       className="btn btn-ghost"
                     >
                       <Users size={18} />
-                      Partner Portal
+                      Explore published work
                     </Link>
                   </div>
                 </div>
@@ -330,7 +330,7 @@ export default function ContactPage() {
                       </p>
 
                       <h2 className="mt-2 text-2xl">
-                        No public phone or email exposure.
+                        A conversation, not an application.
                       </h2>
 
                       <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
@@ -366,7 +366,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section className="section-shell pt-0">
+\n          <section id="cost" className="section-shell pt-0">\n            <div className="container">\n              <div className="card-elevated overflow-hidden">\n                <div className="card-inner md:p-8">\n                  <p className="eyebrow mb-0"><Globe2 size={15} /> Cost context</p>\n                  <h2 className="mt-2 text-3xl">The monthly running cost is not the build cost.</h2>\n                  <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]"><strong>Current Admin Hub operating/support contribution: USD $7–$18 per app/month.</strong> This applies after a useful product exists. Setup/build is quoted from the actual scope and can be made more flexible for suitable micro or solo-business pilots.</p>\n                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">For North American and European context, current 2026 Clutch data puts reviewed custom-software projects at roughly <strong>$10,000–$49,999</strong>. Published provider rates vary by market — for example, about $50–$99/hour in the US, $100–$149/hour in Canada, $50–$99/hour in Poland and $25–$49/hour in Spain. These are market reference points, not Admin Hub quotes.</p>\n                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">Admin Hub is more flexible because the budget follows the product and the business. The published apps in the catalogue show the kind of work already built: smaller businesses can start lean and stage the work; larger businesses can budget for broader workflows, integrations and support. Tell us what you need and we can discuss what is realistic.</p>\n                </div>\n              </div>\n            </div>\n          </section>\n      <section className="section-shell pt-0">
         <div className="container">
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <section id="inquiry-form" className="card-elevated overflow-hidden">
@@ -378,7 +378,7 @@ export default function ContactPage() {
                   </div>
 
                   <h2 className="mt-2 text-2xl">
-                    Tell AdminHub what needs review.
+                    Tell Admin Hub what you want to build, improve or explore.
                   </h2>
 
                   <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
@@ -494,7 +494,7 @@ export default function ContactPage() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="label">What do you need reviewed? *</label>
+                    <label className="label">What do you want to build, improve or explore? *</label>
                     <textarea
                       value={form.projectNeed}
                       onChange={(event) =>
@@ -502,7 +502,7 @@ export default function ContactPage() {
                       }
                       className="textarea"
                       rows={5}
-                      placeholder="Example: I need a 48-hour live proof for a training business, with a public site, admin dashboard, client portal, messaging, uploads, and monthly support."
+                      placeholder="Example: We run a tutoring centre and want a place where tutors can facilitate sessions online and manage learners."
                     />
                   </div>
 

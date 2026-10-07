@@ -201,10 +201,64 @@ export default function BusinessPage() {
           </div>
         </section>
 
+        <section className="admin-business-section">
+          <div className="admin-business-grid">
+            <div>
+              <p className="admin-kicker">06 / INTERNATIONAL PAYMENT</p>
+              <h2>Pay from where you are.</h2>
+            </div>
+            <div className="admin-business-copy">
+              <p>
+                Admin Hub can accept agreed international payments through
+                several established routes. Use the method that is easiest for
+                you and confirm the invoice / agreed scope before sending funds.
+              </p>
+              <div className="admin-business-list">
+                <div><b>Wise / Canadian bank transfer</b><span>Ayanda Gatsha · Scotiabank · Canada · CAD</span></div>
+                <div><b>Institution / transit</b><span>002 / 40410</span></div>
+                <div><b>Account</b><span>0038024</span></div>
+                <div><b>Wise payment email</b><span>kaygatsha@gmail.com</span></div>
+                <div><b>PayPal</b><span>Send to kaygatsha@gmail.com. PayPal can then be connected to the linked Scotiabank account.</span></div>
+                <div><b>Western Union</b><span>Recipient name: Ayanda Kopano Gatsha. Use the exact recipient details requested by Western Union for the transfer.</span></div>
+              </div>
+              <p className="admin-business-small">
+                Wise&apos;s Canadian CAD guidance uses the recipient name,
+                institution number, transit number and account number for local
+                CAD transfers. Payment providers can require additional details
+                depending on the route, so use the provider&apos;s instructions
+                when making an international transfer.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-business-section">
+          <div className="admin-business-grid">
+            <div>
+              <p className="admin-kicker">07 / REFERRALS</p>
+              <h2>Bring the right customer. Share in the result.</h2>
+            </div>
+            <div className="admin-business-copy">
+              <p>
+                People who introduce a customer who goes on to pay Admin Hub
+                can be entitled to <strong>50% of the earned amount</strong>,
+                calculated on gross or net revenue as agreed for that referral
+                before the work or payment begins.
+              </p>
+              <p style={{ marginTop: 18 }}>
+                The exact basis, timing and any agreed deductions should be
+                confirmed between Admin Hub and the referrer in writing. This is
+                a referral arrangement, not an automatic entitlement on every
+                future payment unless that is specifically agreed.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section className="admin-business-section" style={{ borderBottom: 0 }}>
           <div className="admin-business-grid">
             <div>
-              <p className="admin-kicker">06 / THE POINT</p>
+              <p className="admin-kicker">08 / THE POINT</p>
               <h2>Less sales theatre. More evidence.</h2>
             </div>
             <div className="admin-business-copy">

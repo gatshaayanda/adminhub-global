@@ -23,6 +23,7 @@ export const productIndustries = [
   {name:"Automotive & Workshops",intro:"Customer and workshop workflows for automotive service businesses.",slugs:["namane-tyres","atlas-service-centre"]},
   {name:"Education & Tutoring",intro:"Digital experiences for learners, tutors and education workflows.",slugs:["boardsignal","tutorme"]},
   {name:"Events & Equipment Hire",intro:"Booking and operational tools for businesses that rent or coordinate equipment.",slugs:["avram-kids"]},
-  {name:"Health & Wellness",intro:"Digital client-care and appointment experiences for wellness and aesthetics businesses.",slugs:["tripple-s-wellness"]},\n  {name:"Local Commerce & Experiences",intro:"Digital destination and discovery products connecting places, events, businesses, products and participation.",slugs:["the-wall"]},
+  {name:"Health & Wellness",intro:"Digital client-care and appointment experiences for wellness and aesthetics businesses.",slugs:["tripple-s-wellness"]},
+  {name:"Local Commerce & Experiences",intro:"Digital destination and discovery products connecting places, events, businesses, products and participation.",slugs:["the-wall"]},
   {name:"Business & Operations",intro:"Focused business systems for teams whose work does not fit a generic website.",slugs:["purepress"]},
 ];

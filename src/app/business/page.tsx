@@ -213,13 +213,34 @@ export default function BusinessPage() {
                 several established routes. Use the method that is easiest for
                 you and confirm the invoice / agreed scope before sending funds.
               </p>
-              <div className="admin-business-list">
-                <div><b>Wise / Canadian bank transfer</b><span>Ayanda Gatsha · Scotiabank · Canada · CAD</span></div>
-                <div><b>Institution / transit</b><span>002 / 40410</span></div>
-                <div><b>Account</b><span>0038024</span></div>
-                <div><b>Wise payment email</b><span>kaygatsha@gmail.com</span></div>
-                <div><b>PayPal</b><span>Send to kaygatsha@gmail.com. PayPal can then be connected to the linked Scotiabank account.</span></div>
-                <div><b>Western Union</b><span>Recipient name: Ayanda Kopano Gatsha. Use the exact recipient details requested by Western Union for the transfer.</span></div>
+              <div className="admin-business-disclosure">
+                <details>
+                  <summary>Show Wise / Canadian bank transfer details</summary>
+                  <div className="admin-business-bank">
+                    <div><b>Account holder</b><span>Ayanda Gatsha</span></div>
+                    <div><b>Bank</b><span>Scotiabank · Canada</span></div>
+                    <div><b>Currency</b><span>CAD</span></div>
+                    <div><b>Institution number</b><span>002</span></div>
+                    <div><b>Transit number</b><span>40410</span></div>
+                    <div><b>Account number</b><span>0038024</span></div>
+                    <div><b>Payment email</b><span>kaygatsha@gmail.com</span></div>
+                  </div>
+                </details>
+
+                <details>
+                  <summary>Show PayPal details</summary>
+                  <div className="admin-business-bank">
+                    <div><b>PayPal email</b><span>kaygatsha@gmail.com</span></div>
+                    <div><b>Linked bank</b><span>Scotiabank</span></div>
+                  </div>
+                </details>
+
+                <details>
+                  <summary>Show Western Union details</summary>
+                  <div className="admin-business-bank">
+                    <div><b>Recipient name</b><span>Ayanda Kopano Gatsha</span></div>
+                  </div>
+                </details>
               </div>
               <p className="admin-business-small">
                 Wise&apos;s Canadian CAD guidance uses the recipient name,

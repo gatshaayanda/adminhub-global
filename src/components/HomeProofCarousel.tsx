@@ -43,8 +43,6 @@ export default function HomeProofCarousel() {
       className="admin-proof-carousel"
       aria-roledescription="carousel"
       aria-label="Independent evidence highlights"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);

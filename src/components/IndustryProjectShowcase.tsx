@@ -9,7 +9,18 @@ function ProjectRow({ project, onOpen }: { project: PublicProduct; onOpen: (proj
     <button type="button" className="admin-problem-project" onClick={() => onOpen(project)}>
       <span className="admin-problem-project-media" aria-hidden="true">
         {project.video ? (
-          <video src={project.video} muted loop playsInline preload="metadata" />
+          <video
+            src={project.video}
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            onMouseEnter={(event) => void event.currentTarget.play().catch(() => {})}
+            onMouseLeave={(event) => {
+              event.currentTarget.pause();
+              event.currentTarget.currentTime = 0;
+            }}
+          />
         ) : project.image ? (
           <img src={project.image} alt="" />
         ) : null}
@@ -85,45 +96,48 @@ export default function IndustryProjectShowcase() {
         })}
       </div>
 
-      {selected && (
-        <div className="admin-client-modal" role="dialog" aria-modal="true" aria-labelledby="client-preview-title">
-          <button type="button" className="admin-client-modal-backdrop" aria-label="Close preview" onClick={() => setSelected(null)} />
-          <div className="admin-client-modal-panel">
-            <div className="admin-client-modal-media">
-              {selected.video ? (
-                <video src={selected.video} controls autoPlay muted playsInline preload="metadata" />
-              ) : selected.youtubeUrl ? (
-                <iframe
-                  src={"https://www.youtube.com/embed/" + selected.youtubeUrl.split("v=")[1] + "?autoplay=1&rel=0"}
-                  title={selected.title + " video"}
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : selected.image ? (
-                <img src={selected.image} alt={selected.title + " preview"} />
-              ) : null}
-            </div>
-            <div className="admin-client-modal-content">
-              <button ref={closeButtonRef} type="button" className="admin-client-modal-close" onClick={() => setSelected(null)} aria-label="Close preview">
-                Close <span>×</span>
-              </button>
-              <div className="admin-client-modal-copy">
-                <p className="admin-client-modal-kicker">{selected.industry} · {selected.status}</p>
-                <h2 id="client-preview-title">{selected.title}</h2>
-                <p className="admin-client-modal-type">{selected.type}</p>
-                <p className="admin-client-modal-detail">{selected.detail}</p>
-                <div className="admin-client-modal-role"><span>ADMIN HUB WORK</span><strong>{selected.role}</strong></div>
-                <div className="admin-client-modal-tags">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+      {selected &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="admin-client-modal" role="dialog" aria-modal="true" aria-labelledby="client-preview-title">
+            <button type="button" className="admin-client-modal-backdrop" aria-label="Close preview" onClick={() => setSelected(null)} />
+            <div className="admin-client-modal-panel" onClick={(event) => event.stopPropagation()}>
+              <div className="admin-client-modal-media">
+                {selected.video ? (
+                  <video src={selected.video} controls autoPlay muted playsInline preload="metadata" />
+                ) : selected.youtubeUrl ? (
+                  <iframe
+                    src={"https://www.youtube.com/embed/" + selected.youtubeUrl.split("v=")[1] + "?autoplay=1&rel=0"}
+                    title={selected.title + " video"}
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : selected.image ? (
+                  <img src={selected.image} alt={selected.title + " preview"} />
+                ) : null}
               </div>
-              <div className="admin-client-modal-actions">
-                <a href={selected.href} target="_blank" rel="noreferrer" className="admin-primary-button">
-                  Open live project <span>↗</span>
-                </a>
+              <div className="admin-client-modal-content">
+                <button ref={closeButtonRef} type="button" className="admin-client-modal-close" onClick={() => setSelected(null)} aria-label="Close preview">
+                  Close <span>×</span>
+                </button>
+                <div className="admin-client-modal-copy">
+                  <p className="admin-client-modal-kicker">{selected.industry} · {selected.status}</p>
+                  <h2 id="client-preview-title">{selected.title}</h2>
+                  <p className="admin-client-modal-type">{selected.type}</p>
+                  <p className="admin-client-modal-detail">{selected.detail}</p>
+                  <div className="admin-client-modal-role"><span>ADMIN HUB WORK</span><strong>{selected.role}</strong></div>
+                  <div className="admin-client-modal-tags">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                </div>
+                <div className="admin-client-modal-actions">
+                  <a href={selected.href} target="_blank" rel="noreferrer" className="admin-primary-button">
+                    Open live project <span>↗</span>
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

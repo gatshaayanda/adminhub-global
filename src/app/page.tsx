@@ -3,7 +3,6 @@ import GameShowcase from "@/components/GameShowcase";
 import IndustryProjectShowcase from "@/components/IndustryProjectShowcase";
 import AdminHubSignal from "@/components/AdminHubSignal";
 import HomeProofCarousel from "@/components/HomeProofCarousel";
-import StartProjectButton from "@/components/StartProjectButton";
 
 export default function HomePage() {
   return (
@@ -52,17 +51,6 @@ export default function HomePage() {
         <HomeProofCarousel />
       </section>
 
-      <section className="admin-start" id="start">
-        <div className="admin-start-copy">
-          <p className="admin-kicker">04 / START SOMETHING</p>
-          <h2>Your business can have its own software too.</h2>
-          <p className="admin-start-lead">What are you trying to build, fix, replace or make easier? Tell Admin Hub what is actually happening. Ask Admin Hub can understand the starting point, ask useful follow-up questions and move you toward the right next step.</p>
-          <div className="admin-start-actions">
-            <StartProjectButton />
-            <Link className="admin-text-link" href="/business">See rates &amp; support ↗</Link>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

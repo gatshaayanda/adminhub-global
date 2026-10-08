@@ -99,6 +99,24 @@ export default function ChatWidget() {
   }, [open, messages.length]);
 
   useEffect(() => {
+    const onOpenChat = (event: Event) => {
+      const customEvent = event as CustomEvent<{ startProject?: boolean }>;
+      setOpen(true);
+      if (customEvent.detail?.startProject) {
+        setLeadOpen(true);
+        setStage("lead");
+        setMessages((current) =>
+          current.length === 0
+            ? [{ sender: "bot", text: "Tell me what you are trying to build, fix, replace or make easier. I’ll ask only the useful follow-up questions." }]
+            : current
+        );
+      }
+    };
+    window.addEventListener("adminhub:open-chat", onOpenChat);
+    return () => window.removeEventListener("adminhub:open-chat", onOpenChat);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);

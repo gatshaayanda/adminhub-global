@@ -1,8 +1,9 @@
 import Link from "next/link";
-import BuildNow from "@/components/BuildNow";
 import GameShowcase from "@/components/GameShowcase";
 import IndustryProjectShowcase from "@/components/IndustryProjectShowcase";
 import AdminHubSignal from "@/components/AdminHubSignal";
+import HomeProofCarousel from "@/components/HomeProofCarousel";
+import StartProjectButton from "@/components/StartProjectButton";
 
 export default function HomePage() {
   return (
@@ -14,8 +15,8 @@ export default function HomePage() {
           <h1>Apps · Games</h1>
           <p className="admin-hero-lead">Software and interactive experiences built for real use.</p>
           <div className="admin-hero-actions">
-            <a className="admin-primary-button" href="#work">See the work <span>↓</span></a>
-            <a className="admin-text-link" href="#start">Get something built ↗</a>
+            <a className="admin-primary-button" href="#problems">See the work <span>↓</span></a>
+            <a className="admin-text-link" href="#start">Start something ↗</a>
           </div>
         </div>
         <div className="admin-hero-video">
@@ -24,18 +25,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      <BuildNow />
-
-      <section className="admin-proof">
-        <div><p className="admin-kicker">WHAT THIS IS</p><h2>Built by Admin Hub.</h2></div>
-        <p>From business apps and ordering systems to browser games and interactive experiences — Admin Hub takes an idea from a real problem to something people can actually use.</p>
-      </section>
-
-      <section className="admin-work" id="work">
+      <section className="admin-work admin-problems" id="problems">
         <div className="admin-section-intro">
-          <p className="admin-kicker">01 / APPS</p>
-          <h2>Published products.<br />Built for real use.</h2>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-[#5c5f64]">Explore working products by industry. If you run a business like one of these, start with the work that is closest to your world.</p>
+          <p className="admin-kicker">01 / THE PROBLEMS</p>
+          <h2>Different businesses.<br />Different problems.</h2>
+          <p className="admin-section-lead">The work starts with what a business is actually trying to make easier: orders, bookings, customer requests, workshop work, operations and other real workflows.</p>
         </div>
         <IndustryProjectShowcase />
       </section>
@@ -44,24 +38,30 @@ export default function HomePage() {
         <div className="admin-section-intro">
           <p className="admin-kicker">02 / GAMES</p>
           <h2>Playable ideas.<br />Built to work.</h2>
+          <p className="admin-section-lead">Games are part of the wider Admin Hub build space — a place to test interaction, movement, story, systems and reusable mechanics.</p>
         </div>
         <GameShowcase />
       </section>
 
-      <section className="admin-build">
-        <div><p className="admin-kicker">03 / THE BUILD</p><h2>Idea → build → test → improve.</h2></div>
-        <div className="admin-build-stats">
-          <div><strong>10+</strong><span>iterations of the app framework</span></div>
-          <div><strong>Phaser</strong><span>integrated for game development</span></div>
-          <div><strong>Real use</strong><span>the test that matters</span></div>
+      <section className="admin-build" id="build">
+        <div className="admin-build-intro">
+          <p className="admin-kicker">03 / THE BUILD</p>
+          <h2>The work has a record beyond the work itself.</h2>
+          <p className="admin-build-lead">Independent references, published records and years of documented work give the products a human track record behind them.</p>
         </div>
+        <HomeProofCarousel />
       </section>
 
       <section className="admin-start" id="start">
-        <p className="admin-kicker">04 / START SOMETHING</p>
-        <h2>Have an idea?<br />Let&apos;s build it.</h2>
-        <p className="mt-4 max-w-xl text-sm leading-6 text-[#5c5f64]">Tell Ask Admin Hub what you are trying to build. It can point you to relevant work and collect the details you want Admin Hub to review.</p>
-        <Link className="admin-primary-button admin-primary-button-large" href="#start">Ask Admin Hub <span>↗</span></Link>
+        <div className="admin-start-copy">
+          <p className="admin-kicker">04 / START SOMETHING</p>
+          <h2>Your business can have its own software too.</h2>
+          <p className="admin-start-lead">What are you trying to build, fix, replace or make easier? Tell Admin Hub what is actually happening. Ask Admin Hub can understand the starting point, ask useful follow-up questions and move you toward the right next step.</p>
+          <div className="admin-start-actions">
+            <StartProjectButton />
+            <Link className="admin-text-link" href="/business">See rates &amp; support ↗</Link>
+          </div>
+        </div>
       </section>
     </div>
   );

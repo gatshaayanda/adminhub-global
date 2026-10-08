@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { productIndustries, publicProducts, type PublicProduct } from "@/data/publicProducts";
 
 function ProjectRow({ project, onOpen }: { project: PublicProduct; onOpen: (project: PublicProduct) => void }) {
@@ -29,6 +30,7 @@ function ProjectRow({ project, onOpen }: { project: PublicProduct; onOpen: (proj
 export default function IndustryProjectShowcase() {
   const [openIndustry, setOpenIndustry] = useState<string | null>(null);
   const [selected, setSelected] = useState<PublicProduct | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!selected) return;
@@ -37,6 +39,7 @@ export default function IndustryProjectShowcase() {
       if (event.key === "Escape") setSelected(null);
     };
     document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => closeButtonRef.current?.focus());
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
@@ -101,7 +104,7 @@ export default function IndustryProjectShowcase() {
               ) : null}
             </div>
             <div className="admin-client-modal-content">
-              <button type="button" className="admin-client-modal-close" onClick={() => setSelected(null)} aria-label="Close preview">
+              <button ref={closeButtonRef} type="button" className="admin-client-modal-close" onClick={() => setSelected(null)} aria-label="Close preview">
                 Close <span>×</span>
               </button>
               <div className="admin-client-modal-copy">

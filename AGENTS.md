@@ -867,13 +867,19 @@ The rotating proof/highlight component is allowed to advance on a timer, but mus
 The homepage should not duplicate the entire /ayanda archive or entire Rates page. It should create enough understanding and evidence that the visitor knows where to go next.
 
 
+## Homepage correction checkpoint — 2026-10-08
+
+- The homepage is an Admin Hub company/account surface, not a founder profile.
+- The public homepage header must not contain an Ayanda navigation item.
+- Do not surface the founder’s name in homepage proof copy, carousel statements, CTA labels, or other homepage narrative. The homepage may link to `/ayanda` as the deeper evidence/archive destination, but the link should be framed around the evidence, not as a personal-brand CTA.
+
 ## Homepage implementation checkpoint — 2026-10-08
 
 - Baseline preserved before the homepage narrative implementation: commit `1d18930d14c73ca17ae7c5db33efa397ebc60d93`.
 - A protected baseline branch was created at `baseline/homepage-redesign-2026-10-08` from that commit. Do not delete or rewrite it; use it as the rollback reference if the landing-page iteration is rejected.
 - Homepage implementation target for this pass is locked to: INTRO / ACCESS → **01 / THE PROBLEMS** → **02 / GAMES** → **03 / THE BUILD** (independent human/documentary proof highlights) → **04 / START SOMETHING**.
-- `03 / THE BUILD` is not a process/framework explanation and must not be reduced to build metrics. It is the homepage proof/identity bridge: rotating evidence highlights from independent references and the early published record, with a persistent `/ayanda` route for the full evidence archive.
-- The approved proof evidence currently surfaced by the homepage includes CommissionCrowd, Dr Teresa Howell, Stuart Entwistle, Insurance Training Institute, The Other Press / Douglas College, EduKick Manchester, and the 26 Jan 2011 Mmegi / Rainbow High School record. Do not invent additional quotes or attribution.
+- `03 / THE BUILD` is not a process/framework explanation and must not be reduced to build metrics. It is the homepage proof/identity bridge: rotating evidence highlights from independent references and the early published record, with a route to the deeper evidence archive for visitors who want to inspect the underlying records.
+- The approved proof evidence currently surfaced by the homepage includes CommissionCrowd, Dr Teresa Howell, Stuart Entwistle, Insurance Training Institute, The Other Press / Douglas College, EduKick Manchester, and the 26 Jan 2011 Mmegi / Rainbow High School record. Keep the carousel focused on the reference/document itself; do not turn it into a founder-profile panel, add the founder’s name to the homepage navigation, or invent additional quotes or attribution.
 - The homepage retains the existing Apps/Games project modal architecture and real project links. Do not replace the modals with a generic list.
 - The homepage conversion surface is `/#start`; its primary action opens the existing Ask Admin Hub guided enquiry flow. Ask Admin Hub remains the shared intelligence/context layer rather than a separate contact system.
 - This homepage pass is intentionally prepared as one final production commit after inspection/verification. Avoid intermediate commits on `main` so Vercel production deployments are not consumed by partial iterations.

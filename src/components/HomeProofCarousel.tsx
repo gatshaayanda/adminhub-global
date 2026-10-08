@@ -14,7 +14,7 @@ type ProofHighlight = {
 };
 
 const highlights: ProofHighlight[] = [
-  { id: "commissioncrowd", kind: "REFERENCE", period: "2025", quote: "Ayanda is an adaptable, trustworthy and quietly effective professional.", source: "CommissionCrowd", place: "International" },
+  { id: "commissioncrowd", kind: "REFERENCE", period: "2025", quote: "An adaptable, trustworthy and quietly effective professional.", source: "CommissionCrowd", place: "International" },
   { id: "teresa", kind: "REFERENCE", period: "CANADA", quote: "Excellent interpersonal skills, active listening skills…", source: "Dr Teresa Howell", place: "Canada" },
   { id: "stuart", kind: "REFERENCE", period: "2015", quote: "Purpose and ambition… humility and empathy…", source: "Stuart Entwistle", place: "United Kingdom" },
   { id: "insurance", kind: "REFERENCE", period: "BOTSWANA", quote: "Tenacity, consistency and professionalism.", source: "Insurance Training Institute", place: "Botswana" },
@@ -74,8 +74,8 @@ export default function HomeProofCarousel() {
       </div>
 
       <div className="admin-proof-carousel-footer">
-        <p>Independent references from different countries, plus an early published record. Full supporting evidence is available in the references archive.</p>
-        <Link className="admin-primary-button" href="/ayanda">View the references <span>↗</span></Link>
+        <p>Independent references from different countries, plus an early published record.</p>
+        <Link className="admin-primary-button" href="/ayanda">Meet the founder <span>↗</span></Link>
       </div>
     </div>
   );

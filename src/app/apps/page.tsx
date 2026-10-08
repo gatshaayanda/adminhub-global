@@ -1,1 +1,134 @@
-import Link from "next/link";import {ArrowRight,Bot,Gamepad2,Grid2X2}from"lucide-react";export const metadata={title:"Apps",description:"Applications built and evolved through the Admin Hub platform."};const apps=[{href:"/apps/learn-forex",title:"Learn Forex Trading Botswana Academy",label:"Application",icon:<Bot size={22}/>,description:"A live client-facing application with its own public experience, customer journey, and supporting workflow."},{href:"/boardsignal",title:"BoardSignal",label:"Product",icon:<Grid2X2 size={22}/>,description:"A chess performance system that turns games into structured Reviews, recurring signals, and practical guidance."}];export default function AppsPage(){return <main id="main"><section className="section-shell"><div className="container"><div className="max-w-4xl space-y-5"><div className="eyebrow">ADMIN HUB / APPS</div><h1 className="section-title text-4xl md:text-6xl">Products and applications built through the same engine.</h1><p className="section-copy text-lg">Admin Hub is the reusable build system. Each delivered application gets its own workflow, interface, data model, and revision path — without rebuilding the delivery foundation from zero.</p></div><div className="mt-10 grid gap-5 lg:grid-cols-2">{apps.map(app=><Link key={app.href} href={app.href} prefetch={false} className="card group block"><div className="card-inner flex h-full flex-col"><div className="flex items-start justify-between gap-4"><span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-tint)] text-[var(--brand-primary)]">{app.icon}</span><span className="badge">{app.label}</span></div><h2 className="mt-6 text-2xl">{app.title}</h2><p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">{app.description}</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-extrabold text-[var(--brand-primary)]">Open application<ArrowRight size={16}/></span></div></Link>)}</div><div className="mt-8 rounded-[1.5rem] border border-[var(--border)] bg-[rgba(15,23,42,0.62)] p-6"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--brand-primary)]">Reusable delivery engine</p><p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">Built and refined through its 10th iteration, the Admin Hub engine is the practical layer behind rapid setup, configuration, revision, and deployment of different project types.</p></div><div className="mt-10"><Link href="/games" prefetch={false} className="btn btn-outline"><Gamepad2 size={18}/>Browse Games<ArrowRight size={18}/></Link></div></div></section></main>}
+import Link from "next/link";
+import { ArrowUpRight, Gamepad2 } from "lucide-react";
+
+export const metadata = {
+  title: "Apps | Admin Hub",
+  description: "Real business and product applications built through the Admin Hub delivery system.",
+};
+
+const apps = [
+  {
+    href: "/apps/learn-forex",
+    title: "Learn Forex Trading Botswana Academy",
+    label: "CLIENT APPLICATION",
+    description:
+      "A live client-facing application with its own public experience, customer journey, and supporting workflow.",
+  },
+  {
+    href: "/boardsignal",
+    title: "BoardSignal",
+    label: "INDEPENDENT PRODUCT",
+    description:
+      "A chess performance system that turns games into structured Reviews, recurring signals, and practical guidance.",
+  },
+];
+
+export default function AppsPage() {
+  return (
+    <main id="main" className="admin-business">
+      <div className="admin-business-shell">
+        <section className="admin-business-hero">
+          <div>
+            <p className="admin-kicker">ADMIN HUB / APPS</p>
+            <h1>Software built around real workflows.</h1>
+            <p className="admin-business-lead">
+              Admin Hub is the reusable delivery system behind practical web
+              applications. Each product gets its own workflow, interface,
+              data model and revision path.
+            </p>
+            <div className="admin-business-actions">
+              <Link className="admin-primary-button" href="/contact">
+                Start an enquiry <span>↗</span>
+              </Link>
+              <Link className="admin-text-link" href="/business">
+                How it works
+              </Link>
+            </div>
+          </div>
+          <div className="admin-business-note">
+            <strong>Real products. Different problems.</strong>
+            <span>
+              The same delivery foundation can be adapted to ordering, booking,
+              customer journeys, operations, learning and other focused
+              workflows without forcing every business into the same interface.
+            </span>
+          </div>
+        </section>
+
+        <section className="admin-business-section">
+          <div className="admin-business-grid">
+            <div>
+              <p className="admin-kicker">01 / PUBLISHED APPS</p>
+              <h2>Open the work.</h2>
+            </div>
+            <div className="admin-business-copy">
+              <div className="admin-business-cards">
+                {apps.map((app) => (
+                  <Link key={app.href} href={app.href} className="admin-business-card">
+                    <strong>{app.title}</strong>
+                    <p className="admin-kicker" style={{ marginTop: 14 }}>{app.label}</p>
+                    <p>{app.description}</p>
+                    <span className="admin-text-link" style={{ display: "inline-block", marginTop: 12 }}>
+                      Open application <span>↗</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-business-section">
+          <div className="admin-business-grid">
+            <div>
+              <p className="admin-kicker">02 / THE DELIVERY ENGINE</p>
+              <h2>Build once. Adapt the workflow.</h2>
+            </div>
+            <div className="admin-business-copy">
+              <p>
+                Built and refined through its 10th iteration, the Admin Hub
+                engine is the practical layer behind setup, configuration,
+                revision and deployment of different project types.
+              </p>
+              <div className="admin-business-list">
+                <div>
+                  <b>Workflow</b>
+                  <span>Start from the real business process instead of a generic template.</span>
+                </div>
+                <div>
+                  <b>Product</b>
+                  <span>Give the workflow its own interface, data model and customer experience.</span>
+                </div>
+                <div>
+                  <b>Iteration</b>
+                  <span>Use real feedback to improve the product after the first useful version is live.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-business-section">
+          <div className="admin-business-grid">
+            <div>
+              <p className="admin-kicker">03 / NEXT</p>
+              <h2>Games use the same discipline.</h2>
+            </div>
+            <div className="admin-business-copy">
+              <p>
+                The games side is a separate Phaser engine built around the
+                same idea: reusable foundations, real working systems and
+                iteration through playable builds.
+              </p>
+              <div className="admin-business-actions">
+                <Link className="admin-primary-button" href="/games">
+                  Explore Games <Gamepad2 size={18} /> <ArrowUpRight size={17} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}

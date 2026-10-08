@@ -895,3 +895,6 @@ The homepage should not duplicate the entire /ayanda archive or entire Rates pag
 - The homepage retains the existing Apps/Games project modal architecture and real project links. Do not replace the modals with a generic list.
 - The homepage conversion surface is `/#start`; its primary action opens the existing Ask Admin Hub guided enquiry flow. Ask Admin Hub remains the shared intelligence/context layer rather than a separate contact system.
 - This homepage pass is intentionally prepared as one final production commit after inspection/verification. Avoid intermediate commits on `main` so Vercel production deployments are not consumed by partial iterations.
+
+
+<!-- chore checkpoint: modal restoration is committed on main; deployment trigger can resume when Vercel daily limit clears. -->

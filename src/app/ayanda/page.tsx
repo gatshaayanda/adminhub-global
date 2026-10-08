@@ -394,10 +394,10 @@ export default function AyandaPage() {
 
 
         <section className="border-t border-black/10 pt-10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Rates</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Start here</p>
           <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-3xl font-extrabold tracking-[-0.035em]">Rates, scope and commercial work.</h2>
+              <h2 className="text-3xl font-extrabold tracking-[-0.035em]">Start here.</h2>
               <p className="mt-3 max-w-2xl leading-7 text-black/65">If you would like to discuss a role, project or practical product opportunity, start here.</p>
             </div>
             <Link href="/#start" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#111318] px-5 py-3 text-sm font-bold text-white hover:bg-black">Start here <ArrowUpRight size={16} /></Link>

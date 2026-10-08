@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -15,6 +16,23 @@ const whatsappHref =
   encodeURIComponent(
     "Hi Ayanda, I found your profile on adminhub-global.com/ayanda and would like to discuss an opportunity."
   );
+
+
+
+const museumItems = [
+  { category: "References & Records", title: "Archive document 01", description: "Supporting source material supplied for the professional record.", href: "https://drive.google.com/file/d/1ywlV2F8vnfIedIQtg2_Dd5kucRrxBtLZ/view?usp=sharing" },
+  { category: "References & Records", title: "Archive document 02", description: "Supporting source material supplied for the professional record.", href: "https://drive.google.com/file/d/1x84eV1mFPOYxTPsainsRxq30LB_o576Q/view" },
+  { category: "References & Records", title: "Archive document 03", description: "Supporting source material supplied for the professional record.", href: "https://drive.google.com/file/d/1ggTtLxo7xV6THxgs3GMdXYCnCmReSCe_/view" },
+  { category: "Published", title: "Newspaper archive", description: "Newspaper source. Ayanda is in the second-last row, first from the right.", href: "https://drive.google.com/file/d/1uybb5ic9Ixqk74BQg2lcIVPksd4aZzMg/view" },
+  { category: "Art & Creative Work", title: "Artwork archive 01", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/12voudI4goOx2wxLa6dAetXLYoris3eDN/view" },
+  { category: "Art & Creative Work", title: "Artwork archive 02", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1HusCy1-nxz1HuuLx6SHVhHS56vkj0-u0/view" },
+  { category: "Art & Creative Work", title: "Artwork archive 03", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1TJjSmCobfHNmmRAXAGbDnEyLQXVWFl1N/view" },
+  { category: "Art & Creative Work", title: "Artwork archive 04", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1ojNvvtAJ_rMU_QMuBvSaQ22WiKbpXF42/view" },
+  { category: "Art & Creative Work", title: "Artwork archive 05", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1VgNVOW0lu457EMXNApC8mmzpZspppRHA/view" },
+  { category: "Art & Creative Work", title: "Artwork archive 06", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1jEhbApDkHPCJwV146RzDn63QVewnbOEf/view" },
+];
+
+const museumCategories = ["References & Records", "Published", "Art & Creative Work"];
 
 const work = [
   {
@@ -115,6 +133,18 @@ function ExternalLinkRow({
 }
 
 export default function AyandaPage() {
+  const [museumOpen, setMuseumOpen] = useState<number | null>(null);
+  const activeMuseumItem = museumOpen === null ? null : museumItems[museumOpen];
+
+  useEffect(() => {
+    if (museumOpen === null) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMuseumOpen(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [museumOpen]);
+
   return (
     <main className="ayanda-profile bg-[#f7f7f3] text-[#111318]">
       <div className="mx-auto max-w-5xl px-5 py-12 md:px-8 md:py-20">
@@ -317,6 +347,34 @@ export default function AyandaPage() {
           </div>
         </section>
 
+
+        <section className="border-y border-black/10 py-10">
+          <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Museum of Success</p>
+              <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.035em]">The record behind the profile.</h2>
+              <p className="mt-4 max-w-sm leading-7 text-black/60">A compact archive of source material. The page stays readable; the evidence opens only when you ask for it.</p>
+            </div>
+            <div>
+              <div className="flex flex-wrap gap-2">
+                {museumCategories.map((category) => <span key={category} className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-[0.08em] text-black/55">{category}</span>)}
+              </div>
+              <div className="mt-5 divide-y divide-black/10 border-y border-black/10">
+                {museumItems.map((item, index) => (
+                  <button key={item.href} type="button" onClick={() => setMuseumOpen(index)} className="group flex w-full items-center justify-between gap-5 py-4 text-left transition hover:bg-black/[0.025]" aria-label="Open museum document">
+                    <span className="min-w-0">
+                      <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-black/35">{item.category}</span>
+                      <span className="mt-1 block truncate font-semibold group-hover:text-blue-700">{item.title}</span>
+                      <span className="mt-1 block truncate text-sm text-black/50">{item.description}</span>
+                    </span>
+                    <span className="shrink-0 text-sm font-bold text-black/35 group-hover:text-blue-700">OPEN ↗</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="border-b border-black/10 py-10">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
@@ -334,28 +392,29 @@ export default function AyandaPage() {
           </div>
         </section>
 
-        <section className="pt-10">
-          <div className="rounded-2xl border border-black/10 bg-white p-6 md:p-8">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Contact / availability</p>
-            <div className="mt-3 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h2 className="text-3xl font-extrabold tracking-[-0.035em]">Available for international remote work.</h2>
-                <p className="mt-3 max-w-2xl leading-7 text-black/65">
-                  Technical operations, product systems, software/product development, business systems,
-                  support engineering, implementation and related roles.
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <a href="mailto:gatshaayanda@gmail.com?subject=Professional%20opportunity%20-%20Ayanda%20Gatsha" className="inline-flex items-center gap-2 rounded-full bg-[#111318] px-5 py-3 text-sm font-bold text-white hover:bg-black">
-                  <Mail size={16} /> Email
-                </a>
-                <a href={whatsappHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-black/15 bg-white px-5 py-3 text-sm font-bold hover:border-black/30">
-                  <MessageCircle size={16} /> WhatsApp
-                </a>
-              </div>
+
+        <section className="border-t border-black/10 pt-10">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Rates</p>
+          <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-3xl font-extrabold tracking-[-0.035em]">Rates, scope and commercial work.</h2>
+              <p className="mt-3 max-w-2xl leading-7 text-black/65">The professional record ends here. For commercial scope, pricing and how Admin Hub works with customers, continue to the business surface.</p>
             </div>
+            <Link href="/business" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#111318] px-5 py-3 text-sm font-bold text-white hover:bg-black">View Rates <ArrowUpRight size={16} /></Link>
           </div>
         </section>
+
+        {activeMuseumItem && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 md:p-6" role="dialog" aria-modal="true" aria-label={activeMuseumItem.title} onClick={() => setMuseumOpen(null)}>
+            <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-[#f7f7f3] shadow-2xl" onClick={(event) => event.stopPropagation()}>
+              <div className="flex items-center justify-between gap-4 border-b border-black/10 px-4 py-3 md:px-6">
+                <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-black/40">{activeMuseumItem.category}</p><h2 className="truncate text-lg font-bold">{activeMuseumItem.title}</h2></div>
+                <div className="flex shrink-0 items-center gap-2"><a href={activeMuseumItem.href} target="_blank" rel="noreferrer" className="rounded-full border border-black/15 bg-white px-3 py-2 text-xs font-bold hover:border-black/30">Open in Drive ↗</a><button type="button" onClick={() => setMuseumOpen(null)} className="rounded-full bg-[#111318] px-3 py-2 text-xs font-bold text-white">Close</button></div>
+              </div>
+              <div className="min-h-0 flex-1 bg-white"><iframe title={activeMuseumItem.title} src={activeMuseumItem.href.replace("/view", "/preview")} className="h-full w-full border-0" allow="autoplay" /></div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

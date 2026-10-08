@@ -15,6 +15,7 @@
 - `02 / GAMES` remains a separate games surface.
 - `03 / THE BUILD` uses the proof carousel. It must auto-advance on a timer when motion is allowed. Do not disable automatic cycling merely because the pointer is over the carousel; keyboard focus may pause it for accessibility.
 - Homepage founder-name redaction remains mandatory.
+- Current homepage interaction implementation checkpoint: compact problems accordion + project preview modal + automatic proof carousel.
 
 ## Homepage direction
 - The approved visual direction is the previous clean/light editorial style, not a dark flyer/campaign aesthetic.

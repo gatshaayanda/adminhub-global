@@ -1282,3 +1282,39 @@
   .admin-client-modal{padding:10px}
   .admin-client-modal-panel{max-height:calc(100dvh - 20px)}
 }
+
+
+/* /ayanda mobile overflow guard — keep the fixed chat layer inside the viewport. */
+body:has(.ayanda-profile) {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body:has(.ayanda-profile) .ah-public-shell,
+body:has(.ayanda-profile) .ayanda-profile {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body:has(.ayanda-profile) .ah-chat-launch {
+  right: max(1rem, env(safe-area-inset-right));
+  max-width: calc(100vw - 2rem);
+}
+
+body:has(.ayanda-profile) .ah-chat-panel {
+  box-sizing: border-box;
+  width: calc(100vw - 1.5rem);
+  max-width: calc(100vw - 1.5rem);
+  min-width: 0;
+  right: max(0.75rem, env(safe-area-inset-right));
+  left: max(0.75rem, env(safe-area-inset-left));
+}
+
+@media (min-width: 640px) {
+  body:has(.ayanda-profile) .ah-chat-panel {
+    width: 390px;
+    max-width: calc(100vw - 3rem);
+    left: auto;
+  }
+}

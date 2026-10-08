@@ -27,6 +27,17 @@ service cloud.firestore {
       }
     }
 
+    match /inquiries/{inquiryId} {
+      allow create: if request.auth == null &&
+        request.resource.data.name is string &&
+        request.resource.data.preferredContact is string &&
+        request.resource.data.projectNeed is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.preferredContact.size() > 0 &&
+        request.resource.data.projectNeed.size() > 0;
+      allow read, update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

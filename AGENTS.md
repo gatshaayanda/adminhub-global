@@ -727,3 +727,141 @@ This is a permanent design-system rule for the public Admin Hub homepage.
 - The catalogue uses a locally coded editorial preview graphic for Tripple S rather than inventing a client-supplied logo or relying on a missing video asset.
 - The Wall now also has a locally coded editorial preview graphic so its existing live catalogue entry is visually represented in the same card/media treatment as projects with video.
 - Preserve the verified live URLs and existing catalogue structure; do not claim unsupported outcomes or commercial status.
+
+## Homepage narrative / ecosystem direction — 2026-10-08
+
+This is the current approved direction for the next Admin Hub public-surface iteration. It supersedes the older homepage narrative while preserving the light editorial visual system, existing project modals, real project destinations, and the separation of BoardSignal from the public marketing shell.
+
+### Core product story
+
+Admin Hub is the parent ecosystem/front door for real software and interactive experiences. The public domain should communicate:
+
+- people and businesses have different problems;
+- Admin Hub builds different digital products around those problems;
+- each product is specific to the business/workflow rather than a generic template;
+- repeated projects have accumulated a reusable way of building, but this iteration/reusable-framework story belongs primarily on /ayanda and in supporting evidence, not as a dominant homepage section;
+- a product can become part of the wider Admin Hub ecosystem once it exists and is useful;
+- a business can either use an existing product or ask Admin Hub to build something new that can join the ecosystem.
+
+Do not describe Admin Hub as a single proprietary platform that all client products are instances of. Do not imply BOEMO or any one project is the origin of every other project.
+
+### Approved landing-page narrative
+
+The homepage should be a progressive story, not a CV:
+
+1. INTRO / ACCESS
+   - Establish Admin Hub immediately.
+   - Keep Apps · Games and the concise line: Software and interactive experiences built for real use.
+   - Make the product-access/install experience clear early.
+   - PWA/install UI must be customer-facing language, not technical PWA/service-worker language.
+
+2. 01 / THE PROBLEMS
+   - This is where the current industry/project catalogue belongs.
+   - Show different industries and the real problems/workflows they brought.
+   - Keep the existing modal model. Do not replace it with a giant list or remove the modals.
+   - Use compact/truncated industry/product presentation so the page remains scannable.
+   - Opening a project should progressively disclose the fuller product story, media, role, tags and live project link.
+   - The project modal is a deliberate information architecture choice, not a defect to remove.
+
+3. 02 / GAMES
+   - Keep Games as a distinct part of the Admin Hub ecosystem.
+   - The current playable catalogue and existing preview modals remain useful evidence.
+
+4. 03 / PROOF / THE PERSON BEHIND THE WORK
+   - Do not make the homepage a founder profile.
+   - Present a rotating/advancing sequence of short personal highlights derived from independent reference evidence.
+   - The highlight should continue changing whether the visitor scrolls or remains still; the visitor should not have to scroll to receive the next highlight.
+   - Include a clear route to /ayanda so visitors who want the full evidence can follow it.
+   - The homepage does not need to display the full reference letters; it should surface concise, attributable qualities/themes and invite deeper verification on /ayanda.
+   - Do not overuse the founder's name in the landing narrative.
+
+5. 04 / THE INVITATION / START
+   - The post-proof CTA should make the ecosystem proposition explicit: Your business can have its own software too.
+   - Route this CTA to /#start.
+   - Keep the existing Ask Admin Hub enquiry/chat capability, but align its quick actions and copy with Apps, Games, Rates & support, and Start a project.
+
+6. RATES / BUSINESS
+   - Rates is the commercial explanation, not the main Admin Hub story.
+   - It should explain scope-led setup/build, practical operating/support costs, pilots/partnerships, verification, payment and support.
+   - The $25 / 25 GB concept is an illustrative commercial translation device, not a universal Admin Hub price and not a claim that infrastructure universally costs $25.
+   - Use it to explain what a familiar recurring amount can mean when translated into useful software capacity/usage and repeated customer interactions.
+   - The commercial page should make clear that actual cost depends on scope, expected usage, support and business budget.
+   - Do not let the old Ask Admin Hub response claim a universal $7–$18 per app/month price if the public Rates page does not make that the current universal offer. Chat content must match the final published commercial model.
+
+7. /#start
+   - This is the canonical conversion destination after the narrative.
+   - The homepage CTA, Ask Admin Hub, and relevant navigation should converge on this start/enquiry surface.
+   - Do not create a second competing contact destination unless there is a clear product reason.
+
+### /ayanda evidence architecture
+
+/ayanda is the deep evidence layer, not a conventional CV dump.
+
+The page should eventually make it easy to inspect:
+
+- professional references and recommendation letters;
+- CommissionCrowd long-term relationship and independent evidence;
+- education and academic record;
+- journalism and published work;
+- creative/film/theatre work;
+- technical development history and GitHub;
+- Odin Project / technical learning;
+- BoardSignal and the chess-analysis-to-productisation story;
+- client product evidence;
+- Admin Hub business/company evidence;
+- reports, documents, screenshots, certificates and other supplied Google Drive/Docs/Sheets links.
+
+Use progressive disclosure and truncated lists. A visitor should see what a record is and why it matters without being forced through a huge wall of documents. Evidence links can open Google Drive/Docs/Sheets or verified public destinations in a focused, understandable way.
+
+The narrative theme is accumulated capability rather than I learned to code: understanding people/information → communication/research → operations → technical development → product ownership → real production systems.
+
+The repeated independent reference themes are useful evidence themes, including adaptability, independence, communication/listening, discipline, persistence, professionalism, process reliability, creative production and technical curiosity. Do not invent quotations or attribute qualities beyond the supplied evidence.
+
+### PWA / install hardening
+
+The public Admin Hub shell already registers one service worker and has an install component. The next PWA pass must harden the public experience rather than merely adding another install button.
+
+Requirements:
+
+- customer-facing language such as Install Admin Hub, never Install PWA or service-worker terminology;
+- show install UI only when native installation is actually available;
+- capture beforeinstallprompt, retain it for an explicit user action, and call prompt() only from that action;
+- clear/suppress the invitation after appinstalled;
+- detect standalone/installed mode and do not show an install invitation when already installed;
+- provide a simple iOS Safari Add to Home Screen fallback where native prompting is unavailable;
+- unsupported browsers/devices must not receive a dead install control;
+- do not promise offline/private functionality that the public Admin Hub shell does not actually provide;
+- keep one existing service worker; do not add a second worker or a PWA package merely for install UI;
+- audit the current public/sw.js before changing it. It currently contains legacy Sparkle insurance routes/cache names and is not yet an acceptable final Admin Hub public worker;
+- preserve BoardSignal's separate product-shell/service-worker safety model and do not let public-shell PWA changes alter BoardSignal privacy/offline behavior;
+- keep manifest, icon, metadata and install copy aligned with the Admin Hub public identity;
+- verify install behavior on Chromium/Android, desktop Chromium where supported, Safari/iOS fallback, already-installed/standalone state, dismissal, and unsupported browsers;
+- keep reduced-motion, keyboard, focus and touch-target behavior intact.
+
+### UX / research principles for this iteration
+
+The page can be long because this is a narrative/portfolio surface, but it must remain scannable and oriented. Use:
+
+- progressive disclosure: high-level problem/product information first, deeper project evidence in the existing modal;
+- meaningful section headings and compact copy;
+- clear information scent for links and buttons;
+- limited simultaneous choices;
+- functional motion rather than decorative motion;
+- no essential information dependent on animation;
+- mobile-first composition;
+- accessibility and reduced-motion support.
+
+The rotating proof/highlight component is allowed to advance on a timer, but must remain readable, pause/stop-able where appropriate, accessible to keyboard/screen-reader users, and must not become the only route to the underlying evidence. The /ayanda link remains available independently of the animation.
+
+### Final public-site architecture target
+
+- / = Admin Hub ecosystem story: access → problems/work → games → personal proof highlights → invitation → /#start
+- /apps = fuller app catalogue/work surface
+- /games = fuller games surface
+- /ayanda = deep personal evidence/archive
+- /business = Rates/commercial model
+- /#start = canonical enquiry/start destination
+- Ask Admin Hub = persistent navigation/help layer that can route users to Apps, Games, Rates & support, or Start a project
+- /boardsignal = isolated product shell
+
+The homepage should not duplicate the entire /ayanda archive or entire Rates page. It should create enough understanding and evidence that the visitor knows where to go next.

@@ -18,7 +18,6 @@ export default function Header() {
         <nav className="ah-desktop-nav" aria-label="Primary navigation">
           <Link href="/apps" className={active("/apps") ? "active" : ""}>Apps</Link>
           <Link href="/games" className={active("/games") ? "active" : ""}>Games</Link>
-          <Link href="/ayanda" className={active("/ayanda") ? "active" : ""}>Ayanda</Link>
           <Link href="/business" className={active("/business") ? "active" : ""}>Rates</Link>
         </nav>
       </div>

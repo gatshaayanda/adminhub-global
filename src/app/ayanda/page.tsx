@@ -38,7 +38,7 @@ const work = [
   {
     title: "Admin Hub",
     role: "Founder · Product Builder · Product Operator",
-    period: "2022 – Present",
+    period: "2026",
     copy:
       "Independent product and technical work across business applications, operational systems, PWAs, automation, games and client delivery.",
     href: "https://adminhub-global.com",
@@ -47,7 +47,7 @@ const work = [
   {
     title: "CommissionCrowd",
     role: "Independent Contractor · Business Operations, Client Support & Systems",
-    period: "2016 – Present",
+    period: "2026",
     copy:
       "Long-term international remote work across client communication, research, follow-up, data handling and SaaS business operations.",
     href: "https://drive.google.com/file/d/1WDlMlzdXPAmwH3ajtnBFKhvpx8puDQac/view?usp=sharing",
@@ -146,18 +146,18 @@ export default function AyandaPage() {
   }, [museumOpen]);
 
   return (
-    <main className="ayanda-profile bg-[#f7f7f3] text-[#111318]">
-      <div className="mx-auto max-w-5xl px-5 py-12 md:px-8 md:py-20">
+    <main className="ayanda-profile overflow-x-clip bg-[#f7f7f3] text-[#111318]">
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-5 sm:py-12 md:px-8 md:py-20">
         <header className="border-b border-black/15 pb-10">
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-black/50">
             Professional profile
           </p>
 
-          <h1 className="max-w-4xl text-4xl font-extrabold tracking-[-0.045em] md:text-6xl">
+          <h1 className="max-w-4xl break-words text-4xl font-extrabold tracking-[-0.045em] sm:text-5xl md:text-6xl">
             AYANDA KOPANO GATSHA
           </h1>
 
-          <p className="mt-4 max-w-3xl text-xl font-semibold leading-8 md:text-2xl">
+          <p className="mt-4 max-w-3xl text-lg font-semibold leading-7 sm:text-xl sm:leading-8 md:text-2xl">
             Technical Operations &amp; Product Systems Specialist{" "}
             <span className="text-black/35">|</span> Founder &amp; Product Operator
           </p>
@@ -167,7 +167,7 @@ export default function AyandaPage() {
             International Remote
           </p>
 
-          <div className="mt-7 flex flex-wrap gap-x-5 gap-y-3 text-sm">
+          <div className="mt-7 flex min-w-0 flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-3">
             <a className="inline-flex items-center gap-2 font-semibold hover:text-blue-700" href="mailto:gatshaayanda@gmail.com">
               <Mail size={16} /> gatshaayanda@gmail.com
             </a>
@@ -214,7 +214,7 @@ export default function AyandaPage() {
         </section>
 
         <section className="border-b border-black/10 py-10">
-          <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
+          <div className="grid min-w-0 gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Current direction</p>
               <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.035em]">Product systems, technical operations and software.</h2>
@@ -398,20 +398,20 @@ export default function AyandaPage() {
           <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-3xl font-extrabold tracking-[-0.035em]">Rates, scope and commercial work.</h2>
-              <p className="mt-3 max-w-2xl leading-7 text-black/65">The professional record ends here. For commercial scope, pricing and how Admin Hub works with customers, continue to the business surface.</p>
+              <p className="mt-3 max-w-2xl leading-7 text-black/65">If you would like to discuss a role, project or practical product opportunity, start here.</p>
             </div>
-            <Link href="/business" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#111318] px-5 py-3 text-sm font-bold text-white hover:bg-black">View Rates <ArrowUpRight size={16} /></Link>
+            <Link href="/#start" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#111318] px-5 py-3 text-sm font-bold text-white hover:bg-black">Start here <ArrowUpRight size={16} /></Link>
           </div>
         </section>
 
         {activeMuseumItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 md:p-6" role="dialog" aria-modal="true" aria-label={activeMuseumItem.title} onClick={() => setMuseumOpen(null)}>
-            <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-[#f7f7f3] shadow-2xl" onClick={(event) => event.stopPropagation()}>
-              <div className="flex items-center justify-between gap-4 border-b border-black/10 px-4 py-3 md:px-6">
-                <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-black/40">{activeMuseumItem.category}</p><h2 className="truncate text-lg font-bold">{activeMuseumItem.title}</h2></div>
-                <div className="flex shrink-0 items-center gap-2"><a href={activeMuseumItem.href} target="_blank" rel="noreferrer" className="rounded-full border border-black/15 bg-white px-3 py-2 text-xs font-bold hover:border-black/30">Open in Drive ↗</a><button type="button" onClick={() => setMuseumOpen(null)} className="rounded-full bg-[#111318] px-3 py-2 text-xs font-bold text-white">Close</button></div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-2 sm:p-3 md:p-6" role="dialog" aria-modal="true" aria-label={activeMuseumItem.title} onClick={() => setMuseumOpen(null)}>
+            <div className="flex h-[calc(100dvh-16px)] max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-[#f7f7f3] shadow-2xl sm:h-[92vh] sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 px-3 py-3 sm:px-4 md:px-6">
+                <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-black/40">{activeMuseumItem.category}</p><h2 className="break-words text-base font-bold sm:text-lg">{activeMuseumItem.title}</h2></div>
+                <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto"><a href={activeMuseumItem.href} target="_blank" rel="noreferrer" className="rounded-full border border-black/15 bg-white px-3 py-2 text-xs font-bold hover:border-black/30">Open in Drive ↗</a><button type="button" onClick={() => setMuseumOpen(null)} className="rounded-full bg-[#111318] px-3 py-2 text-xs font-bold text-white">Close</button></div>
               </div>
-              <div className="min-h-0 flex-1 bg-white"><iframe title={activeMuseumItem.title} src={activeMuseumItem.href.replace("/view", "/preview")} className="h-full w-full border-0" allow="autoplay" /></div>
+              <div className="min-h-0 flex-1 overflow-hidden bg-white"><iframe title={activeMuseumItem.title} src={activeMuseumItem.href.replace("/view", "/preview")} className="block h-full min-h-0 w-full border-0" allow="autoplay" /></div>
             </div>
           </div>
         )}

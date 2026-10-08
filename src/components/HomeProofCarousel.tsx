@@ -20,7 +20,7 @@ const highlights: ProofHighlight[] = [
   { id: "insurance", kind: "REFERENCE", period: "BOTSWANA", quote: "Tenacity, consistency and professionalism.", source: "Insurance Training Institute", place: "Botswana" },
   { id: "other-press", kind: "REFERENCE", period: "CANADA", quote: "Commitment, punctuality and professionalism were indispensable assets.", source: "The Other Press / Douglas College", place: "Canada" },
   { id: "edukick", kind: "REFERENCE", period: "MANCHESTER", quote: "His personality shone through… personality of the year award.", source: "EduKick Manchester", place: "United Kingdom" },
-  { id: "mmegi", kind: "ARCHIVE RECORD", period: "26 JAN 2011", statement: "Mmegi recorded GATsha AYANDA with 1A* and 1A results during the Rainbow High School years.", source: "Mmegi · Rainbow High School", place: "Botswana" },
+  { id: "mmegi", kind: "ARCHIVE RECORD", period: "26 JAN 2011", statement: "An early published academic record from the Rainbow High School years.", source: "Mmegi · Rainbow High School", place: "Botswana" },
 ];
 
 export default function HomeProofCarousel() {
@@ -74,8 +74,8 @@ export default function HomeProofCarousel() {
       </div>
 
       <div className="admin-proof-carousel-footer">
-        <p>References from different countries, plus an early published record — the full evidence is available on /ayanda.</p>
-        <Link className="admin-primary-button" href="/ayanda">Meet Ayanda <span>↗</span></Link>
+        <p>Independent references from different countries, plus an early published record. Full supporting evidence is available in the references archive.</p>
+        <Link className="admin-primary-button" href="/ayanda">View the references <span>↗</span></Link>
       </div>
     </div>
   );

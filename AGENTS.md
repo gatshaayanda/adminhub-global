@@ -6,6 +6,16 @@
 - Ayanda is the person who built Admin Hub and the projects behind it, but the homepage should present the work as Admin Hub work.
 - The homepage is a commercial landing surface first: clear, confident, useful, and product/work focused.
 
+
+## Homepage catalogue interaction — 2026-10-08
+- The homepage `01 / THE PROBLEMS` section is intentionally compact: industries are presented as a truncated/accordion list rather than a wall of project cards.
+- Each industry row shows the business problem in one concise line. Clicking the row expands only that industry's projects.
+- Each expanded project is a compact row. Clicking it opens the project preview modal; the modal must be closable by its Close control, backdrop, or Escape.
+- Keep real project links, statuses, roles, videos/images and descriptions from `src/data/publicProducts.ts`; do not invent URLs or claims.
+- `02 / GAMES` remains a separate games surface.
+- `03 / THE BUILD` uses the proof carousel. It must auto-advance on a timer when motion is allowed. Do not disable automatic cycling merely because the pointer is over the carousel; keyboard focus may pause it for accessibility.
+- Homepage founder-name redaction remains mandatory.
+
 ## Homepage direction
 - The approved visual direction is the previous clean/light editorial style, not a dark flyer/campaign aesthetic.
 - Use the existing light Admin Hub shell/header/footer language as the baseline.

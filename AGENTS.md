@@ -16,6 +16,7 @@
 - `03 / THE BUILD` uses the proof carousel. It must auto-advance on a timer when motion is allowed. Do not disable automatic cycling merely because the pointer is over the carousel; keyboard focus may pause it for accessibility.
 - Homepage founder-name redaction remains mandatory.
 - Current homepage interaction implementation checkpoint: compact problems accordion + project preview modal + automatic proof carousel.
+- Deployment checkpoint: after the Vercel daily deployment limit clears, deploy the current main commit before production QA.
 
 ## Homepage direction
 - The approved visual direction is the previous clean/light editorial style, not a dark flyer/campaign aesthetic.

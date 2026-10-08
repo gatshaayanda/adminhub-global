@@ -898,3 +898,23 @@ The homepage should not duplicate the entire /ayanda archive or entire Rates pag
 
 
 <!-- chore checkpoint: modal restoration is committed on main; deployment trigger can resume when Vercel daily limit clears. -->
+
+
+## /ayanda profile + Museum of Success — 2026-10-08
+- /ayanda is a professional/founder record surface, separate from the Admin Hub commercial homepage.
+- The bottom of /ayanda must be **Rates**. Do not insert a Contact / Availability section before or after Rates. Rates is the handoff to /business.
+- The Success Museum uses progressive disclosure: compact category chips + scannable evidence rows; source material opens in a modal document/PDF viewer with backdrop click, Escape and Close support.
+- Keep the museum compact. Do not turn /ayanda into a document dump. Evidence should be opened on demand.
+- Research basis for this pattern: users primarily scan web content; concise/scannable/objective copy reduces cognitive load; progressive disclosure keeps secondary detail available without overwhelming the primary page; external evidence supports credibility. See Nielsen Norman Group research on scanning, progressive disclosure, cognitive load and trust/credibility.
+- Current supplied museum source material:
+  - References & Records: https://drive.google.com/file/d/1ywlV2F8vnfIedIQtg2_Dd5kucRrxBtLZ/view?usp=sharing
+  - References & Records: https://drive.google.com/file/d/1x84eV1mFPOYxTPsainsRxq30LB_o576Q/view
+  - References & Records: https://drive.google.com/file/d/1ggTtLxo7xV6THxgs3GMdXYCnCmReSCe_/view
+  - Published / newspaper: https://drive.google.com/file/d/1uybb5ic9Ixqk74BQg2lcIVPksd4aZzMg/view — Ayanda is second-last row, first from the right.
+  - Art & Creative Work: https://drive.google.com/file/d/12voudI4goOx2wxLa6dAetXLYoris3eDN/view
+  - Art & Creative Work: https://drive.google.com/file/d/1HusCy1-nxz1HuuLx6SHVhHS56vkj0-u0/view
+  - Art & Creative Work: https://drive.google.com/file/d/1TJjSmCobfHNmmRAXAGbDnEyLQXVWFl1N/view
+  - Art & Creative Work: https://drive.google.com/file/d/1ojNvvtAJ_rMU_QMuBvSaQ22WiKbpXF42/view
+  - Art & Creative Work: https://drive.google.com/file/d/1VgNVOW0lu457EMXNApC8mmzpZspppRHA/view
+  - Art & Creative Work: https://drive.google.com/file/d/1jEhbApDkHPCJwV146RzDn63QVewnbOEf/view
+- The Google Drive connector was not available in this session, so the source links are stored as supplied and opened directly in the browser/modal. Do not invent document titles until the actual source material is inspectable.

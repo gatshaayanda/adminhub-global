@@ -871,7 +871,7 @@ The homepage should not duplicate the entire /ayanda archive or entire Rates pag
 
 - The homepage is an Admin Hub company/account surface, not a founder profile.
 - The public homepage header must not contain an Ayanda navigation item.
-- Do not surface the founder’s name in homepage proof copy, carousel statements, CTA labels, or other homepage narrative. The homepage may link to `/ayanda` as the deeper evidence/archive destination, but the link should be framed around the evidence, not as a personal-brand CTA.
+- Do not surface the founder’s name anywhere on the homepage. This includes navigation, proof copy, carousel quotes/statements, source labels, CTA labels, metadata displayed in the page, or other homepage narrative. If source material contains the founder’s name, redact/rephrase it for homepage display rather than reproducing it. The homepage may link to `/ayanda` as the deeper evidence/archive destination, but the link should be framed around the evidence, not as a personal-brand CTA.
 
 ## Homepage implementation checkpoint — 2026-10-08
 

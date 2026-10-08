@@ -131,14 +131,22 @@ export default function GameShowcase() {
       {selected &&
         typeof document !== "undefined" &&
         createPortal(
-          <div className="ah-project-modal" role="dialog" aria-modal="true" aria-labelledby="game-modal-title">
+          <div
+            className="ah-project-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="game-modal-title"
+          >
             <button
               className="ah-project-modal-backdrop"
               type="button"
               aria-label="Close game preview"
               onClick={() => setSelected(null)}
             />
-            <div className="ah-project-modal-panel" onClick={(event) => event.stopPropagation()}>
+            <div
+              className="ah-project-modal-panel"
+              onClick={(event) => event.stopPropagation()}
+            >
               <div className="ah-project-modal-media">
                 {selected.video ? (
                   <video
@@ -150,7 +158,9 @@ export default function GameShowcase() {
                     preload="metadata"
                   />
                 ) : (
-                  <div className="ah-project-modal-empty">Game video will be added here.</div>
+                  <div className="ah-project-modal-empty">
+                    Game video will be added here.
+                  </div>
                 )}
               </div>
               <div className="ah-project-modal-content">
@@ -164,16 +174,25 @@ export default function GameShowcase() {
                   Close <span>×</span>
                 </button>
                 <div>
-                  <p className="admin-kicker">{selected.number} / GAME · {selected.type}</p>
+                  <p className="admin-kicker">
+                    {selected.number} / GAME · {selected.type}
+                  </p>
                   <h2 id="game-modal-title">{selected.title}</h2>
                   <p className="ah-project-modal-type">{selected.role}</p>
                   <p className="ah-project-modal-summary">{selected.summary}</p>
                   <div className="ah-project-modal-tags">
-                    {selected.tags.map((tag) => <span key={tag}>{tag}</span>)}
+                    {selected.tags.map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
                   </div>
                 </div>
                 <div className="ah-project-modal-actions">
-                  <a className="admin-primary-button" href={selected.href} target="_blank" rel="noreferrer">
+                  <a
+                    className="admin-primary-button"
+                    href={selected.href}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Open game <span>↗</span>
                   </a>
                 </div>
@@ -182,4 +201,6 @@ export default function GameShowcase() {
           </div>,
           document.body
         )}
-
+    </>
+  );
+}

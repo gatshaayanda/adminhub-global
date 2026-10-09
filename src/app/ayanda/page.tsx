@@ -361,7 +361,7 @@ export default function AyandaPage() {
               </div>
               <div className="mt-5 divide-y divide-black/10 border-y border-black/10">
                 {museumItems.map((item, index) => (
-                  <button key={item.href} type="button" onClick={() => setMuseumOpen(index)} className="group flex w-full items-center justify-between gap-5 py-4 text-left transition hover:bg-black/[0.025]" aria-label="Open museum document">
+                  <button key={item.href} type="button" onClick={() => setMuseumOpen(index)} className="group flex w-full items-center justify-between gap-5 py-4 text-left transition hover:bg-black/[0.025]" aria-label={`Open ${item.title}`}>
                     <span className="min-w-0">
                       <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-black/35">{item.category}</span>
                       <span className="mt-1 block truncate font-semibold group-hover:text-blue-700">{item.title}</span>

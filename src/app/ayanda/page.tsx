@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -134,15 +134,37 @@ function ExternalLinkRow({
 
 export default function AyandaPage() {
   const [museumOpen, setMuseumOpen] = useState<number | null>(null);
+  const [expandedSections, setExpandedSections] = useState<string[]>(["profile"]);
+  const dialogRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const toggleSection = (section: string) => setExpandedSections((current) => current.includes(section) ? current.filter((item) => item !== section) : [...current, section]);
   const activeMuseumItem = museumOpen === null ? null : museumItems[museumOpen];
 
   useEffect(() => {
     if (museumOpen === null) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMuseumOpen(null);
+      if (event.key === "Escape") {
+        setMuseumOpen(null);
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])')).filter((el) => el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      triggerRef.current?.focus();
+    };
   }, [museumOpen]);
 
   return (
@@ -196,8 +218,9 @@ export default function AyandaPage() {
         </header>
 
         <section className="border-b border-black/10 py-10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Professional profile</p>
-          <p className="mt-4 max-w-4xl text-lg leading-8 text-black/75">
+          <button type="button" aria-expanded={expandedSections.includes("profile")} onClick={() => toggleSection("profile")} className="flex w-full items-center justify-between gap-4 text-left"><span><span className="block text-xs font-bold uppercase tracking-[0.18em] text-black/45">Professional profile</span><span className="mt-2 block text-lg font-semibold">How I connect operations, technology and delivery.</span></span><span aria-hidden="true" className="text-sm font-bold text-black/50">{expandedSections.includes("profile") ? "− HIDE" : "+ EXPLORE"}</span></button>
+          {expandedSections.includes("profile") && <div className="mt-4">
+          <p className="max-w-4xl text-lg leading-8 text-black/75">
             Technical operations, product systems and business operations professional with 10+ years
             of international remote experience across SaaS operations, customer support and success,
             product development, automation, technical troubleshooting, commercial research,
@@ -211,6 +234,7 @@ export default function AyandaPage() {
           <p className="mt-5 max-w-4xl font-semibold text-black/80">
             Investigate → understand → structure → build → verify → operate → improve.
           </p>
+          </div>}
         </section>
 
         <section className="border-b border-black/10 py-10">
@@ -361,7 +385,7 @@ export default function AyandaPage() {
               </div>
               <div className="mt-5 divide-y divide-black/10 border-y border-black/10">
                 {museumItems.map((item, index) => (
-                  <button key={item.href} type="button" onClick={() => setMuseumOpen(index)} className="group flex w-full min-w-0 items-start justify-between gap-3 py-4 text-left transition hover:bg-black/[0.025] sm:gap-5" aria-label={`Open ${item.title}`}>
+                  <button key={item.href} type="button" onClick={(event) => { triggerRef.current = event.currentTarget; setMuseumOpen(index); }} className="group flex w-full min-w-0 items-start justify-between gap-3 py-4 text-left transition hover:bg-black/[0.025] sm:gap-5" aria-label={`Open ${item.title}`}>
                     <span className="min-w-0">
                       <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-black/35">{item.category}</span>
                       <span className="mt-1 block break-words font-semibold leading-6 group-hover:text-blue-700">{item.title}</span>
@@ -405,8 +429,8 @@ export default function AyandaPage() {
         </section>
 
         {activeMuseumItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#111318]/75 p-3 sm:p-5 md:p-8" role="dialog" aria-modal="true" aria-labelledby="museum-dialog-title" onClick={() => setMuseumOpen(null)}>
-            <section className="relative flex max-h-[calc(100dvh-24px)] w-full max-w-5xl min-w-0 flex-col overflow-hidden rounded-xl bg-[#f7f7f3] text-[#111318] shadow-2xl sm:max-h-[calc(100dvh-40px)]" onClick={(event) => event.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#111318]/75 p-2 sm:p-4 md:p-8" onClick={() => setMuseumOpen(null)}>
+            <section ref={dialogRef} tabIndex={-1} className="relative flex max-h-[calc(100dvh-16px)] w-full max-w-5xl min-w-0 flex-col overflow-hidden rounded-xl bg-[#f7f7f3] text-[#111318] shadow-2xl sm:max-h-[calc(100dvh-32px)]" onClick={(event) => event.stopPropagation()}>
               <header className="grid min-w-0 grid-cols-1 gap-3 border-b border-black/10 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6">
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-black/45">{activeMuseumItem.category}</p>
@@ -415,11 +439,11 @@ export default function AyandaPage() {
                 </div>
                 <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
                   <a href={activeMuseumItem.href} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center justify-center rounded-full border border-black/15 bg-white px-4 py-2.5 text-xs font-bold leading-5 hover:border-black/30">Open original in Drive ↗</a>
-                  <button type="button" onClick={() => setMuseumOpen(null)} className="inline-flex items-center justify-center rounded-full bg-[#111318] px-4 py-2.5 text-xs font-bold leading-5 text-white hover:bg-black">Close</button>
+                  <button ref={closeButtonRef} type="button" onClick={() => setMuseumOpen(null)} className="inline-flex items-center justify-center rounded-full bg-[#111318] px-4 py-2.5 text-xs font-bold leading-5 text-white hover:bg-black">Close</button>
                 </div>
               </header>
-              <div className="min-h-0 w-full flex-1 overflow-auto bg-white">
-                <iframe title={activeMuseumItem.title} src={activeMuseumItem.href.replace("/view", "/preview")} className="block h-full min-h-[55vh] w-full border-0" allow="autoplay" />
+              <div className="min-h-[35vh] w-full flex-1 overflow-auto overscroll-contain bg-white sm:min-h-[45vh]">
+                <iframe title={activeMuseumItem.title} src={activeMuseumItem.href.replace("/view", "/preview")} className="block h-[min(68dvh,760px)] min-h-[35vh] w-full border-0 sm:h-[min(72dvh,820px)]" allow="autoplay" />
               </div>
             </section>
           </div>

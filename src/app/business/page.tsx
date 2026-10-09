@@ -64,7 +64,7 @@ export default function BusinessPage() {
               <div className="admin-business-price">
                 <strong>Illustrative operating model: $25/month</strong>
                 <span>
-                  Think of $25 as a planning example, not a universal price or a promise that every product fits within it. A small product might be planned around an allowance such as 25 GB of storage or transfer capacity, depending on the provider and service. Actual infrastructure, bandwidth, third-party services, backups, usage and support limits must be checked for the specific product and agreed before launch.
+                  Think of $25 as a planning example, not a universal price or a promise that every product fits within it. For example, 500 users using about 50 MB each per month would generate roughly 25 GB of monthly data transfer. That is a planning estimate for transfer, not storage: stored files and databases are measured separately, and actual infrastructure, bandwidth, third-party services, backups, usage and support limits depend on the specific product and must be agreed before launch.
                 </span>
               </div>
               <div className="admin-business-cards">

@@ -2,7 +2,6 @@ import Link from "next/link";
 import GameShowcase from "@/components/GameShowcase";
 import IndustryProjectShowcase from "@/components/IndustryProjectShowcase";
 import AdminHubSignal from "@/components/AdminHubSignal";
-import HomeProofCarousel from "@/components/HomeProofCarousel";
 
 export default function HomePage() {
   return (
@@ -42,14 +41,6 @@ export default function HomePage() {
         <GameShowcase />
       </section>
 
-      <section className="admin-build" id="build">
-        <div className="admin-build-intro">
-          <p className="admin-kicker">03 / THE BUILD</p>
-          <h2>The work has a record beyond the work itself.</h2>
-          <p className="admin-build-lead">Independent references, published records and years of documented work give the products a human track record behind them.</p>
-        </div>
-        <HomeProofCarousel />
-      </section>
 
     </div>
   );

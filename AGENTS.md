@@ -918,3 +918,9 @@ The homepage should not duplicate the entire /ayanda archive or entire Rates pag
   - Art & Creative Work: https://drive.google.com/file/d/1VgNVOW0lu457EMXNApC8mmzpZspppRHA/view
   - Art & Creative Work: https://drive.google.com/file/d/1jEhbApDkHPCJwV146RzDn63QVewnbOEf/view
 - The Google Drive connector was not available in this session, so the source links are stored as supplied and opened directly in the browser/modal. Do not invent document titles until the actual source material is inspectable.
+
+
+## Museum modal readability fix — 2026-10-09
+- Keep `/ayanda` museum modal content inside viewport at all widths. The dialog must use `min-w-0`, `break-words`, a responsive one-column-to-two-column header, wrapped action controls, bounded dynamic viewport height, and a scrollable viewer region. Never allow long titles/descriptions or action buttons to force horizontal overflow.
+- Match the landing page's editorial readability: light `#f7f7f3` shell, dark `#111318` text, clear label/title/description hierarchy, readable line-height, understated borders, and obvious Close/Open original actions.
+- Verify the final JSX nesting after edits. Ensure the bottom CTA remains **Rates → /business**; do not restore Start here or Contact/Availability as the final CTA.

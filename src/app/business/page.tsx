@@ -1,4 +1,5 @@
 import Link from "next/link";
+import HomeProofCarousel from "@/components/HomeProofCarousel";
 
 export const metadata = {
   title: "Business | Admin Hub",
@@ -58,6 +59,12 @@ export default function BusinessPage() {
                   partnership. After launch, the ongoing fee is kept as low as
                   practical and reflects hosting, storage, usage and agreed
                   support rather than an arbitrary licence price.
+                </span>
+              </div>
+              <div className="admin-business-price">
+                <strong>Illustrative operating model: $25/month</strong>
+                <span>
+                  Think of $25 as a planning example, not a universal price or a promise that every product fits within it. A small product might be planned around an allowance such as 25 GB of storage or transfer capacity, depending on the provider and service. Actual infrastructure, bandwidth, third-party services, backups, usage and support limits must be checked for the specific product and agreed before launch.
                 </span>
               </div>
               <div className="admin-business-cards">
@@ -335,6 +342,20 @@ export default function BusinessPage() {
                   Ask Admin Hub a question
                 </Link>
               </div>
+            </div>
+          </div>
+        </section>
+        <section className="admin-business-section" style={{ borderBottom: 0 }}>
+          <div className="admin-business-grid">
+            <div>
+              <p className="admin-kicker">10 / INDEPENDENT REFERENCES</p>
+              <h2>Evidence beyond the sales pitch.</h2>
+            </div>
+            <div className="admin-business-copy">
+              <p>
+                Read a selection of independent references and published records after reviewing the commercial model, payment information and ways of working.
+              </p>
+              <HomeProofCarousel />
             </div>
           </div>
         </section>

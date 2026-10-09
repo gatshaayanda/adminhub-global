@@ -20,19 +20,19 @@ const whatsappHref =
 
 
 const museumItems = [
-  { category: "References & Records", title: "Archive document 01", description: "Supporting source material supplied for the professional record.", href: "https://drive.google.com/file/d/1ywlV2F8vnfIedIQtg2_Dd5kucRrxBtLZ/view?usp=sharing" },
-  { category: "References & Records", title: "Archive document 02", description: "Supporting source material supplied for the professional record.", href: "https://drive.google.com/file/d/1x84eV1mFPOYxTPsainsRxq30LB_o576Q/view" },
-  { category: "References & Records", title: "Archive document 03", description: "Supporting source material supplied for the professional record.", href: "https://drive.google.com/file/d/1ggTtLxo7xV6THxgs3GMdXYCnCmReSCe_/view" },
-  { category: "Published", title: "Newspaper archive", description: "Newspaper source. Ayanda is in the second-last row, first from the right.", href: "https://drive.google.com/file/d/1uybb5ic9Ixqk74BQg2lcIVPksd4aZzMg/view" },
-  { category: "Art & Creative Work", title: "Artwork archive 01", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/12voudI4goOx2wxLa6dAetXLYoris3eDN/view" },
-  { category: "Art & Creative Work", title: "Artwork archive 02", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1HusCy1-nxz1HuuLx6SHVhHS56vkj0-u0/view" },
-  { category: "Art & Creative Work", title: "Artwork archive 03", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1TJjSmCobfHNmmRAXAGbDnEyLQXVWFl1N/view" },
-  { category: "Art & Creative Work", title: "Artwork archive 04", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1ojNvvtAJ_rMU_QMuBvSaQ22WiKbpXF42/view" },
-  { category: "Art & Creative Work", title: "Artwork archive 05", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1VgNVOW0lu457EMXNApC8mmzpZspppRHA/view" },
-  { category: "Art & Creative Work", title: "Artwork archive 06", description: "Original creative-work source supplied for the museum.", href: "https://drive.google.com/file/d/1jEhbApDkHPCJwV146RzDn63QVewnbOEf/view" },
+  { category: "Company & Public Records", title: "Youth Development Fund — LEA consultation", description: "Government Endorsement Confirmation from LEA Gaborone acknowledging consultation on a Youth Development Fund business plan.", href: "https://drive.google.com/file/d/1ywlV2F8vnfIedIQtg2_Dd5kucRrxBtLZ/view?usp=sharing" },
+  { category: "Company & Public Records", title: "Admin Hub — Certificate of Incorporation", description: "Certificate of Incorporation for Admin Hub Proprietary Limited.", href: "https://drive.google.com/file/d/1x84eV1mFPOYxTPsainsRxq30LB_o576Q/view" },
+  { category: "Credentials & Training", title: "Insurance Training Institute — reference", description: "Reference letter acknowledging completion of long-term and short-term insurance certifications.", href: "https://drive.google.com/file/d/1ggTtLxo7xV6THxgs3GMdXYCnCmReSCe_/view" },
+  { category: "Published Record", title: "Mmegi — Rainbow High School Class of 2010", description: "Newspaper feature on Rainbow High School’s high-achieving Class of 2010. Ayanda is in the second-last row, first from the right.", href: "https://drive.google.com/file/d/1uybb5ic9Ixqk74BQg2lcIVPksd4aZzMg/view" },
+  { category: "Education & Achievements", title: "Myerscough College — football and BTEC Sport", description: "Award certificate recognizing completion of study in football and BTEC Sport and Excellence.", href: "https://drive.google.com/file/d/12voudI4goOx2wxLa6dAetXLYoris3eDN/view" },
+  { category: "References & Recommendations", title: "Dr. Teresa Howell — Psychology 1200 recommendation", description: "Academic letter of recommendation written by Dr. Teresa Howell for Psychology 1200.", href: "https://drive.google.com/file/d/1HusCy1-nxz1HuuLx6SHVhHS56vkj0-u0/view" },
+  { category: "References & Recommendations", title: "Stuart Entwistle — character reference", description: "Personal character reference letter written by Stuart Entwistle.", href: "https://drive.google.com/file/d/1TJjSmCobfHNmmRAXAGbDnEyLQXVWFl1N/view" },
+  { category: "References & Recommendations", title: "Rainbow High School — academic and athletic reference", description: "Character reference from Rainbow High School highlighting academic and athletic achievements.", href: "https://drive.google.com/file/d/1ojNvvtAJ_rMU_QMuBvSaQ22WiKbpXF42/view" },
+  { category: "References & Recommendations", title: "EduKick Manchester — programme recommendation", description: "Recommendation letter summarizing participation in the 2012–2013 EduKick Manchester Football Academy programme.", href: "https://drive.google.com/file/d/1VgNVOW0lu457EMXNApC8mmzpZspppRHA/view" },
+  { category: "Technical & Product Work", title: "Chess.com — 9,745-game statistical report", description: "Statistical and narrative analysis of a 9,745-game Chess.com history spanning 2013–2026.", href: "https://drive.google.com/file/d/1jEhbApDkHPCJwV146RzDn63QVewnbOEf/view" },
 ];
 
-const museumCategories = ["References & Records", "Published", "Art & Creative Work"];
+const museumCategories = ["Company & Public Records", "Credentials & Training", "Published Record", "Education & Achievements", "References & Recommendations", "Technical & Product Work"];
 
 const work = [
   {
@@ -361,11 +361,11 @@ export default function AyandaPage() {
               </div>
               <div className="mt-5 divide-y divide-black/10 border-y border-black/10">
                 {museumItems.map((item, index) => (
-                  <button key={item.href} type="button" onClick={() => setMuseumOpen(index)} className="group flex w-full items-center justify-between gap-5 py-4 text-left transition hover:bg-black/[0.025]" aria-label={`Open ${item.title}`}>
+                  <button key={item.href} type="button" onClick={() => setMuseumOpen(index)} className="group flex w-full min-w-0 items-start justify-between gap-3 py-4 text-left transition hover:bg-black/[0.025] sm:gap-5" aria-label={`Open ${item.title}`}>
                     <span className="min-w-0">
                       <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-black/35">{item.category}</span>
-                      <span className="mt-1 block truncate font-semibold group-hover:text-blue-700">{item.title}</span>
-                      <span className="mt-1 block truncate text-sm text-black/50">{item.description}</span>
+                      <span className="mt-1 block break-words font-semibold leading-6 group-hover:text-blue-700">{item.title}</span>
+                      <span className="mt-1 block break-words text-sm leading-5 text-black/60">{item.description}</span>
                     </span>
                     <span className="shrink-0 text-sm font-bold text-black/35 group-hover:text-blue-700">OPEN ↗</span>
                   </button>
@@ -394,13 +394,13 @@ export default function AyandaPage() {
 
 
         <section className="border-t border-black/10 pt-10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Start here</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Next step</p>
           <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-3xl font-extrabold tracking-[-0.035em]">Start here.</h2>
-              <p className="mt-3 max-w-2xl leading-7 text-black/65">If you would like to discuss a role, project or practical product opportunity, start here.</p>
+              <h2 className="text-3xl font-extrabold tracking-[-0.035em]">Rates.</h2>
+              <p className="mt-3 max-w-2xl leading-7 text-black/65">For the commercial model, support and ways to work with Admin Hub, continue to Rates.</p>
             </div>
-            <Link href="/#start" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#111318] px-5 py-3 text-sm font-bold text-white hover:bg-black">Start here <ArrowUpRight size={16} /></Link>
+            <Link href="/business" className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#111318] px-5 py-3 text-sm font-bold text-white hover:bg-black">Rates <ArrowUpRight size={16} /></Link>
           </div>
         </section>
 

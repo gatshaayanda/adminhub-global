@@ -961,3 +961,6 @@ The homepage should not duplicate the entire /ayanda archive or entire Rates pag
 - Treat identity documents, phone numbers, payment-account details, transaction references, and private correspondence as sensitive. Do not put them in public website copy, public GitHub files, commit messages, issues, or other public-facing materials. Keep full documents in an appropriately private, access-controlled evidence location and share only the minimum necessary with the relevant authorized recipient.
 - In public copy, summarize the existence and relevance of supporting evidence without publishing document scans, ID numbers, full phone numbers, account identifiers, or private transaction details. Redact copies made for wider circulation.
 - Do not upload identity documents or financial records to this repository. If these materials are needed for a review, use them only in a suitable private context and keep conclusions proportional to what the evidence actually shows.
+
+## Deployment trigger test — 2026-10-09
+- A fresh commit on `main` is being used to test whether the GitHub-to-Vercel production deployment trigger is functioning. Confirm the matching commit SHA in Vercel and verify the production deployment reaches READY before considering the test complete.

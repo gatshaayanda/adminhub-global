@@ -15,14 +15,9 @@ export default function BusinessPage() {
             <p className="admin-kicker">ADMIN HUB / BUSINESS</p>
             <h1>Build first.<br />Make it useful.<br />Keep it fair.</h1>
             <p className="admin-business-lead">
-              Admin Hub builds practical software around real business workflows.
-              The commercial model is designed to make a useful first product
-              easier to try without hiding the cost of keeping it running.
+              Get a branded app for your business, with an illustrative running cost of $25 a month — about the price of airtime. Any one-time setup cost is discussed and agreed before work begins.
             </p>
             <div className="admin-business-actions">
-              <Link className="admin-primary-button" href="/contact">
-                Start an enquiry <span>↗</span>
-              </Link>
               <Link className="admin-text-link" href="/">
                 Back to the work
               </Link>
@@ -47,38 +42,28 @@ export default function BusinessPage() {
             </div>
             <div className="admin-business-copy">
               <p>
-                The goal is a useful business asset, not a surprise software
-                bill. We first agree what should be built, what the business
-                can reasonably invest, and what it needs the product to do.
+                Your business gets an app with its own name and branding. The $25 monthly amount is an example, not a fixed price for every app. We agree what your business needs and what it can afford first.
               </p>
               <div className="admin-business-price">
-                <strong>Setup + operating cost, agreed in USD</strong>
-                <span>
-                  The initial build/setup fee is quoted from the real scope. It
-                  can be waived or discounted for a suitable pilot or
-                  partnership. After launch, the ongoing fee is kept as low as
-                  practical and reflects hosting, storage, usage and agreed
-                  support rather than an arbitrary licence price.
-                </span>
+                <strong>$25/month to help keep your app running</strong>
+                <span>Think of it like paying for airtime: a familiar monthly amount to help cover running costs. The actual amount depends on the app and how people use it.</span>
               </div>
               <div className="admin-business-price">
-                <strong>Illustrative operating model: $25/month</strong>
-                <span>
-                  Think of $25 as a planning example, not a universal price or a promise that every product fits within it. For example, 500 users using about 50 MB each per month would generate roughly 25 GB of monthly data transfer. That is a planning estimate for transfer, not storage: stored files and databases are measured separately, and actual infrastructure, bandwidth, third-party services, backups, usage and support limits depend on the specific product and must be agreed before launch.
-                </span>
+                <strong>What could that cover?</strong>
+                <span>For example, 500 people using about 50 MB each would add up to roughly 25 GB of monthly data transfer. That is data moving through the app, not stored files. The real allowance and costs depend on the app and are agreed before launch.</span>
               </div>
               <div className="admin-business-cards">
                 <div className="admin-business-card">
                   <strong>Start small</strong>
-                  <p>Begin with the smallest workflow that can prove the idea in real use.</p>
+                  <p>Begin with the main thing your customers need to do.</p>
                 </div>
                 <div className="admin-business-card">
                   <strong>Fund it deliberately</strong>
-                  <p>Decide whether the business has capital to invest upfront, or whether the product should help generate the money needed to keep it running.</p>
+                  <p>Any one-time setup or build fee is discussed and agreed before work starts. For suitable pilots, it may be reduced or waived.</p>
                 </div>
                 <div className="admin-business-card">
                   <strong>Agree the next step</strong>
-                  <p>Continue, improve or change scope based on real use, actual costs and what the business can sustain.</p>
+                  <p>Make changes as needed and agree on any extra work before it begins.</p>
                 </div>
               </div>
             </div>
@@ -338,10 +323,7 @@ export default function BusinessPage() {
                 <Link className="admin-primary-button" href="/#work">
                   Explore published work <span>↗</span>
                 </Link>
-                <Link className="admin-text-link" href="/contact">
-                  Ask Admin Hub a question
-                </Link>
-              </div>
+                </div>
             </div>
           </div>
         </section>

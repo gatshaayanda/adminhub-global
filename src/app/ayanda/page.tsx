@@ -257,7 +257,9 @@ export default function AyandaPage() {
           </div>
         </section>
 
-        <section className="py-10">
+        <section className="border-b border-black/10 py-8">
+          <button type="button" aria-expanded={expandedSections.includes("work")} onClick={() => toggleSection("work")} className="flex w-full items-center justify-between gap-4 text-left"><span><span className="block text-xs font-bold uppercase tracking-[0.18em] text-black/45">Work</span><span className="mt-2 block text-xl font-semibold">Work history and evidence of delivery.</span></span><span aria-hidden="true" className="shrink-0 text-sm font-bold text-black/50">{expandedSections.includes("work") ? "− HIDE" : "+ EXPLORE"}</span></button>
+          {expandedSections.includes("work") && <div className="mt-6">
           <div className="mb-6">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Work</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.035em]">A varied working history.</h2>
@@ -287,9 +289,8 @@ export default function AyandaPage() {
               </article>
             ))}
           </div>
+          </div>}
         </section>
-
-        <section className="border-y border-black/10 py-10">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Admin Hub</p>
@@ -344,7 +345,9 @@ export default function AyandaPage() {
           </div>
         </section>
 
-        <section className="border-b border-black/10 py-10">
+        <section className="border-b border-black/10 py-8">
+          <button type="button" aria-expanded={expandedSections.includes("evidence")} onClick={() => toggleSection("evidence")} className="flex w-full items-center justify-between gap-4 text-left"><span><span className="block text-xs font-bold uppercase tracking-[0.18em] text-black/45">Evidence</span><span className="mt-2 block text-xl font-semibold">Public records, references and project documentation.</span></span><span aria-hidden="true" className="shrink-0 text-sm font-bold text-black/50">{expandedSections.includes("evidence") ? "− HIDE" : "+ EXPLORE"}</span></button>
+          {expandedSections.includes("evidence") && <div className="mt-6">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Career progression</p>
@@ -372,7 +375,9 @@ export default function AyandaPage() {
         </section>
 
 
-        <section className="border-y border-black/10 py-10">
+        <section className="border-b border-black/10 py-8">
+          <button type="button" aria-expanded={expandedSections.includes("products")} onClick={() => toggleSection("products")} className="flex w-full items-center justify-between gap-4 text-left"><span><span className="block text-xs font-bold uppercase tracking-[0.18em] text-black/45">Admin Hub</span><span className="mt-2 block text-xl font-semibold">Selected products and client work.</span></span><span aria-hidden="true" className="shrink-0 text-sm font-bold text-black/50">{expandedSections.includes("products") ? "− HIDE" : "+ EXPLORE"}</span></button>
+          {expandedSections.includes("products") && <div className="mt-6">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Museum of Success</p>
@@ -397,9 +402,8 @@ export default function AyandaPage() {
               </div>
             </div>
           </div>
+          </div>}
         </section>
-
-        <section className="border-b border-black/10 py-10">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Evidence</p>
@@ -414,10 +418,8 @@ export default function AyandaPage() {
               </p>
             </div>
           </div>
+          </div>}
         </section>
-
-
-        <section className="border-t border-black/10 pt-10">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Next step</p>
           <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>

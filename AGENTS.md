@@ -942,3 +942,14 @@ The homepage should not duplicate the entire /ayanda archive or entire Rates pag
 - UX rationale: preserve progressive disclosure and scannability rather than embedding ten full documents into the page. References: https://www.nngroup.com/articles/progressive-disclosure/ and https://www.nngroup.com/articles/concise-scannable-and-objective-how-to-write-for-the-web/
 - Modal accessibility reference for future work: WAI-ARIA dialog pattern requires focus to move into the dialog, remain within it while modal, support Escape, and return to the invoking control when closed: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/
 - Implementation commits on 2026-10-09: c227251fa0bb39326101b0bf2cb6a5902ed14478 (item-specific trigger labels) and a0cfcf4809898b031b0816b5ca8a633ab5e7ad64 (identified museum metadata, wrapping, and Rates handoff).
+
+## Rates / business page copy and CTA lock — 2026-10-09
+
+- Write Rates for ordinary small-business owners, not software developers. Use plain, concrete language; remove jargon, abstract commercial language, and long caveats that obscure the offer.
+- Explain the idea simply: a branded app for the business, with **$25/month as an illustrative running-cost example** (roughly the price of airtime), not a universal promise or fixed price for every product.
+- Explain the example clearly: 500 users × approximately 50 MB each per month = approximately 25 GB of monthly data transfer. State briefly that transfer is data moving through the app and is different from stored files. Do not bury this in infrastructure terminology.
+- Explain one-time setup/build fees plainly: discussed and agreed before work starts; suitable pilot/partnership work may qualify for a reduced or waived fee. Never imply every custom app is automatically free.
+- Keep other required Rates disclosures and evidence sections intact unless explicitly asked to change them.
+- Do not add redundant enquiry/contact CTAs to the Rates page. The page's top hero must not have a competing “Start an enquiry” button, and the final proof section must not add “Ask Admin Hub a question”. Preserve the relevant “Back to the work” and “Explore published work” links.
+- For Rates copy corrections, change only the specifically identified copy and CTAs. Leave setup-fee policy, verification, reviews, payment disclosures, referrals, independent-reference carousel, and homepage content untouched unless requested.
+- Verify the exact changed route and production deployment status after pushing. A commit being pushed is not proof that production is READY.

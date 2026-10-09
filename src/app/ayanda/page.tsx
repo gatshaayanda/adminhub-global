@@ -405,14 +405,23 @@ export default function AyandaPage() {
         </section>
 
         {activeMuseumItem && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-2 sm:p-3 md:p-6" role="dialog" aria-modal="true" aria-label={activeMuseumItem.title} onClick={() => setMuseumOpen(null)}>
-            <div className="flex h-[calc(100dvh-16px)] max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-[#f7f7f3] shadow-2xl sm:h-[92vh] sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/10 px-3 py-3 sm:px-4 md:px-6">
-                <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-black/40">{activeMuseumItem.category}</p><h2 className="break-words text-base font-bold sm:text-lg">{activeMuseumItem.title}</h2></div>
-                <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto"><a href={activeMuseumItem.href} target="_blank" rel="noreferrer" className="rounded-full border border-black/15 bg-white px-3 py-2 text-xs font-bold hover:border-black/30">Open in Drive ↗</a><button type="button" onClick={() => setMuseumOpen(null)} className="rounded-full bg-[#111318] px-3 py-2 text-xs font-bold text-white">Close</button></div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#111318]/75 p-3 sm:p-5 md:p-8" role="dialog" aria-modal="true" aria-labelledby="museum-dialog-title" onClick={() => setMuseumOpen(null)}>
+            <section className="relative flex max-h-[calc(100dvh-24px)] w-full max-w-5xl min-w-0 flex-col overflow-hidden rounded-xl bg-[#f7f7f3] text-[#111318] shadow-2xl sm:max-h-[calc(100dvh-40px)]" onClick={(event) => event.stopPropagation()}>
+              <header className="grid min-w-0 grid-cols-1 gap-3 border-b border-black/10 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-black/45">{activeMuseumItem.category}</p>
+                  <h2 id="museum-dialog-title" className="mt-1 break-words text-lg font-bold leading-snug sm:text-xl">{activeMuseumItem.title}</h2>
+                  <p className="mt-1 break-words text-sm leading-6 text-black/60">{activeMuseumItem.description}</p>
+                </div>
+                <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+                  <a href={activeMuseumItem.href} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center justify-center rounded-full border border-black/15 bg-white px-4 py-2.5 text-xs font-bold leading-5 hover:border-black/30">Open original in Drive ↗</a>
+                  <button type="button" onClick={() => setMuseumOpen(null)} className="inline-flex items-center justify-center rounded-full bg-[#111318] px-4 py-2.5 text-xs font-bold leading-5 text-white hover:bg-black">Close</button>
+                </div>
+              </header>
+              <div className="min-h-0 w-full flex-1 overflow-auto bg-white">
+                <iframe title={activeMuseumItem.title} src={activeMuseumItem.href.replace("/view", "/preview")} className="block h-full min-h-[55vh] w-full border-0" allow="autoplay" />
               </div>
-              <div className="min-h-0 flex-1 overflow-hidden bg-white"><iframe title={activeMuseumItem.title} src={activeMuseumItem.href.replace("/view", "/preview")} className="block h-full min-h-0 w-full border-0" allow="autoplay" /></div>
-            </div>
+            </section>
           </div>
         )}
       </div>

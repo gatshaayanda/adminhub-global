@@ -257,14 +257,14 @@ export default function AyandaPage() {
           </div>
         </section>
 
-        <section className="border-b border-black/10 py-8">
-          <button type="button" aria-expanded={expandedSections.includes("work")} onClick={() => toggleSection("work")} className="flex w-full items-center justify-between gap-4 text-left"><span><span className="block text-xs font-bold uppercase tracking-[0.18em] text-black/45">Work</span><span className="mt-2 block text-xl font-semibold">Work history and evidence of delivery.</span></span><span aria-hidden="true" className="shrink-0 text-sm font-bold text-black/50">{expandedSections.includes("work") ? "− HIDE" : "+ EXPLORE"}</span></button>
-          {expandedSections.includes("work") && <div className="mt-6">
+        <section className="py-10">
           <div className="mb-6">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Work</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.035em]">A varied working history.</h2>
           </div>
 
+          <details className="group">
+            <summary className="cursor-pointer list-none py-3 font-semibold text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">Explore work history <span className="float-right text-black/45 group-open:hidden">+</span><span className="float-right hidden text-black/45 group-open:inline">−</span></summary>
           <div className="divide-y divide-black/10 border-y border-black/10">
             {work.map((item) => (
               <article key={item.title} className="py-6">
@@ -289,8 +289,10 @@ export default function AyandaPage() {
               </article>
             ))}
           </div>
-          </div>}
+          </details>
         </section>
+
+        <section className="border-y border-black/10 py-10">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Admin Hub</p>
@@ -302,6 +304,7 @@ export default function AyandaPage() {
                 the products and client work behind that umbrella. Translend TMS is included here
                 because it is current client product work delivered through Admin Hub, not a separate company.
               </p>
+              <details className="group"><summary className="cursor-pointer list-none py-3 font-semibold text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">Explore products and client work <span className="float-right text-black/45 group-open:hidden">+</span><span className="float-right hidden text-black/45 group-open:inline">−</span></summary>
               <div className="border-y border-black/10">
                 {adminHubWork.map(([title, type, href]) =>
                   href.startsWith("/") ? (
@@ -333,6 +336,7 @@ export default function AyandaPage() {
                   )
                 )}
               </div>
+              </details>
               <a
                 href="https://admin-hub-games.vercel.app/"
                 target="_blank"
@@ -345,9 +349,7 @@ export default function AyandaPage() {
           </div>
         </section>
 
-        <section className="border-b border-black/10 py-8">
-          <button type="button" aria-expanded={expandedSections.includes("evidence")} onClick={() => toggleSection("evidence")} className="flex w-full items-center justify-between gap-4 text-left"><span><span className="block text-xs font-bold uppercase tracking-[0.18em] text-black/45">Evidence</span><span className="mt-2 block text-xl font-semibold">Public records, references and project documentation.</span></span><span aria-hidden="true" className="shrink-0 text-sm font-bold text-black/50">{expandedSections.includes("evidence") ? "− HIDE" : "+ EXPLORE"}</span></button>
-          {expandedSections.includes("evidence") && <div className="mt-6">
+        <section className="border-b border-black/10 py-10">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Career progression</p>
@@ -375,9 +377,7 @@ export default function AyandaPage() {
         </section>
 
 
-        <section className="border-b border-black/10 py-8">
-          <button type="button" aria-expanded={expandedSections.includes("products")} onClick={() => toggleSection("products")} className="flex w-full items-center justify-between gap-4 text-left"><span><span className="block text-xs font-bold uppercase tracking-[0.18em] text-black/45">Admin Hub</span><span className="mt-2 block text-xl font-semibold">Selected products and client work.</span></span><span aria-hidden="true" className="shrink-0 text-sm font-bold text-black/50">{expandedSections.includes("products") ? "− HIDE" : "+ EXPLORE"}</span></button>
-          {expandedSections.includes("products") && <div className="mt-6">
+        <section className="border-y border-black/10 py-10">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Museum of Success</p>
@@ -402,24 +402,29 @@ export default function AyandaPage() {
               </div>
             </div>
           </div>
-          </div>}
         </section>
+
+        <section className="border-b border-black/10 py-10">
           <div className="grid gap-8 md:grid-cols-[0.7fr_1.3fr]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Evidence</p>
               <h2 className="mt-3 text-3xl font-extrabold tracking-[-0.035em]">Verify the work.</h2>
             </div>
             <div>
+              <details className="group"><summary className="cursor-pointer list-none py-3 font-semibold text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">Explore supporting evidence <span className="float-right text-black/45 group-open:hidden">+</span><span className="float-right hidden text-black/45 group-open:inline">−</span></summary>
               {evidence.map(([title, description, href]) => (
                 <ExternalLinkRow key={title} title={title} description={description} href={href} />
               ))}
               <p className="mt-5 text-sm leading-6 text-black/50">
                 Detailed CV, references, project records and supporting documentation are available as appropriate.
               </p>
+              </details>
             </div>
           </div>
-          </div>}
         </section>
+
+
+        <section className="border-t border-black/10 pt-10">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-black/45">Next step</p>
           <div className="mt-3 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>

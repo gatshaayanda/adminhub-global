@@ -1,7 +1,10 @@
-"use client";
-
-import Link from "next/link";
+import type { Metadata } from "next";
 import "./supermarketsoftware.css";
+
+export const metadata: Metadata = {
+  title: "Supermarket Software | Shop & Collect Demo",
+  description: "See how a simple online product catalogue, customer basket and staff product management experience could make supermarket shopping more convenient.",
+};
 
 const steps = [
   { number: "01", title: "Customer browses", copy: "Search products, compare the range and choose quantities on a phone or computer.", icon: "basket" },

@@ -1,5 +1,43 @@
 # Admin Hub — Agent Instructions
 
+## APPROVED PRODUCT DIRECTION — DIGITAL BUSINESS TOOLS & INTERACTIVE EXPERIENCES — 2026-10-26
+
+This section is the current source of truth for the Admin Hub Global product and homepage direction. Where earlier homepage instructions below conflict (including Apps · Games positioning, homepage founder-name redaction, the old Rates-first handoff, or prior homepage section order), this approved direction supersedes them. Preserve unrelated technical and safety instructions.
+
+### Product identity and positioning
+- Public positioning: **Digital Business Tools & Interactive Experiences**.
+- Admin Hub Global is both the public introduction to the work and the working platform used to intake, qualify, communicate about, and manage business/partner opportunities. Do not treat the public landing page and the account platform as separate destinations.
+- Do not lead with a conventional portfolio wall, founder biography, or public rate card. The first visible action is the input channels through which a person shares information and enters their account.
+- Keep the visual language clean, light, editorial, mobile-first, and consistent with the existing Admin Hub shell. Make only controlled changes that serve this approved direction.
+
+### Landing-page flow and content hierarchy
+1. **Business and partner input channels first.** Visitors choose the relevant entry channel and create/use a visitor account to submit information and communicate. Do not require the portfolio/video to be viewed before account entry.
+2. **Qualification and offer.** Reuse the existing AdHubMVP-style qualification approach rather than inventing a new lengthy questionnaire. A visitor can upload an existing PDF company profile and share relevant website/social links and contact preferences, with project requirements and commercial readiness captured through the account flow. Admin assigns each account its Business or Partner classification; visitors must not grant themselves elevated/partner status. Do not display a public rates page/rate card as the primary offer. The minimum offer is US$25 for an app running for 30 days; higher investment receives higher priority. Explain payment details and project-specific terms in the appropriate account/business relationship. Do not imply that US$25 buys every custom system outright or guarantees unlimited scope.
+3. **Proof-of-capability video.** After the input/qualification area, show the video explaining the development process, tools, apps and games/interactive experiences, and the results it can produce. Include the founder's development journey as a plain-English proof point: 1,000+ commits represent more than 1,000 recorded development steps contributing to building, fixing, connecting, testing and improving software since 2020. Use the house-building analogy if helpful. Be accurate: commits do not mean 1,000 apps or 1,000 major features; do not inflate outcomes. The video preserves native aspect ratio and must not be awkwardly cropped.
+4. **Digital Business Tools & Interactive Experiences evidence.** Below the video, present selected examples in compact, truncated project modals that can be explored without turning the page into a wall of cards. The owner/admin must be able to CRUD which tools and interactive experiences appear, including titles, descriptions, category, status, real destination links and supporting video/image evidence. Seed the initial selection only with real projects chosen as the best current examples; never invent URLs, clients, statuses, results, or endorsements. Organize evidence into the two trust contexts:
+   - **Neighbourhood Trust:** real local business relationships and the specific tools built for their needs.
+   - **Beyond the Neighbourhood:** work organized by the business's actual operating reach and needs, including mobile businesses, online stores and opportunities capable of national, international or global reach. Do not classify only by physical location, and do not imply global reach without evidence.
+   Evidence belongs inside its respective category/modal; these are not separate extra steps in the page flow. Each modal should be compact and closable by its close control, backdrop and Escape; support keyboard/touch access and reduced motion.
+5. **Meet the Founder.** Below the project evidence, include a sliding carousel of reference quotations that teases the person behind the work and links to a fuller founder information/profile page. This is the place for founder background, not the first thing visitors must encounter. Use only genuine, appropriately attributed quotations and do not fabricate endorsements.
+
+### Account and opportunity management
+- Visitor accounts support both business owners and people who partner with Admin Hub Global to refer/sell services to businesses. Both need an account-based way to submit information and communicate with Admin.
+- Keep the account type/classification under Admin control, with Admin CRUD for Business / Partner; do not trust a self-selected client-side role as authorization.
+- Keep submissions, uploaded company profiles, relevant links, conversations, referrals/partner attribution, opportunities, project scope/status, and agreed commercial/payment details associated with the correct account/opportunity.
+- Protect private business documents and conversations from unrelated accounts and referrers. A partner referral does not automatically grant access to the referred business's private information.
+- Admin needs to review and manage accounts, classifications, submissions, partner relationships, conversations, opportunities and featured evidence from the application. Prefer reusing existing project patterns and infrastructure over rebuilding existing flows.
+
+### Evidence, status and claims
+- Keep actual paid work, completed delivery, active use, testing, pending payment, proposals and templates clearly distinct. Do not describe a proposal as a customer deployment or claim a business is paid/live unless evidence supports it.
+- Every featured project must be admin-manageable and use verified project destinations. No placeholder or fabricated project links in production.
+- The homepage should explain capability through actual video and product evidence, not unsupported claims about revenue, customers, reach or delivery guarantees.
+
+### Implementation discipline
+- Inspect current repository state, routes, data sources and existing account/auth flows before editing. Treat the existing repo as the source of truth; do not assume a new auth system is required.
+- Implement the approved product direction with the smallest coherent change, preserve unrelated working behaviour, and verify the affected routes/build before checkpointing.
+- Do not claim deployed/production-ready until the matching commit is on main, the corresponding Vercel deployment is READY, and the relevant live routes have been checked when practical.
+
+
 ## Product identity
 - Admin Hub is the parent/front door: Apps · Games · Products · Experiments.
 - Admin Hub is its own brand/business. Do not turn the public site into a founder-led personal brand or imply that the site is primarily about Ayanda.

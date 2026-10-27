@@ -7,23 +7,117 @@ import Link from "next/link";
 
 type Tournament = { id: string; game: string; mode: string; title: string; date: string; fee: string; prize: string; slots: string; status: string; accent: string };
 const tournaments: Tournament[] = [
-  { id: "fc", game: "EA SPORTS FC", mode: "FOOTBALL · 1V1", title: "GGL FC Showdown", date: "DATE TO BE ANNOUNCED", fee: "TBA", prize: "TBA", slots: "Registration opening soon", status: "UPCOMING", accent: "fc" },
-  { id: "cod", game: "CALL OF DUTY", mode: "FPS · TEAM PLAY", title: "GGL Tactical Series", date: "DATE TO BE ANNOUNCED", fee: "TBA", prize: "TBA", slots: "Registration opening soon", status: "UPCOMING", accent: "cod" },
-  { id: "mk", game: "MORTAL KOMBAT", mode: "FIGHTING · 1V1", title: "GGL Kombat Night", date: "DATE TO BE ANNOUNCED", fee: "TBA", prize: "TBA", slots: "Registration opening soon", status: "UPCOMING", accent: "mk" },
+  { id: "fc", game: "EA SPORTS FC", mode: "FOOTBALL · 1V1", title: "GGL FC Showdown", date: "To be announced", fee: "TBA", prize: "TBA", slots: "Entries open when details are confirmed", status: "COMING SOON", accent: "fc" },
+  { id: "cod", game: "CALL OF DUTY", mode: "FPS · TEAM PLAY", title: "GGL Tactical Series", date: "To be announced", fee: "TBA", prize: "TBA", slots: "Entries open when details are confirmed", status: "COMING SOON", accent: "cod" },
+  { id: "mk", game: "MORTAL KOMBAT", mode: "FIGHTING · 1V1", title: "GGL Kombat Night", date: "To be announced", fee: "TBA", prize: "TBA", slots: "Entries open when details are confirmed", status: "COMING SOON", accent: "mk" },
 ];
+
 export default function GGLTournamentsPage() {
   const [selected, setSelected] = useState<Tournament | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [tab, setTab] = useState("ALL");
   const visible = useMemo(() => tab === "ALL" ? tournaments : tournaments.filter(t => t.game === tab), [tab]);
+
   return <main className="ggl">
-    <div className="ggl-grid" aria-hidden="true" />
-    <header className="ggl-nav"><Link href="/" className="ggl-brand"><span className="ggl-mark">G</span><span>GGL<span className="ggl-green"> TOURNAMENTS</span><small>PLAY TO PROVE IT.</small></span></Link><nav><a href="#tournaments">TOURNAMENTS</a><a href="#updates">UPDATES</a><button className="ggl-login" onClick={() => setShowLogin(true)}>PLAYER SIGN IN ↗</button></nav></header>
-    <section className="ggl-hero"><div className="ggl-hero-copy"><p className="ggl-eyebrow"><i/> THE ARENA IS LOADING</p><h1>YOUR GAME.<br/><span>YOUR MOMENT.</span></h1><p className="ggl-lead">Local competition. Real players. Bragging rights earned one match at a time. Find your game and get ready to compete with GGL.</p><div className="ggl-actions"><a className="ggl-primary" href="#tournaments">EXPLORE TOURNAMENTS <span>↘</span></a><button className="ggl-secondary" onClick={() => setShowLogin(true)}>PLAYER ACCOUNT ↗</button></div><div className="ggl-stats"><div><b>01</b><span>FIND YOUR GAME</span></div><div><b>02</b><span>REGISTER TO PLAY</span></div><div><b>03</b><span>MAKE YOUR MARK</span></div></div></div><div className="ggl-hero-art"><div className="ggl-orbit orbit-a"/><div className="ggl-orbit orbit-b"/><div className="ggl-crosshair">+</div><div className="ggl-art-tag">GGL / PLAYER ONE</div><div className="ggl-giant">G<span>G</span>L</div><div className="ggl-art-bottom"><span>ESTABLISH YOUR LEGACY</span><span>BW · ONLINE ARENA</span></div></div></section>
-    <section id="tournaments" className="ggl-section"><div className="ggl-section-head"><div><p className="ggl-eyebrow">01 / CHOOSE YOUR BATTLE</p><h2>THE NEXT <span>ROUND.</span></h2></div><p>Upcoming competitions, all in one place.<br/>Event details will be published by the organiser.</p></div><div className="ggl-filters">{["ALL", ...tournaments.map(t => t.game)].map(f => <button key={f} className={tab === f ? "active" : ""} onClick={() => setTab(f)}>{f}</button>)}</div><div className="ggl-cards">{visible.map((t, i) => <article className={"ggl-card " + t.accent} key={t.id}><div className="ggl-card-art"><span className="ggl-card-index">GGL / 0{i+1}</span><span className="ggl-game-word">{t.game}</span><span className="ggl-card-status">{t.status}</span><div className="ggl-art-lines"/></div><div className="ggl-card-body"><p className="ggl-eyebrow">{t.mode}</p><h3>{t.title}</h3><div className="ggl-details"><div><small>EVENT DATE</small><b>{t.date}</b></div><div><small>ENTRY FEE</small><b>{t.fee}</b></div><div><small>PRIZE POOL</small><b>{t.prize}</b></div></div><p className="ggl-slots">{t.slots}</p><button className="ggl-card-cta" onClick={() => setSelected(t)}>VIEW EVENT DETAILS <span>↗</span></button></div></article>)}</div><p className="ggl-disclaimer">Tournament titles are previews only. Official dates, fees, prizes and registration availability will be confirmed by Lex before entries open.</p></section>
-    <section className="ggl-updates" id="updates"><div><p className="ggl-eyebrow">02 / STAY IN THE LOOP</p><h2>THE NEWS.<br/><span>THE WINS. THE NEXT.</span></h2><p>Follow tournament announcements, match schedules, results and winner highlights from one player account.</p><button className="ggl-primary" onClick={() => setShowLogin(true)}>PLAYER SIGN IN <span>↗</span></button></div><div className="ggl-update-panel"><div className="ggl-panel-top"><span>GGL // TRANSMISSION</span><span className="ggl-live-dot"/> <span>ORGANISER UPDATES</span></div><div className="ggl-update-row"><b>01</b><div><strong>TOURNAMENT ANNOUNCEMENTS</strong><p>New events and registration openings.</p></div><span>SOON</span></div><div className="ggl-update-row"><b>02</b><div><strong>RESULTS & WINNERS</strong><p>Standings, match outcomes and highlights.</p></div><span>SOON</span></div><div className="ggl-update-row"><b>03</b><div><strong>PLAYER NOTIFICATIONS</strong><p>Updates for the tournaments you follow.</p></div><span>SOON</span></div></div></section>
-    <footer className="ggl-footer"><Link href="/" className="ggl-brand"><span className="ggl-mark">G</span><span>GGL<span className="ggl-green"> TOURNAMENTS</span><small>POWERED BY ADMIN HUB</small></span></Link><span>PLAY FAIR. PLAY HARD. PLAY GGL.</span><button onClick={() => setShowLogin(true)}>PLAYER AREA ↗</button></footer>
-    {selected && <div className="ggl-overlay" onClick={() => setSelected(null)}><section className="ggl-modal" role="dialog" aria-modal="true" aria-label={selected.title} onClick={e => e.stopPropagation()}><button className="ggl-close" onClick={() => setSelected(null)}>×</button><p className="ggl-eyebrow">GGL / EVENT DETAILS</p><h2>{selected.title}</h2><p>{selected.game} · {selected.mode}</p><div className="ggl-modal-notice">This event has not opened for registration yet. Lex will publish the official schedule, rules, entry fee and prize details here.</div><button className="ggl-primary" onClick={() => { setSelected(null); setShowLogin(true); }}>PLAYER ACCOUNT <span>↗</span></button></section></div>}
-    {showLogin && <div className="ggl-overlay" onClick={() => setShowLogin(false)}><section className="ggl-modal" role="dialog" aria-modal="true" aria-label="Player account" onClick={e => e.stopPropagation()}><button className="ggl-close" onClick={() => setShowLogin(false)}>×</button><p className="ggl-eyebrow">GGL / PLAYER AREA</p><h2>YOUR NEXT<br/><span>ROUND STARTS HERE.</span></h2><p>Player registration and sign-in are being connected. Tournament entry and payment-proof uploads will only open once account security and organiser verification are ready.</p><div className="ggl-modal-notice">PLAYER ACCOUNTS · COMING SOON</div><button className="ggl-secondary" onClick={() => setShowLogin(false)}>BACK TO TOURNAMENTS</button></section></div>}
+    <header className="ggl-nav">
+      <Link href="/" className="ggl-brand" aria-label="Admin Hub home">
+        <span className="ggl-mark">GGL</span>
+        <span className="ggl-brand-copy">GGL <span>TOURNAMENTS</span><small>GABORONE GAMING LEAGUE</small></span>
+      </Link>
+      <nav aria-label="Main navigation">
+        <a href="#tournaments">Tournaments</a>
+        <a href="#updates">News & results</a>
+        <button className="ggl-login" onClick={() => setShowLogin(true)}>Player sign in <span>↗</span></button>
+      </nav>
+    </header>
+
+    <section className="ggl-hero">
+      <div className="ggl-hero-copy">
+        <p className="ggl-eyebrow"><span /> BUILT FOR THE COMPETITIVE</p>
+        <h1>It’s game time.<br /><em>Make it count.</em></h1>
+        <p className="ggl-lead">Your local gaming community. Your favourite games. A place to compete, follow the results and see who comes out on top.</p>
+        <div className="ggl-actions">
+          <a className="ggl-primary" href="#tournaments">Explore tournaments <span>↘</span></a>
+          <button className="ggl-secondary" onClick={() => setShowLogin(true)}>Player area</button>
+        </div>
+        <div className="ggl-hero-note"><span className="ggl-note-dot" /> Tournament announcements, registration and results — all in one place.</div>
+      </div>
+      <div className="ggl-feature" aria-label="GGL tournament feature panel">
+        <div className="ggl-feature-top"><span>GGL / COMPETITIVE PLAY</span><span className="ggl-season">BOTSWANA</span></div>
+        <div className="ggl-feature-center">
+          <div className="ggl-feature-kicker">THE NEXT MATCH STARTS HERE</div>
+          <div className="ggl-feature-title">PLAY<span>TO WIN.</span></div>
+          <div className="ggl-scoreline"><span>PLAYER ONE</span><b>VS</b><span>PLAYER TWO</span></div>
+        </div>
+        <div className="ggl-feature-bottom"><span>FIND YOUR GAME</span><span>FOLLOW THE ACTION <b>↗</b></span></div>
+      </div>
+    </section>
+
+    <section id="tournaments" className="ggl-section">
+      <div className="ggl-section-head">
+        <div><p className="ggl-eyebrow">THE LINE-UP</p><h2>Choose your <em>game.</em></h2></div>
+        <p>Competition details will be published here by the organiser as events are confirmed.</p>
+      </div>
+      <div className="ggl-filters">
+        {["ALL", ...tournaments.map(t => t.game)].map(f => <button key={f} className={tab === f ? "active" : ""} onClick={() => setTab(f)}>{f === "ALL" ? "All games" : f}</button>)}
+      </div>
+      <div className="ggl-cards">
+        {visible.map(t => <article className={"ggl-card " + t.accent} key={t.id}>
+          <div className="ggl-card-art">
+            <span className="ggl-card-status"><i /> {t.status}</span>
+            <span className="ggl-game-word">{t.game}</span>
+            <span className="ggl-card-mode">{t.mode}</span>
+          </div>
+          <div className="ggl-card-body">
+            <p className="ggl-card-label">GGL TOURNAMENT</p>
+            <h3>{t.title}</h3>
+            <div className="ggl-details">
+              <div><small>DATE</small><b>{t.date}</b></div>
+              <div><small>ENTRY</small><b>{t.fee}</b></div>
+              <div><small>PRIZE</small><b>{t.prize}</b></div>
+            </div>
+            <p className="ggl-slots">{t.slots}</p>
+            <button className="ggl-card-cta" onClick={() => setSelected(t)}>Event details <span>↗</span></button>
+          </div>
+        </article>)}
+      </div>
+      <p className="ggl-disclaimer">These are planned tournament categories, not confirmed live events. Official dates, entry fees, prizes and registration status will be added when confirmed by Lex.</p>
+    </section>
+
+    <section className="ggl-updates" id="updates">
+      <div className="ggl-updates-copy">
+        <p className="ggl-eyebrow">STAY IN THE LOOP</p>
+        <h2>Follow the games.<br /><em>Celebrate the wins.</em></h2>
+        <p>Announcements, match schedules, results and winner highlights are planned for the GGL player area.</p>
+        <button className="ggl-primary" onClick={() => setShowLogin(true)}>Player sign in <span>↗</span></button>
+      </div>
+      <div className="ggl-update-panel">
+        <div className="ggl-panel-top"><span>FROM THE GGL DESK</span><span>UPDATES</span></div>
+        <div className="ggl-update-row"><span className="ggl-update-number">01</span><div><strong>Tournament announcements</strong><p>New events and registration openings.</p></div><span className="ggl-soon">PLANNED</span></div>
+        <div className="ggl-update-row"><span className="ggl-update-number">02</span><div><strong>Results & winners</strong><p>Match outcomes, standings and highlights.</p></div><span className="ggl-soon">PLANNED</span></div>
+        <div className="ggl-update-row"><span className="ggl-update-number">03</span><div><strong>Player updates</strong><p>Follow the competitions that matter to you.</p></div><span className="ggl-soon">PLANNED</span></div>
+      </div>
+    </section>
+
+    <footer className="ggl-footer">
+      <Link href="/" className="ggl-brand"><span className="ggl-mark">GGL</span><span className="ggl-brand-copy">GGL <span>TOURNAMENTS</span><small>POWERED BY ADMIN HUB</small></span></Link>
+      <span className="ggl-footer-line">PLAY FAIR. RESPECT THE GAME.</span>
+      <button onClick={() => setShowLogin(true)}>Player area ↗</button>
+    </footer>
+
+    {selected && <div className="ggl-overlay" onClick={() => setSelected(null)}><section className="ggl-modal" role="dialog" aria-modal="true" aria-label={selected.title} onClick={e => e.stopPropagation()}>
+      <button className="ggl-close" aria-label="Close dialog" onClick={() => setSelected(null)}>×</button>
+      <p className="ggl-eyebrow">GGL / EVENT DETAILS</p><h2>{selected.title}</h2><p>{selected.game} · {selected.mode}</p>
+      <div className="ggl-modal-notice">This tournament is not open for registration yet. The organiser will publish the confirmed schedule, rules, entry fee and prize details here.</div>
+      <button className="ggl-primary" onClick={() => { setSelected(null); setShowLogin(true); }}>Player area <span>↗</span></button>
+    </section></div>}
+
+    {showLogin && <div className="ggl-overlay" onClick={() => setShowLogin(false)}><section className="ggl-modal" role="dialog" aria-modal="true" aria-label="Player account" onClick={e => e.stopPropagation()}>
+      <button className="ggl-close" aria-label="Close dialog" onClick={() => setShowLogin(false)}>×</button>
+      <p className="ggl-eyebrow">GGL / PLAYER AREA</p><h2>Your next match <em>starts here.</em></h2>
+      <p>Player registration and sign-in are still being built. Tournament registration and proof-of-payment uploads will open once secure accounts and organiser verification are ready.</p>
+      <div className="ggl-modal-notice">PLAYER ACCOUNTS · IN DEVELOPMENT</div>
+      <button className="ggl-secondary" onClick={() => setShowLogin(false)}>Back to tournaments</button>
+    </section></div>}
   </main>;
 }

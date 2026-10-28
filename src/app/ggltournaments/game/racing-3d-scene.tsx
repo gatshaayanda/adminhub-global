@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 import type { Controls, Phase, Race } from "./racing-warmup";
 
@@ -29,27 +28,6 @@ function ribbon(curve: THREE.Curve<THREE.Vector3>, width: number, segments: numb
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
-}
-
-function box(parent: THREE.Group, material: THREE.Material, size: [number, number, number], pos: [number, number, number], radius = 0) {
-  const geometry = new THREE.BoxGeometry(...size);
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(...pos);
-  if (radius) mesh.rotation.y = radius;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
-}
-
-function roundedCarBox(parent: THREE.Group, material: THREE.Material, size: [number, number, number], pos: [number, number, number], radius = .12) {
-  const geometry = new RoundedBoxGeometry(...size, 4, radius);
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(...pos);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
 }
 
 function makeCar() {

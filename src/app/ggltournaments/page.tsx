@@ -79,16 +79,7 @@ export default function GGLTournamentsPage() {
       </div>
     </section>
 
-    <section className="ggl-game-section" aria-label="Playable GGL three-dimensional racing game">
-      <div className="ggl-game-section-head">
-        <div className="ggl-game-promo-copy">
-          <p className="ggl-eyebrow">ADMIN HUB EXPERIMENT / PLAY NOW</p>
-          <h2>Take the circuit.<br /><em>Master the corner.</em></h2>
-          <p>Drive the same three-dimensional practice circuit built for Big Brothers Car Wash: steer through bends, brake at the boards, manage your speed and use NOS on the exit.</p>
-        </div>
-      </div>
-      <GGLRacingGame embedded />
-    </section>
+
 
     <section id="tournaments" className="ggl-section">
       <div className="ggl-section-head">
@@ -138,6 +129,17 @@ export default function GGLTournamentsPage() {
     <section className="ggl-admin-access" aria-label="Tournament organiser access">
       <span>ORGANISER ACCESS</span>
       <button onClick={() => setShowAdminLogin(true)}>Manage content <span aria-hidden="true">↗</span></button>
+    </section>
+
+    <section className="ggl-game-section" aria-label="Playable GGL three-dimensional racing game">
+      <div className="ggl-game-section-head">
+        <div className="ggl-game-promo-copy">
+          <p className="ggl-eyebrow">ADMIN HUB EXPERIMENT / PLAY NOW</p>
+          <h2>Take the circuit.<br /><em>Master the corner.</em></h2>
+          <p>Drive the same three-dimensional practice circuit built for Big Brothers Car Wash: steer through bends, brake at the boards, manage your speed and use NOS on the exit.</p>
+        </div>
+      </div>
+      <GGLRacingGame embedded />
     </section>
 
     <footer className="ggl-footer">

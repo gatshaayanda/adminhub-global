@@ -55,12 +55,12 @@ export default function GGLTournamentsPage() {
       </div>
     </section>
 
-    <section className="ggl-game-section" aria-label="Playable GGL space shooter">
+    <section className="ggl-game-section" aria-label="Playable Admin Hub Spaceship Hub civilisation game">
       <div className="ggl-game-section-head">
         <div className="ggl-game-promo-copy">
-          <p className="ggl-eyebrow">GGL ARCADE / PLAY NOW</p>
-          <h2>One pilot.<br /><em>One more run.</em></h2>
-          <p>Fly between planets, shoot incoming craft, dodge meteors and chase your high score without leaving the tournament page.</p>
+          <p className="ggl-eyebrow">ADMIN HUB EXPERIMENT / PLAY NOW</p>
+          <h2>A universe to build.<br /><em>A future to shape.</em></h2>
+          <p>Explore a living star system, found settlements, trade supplies and keep human cultures alive. No enemies. Your decisions shape each world.</p>
         </div>
       </div>
       <GGLSpaceShooter embedded />

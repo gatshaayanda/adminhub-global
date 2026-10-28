@@ -288,7 +288,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   };
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
-    {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Space · free exploration</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>OPEN SPACE EXPLORATION</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL SPACE · EXPLORE AT YOUR PACE</p><h1>Find your place among the stars.</h1><p>Take the ship into open space, steer between distant worlds, and explore at your own pace. Your familiar flight controls are unchanged.</p><p className="warmup-family-note">Open space, a handful of planets, and room to explore.</p></section></>}
+    {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Space · free exploration</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>OPEN SPACE EXPLORATION</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL SPACE · EXPLORE AT YOUR PACE</p><h1>Find your place among the stars.</h1><p>Take the ship into open space, steer between distant worlds, and explore at your own pace. The analog stick handles direction and forward/reverse flight; GAS and BRAKE handle altitude.</p><p className="warmup-family-note">Open space, a handful of planets, and room to explore.</p></section></>}
     {embedded && <div className="race-inline-heading"><div><p className="big-brothers-eyebrow">GGL / OPEN SPACE</p><h2>Explore the system.</h2><p>Use the analog stick to steer and fly forward or backward. GAS lifts you; BRAKE lowers you.</p></div></div>}
     <section className="big-brothers-section warmup-game">
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds nearby</span><strong>05</strong></div></div>
@@ -317,7 +317,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <span className="steering-stick-track" />
             <span className="steering-stick-knob"><span>●</span></span>
           </div>
-          <span className="steering-caption">Move thumb to steer</span>
+          <span className="steering-caption">Steer · forward / reverse</span>
         </div>
         <div className="warmup-driving">
           <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>

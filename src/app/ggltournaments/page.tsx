@@ -54,13 +54,16 @@ export default function GGLTournamentsPage() {
       </div>
     </section>
 
-    <section className="ggl-game-promo" aria-label="Play the GGL space shooter">
-      <div className="ggl-game-promo-copy">
-        <p className="ggl-eyebrow">GGL ARCADE / PLAY NOW</p>
-        <h2>One pilot.<br /><em>One more run.</em></h2>
-        <p>Take the controls, clear the sector and chase your high score in the GGL space-flight shooter.</p>
+    <section className="ggl-game-section" aria-label="Playable GGL space shooter">
+      <div className="ggl-game-section-head">
+        <div className="ggl-game-promo-copy">
+          <p className="ggl-eyebrow">GGL ARCADE / PLAY NOW</p>
+          <h2>One pilot.<br /><em>One more run.</em></h2>
+          <p>Fly your ship, shoot incoming craft, dodge meteors and chase your high score — right here on the tournament page.</p>
+        </div>
+        <Link href="/ggltournaments/game" className="ggl-game-link">Open full screen <span>↗</span></Link>
       </div>
-      <Link href="/ggltournaments/game" className="ggl-game-link">Launch the game <span>↗</span></Link>
+      <iframe className="ggl-game-frame" src="/ggltournaments/game?embed=1" title="Playable GGL spaceship shooter" loading="eager" allow="autoplay" />
     </section>
 
     <section id="tournaments" className="ggl-section">

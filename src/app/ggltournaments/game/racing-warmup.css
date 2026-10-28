@@ -72,7 +72,7 @@
 .warmup-circuit-controls .warmup-actions{display:grid;gap:8px}
 .warmup-circuit-controls .warmup-actions .big-brothers-button{white-space:nowrap}
 .warmup-circuit-controls .warmup-driving button{min-height:60px}
-.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{background:#f4e5df;border-color:#e2c8bd}
+.warmup-circuit-controls .warmup-driving .down-thrust-button{background:#f4e5df;border-color:#e2c8bd}
 .warmup-circuit-controls .warmup-driving .nos-button{background:#dff0a8;border:2px solid #91b83e;color:#20351d;font-weight:900}
 .warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"]{background:#b7ed4e;box-shadow:0 0 0 3px #b7ed4e55,inset 0 -3px 0 #83b92a}
 .warmup-circuit-controls .warmup-wheel{touch-action:none}
@@ -150,8 +150,8 @@
 .warmup-circuit-controls .warmup-driving button{min-width:0;min-height:66px;padding:10px 8px;border-radius:12px;font-size:12px;font-weight:900;line-height:1.15;touch-action:none;user-select:none;-webkit-user-select:none}
 .warmup-circuit-controls .warmup-driving .accelerate-button{background:#d9efb4;border:2px solid #91b83e;color:#20351d;box-shadow:inset 0 -3px 0 #b7d875}
 .warmup-circuit-controls .warmup-driving .accelerate-button:active{background:#bce77c;transform:translateY(1px)}
-.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{background:#f5e5df;border:2px solid #dfc1b7;color:#6f2f24}
-.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]:active{background:#ebc9be;transform:translateY(1px)}
+.warmup-circuit-controls .warmup-driving .down-thrust-button{background:#f5e5df;border:2px solid #dfc1b7;color:#6f2f24}
+.warmup-circuit-controls .warmup-driving .down-thrust-button:active{background:#ebc9be;transform:translateY(1px)}
 .warmup-circuit-controls .warmup-driving .nos-button{grid-column:1/-1;min-height:52px;background:#e5e8fa;border:2px solid #aab2e6;color:#303c83;box-shadow:inset 0 -3px 0 #c6cbef}
 .warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"]{background:#cbd1ff;border-color:#6675d5;box-shadow:0 0 0 3px #6675d522,inset 0 -1px 0 #8f9bea}
 .warmup-circuit-controls .warmup-driving button:disabled,.warmup-circuit-controls .steer-button:disabled{opacity:.42;box-shadow:none}
@@ -190,7 +190,7 @@
 .warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"]{
   box-shadow:0 0 0 2px #6675d522;
 }
-.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{
+.warmup-circuit-controls .warmup-driving .down-thrust-button{
   align-self:center;
   min-height:48px;
   padding:8px 6px;
@@ -202,7 +202,7 @@
     padding:6px 13px!important;
     font-size:10px!important;
   }
-  .warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{
+  .warmup-circuit-controls .warmup-driving .down-thrust-button{
     min-height:46px;
     font-size:10px;
   }
@@ -335,7 +335,7 @@
   line-height:1.15;
   touch-action:none;
 }
-.warmup-circuit-controls .warmup-driving button[aria-label="Brake"]{
+.warmup-circuit-controls .warmup-driving .down-thrust-button{
   grid-column:1;
   background:#f5e5df;
   border:2px solid #dfc1b7;

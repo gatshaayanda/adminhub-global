@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
-import { createRacingTrack, getTrackTurn } from "./racing-track";
 
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean; ascend: boolean; descend: boolean };
@@ -26,8 +25,6 @@ function fmt(seconds: number | null): string {
 export default function RacingWarmup({ embedded = false }: { embedded?: boolean }) {
   const expanded = true;
   const raceRef = useRef<Race>(newRace());
-  const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
-  if (!trackRef.current) trackRef.current = createRacingTrack();
   const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false });
   const phaseRef = useRef<Phase>("ready");
   const [phase, setPhase] = useState<Phase>("ready");
@@ -98,11 +95,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 10.5 : 6.5));
         race.steering += (controls.steer - race.steering) * steerEase;
         const steering = race.steering;
-        const t = wrap(race.progress, 1);
-        const trackTurn = getTrackTurn(trackRef.current!, t, .006);
-        const bend = clamp(Math.abs(trackTurn) * 28, 0, 1);
-        const upcomingTurn = getTrackTurn(trackRef.current!, t + .018, .006);
-        const upcomingBend = clamp(Math.abs(upcomingTurn) * 28, 0, 1);
+        const upcomingBend = 0;
         const speedRatio = race.speed / 205;
         const throttleTarget = controls.accelerate && !controls.brake ? 1 : 0;
         const brakeTarget = controls.brake ? 1 : 0;
@@ -206,113 +199,16 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.lateralG += ((targetYawRate * gripRatio) - race.lateralG) * (1 - Math.exp(-dt * 5));
         race.drift = clamp(race.heading * clamp(Math.abs(nextLateral) / 7, 0, 1) * 0.25, -0.22, 0.22);
 
-        // Circuit projection is used only for lap timing, track limits, and collision queries.
-        let nearestT = wrap(race.trackT, 1);
-        let nearestDistanceSq = Number.POSITIVE_INFINITY;
-        let nearestX = 0;
-        let nearestZ = 0;
-        let nearestTangentX = 0;
-        let nearestTangentZ = -1;
-        // Project onto the local section of the circuit, not the globally nearest
-        // section. At hairpins and nearby return legs, a global nearest-point search
-        // can snap to the wrong branch of the road and make the car appear to cut
-        // across the track or pass through a barrier. The previous frame's trackT
-        // anchors this search while still allowing forward and reverse movement.
-        const projectionSamples = 960;
-        const projectionWindow = 36;
-        const projectionCentre = Math.round(nearestT * projectionSamples);
-        for (let offset = -projectionWindow; offset <= projectionWindow; offset++) {
-          const sample = ((projectionCentre + offset) % projectionSamples + projectionSamples) % projectionSamples;
-          const sampleT = sample / projectionSamples;
-          const point = trackRef.current!.getPointAt(sampleT);
-          const dx = race.worldX - point.x;
-          const dz = race.worldZ - point.z;
-          const distanceSq = dx * dx + dz * dz;
-          if (distanceSq < nearestDistanceSq) {
-            nearestDistanceSq = distanceSq; nearestT = sampleT; nearestX = point.x; nearestZ = point.z;
-            const tangent = trackRef.current!.getTangentAt(sampleT);
-            nearestTangentX = tangent.x; nearestTangentZ = tangent.z;
-          }
-        }
-        const dx = race.worldX - nearestX;
-        const dz = race.worldZ - nearestZ;
-        const signedOffset = dx * -nearestTangentZ + dz * nearestTangentX;
-        const distanceFromCentre = Math.sqrt(nearestDistanceSq);
-        // Resolve against the actual nearest-point displacement. A tangent-only
-        // signed offset can under-report penetration when the projection lands near
-        // the edge of its search window at a hairpin. The radial vector from the
-        // selected centreline point gives a hard geometric boundary in that case.
-        const sideX = -nearestTangentZ;
-        const sideZ = nearestTangentX;
-        const sideSign = signedOffset < 0 ? -1 : 1;
-        const outwardX = distanceFromCentre > 0.0001 ? dx / distanceFromCentre : sideX * sideSign;
-        const outwardZ = distanceFromCentre > 0.0001 ? dz / distanceFromCentre : sideZ * sideSign;
-        const impactVelocity = race.velocityX * outwardX + race.velocityZ * outwardZ;
-        // The road is 12 units wide and the visible rail is centred at 8.4.
-        // Keep the car centre inside the road edge so its 2.16-unit body cannot
-        // cross the rail, even when the centreline tangent is unstable at a hairpin.
-        const safeOffset = 6.65;
-        if (distanceFromCentre > safeOffset || Math.abs(signedOffset) > safeOffset) {
-          const penetration = Math.max(distanceFromCentre, Math.abs(signedOffset)) - safeOffset;
-          const correctionX = distanceFromCentre > safeOffset
-            ? outwardX
-            : sideX * sideSign;
-          const correctionZ = distanceFromCentre > safeOffset
-            ? outwardZ
-            : sideZ * sideSign;
-          race.worldX = nearestX + correctionX * safeOffset;
-          race.worldZ = nearestZ + correctionZ * safeOffset;
-          if (impactVelocity > 0) {
-            const impactKmh = impactVelocity * 3.6 / 0.28;
-            // Remove outward velocity at the boundary, with a small rebound for a
-            // harder hit. Tangential velocity remains so the car can scrape along a wall.
-            const restitution = impactKmh > 80 ? 0.16 : 0.04;
-            race.velocityX -= outwardX * impactVelocity * (1 + restitution);
-            race.velocityZ -= outwardZ * impactVelocity * (1 + restitution);
-            race.speed *= impactKmh > 115 ? 0.52 : impactKmh > 65 ? 0.72 : 0.88;
-            if (now - race.lastImpactAt > 180) {
-              race.lastImpactAt = now;
-              race.damage = clamp(race.damage + Math.max(0, impactKmh - 18) * (impactKmh > 115 ? 0.78 : impactKmh > 65 ? 0.38 : 0.12), 0, 100);
-              if (impactKmh > 28) notify(impactKmh > 90 ? "Heavy impact · car damaged" : "Barrier contact · speed lost", impactKmh > 90 ? "error" : "info");
-              if (race.damage >= 100 || impactKmh > 178) {
-                controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false };
-                race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
-                phaseRef.current = "crashed"; setPhase("crashed");
-                notify("Major crash · restart the session", "error");
-              }
-            }
-          } else if (penetration > 0) {
-            // If the car was already pressed against the rail or has near-zero outward
-            // velocity, keep it outside the wall anyway; reversing remains available.
-            race.velocityX *= 0.98;
-            race.velocityZ *= 0.98;
-          }
-        }
-        const previousProgress = race.progress;
-        race.trackT = nearestT;
-        race.progress = nearestT < 0.08 && previousProgress % 1 > 0.82 && longitudinalVelocity > 0
-          ? Math.floor(previousProgress) + 1 + nearestT
-          : Math.floor(previousProgress) + nearestT;
-        race.offTrack = distanceFromCentre > 7.2 ? race.offTrack + dt : Math.max(0, race.offTrack - dt * 1.5);
-        if (distanceFromCentre > 7.2 || race.offTrack > 0.5) race.lapInvalid = true;
-        race.lateral = signedOffset;
-        // Practice has no crash/recovery interruption. Going wide can invalidate a
-        // lap, but never takes the car away from the player or resets their inputs.
+        // Free-flight has no track projection, boundary collision, lap invalidation,
+        // or forced route-following. Position is driven only by the existing flight physics.
+        race.trackT = 0;
+        race.progress = 0;
+        race.lateral = 0;
+        race.offTrack = 0;
+        race.lapInvalid = false;
 
         race.elapsed += dt;
         race.lapTime += dt;
-        const lapNow = Math.floor(race.progress) + 1;
-        if (lapNow > race.lap) {
-          if (!race.lapInvalid && (race.bestLap === null || race.lapTime < race.bestLap)) {
-            race.bestLap = race.lapTime;
-            setBestLap(race.lapTime);
-            notify("New personal best lap!", "success");
-          } else if (race.lapInvalid) notify("Lap invalid — stay on the racing surface.", "error");
-          race.lap = lapNow;
-          race.lapTime = 0;
-          race.lapInvalid = false;
-          setLap(lapNow);
-        }
         if (now - lastUi > 33) {
           lastUi = now;
           setSpeed(race.speed);
@@ -399,18 +295,18 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   };
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
-    {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Racing · solo circuit practice</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Racing<small>TOURNAMENTS · CIRCUIT PRACTICE</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL RACING · PRACTICE ANYTIME</p><h1>Practice today. Race your people tomorrow.</h1><p>Sharpen your braking, smooth your corners and chase a cleaner lap. The practice circuit is here for quick breaks at home, at the tuckshop or while you wait for a wash—even when your connection is gone.</p><p className="warmup-family-note">Racing tip: invite a friend to take the next turn. The best rivalry is one you can laugh about together.</p></section></>}
-    {embedded && <div className="race-inline-heading"><div><p className="big-brothers-eyebrow">GGL / 3D CIRCUIT PRACTICE</p><h2>Find your racing line.</h2><p>Brake before the bend, turn in smoothly, clip the apex and accelerate out. Chase a cleaner lap with steering, braking and NOS.</p></div></div>}
+    {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Space · free exploration</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>OPEN SPACE EXPLORATION</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL SPACE · EXPLORE AT YOUR PACE</p><h1>Find your place among the stars.</h1><p>Take the ship into open space, steer between distant worlds, and explore at your own pace. Your familiar flight controls are unchanged.</p><p className="warmup-family-note">Open space, a handful of planets, and room to explore.</p></section></>}
+    {embedded && <div className="race-inline-heading"><div><p className="big-brothers-eyebrow">GGL / OPEN SPACE</p><h2>Explore the system.</h2><p>Steer, accelerate, brake, boost, and use the vertical controls to move freely through space.</p></div></div>}
     <section className="big-brothers-section warmup-game">
-      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Lap</span><strong>{lap}</strong></div><div><span>Current lap</span><strong>{fmt(lapTime)}</strong></div><div><span>Best lap</span><strong>{fmt(bestLap)}</strong></div></div>
+      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds nearby</span><strong>05</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
-          <span>GGL RACING · CIRCUIT PRACTICE</span>
-          <strong>{phase === "ready" ? "Find your racing line" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Nice driving!"}</strong>
-          <p>{phase === "ready" ? "Follow the green line. Brake at the boards, turn in on cue, clip the apex and unwind onto the exit." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Session complete. Take another lap and beat your time."}</p>
+          <span>GGL SPACE · FREE EXPLORATION</span>
+          <strong>{phase === "ready" ? "Ready for launch" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Nice driving!"}</strong>
+          <p>{phase === "ready" ? "Use the familiar controls to fly through open space and look around the nearby planets." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Enjoy the open space. You can pause or restart whenever you like."}</p>
         </div>
       </div>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>

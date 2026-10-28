@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import "./space-game.css";
 
 type GameStatus = "ready" | "running" | "paused" | "over";
@@ -29,6 +29,7 @@ export default function GGLSpaceShooterPage() {
   const [soundOn, setSoundOn] = useState(false);
   const imagesRef = useRef<Partial<Record<SpriteName, HTMLImageElement>>>({});
   const soundRef = useRef<AudioContext | null>(null);
+  const soundOnRef = useRef(false);
 
   const changeStatus = useCallback((next: GameStatus) => {
     statusRef.current = next;
@@ -45,6 +46,7 @@ export default function GGLSpaceShooterPage() {
 
   const toggleSound = useCallback(() => {
     setSoundOn((current) => {
+      soundOnRef.current = !current;
       if (!current && typeof window !== "undefined") {
         const Ctx = window.AudioContext;
         if (Ctx) {
@@ -107,7 +109,7 @@ export default function GGLSpaceShooterPage() {
       }
     };
     const playTone = (frequency: number, duration: number, wave: OscillatorType = "triangle") => {
-      if (!soundOn || !soundRef.current) return;
+      if (!soundOnRef.current || !soundRef.current) return;
       try {
         const audio = soundRef.current;
         const osc = audio.createOscillator();
@@ -318,9 +320,9 @@ export default function GGLSpaceShooterPage() {
       window.removeEventListener("keyup", keyUp);
       soundRef.current?.close().catch(() => undefined);
     };
-  }, [changeStatus, soundOn]);
+  }, [changeStatus]);
 
-  const press = (key: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
+  const press = (key: string) => (event: PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerRef.current[key] = true;

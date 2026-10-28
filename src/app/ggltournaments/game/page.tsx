@@ -327,7 +327,7 @@ export default function GGLSpaceShooterPage() {
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerRef.current[key] = true;
   };
-  const release = (key: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
+  const release = (key: string) => (event: PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     pointerRef.current[key] = false;
   };

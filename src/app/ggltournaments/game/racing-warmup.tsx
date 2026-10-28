@@ -6,7 +6,7 @@ import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
-export type Controls = { steer: number; flight: number; accelerate: boolean; brake: boolean; boost: boolean };
+export type Controls = { steer: number; flight: number; accelerate: boolean; brake: boolean; boost: boolean; fire: boolean };
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
@@ -24,7 +24,7 @@ function fmt(seconds: number | null): string {
 export default function RacingWarmup({ embedded = false }: { embedded?: boolean }) {
   const expanded = true;
   const raceRef = useRef<Race>(newRace());
-  const controlsRef = useRef<Controls>({ steer: 0, flight: 0, accelerate: false, brake: false, boost: false });
+  const controlsRef = useRef<Controls>({ steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false });
   const phaseRef = useRef<Phase>("ready");
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdown, setCountdown] = useState(3);
@@ -50,14 +50,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
-    controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false };
+    controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false };
     setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => reset(true), [reset]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
-      controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false };
+      controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false };
       setBoostActive(false); phaseRef.current = "paused"; setPhase("paused");
     } else if (phaseRef.current === "paused") {
       raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
@@ -88,7 +88,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
         // Smooth steering inputs before applying tyre force; ease back to centre on release.
-        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 10.5 : 6.5));
+        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 18 : 13));
         race.steering += (controls.steer - race.steering) * steerEase;
         const steering = race.steering;
         const speedRatio = race.speed / 205;
@@ -96,7 +96,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // The BRAKE control now lowers altitude; reverse thrust comes from pulling
         // the analog stick down, so it must not also apply a racing-style brake.
         const brakeTarget = 0;
-        race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 3.8 : 6.5)));
+        race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 10 : 12)));
         race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 32 : 12)));
         const boost = controls.boost && race.nos > 0 && !controls.brake;
         const exitBonus = now < cornerSkillRef.current.exitBoostUntil ? 5 : 0;
@@ -177,7 +177,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const updatedForwardZ = -Math.cos(race.worldYaw);
         const updatedLateralX = Math.cos(race.worldYaw);
         const updatedLateralZ = -Math.sin(race.worldYaw);
-        const driveAccel = race.throttle * 17 + (boost && race.throttle >= 0 ? 12 : 0);
+        const driveAccel = race.throttle * 30 + (boost && race.throttle >= 0 ? 62 : 0);
         const brakeAccel = race.brakePressure * 28 * brakeEfficiency;
         const dragAccel = longitudinalVelocity * (0.32 + Math.abs(longitudinalVelocity) * 0.012);
         let nextLongitudinal = longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt;
@@ -231,6 +231,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.flight = 1;
       if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") controlsRef.current.flight = -1;
       if (e.key === " " || e.key === "Shift") controlsRef.current.boost = true;
+      if (e.key.toLowerCase() === "f" || e.key === "Enter") controlsRef.current.fire = true;
       if (e.key.toLowerCase() === "e") controlsRef.current.accelerate = true;
       if (e.key.toLowerCase() === "q") controlsRef.current.brake = true;
       if ((e.key.toLowerCase() === "p" || e.key === "Escape") && !e.repeat) pauseRace();
@@ -240,10 +241,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.flight = 0;
       if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") controlsRef.current.flight = 0;
       if (e.key === " " || e.key === "Shift") { controlsRef.current.boost = false; setBoostActive(false); }
+      if (e.key.toLowerCase() === "f" || e.key === "Enter") controlsRef.current.fire = false;
       if (e.key.toLowerCase() === "e") controlsRef.current.accelerate = false;
       if (e.key.toLowerCase() === "q") controlsRef.current.brake = false;
     };
-    const release = () => { controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false }; setBoostActive(false); };
+    const release = () => { controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false }; setBoostActive(false); };
     window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp); window.addEventListener("blur", release);
     return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", release); };
   }, [pauseRace, embedded, expanded]);
@@ -322,11 +324,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         <div className="warmup-driving">
           <button type="button" className="down-thrust-button" aria-label="Down thrusters" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>DOWN THRUST ↓</button>
           <button type="button" className="accelerate-button up-thrust-button" aria-label="Up thrusters" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>UP THRUST ↑</button>
+          <button type="button" className="projectile-button" aria-label="Fire projectile" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controlsRef.current.fire = true; }} onPointerUp={() => { controlsRef.current.fire = false; }} onPointerCancel={() => { controlsRef.current.fire = false; }} onLostPointerCapture={() => { controlsRef.current.fire = false; }}>FIRE ✦</button>
           <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
       </div>
-      <p className="warmup-help">Phone: drag the analog stick left/right to steer and up/down to fly forward/back. UP THRUST ↑ raises altitude; DOWN THRUST ↓ lowers altitude. Tap NOS to toggle a burst. Desktop: ← / → or A / D steer, ↑ / W forward, ↓ / S reverse, E up thrust, Q down thrust, Space / Shift NOS, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>
+      <p className="warmup-help">Phone: drag the analog stick left/right to steer and up/down to fly forward/back. UP THRUST ↑ raises altitude; DOWN THRUST ↓ lowers altitude. Tap NOS to toggle a burst. Desktop: ← / → or A / D steer, ↑ / W forward, ↓ / S reverse, E up thrust, Q down thrust, Space / Shift NOS, F / Enter fire, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>
     </section>
     {!embedded && <footer className="big-brothers-footer"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>TOURNAMENTS · OPEN SPACE</small></span></Link><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></footer>}
   </div>;

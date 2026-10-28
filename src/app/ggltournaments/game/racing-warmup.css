@@ -496,3 +496,23 @@
  .space-message{gap:8px;flex-direction:column}
  .space-hub .space-help{font-size:10px}
 }
+
+
+/* Interactive top-down navigation map; map markers also select the active flight target. */
+.space-map-shell{margin:12px 0;padding:15px;border:1px solid #243b58;border-radius:13px;background:#0b192a}
+.space-map{position:relative;height:clamp(250px,38vw,390px);overflow:hidden;border:1px solid #28425e;border-radius:12px;background:radial-gradient(ellipse at 50% 42%,#122d4b 0%,#081526 62%,#050d19 100%)}
+.space-map-svg{position:absolute;inset:0;width:100%;height:100%;fill:none;stroke:#284764;stroke-width:.3;pointer-events:none}
+.space-map-svg ellipse{stroke:#39728d;stroke-dasharray:1.2 1.7;opacity:.7}
+.space-map-marker,.space-map-ship{position:absolute;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:2px;min-width:0;padding:3px 4px;border:0;background:transparent;color:#a8c5df;z-index:2}
+.space-map-marker{cursor:pointer}
+.space-map-marker>span{display:grid;place-items:center;width:26px;height:26px;border:1px solid #7b91ff;border-radius:50%;background:#25275c;color:#d8d8ff;font-size:12px;box-shadow:0 0 12px #7877ff33}
+.space-map-marker.station>span{border-color:#65f5ff;background:#104457;color:#9af7ff}
+.space-map-marker.pod>span{border-color:#ffd66b;background:#59421a;color:#ffe6a0}
+.space-map-marker.selected>span{outline:2px solid #fff;outline-offset:2px;box-shadow:0 0 20px #65f5ff99}
+.space-map-marker.recovered{opacity:.35}
+.space-map-marker small,.space-map-ship small{max-width:80px;color:#b5cbe0;font-size:8px;white-space:nowrap;text-shadow:0 1px 4px #000}
+.space-map-ship{z-index:3;color:#82f6ff;pointer-events:none}
+.space-map-ship>span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#65f5ff;color:#072033;box-shadow:0 0 18px #65f5ffb0;font-size:12px}
+.space-map-ship small{color:#65f5ff;font-weight:900;letter-spacing:.1em}
+.space-map-caption{margin:9px 0 0;color:#8da8c3;font-size:10px;line-height:1.5}
+@media(max-width:680px){.space-map-shell{padding:10px}.space-map{height:280px}.space-map-marker>span{width:23px;height:23px}.space-map-marker small{font-size:7px}}

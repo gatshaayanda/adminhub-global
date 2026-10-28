@@ -23,4 +23,4 @@ This project uses [`next/font`](https://nextjs.org) to optimize fonts.
 <!-- deployment probe 2026-10-06 -->
 <!-- deployment probe 2026-10-06-second -->
 <!-- deployment trigger: 2026-10-06 -->
-<!-- deployment retrigger: 2026-10-08 -->
+<!-- deployment retrigger: 2026-10-28 -->

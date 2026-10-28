@@ -62,10 +62,10 @@ export default function HomePage() {
           <p className="admin-section-lead">
             These examples show how a reusable foundation is adapted to different
             businesses and their real-world workflows. Open a case study to see the
-            tool and visit the project. Where a business is comfortable being contacted,
-            you can also ask them independently about their experience with Admin Hub
-            and its founder. References are never invented or presented as endorsements
-            without permission.
+            tool and visit the project. Where a business has agreed to act as a reference, you can contact them
+            independently about their experience with Admin Hub and its founder.
+            We only present genuine references with permission; a project example is
+            not automatically a testimonial or endorsement.
           </p>
         </div>
         <IndustryProjectShowcase />

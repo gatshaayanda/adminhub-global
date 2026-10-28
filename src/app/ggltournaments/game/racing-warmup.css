@@ -415,3 +415,84 @@
 .warmup-circuit-controls .warmup-flight-controls{grid-column:1/-1;grid-row:2;flex-direction:row;justify-content:center}
 .warmup-circuit-controls .warmup-flight-controls button{width:50%;max-width:150px;min-height:40px}
 @media(min-width:641px){.warmup-circuit-controls .warmup-flight-controls{grid-column:1/-1;grid-row:auto;flex-direction:row}.warmup-circuit-controls .warmup-flight-controls button{width:auto;min-width:110px}}
+
+
+/* GGL Space Hub: open-world exploration, navigation, docking and preservation UI. */
+.space-hub{background:#07101f;color:#eaf4ff}
+.space-hub .space-intro h1{color:#f5f9ff}
+.space-hub .space-intro>p:not(.big-brothers-eyebrow){color:#a9bfd5}
+.space-hub .space-inline-heading h2{color:#f4f8ff}
+.space-hub .space-inline-heading p:not(.big-brothers-eyebrow){color:#b5c7da}
+.space-hub .space-game{max-width:1120px!important}
+.space-hub .space-canvas-wrap{height:clamp(390px,60svh,650px);min-height:390px;border:1px solid #243b58;border-radius:16px;background:#030716;box-shadow:0 20px 60px #0008}
+.space-hub .racing-3d-root{background:#030716}
+.space-hub .space-hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:10px}
+.space-hub .space-hud>div{padding:12px 14px;border:1px solid #243b58;border-radius:11px;background:#0d1b2d;display:grid;gap:5px}
+.space-hub .space-hud span,.space-hub .space-section-label>span{color:#82a5c8;font-size:9px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}
+.space-hub .space-hud strong{font:750 clamp(20px,3vw,28px)/1.1 "Space Grotesk",system-ui,sans-serif;color:#f3f8ff}
+.space-hub .space-hud small{font:700 10px system-ui;color:#8fa9c2}
+.space-mission-chip{position:absolute;z-index:3;top:12px;left:12px;padding:9px 12px;border:1px solid #6b8ca766;border-radius:9px;background:#08182de8;color:#eaf4ff;font-size:9px;font-weight:900;letter-spacing:.1em;pointer-events:none}
+.space-mission-chip span{display:inline-block;width:7px;height:7px;margin-right:8px;border-radius:50%;background:#65f5ff;box-shadow:0 0 12px #65f5ff}
+.space-hub .space-overlay{pointer-events:auto;background:linear-gradient(180deg,#03071662,#030716d9)}
+.space-hub .space-overlay>span{color:#78f2ff}
+.space-hub .space-overlay p{color:#d0e0f0}
+.space-hub .space-overlay button{pointer-events:auto;margin-top:8px}
+.space-message{display:flex;gap:14px;align-items:flex-start;margin:10px 0;padding:13px 15px;border:1px solid #29415f;border-radius:11px;background:#0c1b2d}
+.space-message strong{flex:0 0 auto;color:#78f2ff;font-size:9px;letter-spacing:.13em;padding-top:2px}
+.space-message p{margin:0;color:#d7e6f5;font-size:12px;line-height:1.55}
+.space-nav{margin-top:12px;padding:15px;border:1px solid #243b58;border-radius:13px;background:#0b192a}
+.space-section-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
+.space-section-label strong{color:#f3f8ff;font-size:13px}
+.space-targets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.space-targets button{display:grid;align-content:start;justify-items:start;gap:6px;min-width:0;min-height:112px;padding:11px;border:1px solid #29415e;border-radius:10px;background:#102238;color:#dcecff;text-align:left;cursor:pointer}
+.space-targets button.selected{border-color:#65f5ff;background:#123048;box-shadow:inset 0 0 0 1px #65f5ff44}
+.space-targets button>span{color:#65f5ff;font-size:18px}
+.space-targets button strong{font-size:11px}
+.space-targets button small{font-size:9px;line-height:1.45;color:#9bb3ca}
+.space-distance{display:flex;justify-content:space-between;gap:10px;margin:12px 0 0;color:#8ca8c3;font-size:9px;font-weight:900;letter-spacing:.13em}
+.space-distance strong{color:#e8f4ff;font-variant-numeric:tabular-nums}
+.space-interactions{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:10px}
+.space-interactions button{display:flex;align-items:center;gap:10px;min-height:58px;padding:10px 13px;border:1px solid #29415e;border-radius:10px;background:#102238;color:#70efff;font-size:21px;text-align:left;cursor:pointer}
+.space-interactions button span{display:grid;gap:4px;font-size:10px;font-weight:900;letter-spacing:.04em}
+.space-interactions button small{color:#9bb3ca;font-size:9px;font-weight:600;letter-spacing:0}
+.space-interactions button:disabled{opacity:.4;cursor:not-allowed}
+.space-interactions .space-pause{justify-content:center;min-width:112px;background:#d9f7ff;color:#082039;font-size:11px;font-weight:900}
+.space-nos{display:grid;gap:7px;margin:10px 0;padding:11px 13px;border:1px solid #243b58;border-radius:10px;background:#0b192a}
+.space-nos>div:first-child{display:flex;justify-content:space-between;color:#a6bfd7;font-size:10px;font-weight:900;letter-spacing:.1em}
+.space-nos>div:first-child span{color:#78f2ff;font-variant-numeric:tabular-nums}
+.space-hub .nos-track{background:#1a2f47}
+.space-hub .nos-track span{background:linear-gradient(90deg,#16b9de,#8bf5ff)}
+.space-controls{display:grid;grid-template-columns:135px minmax(0,1fr);gap:12px;align-items:stretch;margin-top:10px}
+.space-hub .space-steering{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #243b58;border-radius:13px;background:#0b192a}
+.space-stick{position:relative;display:grid;place-items:center;width:100px;height:100px;border:1px solid #355574;border-radius:50%;background:radial-gradient(circle,#163651,#0b192a 68%);touch-action:none;user-select:none}
+.space-stick.is-disabled{opacity:.45}
+.space-stick-track{position:absolute;inset:15px;border:1px dashed #4d789b;border-radius:50%}
+.space-stick-knob{display:grid;place-items:center;width:42px;height:42px;border:1px solid #80f4ff;border-radius:50%;background:#164b65;color:#8df6ff;box-shadow:0 0 20px #32dfff44;pointer-events:none}
+.space-hub .steering-caption{color:#8ca8c3;font-size:9px}
+.space-flight-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.space-flight-grid button{display:grid;place-items:center;align-content:center;gap:5px;min-width:0;min-height:62px;padding:8px 5px;border:1px solid #2b4b69;border-radius:11px;background:#102238;color:#b6f7ff;font-size:19px;font-weight:900;touch-action:none;user-select:none}
+.space-flight-grid button span{font-size:9px;letter-spacing:.04em;text-align:center}
+.space-flight-grid button:disabled{opacity:.35}
+.space-flight-grid .space-accelerate{background:#123f50;border-color:#24869c}
+.space-flight-grid .space-boost{grid-column:1/-1;min-height:43px;background:#201e48;border-color:#5e56a6;color:#c7c2ff}
+.space-flight-grid .space-boost[aria-pressed=true]{background:#343078;box-shadow:0 0 0 2px #8e87ff44}
+.space-hub .space-help{color:#8da8c3;font-size:10px;line-height:1.7}
+@media(max-width:680px){
+ .space-hub .space-hud{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .space-hub .space-hud>div{padding:9px 11px}
+ .space-hub .space-canvas-wrap{height:clamp(360px,51svh,470px);min-height:360px}
+ .space-targets{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .space-targets button{min-height:100px;padding:9px}
+ .space-interactions{grid-template-columns:1fr 1fr}
+ .space-interactions .space-pause{grid-column:1/-1;min-height:42px}
+ .space-controls{grid-template-columns:86px minmax(0,1fr);gap:7px}
+ .space-hub .space-steering{padding:7px 3px}
+ .space-stick{width:74px;height:74px}
+ .space-stick-knob{width:32px;height:32px}
+ .space-flight-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .space-flight-grid button{min-height:57px;font-size:16px}
+ .space-flight-grid .space-boost{grid-column:1/-1}
+ .space-section-label{align-items:flex-start;flex-direction:column;gap:5px}
+ .space-message{gap:8px;flex-direction:column}
+ .space-hub .space-help{font-size:10px}
+}

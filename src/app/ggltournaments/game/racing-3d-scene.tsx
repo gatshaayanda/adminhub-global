@@ -96,6 +96,20 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const target = SPACE_TARGETS.find(t => t.id === race.targetId) || SPACE_TARGETS[0];
       const targetPos = new THREE.Vector3(...target.position);
       const pos = new THREE.Vector3(race.worldX, race.worldY, race.worldZ);
+      // Planets are solid boundaries: free flight cannot tunnel through a world.
+      for (const world of SPACE_TARGETS.filter(item => item.kind === "planet" || item.kind === "moon")) {
+        if (race.landed === world.id) continue;
+        const center = new THREE.Vector3(...world.position);
+        const delta = pos.clone().sub(center);
+        const distance = delta.length();
+        if (distance < world.radius + 2) {
+          if (distance < 0.001) delta.set(0, 1, 0); else delta.normalize();
+          pos.copy(center.add(delta.multiplyScalar(world.radius + 2)));
+          race.worldX = pos.x; race.worldY = pos.y; race.worldZ = pos.z;
+          race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
+          if (!race.message.startsWith("PLANETARY BOUNDARY")) race.message = "PLANETARY BOUNDARY · slow down and use LAND / TAKE OFF to make a safe landing.";
+        }
+      }
       race.targetDistance = pos.distanceTo(targetPos);
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw));
       ship.position.copy(pos); ship.rotation.y = race.worldYaw; ship.rotation.x = clamp(-race.velocityZ * .008, -.18, .18); ship.rotation.z = clamp(-race.steering * .14, -.24, .24);

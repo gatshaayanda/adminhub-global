@@ -8,10 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "prepare:stockfish": "node scripts/prepare-stockfish.mjs",
-    "postinstall": "npm run prepare:stockfish",
-    "prepare:ggl-space-assets": "node scripts/prepare-ggl-space-assets.mjs",
-    "prebuild": "npm run prepare:ggl-space-assets",
-    "predev": "npm run prepare:ggl-space-assets"
+    "postinstall": "npm run prepare:stockfish"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",
@@ -26,7 +23,8 @@
     "react-dom": "^19.2.3",
     "uploadthing": "^7.7.4",
     "chess.js": "^1.4.0",
-    "stockfish": "18.0.8"
+    "stockfish": "18.0.8",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -39,6 +37,7 @@
     "eslint-config-next": "15.3.3",
     "postcss": "^8.5.4",
     "tailwindcss": "^4.1.8",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@types/three": "^0.180.0"
   }
 }

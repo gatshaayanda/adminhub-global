@@ -1,7 +1,7 @@
 "use client";
 
-import GGLSpaceShooter from "./space-game";
+import GGLRacingGame from "./racing-warmup";
 
-export default function GGLSpaceShooterPage() {
-  return <GGLSpaceShooter />;
+export default function GGLRacingPage() {
+  return <main className="ggl-racing-route"><GGLRacingGame embedded /></main>;
 }

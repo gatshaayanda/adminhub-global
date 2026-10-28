@@ -43,6 +43,7 @@ function makeCar() {
 
 export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const flightClockRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
@@ -66,9 +67,20 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#030716");
     const camera = new THREE.PerspectiveCamera(63,(host.clientWidth||800)/(host.clientHeight||480),.1,900);
-    scene.add(new THREE.HemisphereLight("#9ebdff","#11112e",1.25));
-    const starLight=new THREE.PointLight("#6a7dff",850,480,2); starLight.position.set(-110,80,-90); scene.add(starLight);
-    const nebulaLight=new THREE.PointLight("#d04cff",620,420,2); nebulaLight.position.set(130,45,100); scene.add(nebulaLight);
+    scene.add(new THREE.HemisphereLight("#9ebdff","#080b18",0.42));
+    // A shared star lights the worlds; local time and rotation move the day/night boundary.
+    const sunPosition = new THREE.Vector3(-320, 130, -250);
+    const solarLight = new THREE.DirectionalLight("#ffe0a0", 3.2);
+    solarLight.position.copy(sunPosition); solarLight.target.position.set(0, 0, 0); scene.add(solarLight, solarLight.target);
+    const starLight = new THREE.PointLight("#ffe0a0", 420, 1200, 1.5);
+    starLight.position.copy(sunPosition); scene.add(starLight);
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(24, 32, 24), new THREE.MeshBasicMaterial({ color: "#fff0bd" }));
+    sun.position.copy(sunPosition); scene.add(sun);
+    const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(32, 24, 16), new THREE.MeshBasicMaterial({ color: "#ffbd65", transparent: true, opacity: .12, side: THREE.BackSide }));
+    sunHalo.position.copy(sunPosition); scene.add(sunHalo);
+    const nebulaLight=new THREE.PointLight("#d04cff",90,420,2); nebulaLight.position.set(130,45,100); scene.add(nebulaLight);
+    const planetaryBodies: Array<{ body: THREE.Group; periodHours: number }> = [];
+    let simulationSeconds = 0;
     const starPositions:number[]=[];
     for(let i=0;i<1250;i++){const angle=i*2.399963229728653;const y=((i*37.719)%1)*2-1;const radius=260+((i*71.13)%1)*520;const rr=Math.sqrt(Math.max(0,1-y*y));starPositions.push(Math.cos(angle)*rr*radius,y*radius*.68,Math.sin(angle)*rr*radius);}
     const starGeometry=new THREE.BufferGeometry();starGeometry.setAttribute("position",new THREE.Float32BufferAttribute(starPositions,3));
@@ -77,13 +89,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const addPlanet = (name: string, position: [number, number, number], radius: number, color: string, glow: string, ringed = false) => {
       const world = new THREE.Group();
       world.name = name;
-      world.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 24), new THREE.MeshStandardMaterial({ color, roughness: .9, metalness: .08, emissive: glow, emissiveIntensity: .38, flatShading: true })));
+      world.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 24), new THREE.MeshStandardMaterial({ color, roughness: .9, metalness: .08, emissive: glow, emissiveIntensity: .055, flatShading: true })));
       world.add(new THREE.Mesh(new THREE.SphereGeometry(radius * 1.045, 28, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .12, side: THREE.BackSide })));
       if (ringed) {
         const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.32, Math.max(.6, radius * .025), 8, 96), new THREE.MeshBasicMaterial({ color: "#9b83ff", transparent: true, opacity: .58 }));
         ring.rotation.x = 1.08; ring.rotation.y = -.32; world.add(ring);
       }
       world.position.set(...position); scene.add(world);
+      planetaryBodies.push({ body: world, periodHours: 18 + planetaryBodies.length * 7 });
     };
     addPlanet("Aster", [170, 25, 30], 31, "#4d438d", "#20165d", true);
     addPlanet("Cobalt", [290, -22, 145], 43, "#276f9f", "#103a70");
@@ -93,12 +106,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const moon = new THREE.Mesh(new THREE.SphereGeometry(10, 20, 16), new THREE.MeshStandardMaterial({ color: "#7b9bb4", roughness: .95, metalness: .12, flatShading: true }));
     moon.position.set(-155, 12, -85); scene.add(moon);
     const car = makeCar();
-    // Keep the car's proportions credible against the 12-unit road and leave
-    // more visual room around it for steering on narrow mobile screens.
+    // Preserve the original spacecraft silhouette and its established scale.
     car.scale.setScalar(0.82);
     scene.add(car);
     let altitude = 0;
     const clock = new THREE.Clock();
+    let lastClockPaint = -1;
     let raf = 0;
     const resize = () => {
       const w = Math.max(280, host.clientWidth), h = Math.max(320, host.clientHeight);
@@ -109,11 +122,27 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
       const frameDelta = Math.min(clock.getDelta(), .05);
+      // Accelerated stellar time: four simulated minutes pass per real second.
+      // One clock drives every planet's rotation and its changing sunlit hemisphere.
+      simulationSeconds += frameDelta * 240;
+      const simulationHours = simulationSeconds / 3600 + 6;
+      for (const { body, periodHours } of planetaryBodies) {
+        body.rotation.y = (simulationHours / periodHours) * Math.PI * 2;
+      }
+      if (flightClockRef.current && Math.floor(simulationSeconds / 60) !== lastClockPaint) {
+        lastClockPaint = Math.floor(simulationSeconds / 60);
+        const totalMinutes = (360 + Math.floor(simulationSeconds / 60)) % 1440;
+        const hours = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
+        const minutes = (totalMinutes % 60).toString().padStart(2, "0");
+        const flightMinutes = Math.floor(clock.elapsedTime / 60).toString().padStart(2, "0");
+        const flightSeconds = Math.floor(clock.elapsedTime % 60).toString().padStart(2, "0");
+        flightClockRef.current.textContent = `FLIGHT T+${flightMinutes}:${flightSeconds} · SYSTEM ${hours}:${minutes}`;
+      }
       if (currentPhase === "running") {
         const verticalInput = (controls.ascend ? 1 : 0) - (controls.descend ? 1 : 0);
         altitude = clamp(altitude + verticalInput * frameDelta * 8, -90, 90);
       }
-      // Render the independent world-space spacecraft state; the circuit remains a visual and collision reference.
+      // Render the preserved spacecraft directly in unconstrained world space.
       const carWorld = new THREE.Vector3(race.worldX, .015 + altitude, race.worldZ);
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
@@ -156,6 +185,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
   }, [raceRef, controlsRef, phaseRef]);
 
   return <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"}>
+    <div className="space-flight-clock" aria-label="Flight elapsed time and accelerated system time" ref={flightClockRef}>FLIGHT T+00:00 · SYSTEM 06:00</div>
     <div aria-label="System map" className="space-mini-map">
       <div className="space-mini-map-title">SYSTEM MAP <span>FREE SPACE</span></div>
       <svg viewBox="0 0 180 128" role="img" aria-label="Nearby planets and your ship">

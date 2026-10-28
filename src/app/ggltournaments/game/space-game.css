@@ -15,7 +15,7 @@
 .ggl-space.is-embedded .space-nav,.ggl-space.is-embedded .space-intro,.ggl-space.is-embedded .space-howto,.ggl-space.is-embedded .space-footer{display:none}
 .ggl-space.is-embedded .space-game-shell{max-width:none;padding:0}
 .ggl-space.is-embedded .space-hud{border-radius:0}
-.ggl-space.is-embedded .space-stage{height:clamp(360px,52vw,570px)}
+.ggl-space.is-embedded .space-stage{height:clamp(340px,46vw,520px)}
 .ggl-space.is-embedded .space-overlay{padding:12px}
 .ggl-space.is-embedded .space-overlay-card{padding:clamp(16px,3vw,28px)}
 .ggl-space.is-embedded .space-controls{padding:12px 16px}

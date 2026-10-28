@@ -20,12 +20,15 @@ function freshGame(): GameData {
 export default function GGLSpaceShooterPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const gameRef = useRef<GameData>(freshGame());
+  const gameRef = useRef<GameData>(null as unknown as GameData);
+  if (!gameRef.current) gameRef.current = freshGame();
   const statusRef = useRef<GameStatus>("ready");
   const keysRef = useRef<Record<string, boolean>>({});
   const pointerRef = useRef<Record<string, boolean>>({});
   const [status, setStatus] = useState<GameStatus>("ready");
   const [hud, setHud] = useState({ score: 0, lives: 3, wave: 1, time: 0 });
+  const [bestScore, setBestScore] = useState(0);
+  const bestScoreRef = useRef(0);
   const [soundOn, setSoundOn] = useState(false);
   const imagesRef = useRef<Partial<Record<SpriteName, HTMLImageElement>>>({});
   const soundRef = useRef<AudioContext | null>(null);
@@ -57,6 +60,13 @@ export default function GGLSpaceShooterPage() {
       }
       return !current;
     });
+  }, []);
+
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem("ggl-space-best") || 0);
+    const best = Number.isFinite(saved) && saved > 0 ? saved : 0;
+    bestScoreRef.current = best;
+    setBestScore(best);
   }, []);
 
   useEffect(() => {
@@ -182,7 +192,15 @@ export default function GGLSpaceShooterPage() {
             const px = width / 2 + g.x * width * 0.34;
             burst(px, height * g.y, "#ff6b5f", 22);
             playTone(130, 0.22, "sawtooth");
-            if (g.lives <= 0) changeStatus("over");
+            if (g.lives <= 0) {
+              setHud({ score: g.score, lives: g.lives, wave: g.wave, time: Math.floor(g.time) });
+              if (g.score > bestScoreRef.current) {
+                bestScoreRef.current = g.score;
+                setBestScore(g.score);
+                window.localStorage.setItem("ggl-space-best", String(g.score));
+              }
+              changeStatus("over");
+            }
           }
           if (obj.kind === "enemy" && obj.z < 0.92) {
             for (let i = g.shots.length - 1; i >= 0; i--) {
@@ -347,6 +365,7 @@ export default function GGLSpaceShooterPage() {
       <section className="space-game-shell" aria-label="Playable space shooter">
         <div className="space-hud">
           <div><small>SCORE</small><strong>{hud.score.toLocaleString()}</strong></div>
+          <div><small>BEST</small><strong>{bestScore.toLocaleString()}</strong></div>
           <div><small>SECTOR</small><strong>{String(hud.wave).padStart(2, "0")}</strong></div>
           <div><small>HULL</small><strong className={hud.lives < 2 ? "critical" : ""}>{"◆".repeat(Math.max(0, hud.lives))}<span>{"◇".repeat(Math.max(0, 3 - hud.lives))}</span></strong></div>
           <div><small>FLIGHT TIME</small><strong>{Math.floor(hud.time / 60).toString().padStart(2, "0")}:{(hud.time % 60).toString().padStart(2, "0")}</strong></div>

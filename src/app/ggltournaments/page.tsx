@@ -15,6 +15,7 @@ const tournaments: Tournament[] = [
 export default function GGLTournamentsPage() {
   const [selected, setSelected] = useState<Tournament | null>(null);
   const [showLogin, setShowLogin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [tab, setTab] = useState("ALL");
   const visible = useMemo(() => tab === "ALL" ? tournaments : tournaments.filter(t => t.game === tab), [tab]);
 
@@ -99,11 +100,24 @@ export default function GGLTournamentsPage() {
       </div>
     </section>
 
+    <section className="ggl-admin-access" aria-label="Tournament organiser access">
+      <span>ORGANISER ACCESS</span>
+      <button onClick={() => setShowAdminLogin(true)}>Sign in <span aria-hidden="true">↗</span></button>
+    </section>
+
     <footer className="ggl-footer">
       <Link href="/" className="ggl-brand"><span className="ggl-mark">GGL</span><span className="ggl-brand-copy">GGL <span>TOURNAMENTS</span><small>POWERED BY ADMIN HUB</small></span></Link>
       <span className="ggl-footer-line">PLAY FAIR. RESPECT THE GAME.</span>
       <button onClick={() => setShowLogin(true)}>Player area ↗</button>
     </footer>
+
+    {showAdminLogin && <div className="ggl-overlay" onClick={() => setShowAdminLogin(false)}><section className="ggl-modal" role="dialog" aria-modal="true" aria-label="Organiser sign in" onClick={e => e.stopPropagation()}>
+      <button className="ggl-close" aria-label="Close dialog" onClick={() => setShowAdminLogin(false)}>×</button>
+      <p className="ggl-eyebrow">GGL / ORGANISER ACCESS</p><h2>Organiser <em>sign in.</em></h2>
+      <p>The protected organiser dashboard is not connected yet. This entry point is reserved for Lex’s tournament management tools; no credentials are accepted until secure authentication is implemented.</p>
+      <div className="ggl-modal-notice">ORGANISER DASHBOARD · IN DEVELOPMENT</div>
+      <button className="ggl-secondary" onClick={() => setShowAdminLogin(false)}>Back to tournaments</button>
+    </section></div>}
 
     {selected && <div className="ggl-overlay" onClick={() => setSelected(null)}><section className="ggl-modal" role="dialog" aria-modal="true" aria-label={selected.title} onClick={e => e.stopPropagation()}>
       <button className="ggl-close" aria-label="Close dialog" onClick={() => setSelected(null)}>×</button>

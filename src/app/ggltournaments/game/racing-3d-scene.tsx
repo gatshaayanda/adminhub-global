@@ -121,6 +121,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     moon.add(moonBarrier);
     planetBarriers.push({ center: new THREE.Vector3(-155, 12, -85), radius: 16 });
     const car = makeCar();
+    const projectiles: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; age: number }> = [];
+    let nextProjectileAt = 0;
+    const projectileGeometry = new THREE.SphereGeometry(0.22, 8, 6);
+    const projectileMaterial = new THREE.MeshBasicMaterial({ color: "#7cf7ff" });
+    const impactMaterial = new THREE.MeshBasicMaterial({ color: "#fff0a3", transparent: true, opacity: 0.9 });
+    const impacts: Array<{ mesh: THREE.Mesh; age: number }> = [];
     // Preserve the original spacecraft silhouette and its established scale.
     car.scale.setScalar(0.82);
     scene.add(car);
@@ -180,6 +186,38 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
           altitude = shipPosition.y - .015;
         }
       }
+      // Hold-to-fire launches fast, visible energy bolts from the ship nose.
+      if (currentPhase === "running" && controls.fire && flightElapsedSeconds >= nextProjectileAt) {
+        const shotForward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
+        const bolt = new THREE.Mesh(projectileGeometry, projectileMaterial);
+        bolt.position.copy(shipPosition).addScaledVector(shotForward, 3.1);
+        scene.add(bolt);
+        projectiles.push({ mesh: bolt, velocity: shotForward.multiplyScalar(190), age: 0 });
+        nextProjectileAt = flightElapsedSeconds + 0.13;
+      }
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const shot = projectiles[i];
+        const previousPosition = shot.mesh.position.clone();
+        shot.mesh.position.addScaledVector(shot.velocity, frameDelta);
+        shot.age += frameDelta;
+        let hit = false;
+        for (const barrier of planetBarriers) {
+          if (shot.mesh.position.distanceTo(barrier.center) <= barrier.radius) { hit = true; break; }
+        }
+        if (hit) {
+          const flash = new THREE.Mesh(new THREE.SphereGeometry(1.1, 8, 6), impactMaterial);
+          flash.position.copy(shot.mesh.position); scene.add(flash); impacts.push({ mesh: flash, age: 0 });
+        }
+        if (hit || shot.age > 2.8 || shot.mesh.position.distanceTo(shipPosition) > 520) {
+          scene.remove(shot.mesh); projectiles.splice(i, 1);
+        }
+      }
+      for (let i = impacts.length - 1; i >= 0; i--) {
+        const impact = impacts[i]; impact.age += frameDelta;
+        impact.mesh.scale.setScalar(1 + impact.age * 5);
+        (impact.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.9 * (1 - impact.age / 0.22));
+        if (impact.age >= 0.22) { scene.remove(impact.mesh); impact.mesh.geometry.dispose(); impacts.splice(i, 1); }
+      }
       // Render the preserved spacecraft directly in open world space.
       const carWorld = shipPosition;
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
@@ -215,6 +253,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     resize(); window.addEventListener("resize", resize); raf = requestAnimationFrame(render);
     return () => {
       cancelAnimationFrame(raf); window.removeEventListener("resize", resize);
+      projectiles.forEach((shot) => scene.remove(shot.mesh));
+      impacts.forEach((impact) => { scene.remove(impact.mesh); impact.mesh.geometry.dispose(); });
+      projectileGeometry.dispose(); projectileMaterial.dispose(); impactMaterial.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.geometry) mesh.geometry.dispose();

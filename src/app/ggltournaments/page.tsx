@@ -59,9 +59,8 @@ export default function GGLTournamentsPage() {
         <div className="ggl-game-promo-copy">
           <p className="ggl-eyebrow">GGL ARCADE / PLAY NOW</p>
           <h2>One pilot.<br /><em>One more run.</em></h2>
-          <p>Fly your ship, shoot incoming craft, dodge meteors and chase your high score — right here on the tournament page.</p>
+          <p>Fly between planets, shoot incoming craft, dodge meteors and chase your high score without leaving the tournament page.</p>
         </div>
-        <Link href="/ggltournaments/game" className="ggl-game-link">Open full screen <span>↗</span></Link>
       </div>
       <iframe className="ggl-game-frame" src="/ggltournaments/game?embed=1" title="Playable GGL spaceship shooter" loading="eager" allow="autoplay" />
     </section>

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import GameShowcase from "@/components/GameShowcase";
 import IndustryProjectShowcase from "@/components/IndustryProjectShowcase";
-import AdminHubSignal from "@/components/AdminHubSignal";
 import HomeIntake from "@/components/HomeIntake";
 import FounderReferenceCarousel from "@/components/FounderReferenceCarousel";
 

@@ -8,3 +8,16 @@
 .space-howto{max-width:1200px;margin:40px auto 20px;padding:40px 30px;display:grid;grid-template-columns:.7fr 1.3fr;gap:45px;border-top:1px solid #252d39;border-bottom:1px solid #252d39}.space-howto h2{font-family:"Barlow Condensed",Impact,sans-serif;font-size:42px;line-height:1.02;letter-spacing:-.02em;margin:0}.space-howto-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.space-howto-grid article{border-left:1px solid #3a4654;padding-left:15px}.space-howto-grid article>span{display:block;color:var(--space-accent);font-size:9px;letter-spacing:.1em;margin-bottom:13px}.space-howto-grid strong{font-size:13px}.space-howto-grid p{font-size:11px;color:#a7b1c1;line-height:1.8;margin:8px 0 0}.space-footer{max-width:1200px;margin:auto;padding:10px 30px;display:flex;justify-content:space-between;gap:20px;color:#8d9aab;font-size:10px}.space-footer a:hover{color:var(--space-accent)}.space-footer span{letter-spacing:.1em}
 @media(max-width:700px){.space-nav{padding:14px 16px;gap:8px}.space-back{font-size:10px;padding:9px}.space-brand{font-size:13px;white-space:nowrap}.space-sound{font-size:9px;padding:9px}.space-intro{padding:35px 16px 22px}.space-intro h1{font-size:49px}.space-game-shell{padding:0 12px}.space-hud>div{padding:10px 8px}.space-hud small{font-size:7px}.space-hud strong{font-size:20px}.space-stage{height:clamp(370px,112vw,540px)}.space-overlay{padding:12px}.space-overlay-card{padding:20px}.space-overlay-card h2{font-size:35px}.space-key-help{gap:9px}.space-controls{padding:13px 12px;gap:10px}.space-dpad>button,.space-dpad div button{width:39px;height:35px}.space-action-controls{gap:7px}.space-action-controls button{width:76px;height:56px}.space-bottom-bar{flex-wrap:wrap;font-size:7px;gap:8px}.space-bottom-bar button{order:3;width:100%;text-align:left;padding:5px 0}.space-howto{margin:25px 12px 15px;padding:28px 5px;grid-template-columns:1fr;gap:25px}.space-howto h2{font-size:36px}.space-howto-grid{gap:12px}.space-howto-grid article{padding-left:10px}.space-howto-grid strong{font-size:12px}.space-howto-grid p{font-size:10px}.space-footer{padding:10px 16px;font-size:8px;flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.space-launch,.space-controls button{transition:none!important}}
+
+
+/* Compact playable surface when embedded in the tournament page. */
+.ggl-space.is-embedded{min-height:0;padding:0;border-radius:6px}
+.ggl-space.is-embedded .space-nav,.ggl-space.is-embedded .space-intro,.ggl-space.is-embedded .space-howto,.ggl-space.is-embedded .space-footer{display:none}
+.ggl-space.is-embedded .space-game-shell{max-width:none;padding:0}
+.ggl-space.is-embedded .space-hud{border-radius:0}
+.ggl-space.is-embedded .space-stage{height:clamp(360px,52vw,570px)}
+.ggl-space.is-embedded .space-overlay{padding:12px}
+.ggl-space.is-embedded .space-overlay-card{padding:clamp(16px,3vw,28px)}
+.ggl-space.is-embedded .space-controls{padding:12px 16px}
+.ggl-space.is-embedded .space-bottom-bar{padding:10px 14px}
+@media(max-width:600px){.ggl-space.is-embedded .space-hud>div{padding:9px 5px;gap:5px}.ggl-space.is-embedded .space-hud small{font-size:7px;letter-spacing:.05em}.ggl-space.is-embedded .space-hud strong{font-size:18px}.ggl-space.is-embedded .space-stage{height:430px}.ggl-space.is-embedded .space-bottom-bar{gap:8px;font-size:7px}.ggl-space.is-embedded .space-controls{padding:10px;gap:10px}}

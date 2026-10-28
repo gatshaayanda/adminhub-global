@@ -74,6 +74,23 @@
 .warmup-circuit-controls .warmup-driving button{min-height:60px}
 .warmup-circuit-controls .warmup-driving .down-thrust-button{background:#f4e5df;border-color:#e2c8bd}
 .warmup-circuit-controls .warmup-driving .nos-button{background:#dff0a8;border:2px solid #91b83e;color:#20351d;font-weight:900}
+.warmup-circuit-controls .warmup-driving .projectile-button{
+  grid-column:2;
+  justify-self:stretch;
+  min-height:38px!important;
+  padding:6px 10px!important;
+  border-radius:999px!important;
+  font-size:11px!important;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.06em;
+  background:linear-gradient(135deg,#123f5d,#087e9c);
+  border:2px solid #51d9f3;
+  color:#effcff;
+  box-shadow:0 0 12px #35dff433;
+}
+.warmup-circuit-controls .warmup-driving .projectile-button:active:not(:disabled){background:#12a9c4;transform:translateY(1px)}
+.warmup-circuit-controls .warmup-driving .projectile-button:disabled{opacity:.38}
 .warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"]{background:#b7ed4e;box-shadow:0 0 0 3px #b7ed4e55,inset 0 -3px 0 #83b92a}
 .warmup-circuit-controls .warmup-wheel{touch-action:none}
 .warmup-feedback{animation:none}
@@ -176,7 +193,7 @@
 
 /* QA handling pass: compact tactical NOS and a less bulky brake control. */
 .warmup-circuit-controls .warmup-driving .nos-button{
-  grid-column:1/-1;
+  grid-column:1;
   justify-self:center;
   width:max-content;
   min-width:0!important;

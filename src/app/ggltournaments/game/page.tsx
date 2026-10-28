@@ -300,6 +300,54 @@ export default function GGLSpaceShooterPage() {
         }
       }
       const horizon = height * 0.24;
+      const planetPalettes = [
+        { base: "#b56f56", light: "#f1c19a", dark: "#56374c", ring: "#d8bb8c" },
+        { base: "#4b8e9a", light: "#9ce0d1", dark: "#203d68", ring: "#b2d8d0" },
+        { base: "#a28a52", light: "#e5d99a", dark: "#4c3b65", ring: "#e9d5a0" },
+        { base: "#765da6", light: "#c2a6ed", dark: "#2a315f", ring: "#9dc5dd" },
+      ];
+      const drawPlanet = (x: number, y: number, radius: number, palette: typeof planetPalettes[number], ring = false) => {
+        ctx.save();
+        ctx.translate(x, y);
+        if (ring) {
+          ctx.strokeStyle = palette.ring + "aa";
+          ctx.lineWidth = Math.max(2, radius * 0.08);
+          ctx.beginPath();
+          ctx.ellipse(0, radius * 0.16, radius * 1.48, radius * 0.34, -0.14, Math.PI * 1.05, Math.PI * 1.95);
+          ctx.stroke();
+        }
+        const surface = ctx.createRadialGradient(-radius * 0.34, -radius * 0.38, radius * 0.04, 0, 0, radius * 1.08);
+        surface.addColorStop(0, palette.light);
+        surface.addColorStop(0.5, palette.base);
+        surface.addColorStop(1, palette.dark);
+        ctx.fillStyle = surface;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.98, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.globalAlpha = 0.24;
+        ctx.fillStyle = palette.dark;
+        for (let band = 0; band < 4; band++) {
+          ctx.beginPath();
+          ctx.ellipse(Math.sin(band * 1.7) * radius * 0.2, -radius * 0.6 + band * radius * 0.4, radius * (0.7 + (band % 2) * 0.18), radius * 0.11, -0.16, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+        if (ring) {
+          ctx.strokeStyle = palette.ring + "dd";
+          ctx.lineWidth = Math.max(2, radius * 0.045);
+          ctx.beginPath();
+          ctx.ellipse(0, radius * 0.16, radius * 1.48, radius * 0.34, -0.14, Math.PI * 0.05, Math.PI * 0.95);
+          ctx.stroke();
+        }
+        ctx.restore();
+      };
+      const currentPlanet = planetPalettes[(g.wave - 1) % planetPalettes.length];
+      drawPlanet(width * 0.79, horizon + height * 0.015, Math.min(width * 0.135, height * 0.15), currentPlanet, true);
+      drawPlanet(width * 0.14, horizon + height * 0.105, Math.min(width * 0.065, height * 0.075), planetPalettes[(g.wave + 1) % planetPalettes.length]);
       ctx.strokeStyle = "rgba(121,158,187,.16)";
       ctx.lineWidth = 1;
       for (let i = -8; i <= 8; i++) {
@@ -353,8 +401,10 @@ export default function GGLSpaceShooterPage() {
       }
       const playerX = width / 2 + g.x * width * 0.34;
       const playerY = height * g.y;
-      if (running && (boosting || g.boost > 0.05)) drawSprite("effect_yellow", playerX, playerY + 30, 45 + g.boost * 25, 65 + g.boost * 30, Math.PI, 0.35 + g.boost * 0.5);
-      drawSprite("ship_A", playerX, playerY, Math.min(width * 0.19, 90), Math.min(width * 0.19, 90), g.x * -0.23, 1);
+      const boostVisual = keysRef.current.Shift || keysRef.current.x || keysRef.current.X || pointerRef.current.boost;
+      if (running && (boostVisual || g.boost > 0.05)) drawSprite("effect_yellow", playerX, playerY + 30, 45 + g.boost * 25, 65 + g.boost * 30, Math.PI, 0.35 + g.boost * 0.5);
+      const shipTilt = (pointerRef.current.right || keysRef.current.ArrowRight || keysRef.current.d || keysRef.current.D ? -0.24 : 0) + (pointerRef.current.left || keysRef.current.ArrowLeft || keysRef.current.a || keysRef.current.A ? 0.24 : 0);
+      drawSprite("ship_A", playerX, playerY, Math.min(width * 0.19, 90), Math.min(width * 0.19, 90), shipTilt, 1);
       if (g.flash > 0) {
         ctx.fillStyle = `rgba(255,70,78,${g.flash * 0.17})`;
         ctx.fillRect(0, 0, width, height);

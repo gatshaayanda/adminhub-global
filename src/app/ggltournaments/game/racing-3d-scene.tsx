@@ -83,7 +83,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.domElement.setAttribute("aria-label", "Three-dimensional racing circuit with rear chase camera");
+    renderer.domElement.setAttribute("aria-label", "Three-dimensional space circuit with spacecraft altitude controls and rear chase camera");
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -153,6 +153,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const u = (apx * rz - apz * rx) / denominator;
       return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? { t, x: px + rx * t, z: pz + rz * t } : null;
     };
+    let altitude = 0;
     let previousCarX = raceRef.current.worldX;
     let previousCarZ = raceRef.current.worldZ;
     const clock = new THREE.Clock();
@@ -165,9 +166,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const race = raceRef.current;
       const controls = controlsRef.current;
       const currentPhase = phaseRef.current;
+      const frameDelta = Math.min(clock.getDelta(), .05);
+      if (currentPhase === "running") {
+        const verticalInput = (controls.ascend ? 1 : 0) - (controls.descend ? 1 : 0);
+        altitude = clamp(altitude + verticalInput * frameDelta * 8, 0, 12);
+      }
       // Treat the same continuous offset curves as physical walls. Test the whole
       // previous-to-current movement segment so the car cannot step through a wall.
-      if (currentPhase === "running") {
+      if (currentPhase === "running" && altitude < 2.2) {
         let earliestHit: { t: number; x: number; z: number; ax: number; az: number; bx: number; bz: number } | null = null;
         for (const wall of barrierLines) {
           const hit = segmentHit(previousCarX, previousCarZ, race.worldX, race.worldZ, wall.ax, wall.az, wall.bx, wall.bz);
@@ -195,7 +201,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       previousCarX = race.worldX;
       previousCarZ = race.worldZ;
       // Render the independent world-space spacecraft state; the circuit remains a visual and collision reference.
-      const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
+      const carWorld = new THREE.Vector3(race.worldX, .015 + altitude, race.worldZ);
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
@@ -206,9 +212,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       groundShadow.position.x = carWorld.x;
       groundShadow.position.z = carWorld.z;
       groundShadow.rotation.z = -car.rotation.y;
-      const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, 1.25, carWorld.z + forward.z * 10);
-      const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, 4.7, carWorld.z - forward.z * 8.4);
-      const frameDelta = Math.min(clock.getDelta(), .05);
+      const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, carWorld.y + 1.25, carWorld.z + forward.z * 10);
+      const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, carWorld.y + 4.7, carWorld.z - forward.z * 8.4);
       camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 5.5));
       camera.lookAt(cameraTarget);
       const flame = car.userData.flame as THREE.Object3D | undefined;

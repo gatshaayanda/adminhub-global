@@ -7,7 +7,7 @@ import Racing3DScene from "./racing-3d-scene";
 import { createRacingTrack, getTrackTurn } from "./racing-track";
 
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
-export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean };
+export type Controls = { steer: number; accelerate: boolean; brake: boolean; boost: boolean; ascend: boolean; descend: boolean };
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
@@ -28,7 +28,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const raceRef = useRef<Race>(newRace());
   const trackRef = useRef<ReturnType<typeof createRacingTrack> | null>(null);
   if (!trackRef.current) trackRef.current = createRacingTrack();
-  const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false });
+  const controlsRef = useRef<Controls>({ steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false });
   const phaseRef = useRef<Phase>("ready");
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdown, setCountdown] = useState(3);
@@ -338,12 +338,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   useEffect(() => {
     const keyDown = (e: KeyboardEvent) => {
       if (embedded && !expanded) return;
-      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "a", "d", "w", "s", " "].includes(e.key)) e.preventDefault();
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "a", "d", "w", "s", " ", "r", "f"].includes(e.key.toLowerCase()) || e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault();
       if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") controlsRef.current.steer = -1;
       if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") controlsRef.current.steer = 1;
       if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.accelerate = true;
       if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") controlsRef.current.brake = true;
       if (e.key === " " || e.key === "Shift") controlsRef.current.boost = true;
+      if (e.key.toLowerCase() === "r") controlsRef.current.ascend = true;
+      if (e.key.toLowerCase() === "f") controlsRef.current.descend = true;
       if ((e.key.toLowerCase() === "p" || e.key === "Escape") && !e.repeat) pauseRace();
     };
     const keyUp = (e: KeyboardEvent) => {
@@ -351,6 +353,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.accelerate = false;
       if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") controlsRef.current.brake = false;
       if (e.key === " " || e.key === "Shift") { controlsRef.current.boost = false; setBoostActive(false); }
+      if (e.key.toLowerCase() === "r") controlsRef.current.ascend = false;
+      if (e.key.toLowerCase() === "f") controlsRef.current.descend = false;
     };
     const release = () => { controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; setBoostActive(false); };
     window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp); window.addEventListener("blur", release);
@@ -426,6 +430,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           </div>
           <span className="steering-caption">Move thumb to steer</span>
         </div>
+        <div className="warmup-flight-controls" aria-label="Vertical flight controls">
+          <button type="button" aria-label="Ascend" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controlsRef.current.ascend = true; }} onPointerUp={() => { controlsRef.current.ascend = false; }} onPointerCancel={() => { controlsRef.current.ascend = false; }} onLostPointerCapture={() => { controlsRef.current.ascend = false; }}>▲<span>ASCEND</span></button>
+          <button type="button" aria-label="Descend" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controlsRef.current.descend = true; }} onPointerUp={() => { controlsRef.current.descend = false; }} onPointerCancel={() => { controlsRef.current.descend = false; }} onLostPointerCapture={() => { controlsRef.current.descend = false; }}>▼<span>DESCEND</span></button>
+        </div>
         <div className="warmup-driving">
           <button type="button" aria-label="Brake" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>BRAKE ↓</button>
           <button type="button" className="accelerate-button" aria-label="Accelerate" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>GAS ↑</button>
@@ -433,7 +441,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         </div>
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
       </div>
-      <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; BRAKE is left and GAS is right under your right thumb. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, Space / Shift NOS, P pause. Practice is free. Lap times are practice results only; no tournament prize is attached to this solo mode.</p>
+      <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; use BRAKE, GAS, ASCEND and DESCEND with the other thumb. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, R ascend, F descend, Space / Shift NOS, P pause. Practice is free. Lap times are practice results only; no tournament prize is attached to this solo mode.</p>
     </section>
     {!embedded && <footer className="big-brothers-footer"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Racing<small>TOURNAMENTS · CIRCUIT PRACTICE</small></span></Link><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></footer>}
   </div>;

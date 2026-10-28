@@ -81,6 +81,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const nebulaLight=new THREE.PointLight("#d04cff",90,420,2); nebulaLight.position.set(130,45,100); scene.add(nebulaLight);
     const planetaryBodies: Array<{ body: THREE.Group; periodHours: number }> = [];
     let simulationSeconds = 0;
+    let flightElapsedSeconds = 0;
     const starPositions:number[]=[];
     for(let i=0;i<1250;i++){const angle=i*2.399963229728653;const y=((i*37.719)%1)*2-1;const radius=260+((i*71.13)%1)*520;const rr=Math.sqrt(Math.max(0,1-y*y));starPositions.push(Math.cos(angle)*rr*radius,y*radius*.68,Math.sin(angle)*rr*radius);}
     const starGeometry=new THREE.BufferGeometry();starGeometry.setAttribute("position",new THREE.Float32BufferAttribute(starPositions,3));
@@ -124,7 +125,10 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const frameDelta = Math.min(clock.getDelta(), .05);
       // Accelerated stellar time: four simulated minutes pass per real second.
       // One clock drives every planet's rotation and its changing sunlit hemisphere.
-      simulationSeconds += frameDelta * 240;
+      if (currentPhase === "running") {
+        simulationSeconds += frameDelta * 240;
+        flightElapsedSeconds += frameDelta;
+      }
       const simulationHours = simulationSeconds / 3600 + 6;
       for (const { body, periodHours } of planetaryBodies) {
         body.rotation.y = (simulationHours / periodHours) * Math.PI * 2;
@@ -134,8 +138,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         const totalMinutes = (360 + Math.floor(simulationSeconds / 60)) % 1440;
         const hours = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
         const minutes = (totalMinutes % 60).toString().padStart(2, "0");
-        const flightMinutes = Math.floor(clock.elapsedTime / 60).toString().padStart(2, "0");
-        const flightSeconds = Math.floor(clock.elapsedTime % 60).toString().padStart(2, "0");
+        const flightMinutes = Math.floor(flightElapsedSeconds / 60).toString().padStart(2, "0");
+        const flightSeconds = Math.floor(flightElapsedSeconds % 60).toString().padStart(2, "0");
         flightClockRef.current.textContent = `FLIGHT T+${flightMinutes}:${flightSeconds} · SYSTEM ${hours}:${minutes}`;
       }
       if (currentPhase === "running") {

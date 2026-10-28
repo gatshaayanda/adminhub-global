@@ -34,7 +34,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/login", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }) });
-      if (res.ok) { router.replace("/admin/dashboard"); return; }
+      if (res.ok) { const requested = new URLSearchParams(window.location.search).get("next"); const safeNext = requested && requested.startsWith("/") && !requested.startsWith("//") ? requested : "/admin/dashboard"; router.replace(safeNext); return; }
       const { error: msg } = await res.json().catch(() => ({ error: "Login failed" }));
       setError(msg || "Login failed"); setPw("");
     } catch { setError("Something went wrong. Check your connection and try again."); setPw(""); }

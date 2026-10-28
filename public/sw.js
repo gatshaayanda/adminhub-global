@@ -1,4 +1,4 @@
-const CACHE_VERSION = "sparkle-legacy-v1";
+const CACHE_VERSION = "sparkle-legacy-v2";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGE_CACHE = `${CACHE_VERSION}-pages`;
 
@@ -14,6 +14,22 @@ const APP_SHELL = [
   "/client/login",
   "/placeholder.png",
   "/manifest.webmanifest",
+  "/ggltournaments/game",
+  "/game-assets/space/PNG/Retina/ship_A.png",
+  "/game-assets/space/PNG/Retina/enemy_A.png",
+  "/game-assets/space/PNG/Retina/enemy_B.png",
+  "/game-assets/space/PNG/Retina/enemy_C.png",
+  "/game-assets/space/PNG/Retina/enemy_D.png",
+  "/game-assets/space/PNG/Retina/enemy_E.png",
+  "/game-assets/space/PNG/Retina/meteor_large.png",
+  "/game-assets/space/PNG/Retina/meteor_detailedLarge.png",
+  "/game-assets/space/PNG/Retina/satellite_A.png",
+  "/game-assets/space/PNG/Retina/station_A.png",
+  "/game-assets/space/PNG/Retina/star_large.png",
+  "/game-assets/space/PNG/Retina/star_medium.png",
+  "/game-assets/space/PNG/Retina/star_small.png",
+  "/game-assets/space/PNG/Retina/effect_yellow.png",
+  "/game-assets/space/PNG/Retina/effect_purple.png",
 ];
 
 self.addEventListener("install", (event) => {

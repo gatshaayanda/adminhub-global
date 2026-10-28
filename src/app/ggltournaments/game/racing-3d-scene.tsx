@@ -53,53 +53,37 @@ function roundedCarBox(parent: THREE.Group, material: THREE.Material, size: [num
 }
 
 function makeCar() {
-  const car = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: "#f04478", roughness: .27, metalness: .24 });
-  const dark = new THREE.MeshStandardMaterial({ color: "#101820", roughness: .72 });
-  const rubber = new THREE.MeshStandardMaterial({ color: "#090c10", roughness: .92 });
-  const alloy = new THREE.MeshStandardMaterial({ color: "#89949a", metalness: .7, roughness: .3 });
-  const glass = new THREE.MeshStandardMaterial({ color: "#244554", metalness: .45, roughness: .22 });
-  const light = new THREE.MeshStandardMaterial({ color: "#ff4039", emissive: "#a51412", emissiveIntensity: .6 });
-  // Lower, longer rounded shell gives the practice car a smoother touring-racer profile.
-  roundedCarBox(car, bodyMat, [2.16, .46, 3.72], [0, .61, 0], .28);
-  roundedCarBox(car, bodyMat, [1.66, .23, 1.52], [0, .88, -.53], .17);
-  roundedCarBox(car, glass, [1.22, .43, 1.12], [0, 1.15, -.69], .2);
-  roundedCarBox(car, dark, [2.72, .12, .22], [0, .48, 1.67], .045);
-  roundedCarBox(car, bodyMat, [2.58, .11, .18], [0, 1.02, 1.52], .04);
-  roundedCarBox(car, dark, [1.8, .13, .52], [0, .46, 1.35], .06);
-  for (const x of [-1.15, 1.15]) {
-    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(.47, .47, .32, 16), rubber);
-    tyre.rotation.z = Math.PI / 2;
-    tyre.position.set(x, .47, .8);
-    tyre.castShadow = true;
-    car.add(tyre);
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(.23, .23, .335, 12), alloy);
-    rim.rotation.z = Math.PI / 2;
-    rim.position.copy(tyre.position);
-    car.add(rim);
-    const frontTyre = tyre.clone();
-    frontTyre.position.z = -1.05;
-    car.add(frontTyre);
-    const frontRim = rim.clone();
-    frontRim.position.z = -1.05;
-    car.add(frontRim);
-    box(car, light, [.12, .16, .08], [x * .68, .68, 1.77]);
+  const ship = new THREE.Group();
+  const hull = new THREE.MeshStandardMaterial({ color: "#b9d9e8", metalness: .82, roughness: .24 });
+  const darkHull = new THREE.MeshStandardMaterial({ color: "#17283f", metalness: .7, roughness: .3 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: "#1a8bc2", metalness: .48, roughness: .12, clearcoat: 1, emissive: "#075078", emissiveIntensity: .8 });
+  const cyan = new THREE.MeshStandardMaterial({ color: "#65f5ff", emissive: "#13cde8", emissiveIntensity: 2.4, metalness: .25, roughness: .2 });
+  const magenta = new THREE.MeshStandardMaterial({ color: "#ff67d5", emissive: "#b31b8b", emissiveIntensity: 1.5, metalness: .35, roughness: .25 });
+  const engine = new THREE.MeshStandardMaterial({ color: "#7cecff", emissive: "#32cfff", emissiveIntensity: 3.2, metalness: .4, roughness: .18 });
+  const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(.25,.56,2.75,10,1),hull);
+  fuselage.rotation.x=Math.PI/2; fuselage.position.set(0,.56,.05); fuselage.castShadow=true; ship.add(fuselage);
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(.34,1.18,10),hull);
+  nose.rotation.x=-Math.PI/2; nose.position.set(0,.56,-1.9); nose.castShadow=true; ship.add(nose);
+  const cockpit=new THREE.Mesh(new THREE.SphereGeometry(.34,12,8),glass);
+  cockpit.scale.set(.78,.72,1.22); cockpit.position.set(0,.88,-.58); cockpit.castShadow=true; ship.add(cockpit);
+  const wing=new THREE.Mesh(new THREE.BoxGeometry(2.65,.12,.82),darkHull);
+  wing.position.set(0,.42,.38); wing.rotation.y=-.04; wing.castShadow=true; ship.add(wing);
+  for(const side of [-1,1]){
+    const fin=new THREE.Mesh(new THREE.BoxGeometry(.16,.34,.9),hull);
+    fin.position.set(side*.91,.57,.92); fin.rotation.z=side*-.18; fin.castShadow=true; ship.add(fin);
+    const wingLight=new THREE.Mesh(new THREE.SphereGeometry(.105,8,6),side<0?magenta:cyan);
+    wingLight.position.set(side*1.18,.49,.02); ship.add(wingLight);
+    const bell=new THREE.Mesh(new THREE.CylinderGeometry(.2,.28,.42,10),darkHull);
+    bell.rotation.x=Math.PI/2; bell.position.set(side*.34,.45,1.43); ship.add(bell);
+    const core=new THREE.Mesh(new THREE.SphereGeometry(.15,10,8),engine);
+    core.position.set(side*.34,.45,1.65); ship.add(core);
   }
-  box(car, dark, [2.6, .12, .16], [0, .92, 1.72]);
-  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(.09, .12, .22, 10), alloy);
-  exhaust.rotation.x = Math.PI / 2;
-  exhaust.position.set(0, .42, 1.82);
-  car.add(exhaust);
-  const flame = new THREE.Mesh(
-    new THREE.ConeGeometry(.22, 1.05, 10),
-    new THREE.MeshBasicMaterial({ color: "#54dfff", transparent: true, opacity: .88 })
-  );
-  flame.rotation.x = -Math.PI / 2;
-  flame.position.set(0, .45, 2.35);
-  flame.visible = false;
-  car.add(flame);
-  car.userData.flame = flame;
-  return car;
+  const noseLight=new THREE.Mesh(new THREE.SphereGeometry(.11,8,6),cyan);
+  noseLight.position.set(0,.56,-2.38); ship.add(noseLight);
+  const flame=new THREE.Mesh(new THREE.ConeGeometry(.24,1.35,10),new THREE.MeshBasicMaterial({color:"#55eaff",transparent:true,opacity:.9}));
+  flame.rotation.x=Math.PI/2; flame.position.set(0,.47,2.05); flame.visible=false; ship.add(flame);
+  ship.userData.flame=flame;
+  return ship;
 }
 
 export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props) {
@@ -125,143 +109,37 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#9fc8dc");
-    scene.fog = new THREE.Fog("#b2c7bd", 95, 270);
-    const camera = new THREE.PerspectiveCamera(63, (host.clientWidth || 800) / (host.clientHeight || 480), .1, 420);
-    const hemi = new THREE.HemisphereLight("#e7f5ff", "#405239", 2.05);
-    scene.add(hemi);
-    const sun = new THREE.DirectionalLight("#fff0d3", 3.1);
-    sun.position.set(-45, 80, -25);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.left = -65; sun.shadow.camera.right = 65; sun.shadow.camera.top = 85; sun.shadow.camera.bottom = -85;
-    scene.add(sun);
-
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), new THREE.MeshStandardMaterial({ color: "#628653", roughness: 1 }));
-    ground.rotation.x = -Math.PI / 2; ground.position.y = -.12; ground.receiveShadow = true; scene.add(ground);
-
-    const track = createRacingTrack();
-    const road = new THREE.Mesh(ribbon(track, 12, 600, .015), new THREE.MeshStandardMaterial({ color: "#30383e", roughness: .94, metalness: .02, side: THREE.DoubleSide }));
-    road.receiveShadow = true; scene.add(road);
-// Fixed visual references before significant bends: brake board, turn-in chevrons and apex beacon.
-    let lastBoardAt = -1;
-    for (let i = 0; i < 180; i++) {
-      const t = i / 180;
-      const turn = getTrackTurn(track, t, .006);
-      const strength = Math.abs(turn);
-      if (strength < .038 || (lastBoardAt >= 0 && (t - lastBoardAt + 1) % 1 < .075)) continue;
-      lastBoardAt = t;
-      const cornerPoint = track.getPointAt(t);
-      const boardT = (t - .025 + 1) % 1;
-      const p = track.getPointAt(boardT);
-      const tangent = track.getTangentAt(boardT).normalize();
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const outside = Math.sign(turn || 1);
-      const board = new THREE.Group();
-      const postMat = new THREE.MeshStandardMaterial({ color: "#34443b", roughness: .85 });
-      const boardCanvas = document.createElement("canvas");
-      boardCanvas.width = 320; boardCanvas.height = 180;
-      const ctx = boardCanvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "#f8f7ef"; ctx.fillRect(0, 0, 320, 180);
-        ctx.fillStyle = "#c52f2a"; ctx.fillRect(0, 0, 320, 54);
-        ctx.fillStyle = "#ffffff"; ctx.font = "bold 30px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("BRAKE", 160, 28);
-        ctx.fillStyle = "#172820"; ctx.font = "bold 38px Arial"; ctx.fillText("TURN IN", 160, 113);
-        ctx.fillStyle = "#c52f2a"; ctx.fillRect(0, 160, 320, 20);
-      }
-      const boardTexture = new THREE.CanvasTexture(boardCanvas);
-      boardTexture.colorSpace = THREE.SRGBColorSpace;
-      const boardMat = new THREE.MeshBasicMaterial({ map: boardTexture, side: THREE.DoubleSide });
-      const post = new THREE.Mesh(new THREE.BoxGeometry(.12, 2.2, .12), postMat);
-      post.position.y = 1.1; board.add(post);
-      const face = new THREE.Mesh(new THREE.PlaneGeometry(1.45, .82), boardMat);
-      face.position.set(0, 1.75, .09); board.add(face);
-      board.position.set(p.x + side.x * outside * 9.2, 0, p.z + side.z * outside * 9.2);
-      board.rotation.y = Math.atan2(-side.x * outside, -side.z * outside);
-      board.traverse((node) => { const mesh = node as THREE.Mesh; mesh.castShadow = true; });
-      scene.add(board);
-      // A small amber beacon marks the corner's turn-in reference at track edge.
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(.22, 10, 8), new THREE.MeshBasicMaterial({ color: "#ffc84a" }));
-      beacon.position.set(cornerPoint.x - side.x * outside * 5.4, .42, cornerPoint.z - side.z * outside * 5.4);
-      scene.add(beacon);
-    }
-    const kerb = new THREE.MeshStandardMaterial({ color: "#f4eee0", roughness: .8, side: THREE.DoubleSide });
-    const redKerb = new THREE.MeshStandardMaterial({ color: "#d7473d", roughness: .75, side: THREE.DoubleSide });
-    const barrierMat = new THREE.MeshStandardMaterial({ color: "#dce2df", roughness: .65 });
-    const darkBarrier = new THREE.MeshStandardMaterial({ color: "#283b43", roughness: .75 });
-    const dashMat = new THREE.MeshStandardMaterial({ color: "#f5f1dd", roughness: .6, emissive: "#3e433c", emissiveIntensity: .18 });
-    scene.add(new THREE.Mesh(ribbon(track, 15, 600, -.005), kerb));
-    // Alternating red/ivory kerb blocks add visual rhythm at both road edges.
-    for (let i = 0; i < 150; i++) {
-      const t = i / 150;
-      const p = track.getPointAt(t), tangent = track.getTangentAt(t).normalize();
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      for (const s of [-1, 1]) {
-        const block = new THREE.Mesh(new THREE.BoxGeometry(.48, .09, .82), i % 2 ? redKerb : kerb);
-        block.position.set(p.x + side.x * s * 6.7, .08, p.z + side.z * s * 6.7);
-        block.rotation.y = Math.atan2(tangent.x, tangent.z);
-        block.receiveShadow = true; scene.add(block);
-      }
-    }
-    // Broken centre guide dashes and distant corner markers.
-    for (let i = 0; i < 100; i++) {
-      const p = track.getPointAt(i / 100);
-      const dash = new THREE.Mesh(new THREE.BoxGeometry(.12, .025, 1.15), dashMat);
-      dash.position.set(p.x, .045, p.z); dash.rotation.y = Math.atan2(track.getTangentAt(i / 100).x, track.getTangentAt(i / 100).z);
-      scene.add(dash);
-    }
-
-    // A layered low-poly horizon makes the track feel like a place, not a flat canvas.
-    const hillMat = new THREE.MeshStandardMaterial({ color: "#7e9a82", roughness: 1, flatShading: true });
-    for (let i = 0; i < 24; i++) {
-      const hill = new THREE.Mesh(new THREE.ConeGeometry(13 + (i % 4) * 5, 20 + (i % 5) * 7, 5), hillMat);
-      const angle = i / 24 * Math.PI * 2;
-      hill.position.set(Math.cos(angle) * (125 + (i % 3) * 10), 7, Math.sin(angle) * (125 + (i % 3) * 10));
-      hill.rotation.y = angle; scene.add(hill);
-    }
-    const treeTrunks = new THREE.MeshStandardMaterial({ color: "#5c4937", roughness: 1 });
-    const foliage = [new THREE.MeshStandardMaterial({ color: "#315d43", flatShading: true }), new THREE.MeshStandardMaterial({ color: "#467a4e", flatShading: true })];
-    for (let i = 0; i < 68; i++) {
-      const t = i / 68;
-      const p = track.getPointAt(t), tangent = track.getTangentAt(t).normalize();
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      const sign = i % 2 ? 1 : -1;
-      const distance = 17 + (i % 4) * 2.2;
-      const x = p.x + side.x * sign * distance, z = p.z + side.z * sign * distance;
-      const tree = new THREE.Group();
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.22, .32, 2.1, 5), treeTrunks); trunk.position.y = 1.05; trunk.castShadow = true; tree.add(trunk);
-      const crown = new THREE.Mesh(new THREE.ConeGeometry(1.45 + (i % 3) * .25, 3.5 + (i % 2), 5), foliage[i % 2]); crown.position.y = 3.2; crown.castShadow = true; tree.add(crown);
-      tree.position.set(x, 0, z); scene.add(tree);
-    }
-    // Safety rails follow the outer edge and repeat as clean, visible panels.
-    for (let i = 0; i < 220; i++) {
-      const t = i / 220, p = track.getPointAt(t), tangent = track.getTangentAt(t).normalize();
-      const side = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
-      for (const s of [-1, 1]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(.22, .62, 2.9), i % 5 === 0 ? redKerb : barrierMat);
-        rail.position.set(p.x + side.x * s * 8.4, .58, p.z + side.z * s * 8.4);
-        rail.rotation.y = Math.atan2(tangent.x, tangent.z);
-        rail.castShadow = true; rail.receiveShadow = true; scene.add(rail);
-        const post = new THREE.Mesh(new THREE.BoxGeometry(.25, .9, .18), darkBarrier);
-        post.position.set(rail.position.x, .45, rail.position.z); post.rotation.y = rail.rotation.y; scene.add(post);
-      }
-    }
+    scene.background = new THREE.Color("#030716");
+    const camera = new THREE.PerspectiveCamera(63,(host.clientWidth||800)/(host.clientHeight||480),.1,900);
+    scene.add(new THREE.HemisphereLight("#9ebdff","#11112e",1.25));
+    const starLight=new THREE.PointLight("#6a7dff",850,480,2); starLight.position.set(-110,80,-90); scene.add(starLight);
+    const nebulaLight=new THREE.PointLight("#d04cff",620,420,2); nebulaLight.position.set(130,45,100); scene.add(nebulaLight);
+    const track=createRacingTrack();
+    const roadBase=new THREE.Mesh(ribbon(track,12,600,.015),new THREE.MeshStandardMaterial({color:"#101a31",roughness:.32,metalness:.82,emissive:"#07152d",emissiveIntensity:.85,side:THREE.DoubleSide}));
+    roadBase.receiveShadow=true; scene.add(roadBase);
+    scene.add(new THREE.Mesh(ribbon(track,12.72,600,.028),new THREE.MeshBasicMaterial({color:"#11d9f2",transparent:true,opacity:.76,side:THREE.DoubleSide})));
+    scene.add(new THREE.Mesh(ribbon(track,11.72,600,.032),new THREE.MeshBasicMaterial({color:"#4258b9",transparent:true,opacity:.46,side:THREE.DoubleSide})));
+    const starPositions:number[]=[];
+    for(let i=0;i<1250;i++){const angle=i*2.399963229728653;const y=((i*37.719)%1)*2-1;const radius=260+((i*71.13)%1)*520;const rr=Math.sqrt(Math.max(0,1-y*y));starPositions.push(Math.cos(angle)*rr*radius,y*radius*.68,Math.sin(angle)*rr*radius);}
+    const starGeometry=new THREE.BufferGeometry();starGeometry.setAttribute("position",new THREE.Float32BufferAttribute(starPositions,3));
+    scene.add(new THREE.Points(starGeometry,new THREE.PointsMaterial({color:"#c5e8ff",size:1.35,sizeAttenuation:true,transparent:true,opacity:.92})));
+    const planet=new THREE.Mesh(new THREE.SphereGeometry(35,32,24),new THREE.MeshStandardMaterial({color:"#4d438d",roughness:.88,metalness:.08,emissive:"#20165d",emissiveIntensity:.55,flatShading:true}));
+    planet.position.set(155,76,-225);scene.add(planet);
+    const atmosphere=new THREE.Mesh(new THREE.SphereGeometry(36.8,32,24),new THREE.MeshBasicMaterial({color:"#6a67ff",transparent:true,opacity:.17,side:THREE.BackSide}));
+    atmosphere.position.copy(planet.position);scene.add(atmosphere);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(47,1.05,8,96),new THREE.MeshBasicMaterial({color:"#9b83ff",transparent:true,opacity:.68}));
+    ring.position.copy(planet.position);ring.rotation.x=1.08;ring.rotation.y=-.32;scene.add(ring);
+    const moon=new THREE.Mesh(new THREE.SphereGeometry(13,20,16),new THREE.MeshStandardMaterial({color:"#7b9bb4",roughness:.95,metalness:.12,flatShading:true}));
+    moon.position.set(-175,-18,-260);scene.add(moon);
+    const pylonPink=new THREE.MeshBasicMaterial({color:"#ff53d4"}),pylonCyan=new THREE.MeshBasicMaterial({color:"#56efff"});
+    for(let i=0;i<150;i++){const t=i/150,p=track.getPointAt(t),tangent=track.getTangentAt(t).normalize();const side=new THREE.Vector3(-tangent.z,0,tangent.x).normalize();for(const sign of [-1,1]){const pylon=new THREE.Group();const material=i%3===0?pylonPink:pylonCyan;const stem=new THREE.Mesh(new THREE.BoxGeometry(.14,1.65,.14),material);stem.position.y=.78;pylon.add(stem);const beacon=new THREE.Mesh(new THREE.OctahedronGeometry(.25,0),material);beacon.position.y=1.72;pylon.add(beacon);pylon.position.set(p.x+side.x*sign*8.1,-.1,p.z+side.z*sign*8.1);scene.add(pylon);}}
     const car = makeCar();
     // Keep the car's proportions credible against the 12-unit road and leave
     // more visual room around it for steering on narrow mobile screens.
     car.scale.setScalar(0.82);
     scene.add(car);
-    const groundShadow = new THREE.Mesh(
-      new THREE.CircleGeometry(1, 32),
-      new THREE.MeshBasicMaterial({ color: 0x101914, transparent: true, opacity: 0.28, depthWrite: false }),
-    );
-    groundShadow.rotation.x = -Math.PI / 2;
-    groundShadow.scale.set(1.25, 2.05, 1);
-    groundShadow.position.y = 0.028;
-    scene.add(groundShadow);
-    // Preserve the approved circuit, scenery, camera and controls; this is a visual-only car refresh.
-    const skyGlow = new THREE.Mesh(new THREE.SphereGeometry(320, 16, 10), new THREE.MeshBasicMaterial({ color: "#b9d4df", side: THREE.BackSide }));
-    scene.add(skyGlow);
+    const groundShadow=new THREE.Mesh(new THREE.CircleGeometry(1,32),new THREE.MeshBasicMaterial({color:"#1f5fff",transparent:true,opacity:.22,depthWrite:false}));
+    groundShadow.rotation.x=-Math.PI/2;groundShadow.scale.set(1.5,2.4,1);groundShadow.position.y=-.12;scene.add(groundShadow);
 
     // Physical barrier boundary: this is the car-centre limit offset inward from
     // the visible rail by half the car width. Swept collision prevents tunnelling
@@ -338,7 +216,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       }
       previousCarX = race.worldX;
       previousCarZ = race.worldZ;
-      // Render the independent world-space vehicle state; track geometry is not a movement rail.
+      // Render the independent world-space spacecraft state; the circuit remains a visual and collision reference.
       const carWorld = new THREE.Vector3(race.worldX, .015, race.worldZ);
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);

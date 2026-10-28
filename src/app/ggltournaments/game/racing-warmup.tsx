@@ -15,7 +15,6 @@ export type Race = {
   worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
-const wrap = (n: number, max: number) => ((n % max) + max) % max;
 const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
@@ -31,8 +30,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [countdown, setCountdown] = useState(3);
   const [speed, setSpeed] = useState(0);
   const [lapTime, setLapTime] = useState(0);
-  const [bestLap, setBestLap] = useState<number | null>(null);
-  const [lap, setLap] = useState(1);
   const [nos, setNos] = useState(100);
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
   const lastSignal = useRef("");
@@ -55,7 +52,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     raceRef.current = newRace();
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false };
-    setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false);
+    setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => reset(true), [reset]);
@@ -215,12 +212,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           setLapTime(race.lapTime);
           setNos(race.nos);
           setBoostActive(boost);
-          const cue = upcomingBend > 0.62 && race.speed > 105
-            ? { label: "BRAKE POINT · LIFT NOW", tone: "brake" }
-            : upcomingBend > 0.34
-              ? { label: (upcomingTurn < 0 ? "TURN LEFT" : "TURN RIGHT") + " · PREPARE", tone: "turn" }
-              : { label: "GREEN LIGHT · BUILD SPEED", tone: "go" };
-          if (cue.tone === "brake" && lastSignal.current !== "brake") notify("Brake point ahead — lift before turn-in.", "info");
+          const cue = { label: "OPEN SPACE · EXPLORE FREELY", tone: "go" };
           lastSignal.current = cue.tone;
           setSignal(cue);
         }

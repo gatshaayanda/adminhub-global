@@ -85,11 +85,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       }
       world.position.set(...position); scene.add(world);
     };
-    addPlanet("Aster", [95, 25, -160], 31, "#4d438d", "#20165d", true);
-    addPlanet("Cobalt", [-105, -22, -245], 43, "#276f9f", "#103a70");
-    addPlanet("Verdant", [205, 75, -430], 52, "#367b62", "#123f2d", true);
-    addPlanet("Ember", [-220, 52, 35], 24, "#a75b42", "#512216");
-    addPlanet("Frost", [65, -88, 185], 35, "#9ebdce", "#315a75");
+    addPlanet("Aster", [170, 25, 30], 31, "#4d438d", "#20165d", true);
+    addPlanet("Cobalt", [290, -22, 145], 43, "#276f9f", "#103a70");
+    addPlanet("Verdant", [460, 75, -85], 52, "#367b62", "#123f2d", true);
+    addPlanet("Ember", [-170, 52, -80], 24, "#a75b42", "#512216");
+    addPlanet("Frost", [120, -88, 400], 35, "#9ebdce", "#315a75");
     const moon = new THREE.Mesh(new THREE.SphereGeometry(10, 20, 16), new THREE.MeshStandardMaterial({ color: "#7b9bb4", roughness: .95, metalness: .12, flatShading: true }));
     moon.position.set(-155, 12, -85); scene.add(moon);
     const car = makeCar();

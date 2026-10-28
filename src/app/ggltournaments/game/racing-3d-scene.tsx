@@ -113,7 +113,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         const verticalInput = (controls.ascend ? 1 : 0) - (controls.descend ? 1 : 0);
         altitude = clamp(altitude + verticalInput * frameDelta * 8, -90, 90);
       }
-      previousCarZ = race.worldZ;
       // Render the independent world-space spacecraft state; the circuit remains a visual and collision reference.
       const carWorld = new THREE.Vector3(race.worldX, .015 + altitude, race.worldZ);
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();

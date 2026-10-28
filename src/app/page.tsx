@@ -4,35 +4,13 @@ import Link from "next/link";
 import GameShowcase from "@/components/GameShowcase";
 import IndustryProjectShowcase from "@/components/IndustryProjectShowcase";
 import AdminHubSignal from "@/components/AdminHubSignal";
+import HomeIntake from "@/components/HomeIntake";
+import FounderReferenceCarousel from "@/components/FounderReferenceCarousel";
 
 export default function HomePage() {
   return (
     <div className="admin-home">
-      <section className="admin-start" id="start">
-        <div className="admin-start-copy">
-          <AdminHubSignal />
-          <p className="admin-kicker mt-5">ADMIN HUB / START HERE</p>
-          <h1>Digital Business Tools &amp; Interactive Experiences.</h1>
-          <p className="admin-start-lead">
-            Start with the information you already have. Whether you run a business
-            or work with businesses as a referral or sales partner, tell us what
-            you are trying to achieve and we can take the next step with you.
-          </p>
-          <div className="admin-start-actions">
-            <Link className="admin-primary-button admin-primary-button-large" href="/contact">
-              I represent a business <span>↗</span>
-            </Link>
-            <Link className="admin-text-link" href="/partners">
-              I want to partner with Admin Hub ↗
-            </Link>
-          </div>
-          <p className="admin-start-lead" style={{fontSize:"15px", marginTop:"24px"}}>
-            Already have a company profile, website or social page? Share the material
-            you have and explain the problem you want solved. We aim to understand the
-            real workflow first, not make you repeat everything in a long questionnaire.
-          </p>
-        </div>
-      </section>
+      <HomeIntake />
 
       <section className="admin-hero" id="capability">
         <div className="admin-hero-copy-block">
@@ -88,19 +66,14 @@ export default function HomePage() {
         <GameShowcase />
       </section>
 
-      <section className="admin-start" id="founder">
-        <div className="admin-start-copy">
+      <section className="admin-start founder-section" id="founder">
+        <div className="admin-start-copy founder-section-copy">
           <p className="admin-kicker">04 / MEET THE FOUNDER</p>
           <h2>Get to know the person behind the work.</h2>
-          <p className="admin-start-lead">
-            Explore the founder profile and supporting records, then decide what
-            questions you want to ask. The case studies show the work; the profile
-            provides more background on the person building it.
-          </p>
+          <p className="admin-start-lead">The work shows what Admin Hub builds. Explore genuine supporting records and learn more about the person behind it, without mistaking a project example for a testimonial.</p>
+          <FounderReferenceCarousel />
           <div className="admin-start-actions">
-            <Link className="admin-primary-button admin-primary-button-large" href="/ayanda">
-              Meet the founder <span>↗</span>
-            </Link>
+            <Link className="admin-primary-button admin-primary-button-large" href="/ayanda">Meet the founder <span>↗</span></Link>
             <Link className="admin-text-link" href="/contact">Discuss a project ↗</Link>
           </div>
         </div>

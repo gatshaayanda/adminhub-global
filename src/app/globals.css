@@ -1406,3 +1406,13 @@ hr {
 /* Ensure lime action links keep dark, readable button text despite generic link styles. */
 .ggl a.ggl-primary{color:#161a12}
 .ggl-manager-loading{justify-content:center;gap:.8rem;padding:2rem}
+
+.ggl-manager-login{width:min(100%,560px);padding:clamp(1.3rem,4vw,2.3rem);overflow:auto}
+.ggl-manager-login>p:not(.ggl-eyebrow){margin-top:.7rem;line-height:1.7}
+.ggl-manager-login-form{display:grid;gap:.6rem;margin-top:1.4rem}
+.ggl-manager-login-form label{color:#263322;font-size:.88rem;font-weight:850}
+.ggl-manager-login-form input{width:100%;min-height:3.1rem;border:1px solid #b9c6ae;border-radius:6px;background:#fff;color:#182017;padding:.8rem;font:inherit}
+.ggl-manager-login-form input::placeholder{color:#697463}
+.ggl-manager-login-form .ggl-primary{margin-top:.35rem;justify-content:center}
+.ggl-manager-login-note{margin-top:1rem!important;padding-top:.9rem;border-top:1px solid #dce2d5;font-size:.78rem;line-height:1.65}
+.ggl-manager-login-note code{color:#263c1c;font-weight:850}

@@ -4,7 +4,7 @@ import "./ggl.css";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import GGLSpaceShooter from "./game/space-game";
+import GGLRacingGame from "./game/racing-warmup";
 
 type Tournament = { id: string; game: string; mode: string; title: string; date: string; fee: string; prize: string; slots: string; status: string; accent: string };
 const tournaments: Tournament[] = [
@@ -55,15 +55,15 @@ export default function GGLTournamentsPage() {
       </div>
     </section>
 
-    <section className="ggl-game-section" aria-label="Playable Admin Hub Spaceship Hub civilisation game">
+    <section className="ggl-game-section" aria-label="Playable GGL three-dimensional racing game">
       <div className="ggl-game-section-head">
         <div className="ggl-game-promo-copy">
           <p className="ggl-eyebrow">ADMIN HUB EXPERIMENT / PLAY NOW</p>
-          <h2>A universe to build.<br /><em>A future to shape.</em></h2>
-          <p>Explore a living star system, found settlements, trade supplies and keep human cultures alive. No enemies. Your decisions shape each world.</p>
+          <h2>Take the circuit.<br /><em>Master the corner.</em></h2>
+          <p>Drive the same three-dimensional practice circuit built for Big Brothers Car Wash: steer through bends, brake at the boards, manage your speed and use NOS on the exit.</p>
         </div>
       </div>
-      <GGLSpaceShooter embedded />
+      <GGLRacingGame embedded />
     </section>
 
     <section id="tournaments" className="ggl-section">

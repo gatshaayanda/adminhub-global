@@ -1002,3 +1002,31 @@ The homepage should not duplicate the entire /ayanda archive or entire Rates pag
 
 ## Deployment trigger test — 2026-10-09
 - A fresh commit on `main` is being used to test whether the GitHub-to-Vercel production deployment trigger is functioning. Confirm the matching commit SHA in Vercel and verify the production deployment reaches READY before considering the test complete.
+
+
+## CURRENT PORTFOLIO EVIDENCE AND COMMERCIAL STATUS — 2026-10-28
+
+Use these owner-supplied updates when preparing the initial featured project catalogue and its evidence. Treat them as current working notes, not permission to exaggerate outcomes. The owner/admin must be able to edit all labels and statuses.
+
+### High-priority businesses entering their 30-day use period
+These are the highest-priority examples because they have paid, made a partial payment, or are about to begin using their repurposed systems with real customers. Feature them prominently in the initial evidence catalogue, with accurate per-project status:
+- **The Plug** — retailer app. Paid; preparing to start its 30-day use period with existing and new customers.
+- **Africhiko** — steel fabrication and project enquiries. Paid; starting its 30-day use period.
+- **John the Stylist BW** — stylist booking and customer experience. Partial deposit paid; preparing to start its 30-day use period.
+- **Big Brothers Car Wash** — car wash business app. Expected to begin using it with customers this coming weekend; verify the actual start before labelling the 30-day period active.
+- **Admin Hub Global GGL Tournaments** (https://www.adminhub-global.com/ggltournaments) — consultation paid; remaining deposit expected next week and 30-day use is being prepared. Do not label as fully paid or as having started the 30-day period until confirmed.
+
+### Other current business pipeline evidence
+- **PurePress** — embroidery business app; preparing to pay and begin using the app.
+- **Grandynamic Pty Ltd** — business website/app; expected to pay the deposit and begin its 30-day period.
+- **Tripple-S Wellness Spa** — wellness spa booking and business app. Keep its exact payment/start status editable and confirm before claiming the 30-day period is active.
+- **Padre Pio** — medical practice. One of three medical practices the owner says are onboard; Padre Pio has said it needs to address in-house infrastructure before paying and starting its 30-day period.
+- **Two additional medical practices** — described by the owner as highly interested and preparing to pay. Their identities and exact statuses should be supplied/confirmed by the owner before being publicly named.
+- The owner also reports **two welding businesses** in the pipeline. Africhiko is one confirmed example; confirm the other business's identity and status before naming or describing it publicly.
+
+### How to present status honestly
+- The owner wants businesses entering their 30-day use period to receive high prominence as evidence of systems being adopted by real businesses. Use clear, editable labels such as **Paid · onboarding**, **Starting 30-day use**, **Preparing to launch**, **Deposit pending**, or **Waiting on business infrastructure**.
+- Use **Active 30-day use** only after the owner confirms that the period has actually started. Do not imply that a pending deposit is paid, that a prospective customer is already using the system, or that a proposal is a live deployment.
+- Explain the shared delivery model accurately: systems are adapted from the reusable foundation/codebase to address each business's distinct needs. Demonstrated capabilities may include translation features, interactive/game experiences, utility-backed operations for customers, admin insight/operations, and easier handling of customers and transactions. Only mention a capability on an individual project when that project actually includes it.
+- The value story is not merely that a business has an app. Show the business problem, the adapted digital system, the relevant customer-facing utility and business/admin operational benefit, and evidence of real use when available.
+- Do not publicly expose private payment negotiations, infrastructure issues, unnamed prospects, or internal pipeline details. Public labels and named case studies require the owner's approval and must be grounded in confirmed facts.

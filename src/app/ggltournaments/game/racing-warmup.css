@@ -12,7 +12,7 @@
 
 .warmup-driving{display:flex;gap:9px;flex-wrap:wrap}
 .warmup-driving button{min-width:100px;min-height:58px;border:1px solid #ccd6c8;border-radius:12px;background:#eaf3d8;color:#172820;font-weight:800;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
-.warmup-driving button[aria-label="Brake"]{background:#f4e5df;border-color:#e2c8bd}
+.warmup-driving .down-thrust-button{background:#e0eff8;border-color:#b6d6e8;color:#173849}.warmup-driving .up-thrust-button{background:#eaf3d8;border-color:#c5dba0;color:#263a1d}
 .warmup-driving button:disabled{opacity:.45}
 .warmup-steering{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px}
 .warmup-steering .warmup-wheel{width:104px;height:104px;min-width:104px;min-height:104px;flex:0 0 auto;display:grid;place-items:center;position:relative;padding:0;border:0;border-radius:50%;background:transparent;color:#172820;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;transition:transform 70ms linear;outline-offset:4px}

@@ -47,6 +47,9 @@ export default function GGLSpaceShooterPage() {
     gameRef.current = freshGame();
     keysRef.current = {};
     pointerRef.current = {};
+    setWheelRotation(0);
+    setBoostHeld(false);
+    steeringStartAngle.current = null;
     setHud({ score: 0, lives: 3, wave: 1, time: 0 });
     changeStatus("running");
   }, [changeStatus]);
@@ -438,10 +441,12 @@ export default function GGLSpaceShooterPage() {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerRef.current[key] = true;
+    if (key === "boost") setBoostHeld(true);
   };
   const release = (key: string) => (event: PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     pointerRef.current[key] = false;
+    if (key === "boost") setBoostHeld(false);
   };
 
   return (
@@ -477,14 +482,18 @@ export default function GGLSpaceShooterPage() {
           </div>}
           <div className="space-stage-label"><span>GGL FLIGHT SYSTEMS</span><span>LIVE SIMULATION</span></div>
         </div>
-        <div className="space-controls" aria-label="Touch controls">
-          <div className="space-dpad">
-            <button aria-label="Fly up" onPointerDown={press("up")} onPointerUp={release("up")} onPointerCancel={release("up")}>↑</button>
-            <div><button aria-label="Fly left" onPointerDown={press("left")} onPointerUp={release("left")} onPointerCancel={release("left")}>←</button><button aria-label="Fly down" onPointerDown={press("down")} onPointerUp={release("down")} onPointerCancel={release("down")}>↓</button><button aria-label="Fly right" onPointerDown={press("right")} onPointerUp={release("right")} onPointerCancel={release("right")}>→</button></div>
+        <div className="space-controls" aria-label="Flight controls">
+          <div className="space-steering">
+            <button type="button" className="space-wheel" aria-label="Drag the steering wheel to steer left or right" aria-describedby="space-steering-help" disabled={status !== "running"} style={{ transform: `rotate(${wheelRotation}deg)` }} onPointerDown={startSteering} onPointerMove={steerWheel} onPointerUp={stopSteering} onPointerCancel={stopSteering} onLostPointerCapture={stopSteering}>
+              <span className="space-wheel-ring"><span className="space-wheel-spoke vertical" /><span className="space-wheel-spoke horizontal" /><span className="space-wheel-hub" /></span><span className="space-wheel-caption">STEER</span>
+            </button>
+            <span id="space-steering-help" className="space-steering-caption">Drag to turn</span>
           </div>
           <div className="space-action-controls">
-            <button className="space-fire" onPointerDown={press("fire")} onPointerUp={release("fire")} onPointerCancel={release("fire")}>FIRE</button>
-            <button className="space-boost" onPointerDown={press("boost")} onPointerUp={release("boost")} onPointerCancel={release("boost")}>BOOST</button>
+            <button className="space-fire" aria-label="Hold to fire" onPointerDown={press("fire")} onPointerUp={release("fire")} onPointerCancel={release("fire")} onLostPointerCapture={release("fire")}>FIRE</button>
+            <button className="space-boost" aria-label="Hold to boost" aria-pressed={boostHeld} onPointerDown={press("boost")} onPointerUp={release("boost")} onPointerCancel={release("boost")} onLostPointerCapture={release("boost")}>BOOST ⚡</button>
+            <button className="space-thrust" aria-label="Hold to accelerate and climb" onPointerDown={press("thrust")} onPointerUp={release("thrust")} onPointerCancel={release("thrust")} onLostPointerCapture={release("thrust")}>THRUST ↑</button>
+            <button className="space-brake" aria-label="Hold to brake and descend" onPointerDown={press("brake")} onPointerUp={release("brake")} onPointerCancel={release("brake")} onLostPointerCapture={release("brake")}>BRAKE ↓</button>
           </div>
         </div>
         <div className="space-bottom-bar"><span>KENNEY SIMPLE SPACE · CC0 ASSETS</span><button onClick={() => changeStatus(status === "running" ? "paused" : status === "paused" ? "running" : status)}>{status === "running" ? "Pause flight Ⅱ" : status === "paused" ? "Resume flight ▶" : status === "over" ? "Mission complete" : "Training mode"}</button><span>PERSONAL SCORE · LOCAL SESSION</span></div>
@@ -492,9 +501,9 @@ export default function GGLSpaceShooterPage() {
       <section className="space-howto">
         <div><p className="space-kicker">THE CONTROLS</p><h2>Fly smart.<br /><em>Fire clean.</em></h2></div>
         <div className="space-howto-grid">
-          <article><span>01</span><strong>Fly</strong><p>Use the direction pad or WASD / arrow keys to line up your ship and avoid incoming debris.</p></article>
-          <article><span>02</span><strong>Fire</strong><p>Hold FIRE or Space to send a steady burst downrange. Lead the target as it approaches.</p></article>
-          <article><span>03</span><strong>Boost</strong><p>Hold BOOST or Shift to accelerate through the sector. The field gets faster as you survive.</p></article>
+          <article><span>01</span><strong>Fly</strong><p>Drag the wheel left or right, or use A / D and the arrow keys. Your ship banks into each turn.</p></article>
+          <article><span>02</span><strong>Thrust & brake</strong><p>Hold THRUST to climb and speed up the flight path. Brake to slow down and drop lower.</p></article>
+          <article><span>03</span><strong>Fire & boost</strong><p>Hold FIRE to attack. Save the rechargeable boost for a quick burst past a dangerous wave.</p></article>
         </div>
       </section>
       <footer className="space-footer"><Link href="/ggltournaments">← Back to GGL</Link><span>PLAY FAIR. RESPECT THE GAME.</span></footer>

@@ -26,7 +26,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   useEffect(() => { if (!embedded) document.title = "GGL Space Hub · Population Preservation"; }, [embedded]);
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace(); controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false, interact: false, scan: false };
-    setTargetId("station"); setReadout({ speed: 0, altitude: 2, nos: 100, distance: 126, rescued: 0, discovered: 0, message: raceRef.current.message, landed: false, docked: false }); setBoostActive(false);
+    setTargetId("station"); setReadout({ speed: 0, altitude: 2, nos: 100, distance: 126, rescued: 0, discovered: 0, x: 0, z: 8, message: raceRef.current.message, landed: false, docked: false }); setBoostActive(false);
     phaseRef.current = start ? "running" : "ready"; setPhase(start ? "running" : "ready"); if (start) notify("Launch systems online · explore at your own pace.", "success");
   }, [notify]);
   const togglePause = useCallback(() => {

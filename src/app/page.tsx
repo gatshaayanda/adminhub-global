@@ -4,7 +4,7 @@ import Link from "next/link";
 import GameShowcase from "@/components/GameShowcase";
 import IndustryProjectShowcase from "@/components/IndustryProjectShowcase";
 import HomeIntake from "@/components/HomeIntake";
-import FounderReferenceCarousel from "@/components/FounderReferenceCarousel";
+import HomeProofCarousel from "@/components/HomeProofCarousel";
 
 export default function HomePage() {
   return (
@@ -70,7 +70,7 @@ export default function HomePage() {
           <p className="admin-kicker">04 / MEET THE FOUNDER</p>
           <h2>Get to know the person behind the work.</h2>
           <p className="admin-start-lead">The work shows what Admin Hub builds. Explore genuine supporting records and learn more about the person behind it, without mistaking a project example for a testimonial.</p>
-          <FounderReferenceCarousel />
+          <HomeProofCarousel />
           <div className="admin-start-actions">
             <Link className="admin-primary-button admin-primary-button-large" href="/ayanda">Meet the founder <span>↗</span></Link>
             <Link className="admin-text-link" href="/contact">Discuss a project ↗</Link>

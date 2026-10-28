@@ -51,6 +51,40 @@ export default function GGLSpaceShooterPage() {
     changeStatus("running");
   }, [changeStatus]);
 
+  const steeringAngleAt = (event: PointerEvent<HTMLButtonElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return Math.atan2(event.clientY - (rect.top + rect.height / 2), event.clientX - (rect.left + rect.width / 2));
+  };
+
+  const startSteering = (event: PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    steeringStartAngle.current = steeringAngleAt(event);
+  };
+
+  const steerWheel = (event: PointerEvent<HTMLButtonElement>) => {
+    if (steeringStartAngle.current === null) return;
+    event.preventDefault();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - (rect.left + rect.width / 2);
+    const y = event.clientY - (rect.top + rect.height / 2);
+    if (Math.hypot(x, y) < 7) return;
+    let delta = steeringAngleAt(event) - steeringStartAngle.current;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    const steering = Math.max(-1, Math.min(1, delta / (Math.PI * 0.62)));
+    pointerRef.current.left = steering < -0.12;
+    pointerRef.current.right = steering > 0.12;
+    setWheelRotation(steering * 125);
+  };
+
+  const stopSteering = () => {
+    steeringStartAngle.current = null;
+    pointerRef.current.left = false;
+    pointerRef.current.right = false;
+    setWheelRotation(0);
+  };
+
   const toggleSound = useCallback(() => {
     setSoundOn((current) => {
       soundOnRef.current = !current;

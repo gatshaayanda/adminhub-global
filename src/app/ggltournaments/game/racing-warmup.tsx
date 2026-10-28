@@ -57,14 +57,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
-    controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+    controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false };
     setSpeed(0); setLapTime(0); setBestLap(null); setLap(1); setNos(100); setBoostActive(false);
     setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
   }, []);
   const startRace = useCallback(() => reset(true), [reset]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
-      controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+      controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false };
       setBoostActive(false); phaseRef.current = "paused"; setPhase("paused");
     } else if (phaseRef.current === "paused") {
       raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
@@ -275,7 +275,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               race.damage = clamp(race.damage + Math.max(0, impactKmh - 18) * (impactKmh > 115 ? 0.78 : impactKmh > 65 ? 0.38 : 0.12), 0, 100);
               if (impactKmh > 28) notify(impactKmh > 90 ? "Heavy impact · car damaged" : "Barrier contact · speed lost", impactKmh > 90 ? "error" : "info");
               if (race.damage >= 100 || impactKmh > 178) {
-                controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false };
+                controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false };
                 race.velocityX = 0; race.velocityZ = 0; race.speed = 0;
                 phaseRef.current = "crashed"; setPhase("crashed");
                 notify("Major crash · restart the session", "error");
@@ -356,7 +356,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (e.key.toLowerCase() === "r") controlsRef.current.ascend = false;
       if (e.key.toLowerCase() === "f") controlsRef.current.descend = false;
     };
-    const release = () => { controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false }; setBoostActive(false); };
+    const release = () => { controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false }; setBoostActive(false); };
     window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp); window.addEventListener("blur", release);
     return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", release); };
   }, [pauseRace, embedded, expanded]);

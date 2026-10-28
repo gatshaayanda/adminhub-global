@@ -14,7 +14,7 @@ const SPRITES: SpriteName[] = ["ship_A", "enemy_A", "enemy_B", "enemy_C", "enemy
 const spritePath = (name: SpriteName) => `/game-assets/space/PNG/Retina/${name}.png`;
 
 function freshGame(): GameData {
-  return { x: 0, y: 0.74, score: 0, lives: 3, time: 0, wave: 1, spawn: 0.5, fire: 0, boost: 0, stars: Array.from({ length: 95 }, () => ({ x: Math.random(), y: Math.random(), speed: 0.12 + Math.random() * 0.7, size: 0.5 + Math.random() * 1.5 })), objects: [], shots: [], particles: [], flash: 0 };
+  return { x: 0, y: 0.74, score: 0, lives: 3, time: 0, wave: 1, spawn: 0.5, fire: 0, boost: 1, stars: Array.from({ length: 95 }, () => ({ x: Math.random(), y: Math.random(), speed: 0.12 + Math.random() * 0.7, size: 0.5 + Math.random() * 1.5 })), objects: [], shots: [], particles: [], flash: 0 };
 }
 
 export default function GGLSpaceShooterPage() {
@@ -31,6 +31,9 @@ export default function GGLSpaceShooterPage() {
   const bestScoreRef = useRef(0);
   const [soundOn, setSoundOn] = useState(false);
   const [embedded, setEmbedded] = useState(false);
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [boostHeld, setBoostHeld] = useState(false);
+  const steeringStartAngle = useRef<number | null>(null);
   const imagesRef = useRef<Partial<Record<SpriteName, HTMLImageElement>>>({});
   const soundRef = useRef<AudioContext | null>(null);
   const soundOnRef = useRef(false);

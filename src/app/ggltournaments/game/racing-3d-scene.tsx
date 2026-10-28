@@ -44,6 +44,7 @@ function makeCar() {
 export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const flightClockRef = useRef<HTMLDivElement>(null);
+  const shipMapMarkerRef = useRef<SVGGElement>(null);
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
@@ -143,7 +144,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         flightClockRef.current.textContent = `FLIGHT T+${flightMinutes}:${flightSeconds} · SYSTEM ${hours}:${minutes}`;
       }
       if (currentPhase === "running") {
-        const verticalInput = (controls.ascend ? 1 : 0) - (controls.descend ? 1 : 0);
+        // GAS lifts the ship; BRAKE lowers it. The analog stick owns forward/reverse thrust.
+        const verticalInput = (controls.accelerate ? 1 : 0) - (controls.brake ? 1 : 0);
         altitude = clamp(altitude + verticalInput * frameDelta * 8, -90, 90);
       }
       // Render the preserved spacecraft directly in unconstrained world space.
@@ -151,6 +153,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
+      if (shipMapMarkerRef.current) {
+        const mapX = 10 + ((race.worldX + 220) / 720) * 160;
+        const mapY = 10 + ((race.worldZ + 120) / 540) * 108;
+        const mapAngle = -race.worldYaw * 180 / Math.PI;
+        shipMapMarkerRef.current.setAttribute("transform", `translate(${mapX.toFixed(2)} ${mapY.toFixed(2)}) rotate(${mapAngle.toFixed(1)})`);
+      }
       // Subtle suspension response: braking transfers load forward and cornering
       // rolls the body. These are visual cues driven by the physics state.
       car.rotation.x = clamp(-race.longitudinalLoad * 0.12, -0.035, 0.015);
@@ -192,15 +200,18 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     <div className="space-flight-clock" aria-label="Flight elapsed time and accelerated system time" ref={flightClockRef}>FLIGHT T+00:00 · SYSTEM 06:00</div>
     <div aria-label="System map" className="space-mini-map">
       <div className="space-mini-map-title">SYSTEM MAP <span>FREE SPACE</span></div>
-      <svg viewBox="0 0 180 128" role="img" aria-label="Nearby planets and your ship">
+      <svg viewBox="0 0 180 128" role="img" aria-label="Live system map. The ship marker moves and turns with your flight.">
         <path d="M8 64H172 M90 8V120" stroke="rgba(156,204,255,.14)" strokeDasharray="3 5" fill="none" />
-        <circle cx="45" cy="35" r="12" fill="#9b654e" stroke="#eab08b" strokeWidth="1.5" />
-        <circle cx="132" cy="27" r="18" fill="#4d438d" stroke="#a6a0ff" strokeWidth="1.5" />
-        <ellipse cx="132" cy="27" rx="27" ry="5" fill="none" stroke="#a6a0ff" strokeWidth="1.5" transform="rotate(-18 132 27)" />
-        <circle cx="42" cy="91" r="16" fill="#276f9f" stroke="#77d7f5" strokeWidth="1.5" />
-        <circle cx="139" cy="91" r="21" fill="#367b62" stroke="#85d8ad" strokeWidth="1.5" />
-        <path d="M90 57l-5 12h10z" fill="#fff" stroke="#66f2ff" strokeWidth="1.5" />
-        <circle cx="90" cy="64" r="8" fill="none" stroke="#66f2ff" strokeOpacity=".45" />
+        <circle cx="21.1" cy="18" r="6.8" fill="#a75b42" stroke="#eab08b" strokeWidth="1.2" />
+        <circle cx="96.7" cy="40" r="10.5" fill="#4d438d" stroke="#a6a0ff" strokeWidth="1.5" />
+        <ellipse cx="96.7" cy="40" rx="16" ry="3.5" fill="none" stroke="#a6a0ff" strokeWidth="1.5" transform="rotate(-18 96.7 40)" />
+        <circle cx="123.3" cy="63" r="13.5" fill="#276f9f" stroke="#77d7f5" strokeWidth="1.5" />
+        <circle cx="161.1" cy="17" r="16" fill="#367b62" stroke="#85d8ad" strokeWidth="1.5" />
+        <circle cx="85.6" cy="114" r="9.5" fill="#9ebdce" stroke="#ccefff" strokeWidth="1.2" />
+        <g ref={shipMapMarkerRef} transform="translate(58.9 48.4)">
+          <circle r="7.5" fill="rgba(102,242,255,.17)" stroke="#66f2ff" strokeOpacity=".7" />
+          <path d="M0 -6 L4.2 5 L0 2.7 L-4.2 5 Z" fill="#ffffff" stroke="#66f2ff" strokeWidth="1.1" />
+        </g>
       </svg>
       <div className="space-mini-map-legend"><span><i className="map-ship-dot" /> YOU</span><span><i className="map-world-dot" /> PLANETS</span></div>
     </div>

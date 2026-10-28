@@ -21,3 +21,40 @@
 .ggl-space.is-embedded .space-controls{padding:12px 16px}
 .ggl-space.is-embedded .space-bottom-bar{padding:10px 14px}
 @media(max-width:600px){.ggl-space.is-embedded .space-hud>div{padding:9px 5px;gap:5px}.ggl-space.is-embedded .space-hud small{font-size:7px;letter-spacing:.05em}.ggl-space.is-embedded .space-hud strong{font-size:18px}.ggl-space.is-embedded .space-stage{height:430px}.ggl-space.is-embedded .space-bottom-bar{gap:8px;font-size:7px}.ggl-space.is-embedded .space-controls{padding:10px;gap:10px}}
+
+
+/* Flight controls follow the proven Vula racing pattern: a drag wheel plus dedicated hold actions. */
+.ggl-space .space-controls{display:grid;grid-template-columns:minmax(112px,.65fr) minmax(0,1.35fr);align-items:center;gap:22px;padding:18px 20px;border:1px solid #2a3341;border-top:0;background:#101620}
+.ggl-space .space-steering{display:grid;justify-items:center;gap:8px;min-width:0}
+.ggl-space .space-wheel{width:108px;height:108px;min-width:108px;min-height:108px;position:relative;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;color:#172820;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;transition:transform 70ms linear}
+.ggl-space .space-wheel:active{cursor:grabbing}
+.ggl-space .space-wheel:disabled{opacity:.45;cursor:default}
+.ggl-space .space-wheel-ring{position:absolute;inset:4px;border:9px solid #34483d;border-radius:50%;background:linear-gradient(145deg,#fff,#dfe7da);box-shadow:inset 0 0 0 2px #aebbad,0 4px 0 #b5c2b0}
+.ggl-space .space-wheel-spoke{position:absolute;left:50%;top:50%;display:block;background:#34483d;border-radius:5px;transform:translate(-50%,-50%)}
+.ggl-space .space-wheel-spoke.vertical{width:8px;height:34px;top:37%}
+.ggl-space .space-wheel-spoke.horizontal{width:43px;height:8px;top:66%}
+.ggl-space .space-wheel-hub{position:absolute;left:50%;top:50%;width:20px;height:20px;border-radius:50%;background:#b7f36b;border:4px solid #34483d;transform:translate(-50%,-50%)}
+.ggl-space .space-wheel-caption{position:absolute;bottom:17px;font-size:8px;letter-spacing:.12em;font-weight:900;color:#172820;pointer-events:none}
+.ggl-space .space-steering-caption{font-size:10px;color:#9da9bb;text-align:center;line-height:1.3}
+.ggl-space .space-action-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-width:0}
+.ggl-space .space-action-controls button{width:100%;min-width:0;height:56px;border-radius:8px;font-size:10px!important;font-weight:850!important;letter-spacing:.09em;touch-action:none;user-select:none;-webkit-user-select:none;transition:transform 70ms ease,filter 70ms ease,box-shadow 70ms ease}
+.ggl-space .space-action-controls button:active,.ggl-space .space-action-controls button[aria-pressed="true"]{transform:translateY(1px);filter:brightness(1.13);box-shadow:0 0 0 3px #b7f36b26}
+.ggl-space .space-fire{border:1px solid #b7f36b;background:#b7f36b;color:#11160d}
+.ggl-space .space-boost{border:1px solid #6d829c;background:#26374a;color:#f0f6ff}
+.ggl-space .space-thrust{border:1px solid #6b8b55;background:#202e22;color:#dff8cb}
+.ggl-space .space-brake{border:1px solid #755a58;background:#302322;color:#ffe2dc}
+@media(max-width:600px){
+  .ggl-space.is-embedded .space-controls{grid-template-columns:minmax(94px,.72fr) minmax(0,1.28fr);gap:12px;padding:12px 10px}
+  .ggl-space .space-wheel{width:92px;height:92px;min-width:92px;min-height:92px}
+  .ggl-space .space-wheel-ring{border-width:8px}
+  .ggl-space .space-wheel-caption{bottom:13px}
+  .ggl-space .space-action-controls{gap:7px}
+  .ggl-space .space-action-controls button{height:54px;padding:8px 3px;font-size:9px!important;letter-spacing:.04em}
+}
+@media(max-width:350px){
+  .ggl-space.is-embedded .space-controls{grid-template-columns:78px minmax(0,1fr);gap:8px;padding:10px 7px}
+  .ggl-space .space-wheel{width:76px;height:76px;min-width:76px;min-height:76px}
+  .ggl-space .space-wheel-ring{border-width:7px}
+  .ggl-space .space-wheel-caption{bottom:10px;font-size:7px}
+  .ggl-space .space-action-controls button{height:49px;font-size:8px!important}
+}

@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { FOUNDER_SESSION_COOKIE, verifyFounderSession } from "../../../../lib/boardsignal/founderSession.mjs";
 const allowed = new Set(["ggl_tournaments", "ggl_updates"]);
-async function isAdmin() { const jar = await cookies(); return verifyFounderSession(jar.get(FOUNDER_SESSION_COOKIE)?.value, process.env.ADMIN_PASSWORD); }
+const GGL_SESSION_COOKIE = "ggl_organizer_session";
+async function isAdmin() {
+ const jar = await cookies();
+ const founder = await verifyFounderSession(jar.get(FOUNDER_SESSION_COOKIE)?.value, process.env.ADMIN_PASSWORD);
+ if (founder) return true;
+ return verifyFounderSession(jar.get(GGL_SESSION_COOKIE)?.value, process.env.GGL_ORGANIZER_PASSWORD);
+}
 function clean(value: unknown) {
  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
  const result: Record<string,string|number|boolean> = {};

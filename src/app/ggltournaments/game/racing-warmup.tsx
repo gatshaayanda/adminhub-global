@@ -45,7 +45,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     toastTimer.current = setTimeout(() => setToast(null), 2200);
   }, []);
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
-  useEffect(() => { if (!embedded) document.title = "GGL Racing · Circuit practice"; }, [embedded]);
+  useEffect(() => { if (!embedded) document.title = "GGL Space · Open-space exploration"; }, [embedded]);
 
   const reset = useCallback((start: boolean) => {
     raceRef.current = newRace();
@@ -326,8 +326,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         </div>
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start driving ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
       </div>
-      <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; use BRAKE, GAS, ASCEND and DESCEND with the other thumb. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, R ascend, F descend, Space / Shift NOS, P pause. Practice is free. Lap times are practice results only; no tournament prize is attached to this solo mode.</p>
+      <p className="warmup-help">Phone: move the circular thumbstick with your left thumb; use BRAKE, GAS, ASCEND and DESCEND with the other thumb. Tap NOS once for a burst, tap again to stop. Desktop: ← / → or A / D steer, ↑ / W gas, ↓ / S brake, R ascend, F descend, Space / Shift NOS, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>
     </section>
-    {!embedded && <footer className="big-brothers-footer"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Racing<small>TOURNAMENTS · CIRCUIT PRACTICE</small></span></Link><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></footer>}
+    {!embedded && <footer className="big-brothers-footer"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>TOURNAMENTS · OPEN SPACE</small></span></Link><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></footer>}
   </div>;
 }

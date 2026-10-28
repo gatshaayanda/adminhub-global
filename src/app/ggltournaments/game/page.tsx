@@ -30,6 +30,7 @@ export default function GGLSpaceShooterPage() {
   const [bestScore, setBestScore] = useState(0);
   const bestScoreRef = useRef(0);
   const [soundOn, setSoundOn] = useState(false);
+  const [embedded, setEmbedded] = useState(false);
   const imagesRef = useRef<Partial<Record<SpriteName, HTMLImageElement>>>({});
   const soundRef = useRef<AudioContext | null>(null);
   const soundOnRef = useRef(false);
@@ -60,6 +61,10 @@ export default function GGLSpaceShooterPage() {
       }
       return !current;
     });
+  }, []);
+
+  useEffect(() => {
+    setEmbedded(new URLSearchParams(window.location.search).get("embed") === "1");
   }, []);
 
   useEffect(() => {
@@ -351,7 +356,7 @@ export default function GGLSpaceShooterPage() {
   };
 
   return (
-    <main className="ggl-space">
+    <main className={embedded ? "ggl-space is-embedded" : "ggl-space"}>
       <header className="space-nav">
         <Link href="/ggltournaments" className="space-back">← GGL Tournaments</Link>
         <div className="space-brand"><span>GGL</span> SPACE FLIGHT</div>

@@ -21,3 +21,11 @@
 .ggl-admin-access button span{color:var(--ggl-accent);margin-left:8px;font-size:15px}
 .ggl-admin-access button:hover{color:var(--ggl-accent)}
 @media(max-width:650px){.ggl-admin-access{padding:16px 18px}}
+
+/* GGL arcade entry sits between the hero and event listings. */
+.ggl-game-promo{max-width:1212px;margin:0 auto 26px;padding:25px 28px;display:flex;align-items:center;justify-content:space-between;gap:28px;background:linear-gradient(110deg,#1a2118,#171b17 58%,#20271b);border:1px solid #394332;border-radius:6px;position:relative;overflow:hidden}
+.ggl-game-promo:after{content:"";position:absolute;right:17%;top:-90px;width:230px;height:230px;border:1px solid rgba(183,243,107,.12);border-radius:50%;box-shadow:0 0 0 26px rgba(183,243,107,.025),0 0 0 58px rgba(183,243,107,.02);pointer-events:none}
+.ggl-game-promo-copy{position:relative;z-index:1}.ggl-game-promo .ggl-eyebrow{margin-bottom:10px}.ggl-game-promo h2{font-size:clamp(28px,3.2vw,38px);letter-spacing:-.055em;line-height:1.04;margin:0}.ggl-game-promo-copy>p:last-child{max-width:490px;font-size:12px;line-height:1.7;color:#aab2a3;margin:11px 0 0}
+.ggl-game-link{position:relative;z-index:1;flex:none;display:inline-flex;align-items:center;gap:24px;padding:14px 16px;border-radius:4px;background:var(--ggl-accent);border:1px solid var(--ggl-accent);color:#151811!important;font-size:12px;font-weight:750}.ggl-game-link span{font-size:17px}.ggl-game-link:hover{background:#ccff8b}
+@media(max-width:900px){.ggl-game-promo{margin-left:34px;margin-right:34px}}
+@media(max-width:650px){.ggl-game-promo{margin:0 18px 20px;padding:20px;align-items:flex-start;flex-direction:column;gap:18px}.ggl-game-promo h2{font-size:31px}.ggl-game-link{width:100%;justify-content:space-between}}

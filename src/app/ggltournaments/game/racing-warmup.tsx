@@ -32,7 +32,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [lapTime, setLapTime] = useState(0);
   const [nos, setNos] = useState(100);
   const [signal, setSignal] = useState({ label: "GREEN LIGHT · BUILD SPEED", tone: "go" });
-  const lastSignal = useRef("");
   const cornerSkillRef = useRef({ brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 });
   const [boostActive, setBoostActive] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
@@ -92,7 +91,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 10.5 : 6.5));
         race.steering += (controls.steer - race.steering) * steerEase;
         const steering = race.steering;
-        const upcomingBend = 0;
         const speedRatio = race.speed / 205;
         const throttleTarget = controls.accelerate && !controls.brake ? 1 : 0;
         const brakeTarget = controls.brake ? 1 : 0;
@@ -213,7 +211,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           setNos(race.nos);
           setBoostActive(boost);
           const cue = { label: "OPEN SPACE · EXPLORE FREELY", tone: "go" as const };
-          lastSignal.current = cue.tone;
           setSignal(cue);
         }
       }

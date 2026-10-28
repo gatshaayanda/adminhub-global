@@ -81,6 +81,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     sunHalo.position.copy(sunPosition); scene.add(sunHalo);
     const nebulaLight=new THREE.PointLight("#d04cff",90,420,2); nebulaLight.position.set(130,45,100); scene.add(nebulaLight);
     const planetaryBodies: Array<{ body: THREE.Group; periodHours: number }> = [];
+    const planetBarriers: Array<{ center: THREE.Vector3; radius: number }> = [];
     let simulationSeconds = 0;
     let flightElapsedSeconds = 0;
     const starPositions:number[]=[];
@@ -93,6 +94,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       world.name = name;
       world.add(new THREE.Mesh(new THREE.SphereGeometry(radius, 32, 24), new THREE.MeshStandardMaterial({ color, roughness: .9, metalness: .08, emissive: glow, emissiveIntensity: .055, flatShading: true })));
       world.add(new THREE.Mesh(new THREE.SphereGeometry(radius * 1.045, 28, 20), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .12, side: THREE.BackSide })));
+      // Visible atmospheric forcefield and matching collision radius share one boundary.
+      world.add(new THREE.Mesh(
+        new THREE.SphereGeometry(radius + 7, 32, 24),
+        new THREE.MeshBasicMaterial({ color: "#83eaff", transparent: true, opacity: .075, side: THREE.BackSide, depthWrite: false })
+      ));
+      planetBarriers.push({ center: new THREE.Vector3(...position), radius: radius + 7 });
       if (ringed) {
         const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.32, Math.max(.6, radius * .025), 8, 96), new THREE.MeshBasicMaterial({ color: "#9b83ff", transparent: true, opacity: .58 }));
         ring.rotation.x = 1.08; ring.rotation.y = -.32; world.add(ring);
@@ -107,6 +114,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     addPlanet("Frost", [120, -88, 400], 35, "#9ebdce", "#315a75");
     const moon = new THREE.Mesh(new THREE.SphereGeometry(10, 20, 16), new THREE.MeshStandardMaterial({ color: "#7b9bb4", roughness: .95, metalness: .12, flatShading: true }));
     moon.position.set(-155, 12, -85); scene.add(moon);
+    const moonBarrier = new THREE.Mesh(
+      new THREE.SphereGeometry(16, 24, 18),
+      new THREE.MeshBasicMaterial({ color: "#83eaff", transparent: true, opacity: .075, side: THREE.BackSide, depthWrite: false })
+    );
+    moon.add(moonBarrier);
+    planetBarriers.push({ center: new THREE.Vector3(-155, 12, -85), radius: 16 });
     const car = makeCar();
     // Preserve the original spacecraft silhouette and its established scale.
     car.scale.setScalar(0.82);
@@ -148,8 +161,27 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         const verticalInput = (controls.accelerate ? 1 : 0) - (controls.brake ? 1 : 0);
         altitude = clamp(altitude + verticalInput * frameDelta * 8, -90, 90);
       }
-      // Render the preserved spacecraft directly in unconstrained world space.
-      const carWorld = new THREE.Vector3(race.worldX, .015 + altitude, race.worldZ);
+      // Planetary atmosphere is a soft-looking but solid boundary. Resolve the ship
+      // against the same spheres shown to the player, and remove inward horizontal speed.
+      const shipPosition = new THREE.Vector3(race.worldX, .015 + altitude, race.worldZ);
+      for (const barrier of planetBarriers) {
+        const offset = shipPosition.clone().sub(barrier.center);
+        const distance = offset.length();
+        if (distance < barrier.radius) {
+          const normal = distance > 0.001 ? offset.multiplyScalar(1 / distance) : new THREE.Vector3(0, 1, 0);
+          shipPosition.copy(barrier.center).addScaledVector(normal, barrier.radius);
+          const inwardSpeed = race.velocityX * normal.x + race.velocityZ * normal.z;
+          if (inwardSpeed < 0) {
+            race.velocityX -= normal.x * inwardSpeed;
+            race.velocityZ -= normal.z * inwardSpeed;
+          }
+          race.worldX = shipPosition.x;
+          race.worldZ = shipPosition.z;
+          altitude = shipPosition.y - .015;
+        }
+      }
+      // Render the preserved spacecraft directly in open world space.
+      const carWorld = shipPosition;
       const forward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;

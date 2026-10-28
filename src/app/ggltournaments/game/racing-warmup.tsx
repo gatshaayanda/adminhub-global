@@ -212,7 +212,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           setLapTime(race.lapTime);
           setNos(race.nos);
           setBoostActive(boost);
-          const cue = { label: "OPEN SPACE · EXPLORE FREELY", tone: "go" };
+          const cue = { label: "OPEN SPACE · EXPLORE FREELY", tone: "go" as const };
           lastSignal.current = cue.tone;
           setSignal(cue);
         }

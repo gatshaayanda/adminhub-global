@@ -190,15 +190,17 @@ export default function GGLSpaceShooterPage() {
         const ptr = pointerRef.current;
         const left = keys.ArrowLeft || keys.a || keys.A || ptr.left;
         const right = keys.ArrowRight || keys.d || keys.D || ptr.right;
-        const up = keys.ArrowUp || keys.w || keys.W || ptr.up;
-        const down = keys.ArrowDown || keys.s || keys.S || ptr.down;
+        const up = keys.ArrowUp || keys.w || keys.W || ptr.up || ptr.thrust;
+        const down = keys.ArrowDown || keys.s || keys.S || ptr.down || ptr.brake;
         const firing = keys[" "] || ptr.fire;
-        const boosting = keys.Shift || keys.x || keys.X || ptr.boost;
+        const boosting = (keys.Shift || keys.x || keys.X || ptr.boost) && g.boost > 0.02;
+        const thrusting = ptr.thrust;
+        const braking = ptr.brake;
         const steer = (right ? 1 : 0) - (left ? 1 : 0);
         const lift = (down ? 1 : 0) - (up ? 1 : 0);
         g.x = Math.max(-0.94, Math.min(0.94, g.x + steer * dt * (boosting ? 1.1 : 0.82)));
         g.y = Math.max(0.48, Math.min(0.88, g.y + lift * dt * 0.5));
-        g.boost = Math.max(0, Math.min(1, g.boost + (boosting ? -dt * 0.22 : dt * 0.11)));
+        g.boost = Math.max(0, Math.min(1, g.boost + (boosting ? -dt * 0.48 : dt * 0.18)));
         g.flash = Math.max(0, g.flash - dt * 2.8);
         g.spawn -= dt;
         if (g.spawn <= 0) {
@@ -215,7 +217,7 @@ export default function GGLSpaceShooterPage() {
           g.fire = 0.19;
           playTone(580, 0.07, "square");
         }
-        const travelSpeed = boosting ? 0.9 : 0.56 + g.wave * 0.018;
+        const travelSpeed = boosting ? 1.04 : thrusting ? 0.76 : braking ? 0.36 : 0.56 + g.wave * 0.018;
         g.stars.forEach((star) => {
           star.y += dt * star.speed * (boosting ? 1.9 : 1) * (0.25 + star.size);
           if (star.y > 1) { star.y = 0; star.x = Math.random(); }
@@ -351,7 +353,7 @@ export default function GGLSpaceShooterPage() {
       }
       const playerX = width / 2 + g.x * width * 0.34;
       const playerY = height * g.y;
-      if (running && g.boost > 0.05) drawSprite("effect_yellow", playerX, playerY + 30, 45 + g.boost * 25, 65 + g.boost * 30, Math.PI, 0.35 + g.boost * 0.5);
+      if (running && (boosting || g.boost > 0.05)) drawSprite("effect_yellow", playerX, playerY + 30, 45 + g.boost * 25, 65 + g.boost * 30, Math.PI, 0.35 + g.boost * 0.5);
       drawSprite("ship_A", playerX, playerY, Math.min(width * 0.19, 90), Math.min(width * 0.19, 90), g.x * -0.23, 1);
       if (g.flash > 0) {
         ctx.fillStyle = `rgba(255,70,78,${g.flash * 0.17})`;

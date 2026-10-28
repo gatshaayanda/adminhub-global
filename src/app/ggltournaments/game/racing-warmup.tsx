@@ -57,7 +57,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const startRace = useCallback(() => reset(true), [reset]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
-      controlsRef.current = { steer: 0, accelerate: false, brake: false, boost: false, ascend: false, descend: false };
+      controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false };
       setBoostActive(false); phaseRef.current = "paused"; setPhase("paused");
     } else if (phaseRef.current === "paused") {
       raceRef.current.last = 0; phaseRef.current = "running"; setPhase("running");
@@ -225,7 +225,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   useEffect(() => {
     const keyDown = (e: KeyboardEvent) => {
       if (embedded && !expanded) return;
-      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "a", "d", "w", "s", " ", "r", "f"].includes(e.key.toLowerCase()) || e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault();
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "a", "d", "w", "s", " ", "e", "q"].includes(e.key.toLowerCase()) || e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") e.preventDefault();
       if (e.key === "ArrowLeft" || e.key.toLowerCase() === "a") controlsRef.current.steer = -1;
       if (e.key === "ArrowRight" || e.key.toLowerCase() === "d") controlsRef.current.steer = 1;
       if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") controlsRef.current.flight = 1;

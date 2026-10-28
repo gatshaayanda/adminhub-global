@@ -57,7 +57,7 @@ export default function HomePage() {
 
       <section className="admin-work admin-problems" id="work">
         <div className="admin-section-intro">
-          <p className="admin-kicker">02 / CONTRACT-ENGAGED CASE STUDIES</p>
+          <p className="admin-kicker">02 / CASE STUDIES & PROJECT EXAMPLES</p>
           <h2>Real business needs.<br />Purpose-built tools.</h2>
           <p className="admin-section-lead">
             These examples show how a reusable foundation is adapted to different

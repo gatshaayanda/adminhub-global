@@ -25,11 +25,5 @@ export const publicProducts: PublicProduct[] = [
 
 export const productIndustries = [
   {name:"Neighbourhood Trust",intro:"Examples shaped through real local business relationships and the specific customer or operating needs of each business.",slugs:["the-plug","africhiko","john-the-stylist","tripple-s-wellness","namane-tyres","atlas-service-centre","boemo","meating-place"]},
-  {name:"Transport & Logistics",intro:"Systems for moving jobs, requests and operational work through a business.",slugs:["translend"]},
-  {name:"Automotive & Workshops",intro:"Customer and workshop workflows for automotive service businesses.",slugs:["namane-tyres","atlas-service-centre"]},
-  {name:"Education & Tutoring",intro:"Digital experiences for learners, tutors and education workflows.",slugs:["boardsignal","tutorme"]},
-  {name:"Events & Equipment Hire",intro:"Booking and operational tools for businesses that rent or coordinate equipment.",slugs:["avram-kids"]},
-  
-  {name:"Beyond the Neighbourhood",intro:"Products and business systems grouped by their audience, workflow and operating reach—not simply where a business is located.",slugs:["translend","boardsignal","avram-kids","the-wall","purepress","ggl-tournaments"]},
-  {name:"Business & Operations",intro:"Focused business systems for teams whose work does not fit a generic website.",slugs:["purepress","the-plug-pearl"]},
+  {name:"Beyond the Neighbourhood",intro:"Products and business systems grouped by their audience, workflow and operating reach—not simply where a business is located.",slugs:["translend","boardsignal","avram-kids","the-wall","purepress","ggl-tournaments","tutorme"]},
 ];

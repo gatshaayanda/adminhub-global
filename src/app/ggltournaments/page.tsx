@@ -4,6 +4,7 @@ import "./ggl.css";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import GGLSpaceShooter from "./game/space-game";
 
 type Tournament = { id: string; game: string; mode: string; title: string; date: string; fee: string; prize: string; slots: string; status: string; accent: string };
 const tournaments: Tournament[] = [
@@ -62,7 +63,7 @@ export default function GGLTournamentsPage() {
           <p>Fly between planets, shoot incoming craft, dodge meteors and chase your high score without leaving the tournament page.</p>
         </div>
       </div>
-      <iframe className="ggl-game-frame" src="/ggltournaments/game?embed=1" title="Playable GGL spaceship shooter" loading="eager" allow="autoplay" />
+      <GGLSpaceShooter embedded />
     </section>
 
     <section id="tournaments" className="ggl-section">

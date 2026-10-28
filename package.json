@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "prepare:stockfish": "node scripts/prepare-stockfish.mjs",
-    "postinstall": "npm run prepare:stockfish"
+    "postinstall": "npm run prepare:stockfish",
+    "prepare:ggl-space-assets": "node scripts/prepare-ggl-space-assets.mjs",
+    "prebuild": "npm run prepare:ggl-space-assets",
+    "predev": "npm run prepare:ggl-space-assets"
   },
   "dependencies": {
     "@uploadthing/react": "^7.3.3",

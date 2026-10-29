@@ -627,3 +627,10 @@
 .space-proximity-actions .space-machine-load-options button{min-height:40px;padding:7px 5px;background:#d7f1ff;border-color:#81c8e5;color:#133b52;font-size:9px}
 @media(max-width:520px){.space-machine-load-options{gap:4px}.space-proximity-actions .space-machine-load-options button{min-height:38px;font-size:8px;padding:6px 3px}}
 @media(max-width:360px){.space-machine-load-options{gap:3px}.space-proximity-actions .space-machine-load-options button{font-size:7px;letter-spacing:-.02em}}
+
+
+.space-world-signal{position:absolute;z-index:4;left:12px;bottom:12px;width:min(310px,43%);display:flex;flex-direction:column;gap:4px;padding:9px 11px;border:1px solid rgba(108,233,239,.26);border-left:3px solid #6ce9ef;border-radius:0 9px 9px 0;background:linear-gradient(110deg,rgba(4,18,32,.9),rgba(5,21,36,.74));color:#c3d9e8;backdrop-filter:blur(7px);pointer-events:none;box-shadow:0 7px 18px #0002}
+.space-world-signal span{font-size:7px;font-weight:950;letter-spacing:.16em;color:#78e9f0}
+.space-world-signal strong{font-size:9px;font-weight:650;line-height:1.4}
+@media(max-width:520px){.space-world-signal{left:8px;bottom:8px;width:calc(100% - 16px);max-width:calc(100% - 16px);padding:7px 8px}.space-world-signal strong{font-size:8px}.space-world-signal span{font-size:6px}}
+@media(prefers-reduced-motion:reduce){.space-world-signal{transition:none}}

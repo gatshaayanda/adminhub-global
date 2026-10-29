@@ -70,8 +70,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       saveWorld();
     };
   }, []);
-  const phaseRef = useRef<Phase>("ready");
-  const [phase, setPhase] = useState<Phase>("ready");
+  const phaseRef = useRef<Phase>("running");
+  const [phase, setPhase] = useState<Phase>("running");
   const [countdown, setCountdown] = useState(3);
   const [speed, setSpeed] = useState(0);
   const [lapTime, setLapTime] = useState(0);
@@ -104,14 +104,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   }, []);
   useEffect(() => { if (!embedded) document.title = "GGL Space · Open-space exploration"; }, [embedded]);
 
-  const reset = useCallback((start: boolean) => {
+  const reset = useCallback(() => {
     raceRef.current = newRace();
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
     controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false };
     setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
-    setCountdown(3); phaseRef.current = start ? "countdown" : "ready"; setPhase(start ? "countdown" : "ready");
+    phaseRef.current = "running"; setPhase("running");
   }, []);
-  const startRace = useCallback(() => reset(true), [reset]);
+  const startRace = useCallback(() => reset(), [reset]);
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
       controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false };
@@ -459,11 +459,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <div className="space-transfer-copy"><strong>{transferSignal.title}</strong><span>{transferSignal.detail}</span><div className="space-transfer-route">{transferSignal.route} <i aria-hidden="true">➜</i></div></div>
         </div>}
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
-        <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
-          <span>GGL SPACE · FREE EXPLORATION</span>
-          <strong>{phase === "ready" ? "Ready for launch" : phase === "countdown" ? String(countdown || 1) : phase === "paused" ? "Paused" : phase === "crashed" ? "Car disabled" : "Nice driving!"}</strong>
-          <p>{phase === "ready" ? "Use the familiar controls to fly through open space and look around the nearby planets." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Enjoy the open space. You can pause or restart whenever you like."}</p>
-        </div>
+        
       </div>
 
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
@@ -486,10 +482,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         <div className="warmup-driving">
           <button type="button" className="down-thrust-button" aria-label="Down thrusters" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>DOWN THRUST ↓</button>
           <button type="button" className="accelerate-button up-thrust-button" aria-label="Up thrusters" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>UP THRUST ↑</button>
+          <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "NOS ⚡"}</button>
           <button type="button" className="projectile-button" aria-label="Fire projectile" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controlsRef.current.fire = true; }} onPointerUp={() => { controlsRef.current.fire = false; }} onPointerCancel={() => { controlsRef.current.fire = false; }} onLostPointerCapture={() => { controlsRef.current.fire = false; }}>FIRE ✦</button>
-          <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "TAP NOS ⚡"}</button>
         </div>
-        <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
+        <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => reset()}>Restart ↻</button></div>
       </div>
 
       <p className="warmup-help">Phone: drag the analog stick left/right to steer and up/down to fly forward/back. UP THRUST ↑ raises altitude; DOWN THRUST ↓ lowers altitude. Tap NOS to toggle a burst. Desktop: ← / → or A / D steer, ↑ / W forward, ↓ / S reverse, E up thrust, Q down thrust, Space / Shift NOS, F / Enter fire, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>

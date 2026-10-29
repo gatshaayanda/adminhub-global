@@ -5,7 +5,7 @@ import { createInitialSpaceState, advanceSpaceWorld, formatWorldTime, habitatCap
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 
-export type { SpaceState } from "./space-civilisation";
+export type { SpaceState };
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; flight: number; accelerate: boolean; brake: boolean; boost: boolean; fire: boolean };
 export type Race = {

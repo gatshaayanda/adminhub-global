@@ -218,9 +218,12 @@ export type FirstFootholdCue = {
 };
 
 export function getFirstFootholdCue(state: SpaceState): FirstFootholdCue {
-  const candidate = WORLD_PLANETS
-    .filter((planet) => !state.colonies[planet.name])
-    .sort((a, b) => (state.planetProgress[b.name] ?? b.initialProgress) - (state.planetProgress[a.name] ?? a.initialProgress))[0];
+  // Make the first guided investment produce a readable stage change: Cobalt begins at thin-air (66%), so restoration visibly crosses into habitable conditions. This is a suggestion, not a lock; other planets remain interactable.
+  const candidate = !state.colonies.Cobalt
+    ? WORLD_PLANETS.find((planet) => planet.name === "Cobalt")
+    : WORLD_PLANETS
+      .filter((planet) => !state.colonies[planet.name])
+      .sort((a, b) => (state.planetProgress[b.name] ?? b.initialProgress) - (state.planetProgress[a.name] ?? a.initialProgress))[0];
 
   if (!candidate) {
     return {

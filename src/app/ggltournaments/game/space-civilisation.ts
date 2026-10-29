@@ -84,7 +84,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     havenGrowthRemainder: 0,
     colonies: {},
     colonyGrowthRemainders: {},
-    events: ["Haven established: 60 people, finite machinery, five worlds at five different habitat stages."],
+    events: ["Mission signal: Cobalt is 66% restored. Three machines can move it from thin air toward a safe habitat."],
   };
 }
 
@@ -102,8 +102,16 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     const operators = state.colonies[planet.name]?.operators || 0;
     if (machines > 0 && (state.planetProgress[planet.name] || 0) < 100) {
       // Preserve the prototype's visible pace while tying it to simulation time: 3.3% per simulated hour per machine.
+      const previousProgress = state.planetProgress[planet.name] || 0;
+      const previousStage = habitatStage(previousProgress);
       const rate = machines + operators * 0.18;
-      state.planetProgress[planet.name] = Math.min(100, (state.planetProgress[planet.name] || 0) + hours * 3.3 * rate);
+      const nextProgress = Math.min(100, previousProgress + hours * 3.3 * rate);
+      state.planetProgress[planet.name] = nextProgress;
+      const nextStage = habitatStage(nextProgress);
+      if (nextStage.index > previousStage.index) {
+        state.events.unshift(planet.name + " has entered " + nextStage.label + " conditions. " + (nextProgress >= 80 ? "Safe settlement capacity: " + habitatCapacity(nextProgress) + " people." : "More restoration is needed before people can settle safely."));
+        state.events = state.events.slice(0, 6);
+      }
     }
   }
 

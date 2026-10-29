@@ -634,3 +634,86 @@
 .space-world-signal strong{font-size:9px;font-weight:650;line-height:1.4}
 @media(max-width:520px){.space-world-signal{left:8px;bottom:8px;width:calc(100% - 16px);max-width:calc(100% - 16px);padding:7px 8px}.space-world-signal strong{font-size:8px}.space-world-signal span{font-size:6px}}
 @media(prefers-reduced-motion:reduce){.space-world-signal{transition:none}}
+
+
+/* Final GGL Space usability pass: keep the flight view open and controls consistent. */
+.warmup-circuit-controls .warmup-driving {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:repeat(2,minmax(60px,1fr));
+  gap:8px;
+  min-width:0;
+  align-items:stretch;
+}
+.warmup-circuit-controls .warmup-driving button,
+.warmup-circuit-controls .warmup-driving .nos-button,
+.warmup-circuit-controls .warmup-driving .projectile-button {
+  grid-column:auto;
+  justify-self:stretch;
+  width:100%;
+  min-width:0!important;
+  min-height:60px!important;
+  height:100%;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px 5px!important;
+  border:2px solid #526b78;
+  border-radius:12px!important;
+  font:800 11px/1.15 system-ui,sans-serif!important;
+  letter-spacing:.015em!important;
+  text-align:center;
+  white-space:normal;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.12);
+}
+.warmup-circuit-controls .warmup-driving .down-thrust-button {
+  grid-column:1;grid-row:1;
+  background:#f5e5df;border-color:#dfb7aa;color:#6f2f24;
+}
+.warmup-circuit-controls .warmup-driving .up-thrust-button {
+  grid-column:2;grid-row:1;
+  background:#d9efb4;border-color:#91b83e;color:#20351d;
+}
+.warmup-circuit-controls .warmup-driving .nos-button {
+  grid-column:1;grid-row:2;
+  background:#dce2ff;border-color:#9da9ed;color:#303c83;
+}
+.warmup-circuit-controls .warmup-driving .nos-button[aria-pressed="true"] {
+  background:#cbd1ff;border-color:#6675d5;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12),0 0 0 2px #6675d533;
+}
+.warmup-circuit-controls .warmup-driving .projectile-button {
+  grid-column:2;grid-row:2;
+  background:#172b40;border-color:#4b7795;color:#f3fbff;
+}
+.warmup-circuit-controls .warmup-driving button:disabled {opacity:.48;filter:saturate(.55)}
+.space-transfer-signal {
+  left:50%!important;right:auto!important;top:10px!important;bottom:auto!important;
+  transform:translateX(-50%)!important;
+  width:min(260px,calc(100% - 300px))!important;
+  max-width:calc(100% - 24px);
+  padding:7px 9px!important;
+  gap:7px!important;
+  border-radius:10px!important;
+  background:rgba(5,15,32,.82)!important;
+  box-shadow:0 4px 12px rgba(0,0,0,.16)!important;
+}
+.space-transfer-signal .space-transfer-emoji {flex-basis:28px!important;width:28px!important;height:28px!important;font-size:17px!important}
+.space-transfer-signal strong {font-size:9px!important}
+.space-transfer-signal span {font-size:8px!important}
+.space-transfer-signal .space-transfer-route {font-size:7px!important}
+@media(max-width:520px) {
+  .warmup-circuit-controls .warmup-driving {grid-template-rows:repeat(2,minmax(56px,1fr));gap:7px}
+  .warmup-circuit-controls .warmup-driving button,
+  .warmup-circuit-controls .warmup-driving .nos-button,
+  .warmup-circuit-controls .warmup-driving .projectile-button {min-height:56px!important;font-size:10px!important;padding:7px 4px!important}
+  .space-transfer-signal {top:54px!important;width:min(220px,calc(100% - 160px))!important;padding:6px 7px!important}
+  .space-transfer-signal .space-transfer-emoji {display:none}
+}
+@media(max-width:360px) {
+  .warmup-circuit-controls .warmup-driving {gap:6px}
+  .warmup-circuit-controls .warmup-driving button,
+  .warmup-circuit-controls .warmup-driving .nos-button,
+  .warmup-circuit-controls .warmup-driving .projectile-button {min-height:52px!important;font-size:9px!important}
+  .space-transfer-signal {top:50px!important;width:calc(100% - 155px)!important}
+}

@@ -450,7 +450,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
               {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}
             </div>; })()}
-            <button type="button" onClick={dockOrLand}>{world.cargoEquipment > 0 ? "Deploy machinery" : world.cargoPeople > 0 ? "Attempt settlement" : "Scan this world"} <span>↗</span></button>
+            <button type="button" onClick={dockOrLand}>{world.cargoEquipment > 0 ? (world.cargoPeople > 0 ? "Deliver machines + crew" : "Deploy machinery") : world.cargoPeople > 0 ? "Check settlement conditions" : "Inspect world"} <span>↗</span></button>
           </>}
         </div>}
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>

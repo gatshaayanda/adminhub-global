@@ -305,7 +305,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     if (target === "GGL Haven") {
       const returnedCrew = state.cargoPeople;
       const returnedMachines = state.cargoEquipment;
-      if (returnedCrew > 0) state.havenPopulation = Math.min(240, state.havenPopulation + returnedCrew);
+      if (returnedCrew > 0) state.havenPopulation += returnedCrew; // Returning citizens are never discarded at the station capacity threshold.
       if (returnedMachines > 0) state.machineInventory += returnedMachines;
       if (state.visitedPlanets.length) {
         const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — " + (state.deployedEquipment[planet] || 0) + " machine(s) installed; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");

@@ -39,3 +39,42 @@
 .ggl-game-section-head .ggl-game-promo-copy>p:last-child{max-width:490px;font-size:12px;line-height:1.7;color:#aab2a3;margin:11px 0 0}
 @media(max-width:900px){.ggl-game-section{margin-left:34px;margin-right:34px}}
 @media(max-width:650px){.ggl-game-section{margin:0 18px}.ggl-game-section-head{align-items:flex-start;flex-direction:column;padding:20px;gap:16px}.ggl-game-section-head .ggl-game-link{width:100%;justify-content:space-between}}
+
+
+/* Mobile-first information architecture: put the playable experience immediately after the compact nav. */
+.ggl-game-section{
+  max-width:1280px;
+  margin:0 auto 24px;
+  padding:0 34px;
+}
+.ggl-game-section-head{
+  padding:18px 22px;
+  border:1px solid #394332;
+  border-bottom:0;
+  border-radius:8px 8px 0 0;
+}
+.ggl-game-section-head .ggl-eyebrow{margin-bottom:8px}
+.ggl-game-section-head h2{font-size:clamp(27px,3vw,36px)}
+.ggl-game-section-head .ggl-game-promo-copy>p:last-child{margin-top:7px}
+.ggl-game-section .racing-warmup,
+.ggl-game-section .racing-3d-root{min-width:0}
+@media(max-width:650px){
+  .ggl-nav{position:relative}
+  .ggl-nav nav{gap:8px}
+  .ggl-nav nav>a:first-child{display:inline-flex;color:var(--ggl-accent);font-weight:800;white-space:nowrap}
+  .ggl-game-section{
+    margin:0 0 18px;
+    padding:0;
+    width:100%;
+  }
+  .ggl-game-section-head{
+    padding:17px 18px 15px;
+    border-radius:0;
+    border-left:0;border-right:0;
+  }
+  .ggl-game-section-head h2{font-size:31px}
+  .ggl-game-section-head .ggl-game-promo-copy>p:last-child{font-size:12px;line-height:1.55}
+  .ggl-hero{padding-top:30px;padding-bottom:30px;gap:22px}
+  .ggl-feature{min-height:230px}
+  .ggl-feature-center{padding:20px 0}
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
-import { habitatStage, WORLD_PLANETS } from "./space-civilisation";
+import { getFirstFootholdCue, habitatStage, WORLD_PLANETS } from "./space-civilisation";
 import type { Controls, Phase, Race, SpaceState } from "./racing-warmup";
 
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; spaceStateRef: RefObject<SpaceState> };
@@ -53,6 +53,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
   const mountRef = useRef<HTMLDivElement>(null);
   const flightClockRef = useRef<HTMLDivElement>(null);
   const shipMapMarkerRef = useRef<SVGGElement>(null);
+  const mapRouteRef = useRef<SVGLineElement>(null);
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
@@ -95,6 +96,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     const planetVisuals: Record<string, { body: THREE.Group; surface: THREE.Mesh; atmosphere: THREE.Mesh; forcefield: THREE.Mesh; radius: number; baseColor: THREE.Color }> = {};
     const colonyVisuals: Record<string, { root: THREE.Group; buildings: THREE.Group[] }> = {};
     const deployedMachines: Record<string, THREE.Group[]> = {};
+    const terraformPulses: Record<string, { mesh: THREE.Mesh; age: number; installed: number }> = {};
+    const worldOriginUp = new THREE.Vector3(0, 1, 0);
     let simulationSeconds = spaceStateRef.current.worldTimeMinutes * 60;
     let flightElapsedSeconds = 0;
     const starPositions:number[]=[];
@@ -122,6 +125,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       }
       world.position.set(...position); scene.add(world);
       planetVisuals[name] = { body: world, surface, atmosphere, forcefield, radius, baseColor: new THREE.Color(color) };
+      const terraformPulse = new THREE.Mesh(
+        new THREE.SphereGeometry(radius + 8, 22, 16),
+        new THREE.MeshBasicMaterial({ color: "#78f0b1", wireframe: true, transparent: true, opacity: 0, depthWrite: false })
+      );
+      terraformPulse.position.set(...position);
+      terraformPulse.visible = false;
+      scene.add(terraformPulse);
+      terraformPulses[name] = { mesh: terraformPulse, age: 2, installed: spaceStateRef.current.deployedEquipment[name] || 0 };
       // The settlement is a small, legible silhouette on the equator; its scale grows with the actual local population.
       const settlement = new THREE.Group();
       settlement.name = name + " settlement";
@@ -132,8 +143,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       for (let i = 0; i < 6; i++) {
         const angle = i * Math.PI / 3;
         const habitat = new THREE.Group();
-        habitat.position.set(Math.cos(angle) * (radius + 1.6), 0, Math.sin(angle) * (radius + 1.6));
-        habitat.rotation.y = -angle;
+        const surfaceNormal = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+        habitat.position.copy(surfaceNormal.clone().multiplyScalar(radius + .06));
+        habitat.quaternion.setFromUnitVectors(worldOriginUp, surfaceNormal);
         const footing = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.65, .6, 8), buildingMaterial);
         footing.position.y = .3;
         habitat.add(footing);
@@ -160,7 +172,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       colonyVisuals[name] = { root: settlement, buildings: settlementBuildings };
       planetaryBodies.push({ body: world, periodHours: 18 + planetaryBodies.length * 7 });
       deployedMachines[name] = [];
-      for (let i = 0; i < 12; i++) { const machine = new THREE.Group(); const metal = new THREE.MeshStandardMaterial({ color: "#b7c6d7", metalness: .72, roughness: .34, emissive: "#2c6d82", emissiveIntensity: .22 }); const core = new THREE.Mesh(new THREE.CylinderGeometry(.8, 1.05, 2.5, 8), metal); core.position.y = 1.25; machine.add(core); const cap = new THREE.Mesh(new THREE.CylinderGeometry(.35, .65, .45, 8), new THREE.MeshStandardMaterial({ color: "#24364b", metalness: .48, roughness: .5 })); cap.position.y = 2.65; machine.add(cap); const panel = new THREE.Mesh(new THREE.BoxGeometry(2.8, .12, 1.2), new THREE.MeshStandardMaterial({ color: "#4c86b5", metalness: .55, roughness: .32, emissive: "#102b4c", emissiveIntensity: .25 })); panel.position.set(1.6, 1.1, .1); panel.rotation.z = -.12; machine.add(panel); const angle = i * Math.PI / 6; machine.position.set(position[0] + Math.cos(angle) * (radius + 1.2), position[1] + Math.sin(angle) * (radius + 1.2), position[2]); machine.lookAt(position[0], position[1], position[2]); machine.visible = false; scene.add(machine); deployedMachines[name].push(machine); }
+      for (let i = 0; i < 12; i++) { const machine = new THREE.Group(); const metal = new THREE.MeshStandardMaterial({ color: "#b7c6d7", metalness: .72, roughness: .34, emissive: "#2c6d82", emissiveIntensity: .22 }); const core = new THREE.Mesh(new THREE.CylinderGeometry(.8, 1.05, 2.5, 8), metal); core.position.y = 1.25; machine.add(core); const cap = new THREE.Mesh(new THREE.CylinderGeometry(.35, .65, .45, 8), new THREE.MeshStandardMaterial({ color: "#24364b", metalness: .48, roughness: .5 })); cap.position.y = 2.65; machine.add(cap); const panel = new THREE.Mesh(new THREE.BoxGeometry(2.8, .12, 1.2), new THREE.MeshStandardMaterial({ color: "#4c86b5", metalness: .55, roughness: .32, emissive: "#102b4c", emissiveIntensity: .25 })); panel.position.set(1.6, 1.1, .1); panel.rotation.z = -.12; machine.add(panel); const angle = i * Math.PI / 6; const surfaceNormal = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)); machine.position.set(position[0] + surfaceNormal.x * (radius + .15), position[1], position[2] + surfaceNormal.z * (radius + .15)); machine.quaternion.setFromUnitVectors(worldOriginUp, surfaceNormal); machine.visible = false; scene.add(machine); deployedMachines[name].push(machine); }
     };
     addPlanet("Aster", [170, 25, 30], 31, "#4d438d", "#20165d", true);
     addPlanet("Cobalt", [290, -22, 145], 43, "#276f9f", "#103a70");
@@ -195,6 +207,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     const clock = new THREE.Clock();
     let lastClockPaint = -1;
     let raf = 0;
+    const mapTargetPositions: Record<string, [number, number]> = {
+      "GGL Haven": [53, 52], Ember: [21.1, 18], Aster: [96.7, 40], Cobalt: [123.3, 63], Verdant: [161.1, 17], Frost: [85.6, 114],
+    };
     const resize = () => {
       const w = Math.max(280, host.clientWidth), h = Math.max(320, host.clientHeight);
       renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
@@ -254,7 +269,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         const surfaceMaterial = visual.surface.material as THREE.MeshStandardMaterial;
         const atmosphereMaterial = visual.atmosphere.material as THREE.MeshBasicMaterial;
         const fieldMaterial = visual.forcefield.material as THREE.MeshBasicMaterial;
-        surfaceMaterial.color.copy(visual.baseColor.clone().lerp(new THREE.Color(stage.color), .38 + progress / 250));
+        surfaceMaterial.color.copy(visual.baseColor.clone().lerp(new THREE.Color(stage.color), Math.min(.96, .64 + progress * .003)));
         surfaceMaterial.emissive.set(stage.color);
         surfaceMaterial.emissiveIntensity = .035 + stage.index * .018 + progress * .00022;
         atmosphereMaterial.color.set(stage.atmosphereColor);
@@ -262,6 +277,22 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         fieldMaterial.color.set(stage.color);
         fieldMaterial.opacity = .025 + progress * .00055;
         const count = state.deployedEquipment[planet.name] || 0;
+        const pulse = terraformPulses[planet.name];
+        if (pulse) {
+          if (count > pulse.installed) { pulse.age = 0; pulse.mesh.visible = true; }
+          pulse.installed = count;
+          if (pulse.age < 1.15) {
+            pulse.age += frameDelta;
+            const pulsePhase = Math.min(1, pulse.age / 1.15);
+            pulse.mesh.visible = true;
+            pulse.mesh.scale.setScalar(1 + pulsePhase * .2);
+            const pulseMaterial = pulse.mesh.material as THREE.MeshBasicMaterial;
+            pulseMaterial.color.set(stage.color);
+            pulseMaterial.opacity = .7 * (1 - pulsePhase);
+          } else {
+            pulse.mesh.visible = false;
+          }
+        }
         deployedMachines[planet.name].forEach((machine, index) => {
           machine.visible = index < count;
           if (machine.visible && currentPhase === "running") machine.rotation.y += frameDelta * .34;
@@ -424,6 +455,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         const mapY = 10 + ((race.worldZ + 120) / 540) * 108;
         const mapAngle = -race.worldYaw * 180 / Math.PI;
         shipMapMarkerRef.current.setAttribute("transform", `translate(${mapX.toFixed(2)} ${mapY.toFixed(2)}) rotate(${mapAngle.toFixed(1)})`);
+        const target = getFirstFootholdCue(state).target;
+        const targetPoint = mapTargetPositions[target] || mapTargetPositions["GGL Haven"];
+        if (mapRouteRef.current) {
+          mapRouteRef.current.setAttribute("x1", mapX.toFixed(2));
+          mapRouteRef.current.setAttribute("y1", mapY.toFixed(2));
+          mapRouteRef.current.setAttribute("x2", targetPoint[0].toFixed(2));
+          mapRouteRef.current.setAttribute("y2", targetPoint[1].toFixed(2));
+        }
       }
       // The spacecraft banks into turns and pitches slightly with vertical thrust.
       // Visual attitude follows pilot input; it never feeds back into flight physics.

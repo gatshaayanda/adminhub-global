@@ -223,16 +223,22 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         }
         // A brief trail of tiny dust points makes each debris pass feel like a field.
         const dustPositions: number[] = [];
+        const dustVelocities: THREE.Vector3[] = [];
         for (let i = 0; i < 28; i++) {
           dustPositions.push((Math.random() - .5) * 25, (Math.random() - .5) * 18, (Math.random() - .5) * 25);
+          // Every mote gets an independent speed and drift vector.
+          dustVelocities.push(travel.clone().multiplyScalar(-(5 + Math.random() * 38))
+            .addScaledVector(across, (Math.random() - .5) * 22)
+            .add(new THREE.Vector3((Math.random() - .5) * 10, (Math.random() - .5) * 12, (Math.random() - .5) * 10)));
         }
         const dustGeometry = new THREE.BufferGeometry();
         dustGeometry.setAttribute("position", new THREE.Float32BufferAttribute(dustPositions, 3));
         const dust = new THREE.Points(dustGeometry, asteroidDustMaterial);
+        dust.userData.velocities = dustVelocities;
         dust.position.copy(center);
         scene.add(dust);
-        // Dust is intentionally short-lived; keep its geometry attached for cleanup.
-        asteroids.push({ mesh: new THREE.Mesh(dustGeometry, asteroidMaterial), velocity: travel.clone().multiplyScalar(-30), radius: 0, age: -0.35 });
+        // Dust is intentionally short-lived; each point moves independently.
+        asteroids.push({ mesh: new THREE.Mesh(dustGeometry, asteroidMaterial), velocity: new THREE.Vector3(), radius: 0, age: -0.35 });
         asteroids[asteroids.length - 1].mesh.visible = false;
         asteroids[asteroids.length - 1].mesh.userData.dust = dust;
         nextAsteroidAt = flightElapsedSeconds + 2.4 + Math.random() * 3.6;
@@ -241,7 +247,15 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         const rock = asteroids[i];
         const dust = rock.mesh.userData.dust as THREE.Points | undefined;
         if (dust) {
-          dust.position.addScaledVector(rock.velocity, frameDelta);
+          const attribute = dust.geometry.getAttribute("position") as THREE.BufferAttribute;
+          const velocities = dust.userData.velocities as THREE.Vector3[];
+          for (let point = 0; point < attribute.count; point++) {
+            attribute.setXYZ(point,
+              attribute.getX(point) + velocities[point].x * frameDelta,
+              attribute.getY(point) + velocities[point].y * frameDelta,
+              attribute.getZ(point) + velocities[point].z * frameDelta);
+          }
+          attribute.needsUpdate = true;
           rock.age += frameDelta;
           if (rock.age >= 2.8 || dust.position.distanceTo(shipPosition) > 210) {
             scene.remove(dust); dust.geometry.dispose(); asteroids.splice(i, 1);
@@ -318,9 +332,10 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       // rolls the body. These are visual cues driven by the physics state.
       car.rotation.x = clamp(-race.longitudinalLoad * 0.12, -0.035, 0.015);
       car.rotation.z = clamp(-race.lateralG * 0.035 - race.drift * 0.12, -0.055, 0.055);
-      const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 10, carWorld.y + 1.25, carWorld.z + forward.z * 10);
-      const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 8.4, carWorld.y + 4.7, carWorld.z - forward.z * 8.4);
-      camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 5.5));
+      const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 14, carWorld.y + 1.6, carWorld.z + forward.z * 14);
+      // Give the pilot more breathing room and a clearer view of the space ahead.
+      const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 12.5, carWorld.y + 6.2, carWorld.z - forward.z * 12.5);
+      camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 4.5));
       camera.lookAt(cameraTarget);
       const flame = car.userData.flame as THREE.Object3D | undefined;
       if (flame) {

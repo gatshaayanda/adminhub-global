@@ -66,6 +66,14 @@ This section is the current source of truth for the Admin Hub Global product and
 - Keep mobile-first and make the desktop composition feel intentional too.
 
 ## Golden baseline / scope lock
+## Newest golden version / rollback rule (2026-10-29)
+
+- The newest explicitly accepted golden version is the protected baseline. A newer accepted version supersedes the previous golden; never restore an older snapshot merely because it is familiar or easier to work from.
+- Before changing a protected app/game, inspect the current GitHub `main` state and relevant docs. Keep the newest golden's working behaviour and visual decisions; make only the smallest requested, additive change.
+- If a change regresses the experience, compare against and restore the newest accepted golden version, not an older historical version. Never reset/revert the whole app or overwrite newer unrelated work to recover one feature.
+- For GGL Space, the new golden includes the GGL Haven system-map marker and the event-triggered crew boarding, equipment deployment, and crew-return signals added on 2026-10-29. Preserve these alongside the existing playable flight baseline. Interaction prompts must stay off the central ship/flight view, and NOS must remain a small, touch-responsive button beside FIRE unless the product owner explicitly approves a different control layout.
+- A GitHub push is not production QA completion: inspect the exact commit, wait for its Vercel deployment to reach READY, and verify the affected live route when practical. Report code verification and live QA as separate statuses.
+
 - The current Admin Hub homepage, shell, typography, layout, project presentation, and existing project destinations are the approved golden baseline.
 - Do not redesign, refactor, reorder, rename, or "clean up" unrelated homepage content while making catalog/PWA changes.
 - For the current catalog update, the only intended product changes are: (1) refresh/cache-bust the existing Admin Hub PWA logo/icon references and (2) add the two newly created app links listed below.

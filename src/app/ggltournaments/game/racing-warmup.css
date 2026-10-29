@@ -800,3 +800,12 @@
     padding: 6px !important;
   }
 }
+
+/* Restore the approved FIRE control; clutter cleanup must never hide gameplay controls. */
+.race-hub-embedded .warmup-driving .projectile-button {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+}

@@ -255,24 +255,24 @@ export function getFirstFootholdCue(state: SpaceState): FirstFootholdCue {
     };
   }
 
-  if (hasMachinesOnShip && !machinesReady) {
+  if (hasMachinesOnShip && (!machinesReady || !habitatReady)) {
     return {
       target: candidate.name,
       step: 2,
       title: "Deliver the machinery",
-      detail: candidate.name + " has " + installed + "/" + needMachines + " required machines installed. Your cargo is the next piece of its future.",
+      detail: candidate.name + " has " + installed + "/" + needMachines + " required machines installed. Delivering more machinery can restore habitat faster.",
       action: "Visit world to deploy",
       progress: 42,
     };
   }
 
-  if (!habitatReady || !machinesReady) {
+  if (!machinesReady) {
     if (!hasMachinesOnShip && state.machineInventory > 0) {
       return {
         target: "GGL Haven",
         step: 1,
         title: "Load your next investment",
-        detail: candidate.name + " is " + Math.round(progress) + "% restored and needs " + needMachines + " machines before a settlement can be founded. Load machinery at Haven, then deliver it.",
+        detail: candidate.name + " is " + Math.round(progress) + "% restored and needs " + needMachines + " machines before a settlement can be founded. Choose an exact load quantity, then deliver it.",
         action: "Load machines at Haven",
         progress: 14,
       };
@@ -281,9 +281,20 @@ export function getFirstFootholdCue(state: SpaceState): FirstFootholdCue {
       target: candidate.name,
       step: 2,
       title: "Restore " + candidate.name,
-      detail: "Machines installed: " + installed + "/" + needMachines + ". Habitat: " + Math.round(progress) + "%. Keep system time moving while local operators work.",
+      detail: "Machines installed: " + installed + "/" + needMachines + ". Habitat: " + Math.round(progress) + "%. Deliver the missing machinery when available.",
       action: "Continue restoration",
-      progress: 52,
+      progress: 42,
+    };
+  }
+
+  if (!habitatReady) {
+    return {
+      target: candidate.name,
+      step: 2,
+      title: "Watch the atmosphere change",
+      detail: installed + " machines are working on " + candidate.name + ". Habitat is " + Math.round(progress) + "%; keep system time moving until the world turns habitable.",
+      action: "Wait for habitat threshold",
+      progress: 60,
     };
   }
 

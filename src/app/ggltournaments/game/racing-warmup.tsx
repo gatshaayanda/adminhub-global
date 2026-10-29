@@ -14,10 +14,10 @@ export type Race = {
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
   nos: number; last: number; lapInvalid: boolean; offTrack: number;
   longitudinalLoad: number; lateralG: number; wheelLock: number;
-  worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number;
+  worldX: number; worldY: number; worldZ: number; worldYaw: number; velocityX: number; velocityY: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: -35, worldYaw: 0, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldY: 0, worldZ: -35, worldYaw: 0, velocityX: 0, velocityY: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -92,115 +92,66 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       previous = now;
       if (phaseRef.current === "running" && dt > 0) {
         const controls = controlsRef.current;
-        // Smooth steering inputs before applying tyre force; ease back to centre on release.
-        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 18 : 13));
+        // Spacecraft controls are independent of speed and ground-vehicle tyre physics.
+        // A thumb-left/right command rotates the nose left/right at a predictable rate,
+        // even while stationary. The ship keeps world-space momentum while thrust
+        // accelerates along the current nose direction, so steering changes the thrust
+        // vector without teleporting the velocity or requiring an artificial track.
+        const steerEase = 1 - Math.exp(-dt * (Math.abs(controls.steer) > Math.abs(race.steering) ? 16 : 10));
         race.steering += (controls.steer - race.steering) * steerEase;
-        const steering = race.steering;
-        const speedRatio = race.speed / 205;
+        const yawRate = -race.steering * 2.45;
+        race.worldYaw += yawRate * dt;
+        race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
+
         const throttleTarget = controls.flight;
-        // The BRAKE control now lowers altitude; reverse thrust comes from pulling
-        // the analog stick down, so it must not also apply a racing-style brake.
-        const brakeTarget = 0;
-        race.throttle += (throttleTarget - race.throttle) * (1 - Math.exp(-dt * (throttleTarget ? 10 : 12)));
-        race.brakePressure += (brakeTarget - race.brakePressure) * (1 - Math.exp(-dt * (brakeTarget ? 32 : 12)));
-        const boost = controls.boost && race.nos > 0 && !controls.brake;
-        const exitBonus = now < cornerSkillRef.current.exitBoostUntil ? 5 : 0;
+        race.throttle += (throttleTarget - race.throttle)
+          * (1 - Math.exp(-dt * (Math.abs(throttleTarget) > Math.abs(race.throttle) ? 9 : 7)));
+        // Up/down thrust is handled on the world Y axis in the 3D scene. It is not
+        // a car brake, and must not feed tyre grip, ABS or cornering calculations.
+        race.brakePressure = 0;
+        race.wheelLock = 0;
+        race.longitudinalLoad += (0 - race.longitudinalLoad) * (1 - Math.exp(-dt * 4));
 
-        // Simplified vehicle dynamics: speed is represented in km/h, forces in
-        // equivalent km/h per second. Braking integrates over time, so stopping
-        // distance emerges from the speed trajectory (rather than a fixed distance).
-        // A speed-squared stopping-distance estimate is also used to anticipate grip.
-        const speedMs = race.speed / 3.6;
-        const nominalBrakeMs2 = 9.2;
-        const estimatedStoppingDistance = speedMs * speedMs / (2 * nominalBrakeMs2);
-        const frontLoadTransfer = clamp(race.brakePressure * (0.10 + speedRatio * 0.08), 0, 0.22);
-        race.longitudinalLoad += (frontLoadTransfer - race.longitudinalLoad) * (1 - Math.exp(-dt * 7));
-        const lateralDemand = Math.abs(steering) * speedRatio * speedRatio * 0.92;
-        const longitudinalDemand = race.brakePressure * 0.94;
-        const combinedDemand = Math.sqrt(lateralDemand * lateralDemand + longitudinalDemand * longitudinalDemand);
-        const availableGrip = clamp(1.06 + race.longitudinalLoad * 0.18, 0.72, 1.12);
-        const gripUse = combinedDemand / availableGrip;
-        // ABS modulates a near-lock brake request. A small residual slip remains
-        // visible to the handling model; steering and braking compete for tyre grip.
-        const absThreshold = estimatedStoppingDistance > 45 ? 0.78 : 0.84;
-        const lockDemand = clamp((gripUse - absThreshold) / 0.48, 0, 1) * race.brakePressure;
-        const absActive = lockDemand > 0.08 && race.brakePressure > 0.55;
-        const targetWheelLock = absActive ? lockDemand * 0.22 : lockDemand;
-        race.wheelLock += (targetWheelLock - race.wheelLock) * (1 - Math.exp(-dt * (absActive ? 18 : 5)));
-        const brakeEfficiency = 1 - race.wheelLock * (absActive ? 0.12 : 0.52);
-        const brakeDeceleration = 36 * race.brakePressure * brakeEfficiency
-          * clamp(availableGrip / Math.max(0.82, combinedDemand), 0.35, 1.08);
-        const engineAcceleration = 34 * Math.abs(race.throttle) + exitBonus;
-        const aerodynamicDrag = race.speed * (0.055 + speedRatio * 0.025);
-        const boostAcceleration = boost ? 30 : 0;
-        race.speed = clamp(race.speed + (engineAcceleration + boostAcceleration - aerodynamicDrag - brakeDeceleration) * dt, 0, boost ? 250 : 205);
-        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + (controls.accelerate ? 4 : 9) * dt);
-        if (race.nos <= 0 && controls.boost) { controls.boost = false; setBoostActive(false); }
-
-        // A friction-circle model limits cornering when the tyres are already
-        // spending grip on braking. Low-speed steering remains stable; excess
-        // lateral demand at speed becomes slip instead of an arbitrary bend skid.
-        const updatedSpeedRatio = race.speed / 205;
-        const updatedLateralDemand = Math.abs(steering) * updatedSpeedRatio * updatedSpeedRatio * 0.92;
-        const updatedLongitudinalDemand = race.brakePressure * 0.94;
-        const remainingGrip = Math.sqrt(Math.max(0, availableGrip * availableGrip
-          - Math.min(availableGrip * availableGrip, updatedLongitudinalDemand * updatedLongitudinalDemand)));
-        const cornerGripRatio = updatedLateralDemand > 0
-          ? clamp(remainingGrip / updatedLateralDemand, 0, 1)
-          : 1;
-        const brakeTurnSlide = clamp((gripUse - 0.88) / 0.55, 0, 1)
-          * clamp((race.speed - 68) / 105, 0, 1)
-          * clamp((Math.abs(steering) - 0.22) / 0.5, 0, 1);
-        const excessSteering = (1 - cornerGripRatio) * clamp(updatedLateralDemand, 0, 1);
-        const corneringLoss = excessSteering * (3 + race.speed * 0.018);
-        if (excessSteering > 0) race.speed = Math.max(0, race.speed - corneringLoss * dt);
-
-        // Heading and lateral motion now respond to speed, grip and load transfer.
-        const grip = clamp(1.12 - updatedSpeedRatio * 0.06 - race.brakePressure * 0.08 - race.wheelLock * 0.18, 0.62, 1.12);
-        // GOLDEN BASE STEERING SIGN CONVENTION:
-        // The car's forward vector is (-sin(yaw), 0, -cos(yaw)); in this world
-        // coordinate system, positive yaw turns the nose toward world -X (left).
-        // Therefore negate the thumb input here so LEFT input produces a LEFT turn
-        // and RIGHT input produces a RIGHT turn, consistently with the chase camera.
-        // The track never advances the car; tyre grip determines how velocity follows.
-        const steerAngle = steering * (0.34 - updatedSpeedRatio * 0.12);
+        const boost = controls.boost && race.nos > 0;
         const forwardX = -Math.sin(race.worldYaw);
         const forwardZ = -Math.cos(race.worldYaw);
-        const lateralX = Math.cos(race.worldYaw);
-        const lateralZ = -Math.sin(race.worldYaw);
-        const longitudinalVelocity = race.velocityX * forwardX + race.velocityZ * forwardZ;
-        const lateralVelocity = race.velocityX * lateralX + race.velocityZ * lateralZ;
-        // Signed longitudinal velocity preserves natural counter-steering while reversing.
-        // At negative velocity, steering rotates the nose in the opposite direction as expected.
-        const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65;
-        const gripLimit = 9.2 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
-        // Spacecraft yaw is independent of tyre grip. The old racing grip ratio
-        // nearly cancelled steering at speed and made the stick feel unresponsive.
-        const gripRatio = 1;
-        race.worldYaw += targetYawRate * dt;
-        race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
-        const updatedForwardX = -Math.sin(race.worldYaw);
-        const updatedForwardZ = -Math.cos(race.worldYaw);
-        const updatedLateralX = Math.cos(race.worldYaw);
-        const updatedLateralZ = -Math.sin(race.worldYaw);
-        const driveAccel = race.throttle * 42 + (boost && race.throttle >= 0 ? 90 : 0);
-        const brakeAccel = race.brakePressure * 28 * brakeEfficiency;
-        const dragAccel = longitudinalVelocity * (0.32 + Math.abs(longitudinalVelocity) * 0.012);
-        let nextLongitudinal = longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt;
-        nextLongitudinal = clamp(nextLongitudinal, -8, 22);
-        const lateralSlipAccel = clamp(-lateralVelocity * (gripRatio < 0.98 ? 1.2 : 5.5), -gripLimit, gripLimit);
-        const nextLateral = lateralVelocity + lateralSlipAccel * dt;
-        race.velocityX = updatedForwardX * nextLongitudinal + updatedLateralX * nextLateral;
-        race.velocityZ = updatedForwardZ * nextLongitudinal + updatedLateralZ * nextLateral;
+        const boostDirection = race.throttle < -0.05 ? -1 : 1;
+        const thrustAcceleration = race.throttle * 14 + (boost ? boostDirection * 18 : 0);
+        race.velocityX += forwardX * thrustAcceleration * dt;
+        race.velocityZ += forwardZ * thrustAcceleration * dt;
+
+        // Apply smooth space drag to world-space velocity, not the ship's heading
+        // basis. This preserves controllable inertia when the player turns.
+        const worldVelocity = Math.hypot(race.velocityX, race.velocityZ);
+        const drag = Math.exp(-dt * (0.22 + worldVelocity * 0.012));
+        race.velocityX *= drag;
+        race.velocityZ *= drag;
+        const maxWorldSpeed = boost ? 24.8 : 20.6;
+        const updatedWorldSpeed = Math.hypot(race.velocityX, race.velocityZ);
+        if (updatedWorldSpeed > maxWorldSpeed) {
+          const speedScale = maxWorldSpeed / updatedWorldSpeed;
+          race.velocityX *= speedScale;
+          race.velocityZ *= speedScale;
+        }
         race.worldX += race.velocityX * dt;
         race.worldZ += race.velocityZ * dt;
         race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 320 : 265);
+
+        const lateralX = Math.cos(race.worldYaw);
+        const lateralZ = -Math.sin(race.worldYaw);
+        const lateralVelocity = race.velocityX * lateralX + race.velocityZ * lateralZ;
         race.heading = Math.atan2(race.velocityX, -race.velocityZ) - race.worldYaw;
         race.heading = Math.atan2(Math.sin(race.heading), Math.cos(race.heading));
-        race.lateral = clamp(nextLateral, -18, 18);
-        race.lateralVelocity = nextLateral;
-        race.lateralG += ((targetYawRate * gripRatio) - race.lateralG) * (1 - Math.exp(-dt * 5));
-        race.drift = clamp(race.heading * clamp(Math.abs(nextLateral) / 7, 0, 1) * 0.25, -0.22, 0.22);
+        race.lateral = clamp(lateralVelocity, -18, 18);
+        race.lateralVelocity = lateralVelocity;
+        race.lateralG += (yawRate - race.lateralG) * (1 - Math.exp(-dt * 5));
+        race.drift = clamp(race.heading * clamp(Math.abs(lateralVelocity) / 7, 0, 1) * 0.35, -0.5, 0.5);
+
+        race.nos = boost ? Math.max(0, race.nos - 25 * dt) : Math.min(100, race.nos + 9 * dt);
+        if (race.nos <= 0 && controls.boost) {
+          controls.boost = false;
+          setBoostActive(false);
+        }
 
         // Free-flight has no track projection, boundary collision, lap invalidation,
         // or forced route-following. Position is driven only by the existing flight physics.
@@ -256,8 +207,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     return () => { window.removeEventListener("keydown", keyDown); window.removeEventListener("keyup", keyUp); window.removeEventListener("blur", release); };
   }, [pauseRace, embedded, expanded]);
 
-  // Circular thumbstick, like the movement controls in Shooters Trigger/Paws World.
-  // The knob follows the thumb in two dimensions; horizontal displacement steers the car.
+  // Circular thumbstick follows the Shooters Trigger input pattern.
+  // Horizontal displacement steers ship yaw; vertical displacement controls forward/reverse thrust.
   const steerStickPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     // Use the full usable stick radius while keeping the knob inside the rim.
@@ -268,9 +219,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const rawX = (event.clientX - (rect.left + rect.width / 2)) / maxX;
     const rawY = (event.clientY - (rect.top + rect.height / 2)) / maxY;
     const magnitude = Math.hypot(rawX, rawY);
-    const scale = magnitude > 1 ? 1 / magnitude : 1;
-    const x = rawX * scale;
-    const y = rawY * scale;
+    const deadZone = 0.10;
+    const activeMagnitude = magnitude <= deadZone ? 0 : Math.min(1, (magnitude - deadZone) / (1 - deadZone));
+    const directionScale = magnitude > 0.001 ? activeMagnitude / magnitude : 0;
+    const x = rawX * directionScale;
+    const y = rawY * directionScale;
     controlsRef.current.steer = clamp(x, -1, 1);
     controlsRef.current.flight = clamp(-y, -1, 1);
     if (knob) knob.style.transform = `translate3d(${x * maxX}px, ${y * maxY}px, 0)`;
@@ -282,14 +235,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     if (knob) knob.style.transform = "translate3d(0, 0, 0)";
   };
   const hold = (key: "accelerate" | "brake", down: boolean) => {
+    // These are vertical thrusters, not racing pedals. They can be used while boosting.
     controlsRef.current[key] = down;
-    if (key === "brake" && down) {
-      controlsRef.current.boost = false;
-      setBoostActive(false);
-    }
   };
-  // NOS is a compact tap-to-toggle tactical burst, not a hold pedal.
-  // Tap once to fire, tap again to cut it; braking safely cancels the burst.
+  // NOS is a compact tap-to-toggle burst, not a hold pedal.
+  // Tap once to engage, tap again to cut it; vertical thrust remains independent.
   const dockOrLand = () => {
     const state = spaceStateRef.current; const target = state.nearbyTarget;
     if (!target) { notify("Fly closer to GGL Haven or a planet to dock.", "info"); return; }

@@ -144,7 +144,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     // Preserve the original spacecraft silhouette and its established scale.
     car.scale.setScalar(0.82);
     scene.add(car);
-    let altitude = 0;
     const clock = new THREE.Clock();
     let lastClockPaint = -1;
     let raf = 0;
@@ -177,13 +176,20 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         flightClockRef.current.textContent = `FLIGHT T+${flightMinutes}:${flightSeconds} · SYSTEM ${hours}:${minutes}`;
       }
       if (currentPhase === "running") {
-        // GAS lifts the ship; BRAKE lowers it. The analog stick owns forward/reverse thrust.
+        // Vertical flight has its own velocity and damping on world Y, just like
+        // horizontal thrust. Releasing a thruster slows the climb rather than
+        // teleporting the ship to an immediate stop.
         const verticalInput = (controls.accelerate ? 1 : 0) - (controls.brake ? 1 : 0);
-        altitude = clamp(altitude + verticalInput * frameDelta * 8, -90, 90);
+        race.velocityY = clamp(race.velocityY + verticalInput * 18 * frameDelta, -12, 12);
+        race.velocityY *= Math.exp(-frameDelta * (verticalInput ? 0.42 : 1.8));
+        race.worldY = clamp(race.worldY + race.velocityY * frameDelta, -90, 90);
+        if (Math.abs(race.worldY) >= 90 && Math.sign(race.worldY) === Math.sign(race.velocityY)) {
+          race.velocityY = 0;
+        }
       }
       // Planetary atmosphere is a soft-looking but solid boundary. Resolve the ship
       // against the same spheres shown to the player, and remove inward horizontal speed.
-      const shipPosition = new THREE.Vector3(race.worldX, .015 + altitude, race.worldZ);
+      const shipPosition = new THREE.Vector3(race.worldX, .015 + race.worldY, race.worldZ);
       const state = spaceStateRef.current; let nearest: string | null = null; let nearestDistance = Infinity; const stationDistance = shipPosition.distanceTo(stationCenter); if (stationDistance < 34) { nearest = "GGL Haven"; nearestDistance = stationDistance; } for (const [planetName, visual] of Object.entries(planetVisuals)) { const distance = shipPosition.distanceTo(visual.body.position); if (distance < visual.radius + 25 && distance < nearestDistance) { nearest = planetName; nearestDistance = distance; } } state.nearbyTarget = nearest; if (currentPhase === "running" && frameDelta > 0) { for (const [planetName, visual] of Object.entries(planetVisuals)) { const count = state.deployedEquipment[planetName] || 0; if (!count) continue; state.planetProgress[planetName] = Math.min(100, (state.planetProgress[planetName] || 0) + frameDelta * count * .22); const progress = (state.planetProgress[planetName] || 0) / 100; (visual.surface.material as THREE.MeshStandardMaterial).color.copy(visual.baseColor.clone().lerp(new THREE.Color("#6bba8a"), progress * .7)); (visual.surface.material as THREE.MeshStandardMaterial).emissive.lerp(new THREE.Color("#164b32"), progress * .25); (visual.atmosphere.material as THREE.MeshBasicMaterial).opacity = .025 + progress * .16; deployedMachines[planetName].forEach((machine, index) => { machine.visible = index < count; }); } }
       for (const barrier of planetBarriers) {
         const offset = shipPosition.clone().sub(barrier.center);
@@ -191,14 +197,15 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         if (distance < barrier.radius) {
           const normal = distance > 0.001 ? offset.multiplyScalar(1 / distance) : new THREE.Vector3(0, 1, 0);
           shipPosition.copy(barrier.center).addScaledVector(normal, barrier.radius);
-          const inwardSpeed = race.velocityX * normal.x + race.velocityZ * normal.z;
+          const inwardSpeed = race.velocityX * normal.x + race.velocityY * normal.y + race.velocityZ * normal.z;
           if (inwardSpeed < 0) {
             race.velocityX -= normal.x * inwardSpeed;
+            race.velocityY -= normal.y * inwardSpeed;
             race.velocityZ -= normal.z * inwardSpeed;
           }
           race.worldX = shipPosition.x;
           race.worldZ = shipPosition.z;
-          altitude = shipPosition.y - .015;
+          race.worldY = shipPosition.y - .015;
         }
       }
       // Asteroid groups enter ahead of the ship occasionally, then drift past like space debris.
@@ -328,10 +335,10 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         const mapAngle = -race.worldYaw * 180 / Math.PI;
         shipMapMarkerRef.current.setAttribute("transform", `translate(${mapX.toFixed(2)} ${mapY.toFixed(2)}) rotate(${mapAngle.toFixed(1)})`);
       }
-      // Subtle suspension response: braking transfers load forward and cornering
-      // rolls the body. These are visual cues driven by the physics state.
-      car.rotation.x = clamp(-race.longitudinalLoad * 0.12, -0.035, 0.015);
-      car.rotation.z = clamp(-race.lateralG * 0.035 - race.drift * 0.12, -0.055, 0.055);
+      // The spacecraft banks into turns and pitches slightly with vertical thrust.
+      // Visual attitude follows pilot input; it never feeds back into flight physics.
+      car.rotation.x = clamp(race.velocityY * 0.014, -0.2, 0.2);
+      car.rotation.z = clamp(-race.steering * 0.16 - race.drift * 0.08, -0.22, 0.22);
       const cameraTarget = new THREE.Vector3(carWorld.x + forward.x * 14, carWorld.y + 1.6, carWorld.z + forward.z * 14);
       // Give the pilot more breathing room and a clearer view of the space ahead.
       const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 12.5, carWorld.y + 6.2, carWorld.z - forward.z * 12.5);

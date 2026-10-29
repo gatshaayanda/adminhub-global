@@ -207,3 +207,100 @@ export function formatWorldTime(worldTimeMinutes: number): string {
   const minutes = (totalMinutes % 60).toString().padStart(2, "0");
   return `DAY ${day} · ${hours}:${minutes}`;
 }
+
+export type FirstFootholdCue = {
+  target: string;
+  step: 1 | 2 | 3;
+  title: string;
+  detail: string;
+  action: string;
+  progress: number;
+};
+
+export function getFirstFootholdCue(state: SpaceState): FirstFootholdCue {
+  const candidate = WORLD_PLANETS
+    .filter((planet) => !state.colonies[planet.name])
+    .sort((a, b) => (state.planetProgress[b.name] ?? b.initialProgress) - (state.planetProgress[a.name] ?? a.initialProgress))[0];
+
+  if (!candidate) {
+    return {
+      target: "GGL Haven",
+      step: 3,
+      title: "Your descendants are spreading",
+      detail: "Every established settlement descends from Haven's original 60. Choose another world and invest in its future.",
+      action: "Choose the next world",
+      progress: 100,
+    };
+  }
+
+  const progress = state.planetProgress[candidate.name] ?? candidate.initialProgress;
+  const installed = state.deployedEquipment[candidate.name] || 0;
+  const needMachines = candidate.colonyMachineRequirement;
+  const hasMachinesOnShip = state.cargoEquipment > 0;
+  const habitatReady = progress >= 80;
+  const machinesReady = installed >= needMachines;
+  const crewOnShip = state.cargoPeople > 0;
+
+  if (crewOnShip && habitatReady && machinesReady) {
+    return {
+      target: candidate.name,
+      step: 3,
+      title: "Found the settlement",
+      detail: candidate.name + " is ready. Deliver your crew to begin a society descended from Haven.",
+      action: "Deliver founding crew",
+      progress: 86,
+    };
+  }
+
+  if (hasMachinesOnShip && !machinesReady) {
+    return {
+      target: candidate.name,
+      step: 2,
+      title: "Deliver the machinery",
+      detail: candidate.name + " has " + installed + "/" + needMachines + " required machines installed. Your cargo is the next piece of its future.",
+      action: "Visit world to deploy",
+      progress: 42,
+    };
+  }
+
+  if (!habitatReady || !machinesReady) {
+    if (!hasMachinesOnShip && state.machineInventory > 0) {
+      return {
+        target: "GGL Haven",
+        step: 1,
+        title: "Load your next investment",
+        detail: candidate.name + " is " + Math.round(progress) + "% restored and needs " + needMachines + " machines before a settlement can be founded. Load machinery at Haven, then deliver it.",
+        action: "Load machines at Haven",
+        progress: 14,
+      };
+    }
+    return {
+      target: candidate.name,
+      step: 2,
+      title: "Restore " + candidate.name,
+      detail: "Machines installed: " + installed + "/" + needMachines + ". Habitat: " + Math.round(progress) + "%. Keep system time moving while local operators work.",
+      action: "Continue restoration",
+      progress: 52,
+    };
+  }
+
+  if (!crewOnShip) {
+    return {
+      target: "GGL Haven",
+      step: 3,
+      title: "Collect a founding crew",
+      detail: candidate.name + " has safe air and its required machinery. Return to Haven and board people from the original population.",
+      action: "Board crew at Haven",
+      progress: 72,
+    };
+  }
+
+  return {
+    target: candidate.name,
+    step: 3,
+    title: "Found the settlement",
+    detail: "Bring the crew to " + candidate.name + " to begin local operations.",
+    action: "Deliver founding crew",
+    progress: 86,
+  };
+}

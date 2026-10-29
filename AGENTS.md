@@ -1120,6 +1120,16 @@ These are the highest-priority examples because they have paid, made a partial p
 - Social-ecological resilience and collapse: https://pubmed.ncbi.nlm.nih.gov/28734593/ ; https://www.nature.com/articles/nature08227
 
 
+## GGL Space — gameplay and controls preservation lock (2026-10-29)
+
+- **The existing playable experience is the baseline.** Preserve the gameplay, flight behaviour, game controls, control placement, camera/viewport, game layout, and interaction flow across the entire experience. Do not redesign or rearrange them while working on another feature.
+- **No unsolicited additions.** Do not add new controls, panels, dashboards, overlays, prompts, menus, mechanics, notifications, or decorative effects just because they seem useful or impressive. No “funny things” that change the established experience. Add or change something only when the user explicitly requests it or approves a clearly scoped proposal.
+- **What happens in the game is what happens.** Feedback, effects, HUD values, radio/news, mission notes, and progression must reflect actual game state and events. Never fake impacts, discoveries, progress, docking, deliveries, or rewards. Visual improvements must communicate real gameplay, not replace it with UI.
+- Keep flight uninterrupted: do not require the player to stop flying, open/collapse a board, read a panel, or scroll the page to continue normal gameplay. Any already-approved essential contextual action must remain in-world, concise, and appear only when relevant; do not let it cover the ship, aim, or critical flight view.
+- Keep controls stable and usable on mobile and desktop. Do not change their labels, input behaviour, position, sizing, or layout as collateral work. Do not remove or remap working inputs. Preserve touch and keyboard paths that already work.
+- Before any requested gameplay change, inspect the actual current implementation and state what will change. Make the smallest isolated change, preserve all unrelated behaviour, and verify the affected interactions. If a request appears to require changing a protected control/layout, stop and ask for approval rather than guessing.
+- These rules apply to every future GGL Space task and take precedence over speculative feature ideas or broad redesign suggestions. Existing GGL Space delivery/discovery requirements below remain in force, but they do not authorize changing the protected controls or experience.
+
 ## GGL Space — simplified playable delivery and discovery loop (2026-10-29)
 
 - Player loop: dock at GGL Haven → accept passengers and terraforming machines → fly → dock at a planet → drop off machines → watch the planet change during active play → return to Haven → publish passenger travel notes and earn station acclaim.

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createInitialSpaceState, advanceSpaceWorld, formatWorldTime, habitatCapacity, habitatStage, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";

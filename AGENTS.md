@@ -1184,3 +1184,49 @@ When the user asks about a game's graphics, rendering, visual style, appearance,
 - The station's logistics news/media-acclaim loop should turn these trip facts and differing perspectives into a short report: headline, factual mission summary, collective verdict, one or two grounded individual perspectives (including dissent when appropriate), and earned acclaim. Reports should reflect actual deliveries and discoveries, not generic flavour text. Do not imply a reporter or passenger witnessed events beyond recorded game state.
 - First implement deterministic, data-driven profiles and report templates from local trip facts; no external AI or server infrastructure is required. Keep the state and evidence behind each line inspectable so the text cannot contradict gameplay. Add persistence only when explicitly implemented and tested.
 - QA this after the basic dock/board/fly/deliver/return loop is working. For each retry after a Vercel build-rate-limit failure, confirm the new main commit's own deployment reaches READY and verify the live GGL Tournaments route before calling it testable. Do not claim named passengers, individualized voices or trip-grounded media are implemented until the live game demonstrates them.
+
+## GGL Space — approved living-civilisation foundation (2026-10-29)
+
+This is the product owner's approved direction for GGL Space. It supersedes any earlier wording that treats conflict as something the player should be discouraged from creating. Preserve the newest golden flight/visual baseline and implement incrementally.
+
+### Core identity and player freedom
+- GGL Space is a hands-on space-pilot civilisation sandbox: the player physically flies, chooses cargo, delivers people and finite machinery, and influences a living world whose societies act independently.
+- GGL Haven begins with 60 people. All starting civilisation lineages originate from Haven. Settlements may branch off and later become independent; there is no pre-existing unrelated faction that is the default source of all other populations.
+- There is no mandatory moral path or single authored victory condition. The player may sustain civilisation, build thriving colonies, remain neutral, provoke conflicts, betray populations or deliberately destroy civilisation. The world should model consequences rather than block a chosen play style.
+- Primary game-over is extinction of the entire civilisation population. Losing GGL Haven is a severe but recoverable crisis if any colony population survives.
+- Survival time is the primary high-score dimension; population thriving, resilience, colonies, discoveries and other outcomes can provide supporting records. Do not make peacefulness, hostility, expansion or a single alignment the sole scoring objective.
+
+### Planet restoration and finite logistics
+- Planet habitability is represented by visible, distinct levels and progress-to-next-level on the system map and nearby-target console.
+- A planet that cannot sustain people requires machinery deliveries first. Repeated deliveries plus elapsed simulation time move it through the required restoration stages.
+- Restoration has a deliberate logistics trade-off: deploying more finite, time-limited machinery should accelerate terraforming, while consuming more of the player's scarce equipment stock. Do not allow equipment to be infinite or make one delivery instantly finish a world.
+- Once a planet reaches the relevant safe-enough stage, the player can deliver crew with equipment to establish operations. The crew subset is responsible for operating/maintaining the installed machinery; later progress should not be treated as passive equipment magically working without local people.
+- After establishment, later deliveries may carry people, machinery, or both, chosen by the player. Account for cargo capacity, station/colony stock, replenishment time, local manufacturing and environmental resources.
+- Population grows over time. Conditions of peace and adequate resources generally support faster growth; war, casualties, shortages and damaged infrastructure reduce it. Settlements have carrying capacity and can suffer overcrowding if the player transfers too many people.
+- Colonies gradually become capable of producing their own equipment and spacecraft. Manufacturing requires time, local resources and functioning infrastructure; it can be delayed or interrupted by conflict, damage or player actions. Colonies are not merely passive extensions of Haven.
+
+### Relationships, conflict and ship encounters
+- Social relationships emerge from a settlement's experiences, interests, resources, trust and remembered player actions. Cooperative, neutral, strained and hostile are all valid states; neutrality is not an error state.
+- Abandoning crews on planets that cannot sustain them can kill them. After a failed crew mission and no contact, Haven should investigate and lose trust; repeated incidents can cause Haven to close docking access, develop its own spacecraft and potentially become hostile toward the player.
+- Docking access and relationships must affect available actions. If a population has an enemy, the player may choose to dock with that enemy and offer support, including risky or illegal crew/equipment offboarding to attack another settlement. This can alter the war and make the player a target of retaliation.
+- Conflict can escalate into destruction; cooperation can also leave societies vulnerable if they neglect preparation. Do not force the player to initiate conflict, and do not automatically punish peaceful but resilient societies. A larger uncertain system-level catastrophe should reward observation and preparation rather than arbitrary unavoidable death.
+- Keep early encounters with occasional stray/foreign enemy ships manageable but engaging: the player should have a credible chance of winning, taking damage and retreating. Damage can be repaired at GGL Haven. Ships built and fielded by hostile planetary settlements should be tougher and more consequential than basic stray encounters. Scale difficulty through readable signals and gameplay, not dense stat sheets.
+- Preserve hands-on flight and projectile combat. Combat should be readable in the 3D world: enemy approach, attack telegraph, hit/damage feedback, retreat/defeat, and repair opportunity at Haven.
+
+### Time, persistence and truthfulness
+- The simulation advances while the game is closed. Implement this with persisted world state plus a last-simulation timestamp and bounded/capped catch-up steps so long absences cannot cause unbounded computation or instant inexplicable extinction.
+- Distinguish active gameplay time from elapsed world time. Explain important offline consequences on return and provide sensible warnings before irreversible losses where the game rules permit.
+- Do not claim offline progression, persistence, independent colonies, construction, diplomacy, ship combat, or a feature's completion until it is implemented and tested in the live game.
+- Keep the world state and cause-and-effect inspectable in code. Prefer deterministic, testable rules before adding random events. Randomness must be bounded, explainable through clues and not erase player agency.
+
+### Staged implementation and QA-to-play discipline
+1. **Control correction first:** NOS must sit immediately to the LEFT of FIRE on the mobile control grid. Preserve existing flight physics, input behaviour, projectile mechanics, touch targets and the newest golden visuals.
+2. **Document foundation:** keep these rules in AGENTS.md as the source of truth; do not broaden scope or revert to an older golden version.
+3. **World model:** implement typed state for the 60-person origin population, where populations live, cargo and finite machinery inventory, production/replenishment, planet stages, local operators, carrying capacity, relationships, spacecraft construction and simulation timestamps.
+4. **Planet/logistics loop:** make machinery quantity affect restoration speed and inventory consumption; gate ordinary settlement on habitability while allowing explicit risky choices only when the UI communicates the danger; make crew operate machinery after settlement.
+5. **Population and society loop:** growth, needs, local production, independence, trust and docking permissions; make consequences derive from recorded events.
+6. **Ship encounters and conflict:** basic foreign ships first, then colony-built ships, combat feedback, damage and repair at Haven; support player-instigated escalation without requiring it.
+7. **Offline simulation and save:** persist state, apply bounded elapsed-time simulation, report what happened while away, and handle extinction/recovery/high-score rules.
+8. **Playable checkpoint:** complete an end-to-end run from Haven cargo selection through multiple equipment deliveries, elapsed terraforming, crew establishment, return, population/faction consequences and a ship encounter/repair. Then run focused regression checks and prepare a concise user QA report. Do not add unrelated features before this loop is sound.
+
+After every implementation push, inspect the exact GitHub commit, verify the affected code/build where available, check the matching Vercel deployment until READY, and verify the production GGL Space route when practical. Report each state separately: commit pushed, code/build verification, deployment status, and live QA status. If the deployment is queued or blocked by a platform limit, say so clearly and do not tell the user the new version is ready to test. Continue short implementation/QA cycles until the owner confirms the world is alive enough to save and play; after that, prefer small targeted updates.

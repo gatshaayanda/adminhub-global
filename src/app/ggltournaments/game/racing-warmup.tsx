@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createInitialSpaceState, advanceSpaceWorld, formatWorldTime, habitatCapacity, habitatStage, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 
+export type { SpaceState } from "./space-civilisation";
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; flight: number; accelerate: boolean; brake: boolean; boost: boolean; fire: boolean };
-export type SpaceState = { nearbyTarget: string | null; cargoPeople: number; cargoEquipment: number; visitedPlanets: string[]; deployedEquipment: Record<string, number>; planetProgress: Record<string, number>; travelNotes: string[]; acclaim: number; asteroidsShot: number };
-const newSpaceState = (): SpaceState => ({ nearbyTarget: null, cargoPeople: 0, cargoEquipment: 0, visitedPlanets: [], deployedEquipment: { Aster: 0, Cobalt: 0, Verdant: 0, Ember: 0, Frost: 0 }, planetProgress: { Aster: 0, Cobalt: 0, Verdant: 0, Ember: 0, Frost: 0 }, travelNotes: [], acclaim: 0, asteroidsShot: 0 });
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
@@ -27,9 +26,49 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const expanded = true;
   const raceRef = useRef<Race>(newRace());
   const controlsRef = useRef<Controls>({ steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false });
-  const spaceStateRef = useRef<SpaceState>(newSpaceState());
+  const spaceStateRef = useRef<SpaceState>(createInitialSpaceState());
   const [, setSpaceUiTick] = useState(0);
+  const stateHydratedRef = useRef(false);
+  const lastProcessedWorldMinutesRef = useRef(0);
   useEffect(() => { const timer = window.setInterval(() => setSpaceUiTick(n => n + 1), 500); return () => window.clearInterval(timer); }, []);
+  useEffect(() => {
+    const now = Date.now();
+    try {
+      const saved = window.localStorage.getItem(SPACE_SAVE_KEY);
+      spaceStateRef.current = saved ? restoreSpaceState(JSON.parse(saved), now) : createInitialSpaceState(now);
+    } catch {
+      spaceStateRef.current = createInitialSpaceState(now);
+    }
+    lastProcessedWorldMinutesRef.current = spaceStateRef.current.worldTimeMinutes;
+    stateHydratedRef.current = true;
+    setSpaceUiTick(n => n + 1);
+
+    const saveWorld = () => {
+      if (!stateHydratedRef.current) return;
+      const state = spaceStateRef.current;
+      const elapsed = state.worldTimeMinutes - lastProcessedWorldMinutesRef.current;
+      if (elapsed > 0) advanceSpaceWorld(state, elapsed);
+      lastProcessedWorldMinutesRef.current = state.worldTimeMinutes;
+      state.lastSimulatedAt = Date.now();
+      try { window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(state)); } catch { /* Continue the live run if browser storage is unavailable. */ }
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") { saveWorld(); return; }
+      const state = restoreSpaceState(spaceStateRef.current, Date.now());
+      spaceStateRef.current = state;
+      lastProcessedWorldMinutesRef.current = state.worldTimeMinutes;
+      setSpaceUiTick(n => n + 1);
+    };
+    const timer = window.setInterval(() => { saveWorld(); setSpaceUiTick(n => n + 1); }, 1000);
+    window.addEventListener("pagehide", saveWorld);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("pagehide", saveWorld);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      saveWorld();
+    };
+  }, []);
   const phaseRef = useRef<Phase>("ready");
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdown, setCountdown] = useState(3);
@@ -258,38 +297,98 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   // NOS is a compact tap-to-toggle burst, not a hold pedal.
   // Tap once to engage, tap again to cut it; vertical thrust remains independent.
   const dockOrLand = () => {
-    const state = spaceStateRef.current; const target = state.nearbyTarget;
+    const state = spaceStateRef.current;
+    const target = state.nearbyTarget;
     if (!target) { notify("Fly closer to GGL Haven or a planet to dock.", "info"); return; }
+
     if (target === "GGL Haven") {
-      if (state.cargoPeople > 0 && state.visitedPlanets.length) {
-        const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — the crew saw the world up close; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
-        const returnedCrew = state.cargoPeople;
-        state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8); const award = Math.max(1, state.visitedPlanets.length * 2); state.acclaim += award;
-        notify("Crew notes published. Station media acclaim +" + award + ".", "success");
-        signalTransfer("🧑‍🚀", "CREW RETURNED TO HAVEN", returnedCrew + " crew member(s) disembarked safely.", "SHIP  →  STATION");
-        state.cargoPeople = 0; state.visitedPlanets = []; state.asteroidsShot = 0;
-      } else notify("Docked at GGL Haven. Read the news or board a mission.", "success");
-      setSpaceUiTick(n => n + 1); return;
-    }
-    if (target in state.deployedEquipment) {
-      if (!state.visitedPlanets.includes(target)) state.visitedPlanets.push(target);
-      if (state.cargoEquipment > 0) { const count = state.cargoEquipment; state.deployedEquipment[target] += count; state.cargoEquipment = 0; notify(count + " terraforming machine(s) deployed on " + target + "."); signalTransfer("🤖", "MACHINES DEPLOYED", count + " terraforming machine(s) delivered to " + target + ".", "SHIP  →  " + target.toUpperCase()); }
-      else notify("Planet visit logged. No equipment aboard — you can still explore and take passengers.", "info");
+      const returnedCrew = state.cargoPeople;
+      const returnedMachines = state.cargoEquipment;
+      if (returnedCrew > 0) state.havenPopulation = Math.min(240, state.havenPopulation + returnedCrew);
+      if (returnedMachines > 0) state.machineInventory += returnedMachines;
+      if (state.visitedPlanets.length) {
+        const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — " + (state.deployedEquipment[planet] || 0) + " machine(s) installed; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
+        state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8);
+        const award = state.visitedPlanets.length * 2;
+        state.acclaim += award;
+        notify("Trip logged. Haven's archive gained " + state.visitedPlanets.length + " world report(s).", "success");
+      } else if (returnedCrew || returnedMachines) {
+        notify("Unused crew and machinery safely returned to Haven.", "success");
+      } else {
+        notify("Docked at GGL Haven. Load a mission when you are ready.", "success");
+      }
+      if (returnedCrew || returnedMachines) {
+        signalTransfer("🧑‍🚀", "CARGO RETURNED TO HAVEN", returnedCrew + " crew · " + returnedMachines + " unused machine(s) returned.", "SHIP  →  STATION");
+      }
+      state.cargoPeople = 0;
+      state.cargoEquipment = 0;
+      state.visitedPlanets = [];
+      state.asteroidsShot = 0;
       setSpaceUiTick(n => n + 1);
+      return;
     }
+
+    const planet = WORLD_PLANETS.find(item => item.name === target);
+    if (!planet) { notify("This target cannot receive a settlement delivery.", "info"); return; }
+    if (!state.visitedPlanets.includes(target)) state.visitedPlanets.push(target);
+    let delivered = 0;
+    if (state.cargoEquipment > 0) {
+      delivered = state.cargoEquipment;
+      state.deployedEquipment[target] = (state.deployedEquipment[target] || 0) + delivered;
+      state.cargoEquipment = 0;
+      signalTransfer("🤖", "MACHINES DEPLOYED", delivered + " machine(s) installed on " + target + ". Operators will work while system time advances.", "SHIP  →  " + target.toUpperCase());
+    }
+
+    const progress = state.planetProgress[target] || 0;
+    const installed = state.deployedEquipment[target] || 0;
+    const existingColony = state.colonies[target];
+    if (state.cargoPeople > 0) {
+      if (progress < 80 || installed < planet.colonyMachineRequirement) {
+        const missing = Math.max(0, planet.colonyMachineRequirement - installed);
+        notify(target + ": crew remain aboard. Need HABITABLE air and " + planet.colonyMachineRequirement + " installed machines (" + missing + " more).", "info");
+      } else {
+        const capacity = habitatCapacity(progress);
+        const currentPopulation = existingColony?.population || 0;
+        const moved = Math.min(state.cargoPeople, Math.max(0, capacity - currentPopulation));
+        if (moved > 0) {
+          if (existingColony) {
+            existingColony.population += moved;
+            existingColony.founders += moved;
+          } else {
+            state.colonies[target] = { population: moved, founders: moved, operators: Math.max(1, Math.floor(moved / 4)), foundedAtWorldMinutes: state.worldTimeMinutes, independent: false };
+            state.colonyGrowthRemainders[target] = 0;
+          }
+          state.cargoPeople -= moved;
+          state.events.unshift(target + " settlement founded by " + moved + " people from GGL Haven.");
+          state.events = state.events.slice(0, 6);
+          notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations.", "success");
+          signalTransfer("🧑‍🚀", "SETTLEMENT FOUNDED", moved + " person(s) established local operations on " + target + ".", "SHIP  →  " + target.toUpperCase());
+        } else {
+          notify(target + " has no safe living capacity remaining. Crew remain aboard.", "info");
+        }
+      }
+    } else if (delivered > 0) {
+      notify(delivered + " machine(s) deployed. Progress now follows the saved world clock.", "success");
+    } else {
+      notify(target + " · " + habitatStage(progress).label + " · " + Math.round(progress) + "% habitat restored.", "info");
+    }
+    setSpaceUiTick(n => n + 1);
   };
   const boardAtStation = () => {
     const state = spaceStateRef.current;
     if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven first.", "info"); return; }
-    const crewAdded = Math.min(6, state.cargoPeople + 3) - state.cargoPeople;
-    const machinesAdded = Math.min(4, state.cargoEquipment + 2) - state.cargoEquipment;
-    state.cargoPeople = Math.min(6, state.cargoPeople + 3);
-    state.cargoEquipment = Math.min(4, state.cargoEquipment + 2);
+    const crewAvailable = Math.max(0, state.havenPopulation - 36);
+    const crewAdded = Math.min(3, 6 - state.cargoPeople, crewAvailable);
+    const machinesAdded = Math.min(2, 4 - state.cargoEquipment, state.machineInventory);
+    state.cargoPeople += crewAdded;
+    state.havenPopulation -= crewAdded;
+    state.cargoEquipment += machinesAdded;
+    state.machineInventory -= machinesAdded;
     if (crewAdded || machinesAdded) {
-      notify(crewAdded + " passenger(s) and " + machinesAdded + " terraforming machine(s) boarded.");
-      signalTransfer("🧑‍🚀", "CREW + CARGO ABOARD", crewAdded + " crew member(s) · " + machinesAdded + " machine(s) loaded.", "STATION  →  SHIP");
+      notify(crewAdded + " person(s) and " + machinesAdded + " machine(s) loaded. Haven retains a 36-person reserve.");
+      signalTransfer("🧑‍🚀", "CREW + CARGO ABOARD", crewAdded + " person(s) · " + machinesAdded + " finite machine(s) loaded.", "STATION  →  SHIP");
     } else {
-      notify("Cargo holds are full. Deliver crew or machines before boarding more.", "info");
+      notify("No cargo loaded. Check the six-person/four-machine hold, Haven reserve, and remaining stock.", "info");
     }
     setSpaceUiTick(n => n + 1);
   };
@@ -299,6 +398,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     controlsRef.current.boost = next;
     setBoostActive(next);
   };
+  const world = spaceStateRef.current;
+  const colonyPopulation = Object.values(world.colonies).reduce((total, colony) => total + colony.population, 0);
+  const civilisationPopulation = world.havenPopulation + world.cargoPeople + colonyPopulation;
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
     {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Space · free exploration</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>OPEN SPACE EXPLORATION</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL SPACE · EXPLORE AT YOUR PACE</p><h1>Find your place among the stars.</h1><p>Take the ship into open space, steer between distant worlds, and explore at your own pace. The analog stick handles direction and forward/reverse flight; up/down thrusters handle altitude.</p><p className="warmup-family-note">Open space, a handful of planets, and room to explore.</p></section></>}
@@ -332,6 +434,45 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <p>{phase === "ready" ? "Use the familiar controls to fly through open space and look around the nearby planets." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Enjoy the open space. You can pause or restart whenever you like."}</p>
         </div>
       </div>
+
+      <section className="space-world-board" aria-label="Living world and mission status">
+        <div className="space-world-heading">
+          <div><span className="space-world-kicker">THE LIVING SYSTEM</span><h3>Every world starts from Haven.</h3><p>Install finite machinery, let system time pass, then seed a settlement when the habitat and machine requirements are met.</p></div>
+          <span className="space-world-time">{formatWorldTime(world.worldTimeMinutes)}</span>
+        </div>
+        <div className="space-world-stats">
+          <div><span>HAVEN POPULATION</span><strong>{world.havenPopulation}</strong><small>of the original 60, then natural growth</small></div>
+          <div><span>CIVILISATION</span><strong>{civilisationPopulation}</strong><small>Haven + ship + descendant settlements</small></div>
+          <div><span>MACHINES IN STOCK</span><strong>{world.machineInventory}</strong><small>Finite stock · no free reloads</small></div>
+          <div><span>SHIP CARGO</span><strong>{world.cargoPeople} crew · {world.cargoEquipment} machines</strong><small>Hold limit: 6 people / 4 machines</small></div>
+        </div>
+        <div className="space-planet-grid">
+          {WORLD_PLANETS.map((planet) => {
+            const progress = world.planetProgress[planet.name] ?? planet.initialProgress;
+            const stage = habitatStage(progress);
+            const installed = world.deployedEquipment[planet.name] || 0;
+            const colony = world.colonies[planet.name];
+            const missing = Math.max(0, planet.colonyMachineRequirement - installed);
+            return <article className="space-planet-card" key={planet.name}>
+              <div className="space-planet-card-top">
+                <span className="space-planet-orb" style={{ background: stage.color, boxShadow: "0 0 15px " + stage.color + "70" }} />
+                <div className="space-planet-name"><strong>{planet.name}</strong><small>{planet.summary}</small></div>
+                <span className="space-habitat-badge" style={{ color: stage.color, borderColor: stage.color }}>{stage.label}</span>
+              </div>
+              <div className="space-planet-progress-track" role="progressbar" aria-label={planet.name + " habitat restoration"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
+                <span style={{ width: progress + "%", background: stage.color }} />
+              </div>
+              <div className="space-planet-meta"><span>{Math.round(progress)}% restored</span><span>{installed} machine{installed === 1 ? "" : "s"} installed</span></div>
+              <div className="space-planet-next">
+                {colony
+                  ? <><strong>{colony.population} settlers · {colony.operators} local operator{colony.operators === 1 ? "" : "s"}</strong><span>{colony.independent ? "SELF-GOVERNING DESCENDANT COLONY" : "Founded from Haven · growing locally"}</span></>
+                  : <><strong>{progress < 80 ? "Needs " + planet.colonyMachineRequirement + " machines to found" : missing > 0 ? "Install " + missing + " more machine" + (missing === 1 ? "" : "s") : "Ready for founding crew"}</strong><span>{progress < 80 ? "Habitat must reach 80% first" : "Safe capacity " + habitatCapacity(progress) + " people"}</span></>}
+              </div>
+            </article>;
+          })}
+        </div>
+        <div className="space-world-event" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "System is stable. Your next delivery changes its future."}</strong></div>
+      </section>
 
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">

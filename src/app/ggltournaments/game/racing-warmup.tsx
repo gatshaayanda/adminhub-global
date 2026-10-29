@@ -158,7 +158,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // Therefore negate the thumb input here so LEFT input produces a LEFT turn
         // and RIGHT input produces a RIGHT turn, consistently with the chase camera.
         // The track never advances the car; tyre grip determines how velocity follows.
-        const steerAngle = -steering * (0.34 - updatedSpeedRatio * 0.12);
+        const steerAngle = steering * (0.34 - updatedSpeedRatio * 0.12);
         const forwardX = -Math.sin(race.worldYaw);
         const forwardZ = -Math.cos(race.worldYaw);
         const lateralX = Math.cos(race.worldYaw);
@@ -177,18 +177,18 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const updatedForwardZ = -Math.cos(race.worldYaw);
         const updatedLateralX = Math.cos(race.worldYaw);
         const updatedLateralZ = -Math.sin(race.worldYaw);
-        const driveAccel = race.throttle * 30 + (boost && race.throttle >= 0 ? 62 : 0);
+        const driveAccel = race.throttle * 42 + (boost && race.throttle >= 0 ? 90 : 0);
         const brakeAccel = race.brakePressure * 28 * brakeEfficiency;
         const dragAccel = longitudinalVelocity * (0.32 + Math.abs(longitudinalVelocity) * 0.012);
         let nextLongitudinal = longitudinalVelocity + (driveAccel - brakeAccel - dragAccel) * dt;
-        nextLongitudinal = clamp(nextLongitudinal, -7, 15.9);
+        nextLongitudinal = clamp(nextLongitudinal, -8, 22);
         const lateralSlipAccel = clamp(-lateralVelocity * (gripRatio < 0.98 ? 1.2 : 5.5), -gripLimit, gripLimit);
         const nextLateral = lateralVelocity + lateralSlipAccel * dt;
         race.velocityX = updatedForwardX * nextLongitudinal + updatedLateralX * nextLateral;
         race.velocityZ = updatedForwardZ * nextLongitudinal + updatedLateralZ * nextLateral;
         race.worldX += race.velocityX * dt;
         race.worldZ += race.velocityZ * dt;
-        race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 250 : 205);
+        race.speed = clamp(Math.hypot(race.velocityX, race.velocityZ) * 3.6 / 0.28, 0, boost ? 320 : 265);
         race.heading = Math.atan2(race.velocityX, -race.velocityZ) - race.worldYaw;
         race.heading = Math.atan2(Math.sin(race.heading), Math.cos(race.heading));
         race.lateral = clamp(nextLateral, -18, 18);

@@ -120,12 +120,17 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         race.velocityX += forwardX * thrustAcceleration * dt;
         race.velocityZ += forwardZ * thrustAcceleration * dt;
 
-        // Apply smooth space drag to world-space velocity, not the ship's heading
-        // basis. This preserves controllable inertia when the player turns.
-        const worldVelocity = Math.hypot(race.velocityX, race.velocityZ);
-        const drag = Math.exp(-dt * (0.22 + worldVelocity * 0.012));
-        race.velocityX *= drag;
-        race.velocityZ *= drag;
+        // Station-keeping flight: the ship has no drifting momentum. Releasing forward/reverse
+        // thrust or boost brings it to a complete stop, while steering can still turn it in place.
+        if (Math.abs(controls.flight) < 0.01 && !controls.boost) {
+          race.velocityX = 0;
+          race.velocityZ = 0;
+        } else {
+          const worldVelocity = Math.hypot(race.velocityX, race.velocityZ);
+          const drag = Math.exp(-dt * (0.22 + worldVelocity * 0.012));
+          race.velocityX *= drag;
+          race.velocityZ *= drag;
+        }
         const maxWorldSpeed = boost ? 24.8 : 20.6;
         const updatedWorldSpeed = Math.hypot(race.velocityX, race.velocityZ);
         if (updatedWorldSpeed > maxWorldSpeed) {

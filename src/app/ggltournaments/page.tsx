@@ -51,11 +51,24 @@ export default function GGLTournamentsPage() {
         <span className="ggl-brand-copy">GGL <span>TOURNAMENTS</span><small>GABORONE GAMING LEAGUE</small></span>
       </Link>
       <nav aria-label="Main navigation">
+        <a href="#space-game">Play Space</a>
         <a href="#tournaments">Tournaments</a>
         <a href="#updates">News & results</a>
         <button className="ggl-login" onClick={() => setShowLogin(true)}>Player sign in <span>↗</span></button>
       </nav>
     </header>
+
+    <section id="space-game" className="ggl-game-section" aria-label="Playable GGL open-space exploration game">
+      <div className="ggl-game-section-head">
+        <div className="ggl-game-promo-copy">
+          <p className="ggl-eyebrow">GGL SPACE / PLAY NOW · FREE ROAM</p>
+          <h2>Drop in.<br /><em>Explore space.</em></h2>
+          <p>Fly freely between worlds. Steer, climb, descend and burst forward with NOS. No race track. No entry fee.</p>
+        </div>
+      </div>
+      <GGLRacingGame embedded />
+    </section>
+
 
     <section className="ggl-hero">
       <div className="ggl-hero-copy">
@@ -131,16 +144,7 @@ export default function GGLTournamentsPage() {
       <button onClick={() => setShowAdminLogin(true)}>Manage content <span aria-hidden="true">↗</span></button>
     </section>
 
-    <section className="ggl-game-section" aria-label="Playable GGL open-space exploration game">
-      <div className="ggl-game-section-head">
-        <div className="ggl-game-promo-copy">
-          <p className="ggl-eyebrow">GGL SPACE / PLAY NOW</p>
-          <h2>Explore the system.<br /><em>Find your horizon.</em></h2>
-          <p>Take the ship into open space, steer between distant worlds, manage your flight and use NOS to burst forward. The planets are landmarks, not a track.</p>
-        </div>
-      </div>
-      <GGLRacingGame embedded />
-    </section>
+
 
     <footer className="ggl-footer">
       <Link href="/" className="ggl-brand"><span className="ggl-mark">GGL</span><span className="ggl-brand-copy">GGL <span>TOURNAMENTS</span><small>POWERED BY ADMIN HUB</small></span></Link>

@@ -1118,3 +1118,16 @@ These are the highest-priority examples because they have paid, made a partial p
 - NASA terraforming limitations: https://www.nasa.gov/news-release/mars-terraforming-not-possible-using-present-day-technology/
 - Maslow hierarchy empirical review and later measurement research: https://doi.org/10.1016/0030-5073(76)90038-6 ; https://pubmed.ncbi.nlm.nih.gov/23858951/ ; https://www.sciencedirect.com/science/article/pii/S0305750X23000037
 - Social-ecological resilience and collapse: https://pubmed.ncbi.nlm.nih.gov/28734593/ ; https://www.nature.com/articles/nature08227
+
+
+## GGL Space — simplified playable delivery and discovery loop (2026-10-29)
+
+- Player loop: dock at GGL Haven → accept passengers and terraforming machines → fly → dock at a planet → drop off machines → watch the planet change during active play → return to Haven → publish passenger travel notes and earn station acclaim.
+- Docking is proximity plus one clear action, reused at Haven and planets. No precision landing, speed/orientation tests, or hidden prerequisites. Planet visits are allowed without equipment; equipment deployment requires carried equipment.
+- GGL Haven must be a physical 3D object near spawn, with readable station news/radio and a simple cargo board. First board can provide a small fixed bundle of passengers and machines.
+- Terraforming machines must be physical scene objects left on the surface after delivery, not icons or UI-only counters. They appear only after delivery. Active-play time advances restoration gradually, and planet appearance changes from that same progress state. Do not claim offline progress or persistence until implemented and tested.
+- Passengers accompany the player; visited worlds and notable events are recorded. Returning to Haven publishes short passenger travel notes and awards station media acclaim. Do not describe passengers as settlers if they remained aboard.
+- First version may use authored note templates and local state; no AI-generated reports, permanent saves or server radio claims until implemented. Current planets: Aster, Cobalt, Verdant, Ember and Frost.
+- Future after QA: passenger personalities, skills/relationships, morale/health/sleep/recreation, discoveries, settlement population, needs/production, delayed radio contact and civilization development. Do not add these before docking/cargo/deployment/travel-notes are verified.
+- Human-behaviour basis: NASA crew journal studies cover work, communications, adjustment, crew interactions, recreation, equipment, organization, sleep and food. Keep journaling short and tied to actual trips; isolation and communication delay can later affect morale/teamwork.
+- Research: https://www.nasa.gov/missions/station/iss-research/mental-well-being-in-space/ ; https://ntrs.nasa.gov/citations/20100026549 ; https://www.nasa.gov/directorates/esdmd/hhp/team-risk/ ; https://www.nasa.gov/reference/environmental-control-and-life-support-systems-eclss/

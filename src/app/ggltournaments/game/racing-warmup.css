@@ -75,7 +75,8 @@
 .warmup-circuit-controls .warmup-driving .down-thrust-button{background:#f4e5df;border-color:#e2c8bd}
 .warmup-circuit-controls .warmup-driving .nos-button{background:#dff0a8;border:2px solid #91b83e;color:#20351d;font-weight:900}
 .warmup-circuit-controls .warmup-driving .projectile-button{
-  grid-column:2;
+  grid-column:3;
+  grid-row:2;
   justify-self:stretch;
   min-height:48px!important;
   padding:8px 10px!important;
@@ -102,8 +103,11 @@
   .warmup-engineer p{font-size:11px}
   .warmup-circuit-controls{display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:center}
   .warmup-circuit-controls .warmup-steering .warmup-wheel{width:84px;height:84px;min-width:84px;min-height:84px}
-  .warmup-circuit-controls .warmup-driving{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-  .warmup-circuit-controls .warmup-driving button{min-width:0;min-height:64px;padding:7px 3px;font-size:10px;line-height:1.2;overflow-wrap:anywhere}
+  .warmup-circuit-controls .warmup-driving{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(58px,auto));gap:6px}
+  .warmup-circuit-controls .warmup-driving .down-thrust-button{grid-column:1;grid-row:1}
+  .warmup-circuit-controls .warmup-driving .up-thrust-button{grid-column:2;grid-row:1}
+  .warmup-circuit-controls .warmup-driving .nos-button{grid-column:2;grid-row:2}
+  .warmup-circuit-controls .warmup-driving button{min-width:0;min-height:58px;padding:7px 3px;font-size:10px;line-height:1.2;overflow-wrap:anywhere}
   .warmup-circuit-controls .warmup-actions{grid-column:1/-1;grid-template-columns:1fr 1fr}
   .warmup-circuit-controls .warmup-actions .big-brothers-button{padding:12px 7px;font-size:12px}
   .warmup-circuit-controls .warmup-help{grid-column:1/-1}

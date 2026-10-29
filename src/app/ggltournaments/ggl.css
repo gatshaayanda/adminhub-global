@@ -85,3 +85,17 @@
   .ggl-feature{min-height:240px}
   .ggl-feature-center{padding:22px 0}
 }
+
+
+/* Keep the flight view and touch controls unobstructed; station management is opt-in. */
+.space-mission-panel{margin:18px 0 12px;border:1px solid rgba(183,243,107,.24);border-radius:10px;overflow:hidden;background:rgba(12,18,18,.88)}
+.space-board-summary{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px 12px;list-style:none;cursor:pointer;padding:14px 16px;min-height:58px;color:#eef4e8}
+.space-board-summary::-webkit-details-marker{display:none}
+.space-board-summary>span:first-child{font-size:10px;letter-spacing:.12em;font-weight:800;color:#b7f36b}
+.space-board-summary strong{font-size:13px;line-height:1.35;font-weight:650}
+.space-board-chevron{grid-column:2;grid-row:1 / span 2;font-size:22px;color:#b7f36b;transition:transform .18s ease}
+.space-mission-panel[open] .space-board-chevron{transform:rotate(45deg)}
+.space-mission-panel[open] .space-board-summary{border-bottom:1px solid rgba(183,243,107,.16)}
+.space-mission-panel .space-mission-top{padding-top:16px}
+@media(max-width:650px){.space-mission-panel{margin:14px 12px 10px;border-radius:9px}.space-board-summary{padding:13px 14px;min-height:64px}.space-board-summary strong{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.space-board-chevron{transition:none}}

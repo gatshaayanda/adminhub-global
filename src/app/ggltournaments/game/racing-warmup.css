@@ -518,3 +518,18 @@
 }
 .warmup-circuit-controls .steering-stick:active .steering-stick-knob{box-shadow:0 1px 0 #9eae98,0 2px 5px #20351d35;}
 @media(max-width:520px){.warmup-circuit-controls .steering-stick{width:104px;height:104px}.warmup-circuit-controls .steering-stick-knob{width:36px;height:36px;margin:-18px 0 0 -18px}}
+
+/* Transfer signal: short, readable feedback for crew and equipment movement. */
+.map-station-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ffd06b;box-shadow:0 0 7px #ffd06b}
+.space-transfer-signal{position:absolute;z-index:9;left:50%;top:50%;width:min(290px,calc(100% - 28px));transform:translate(-50%,-50%);display:flex;align-items:center;gap:11px;padding:12px 14px;border:1px solid rgba(255,208,107,.72);border-radius:14px;background:rgba(5,15,32,.94);color:#f4f8ff;box-shadow:0 12px 36px rgba(0,0,0,.36);pointer-events:none;animation:space-transfer-in .22s ease-out}
+.space-transfer-signal .space-transfer-emoji{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:12px;background:rgba(255,208,107,.13);font-size:27px;line-height:1}
+.space-transfer-signal .space-transfer-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.space-transfer-signal strong{font-size:12px;line-height:1.2;letter-spacing:.04em}
+.space-transfer-signal span{font-size:10px;line-height:1.35;color:#c9d9ec}
+.space-transfer-signal .space-transfer-route{display:flex;align-items:center;gap:5px;margin-top:2px;color:#ffd981;font-size:9px;font-weight:900;letter-spacing:.08em}
+.space-transfer-signal .space-transfer-route i{font-style:normal;animation:space-transfer-arrow .75s ease-in-out infinite alternate}
+@keyframes space-transfer-in{from{opacity:0;translate:0 7px;scale:.97}to{opacity:1;translate:0 0;scale:1}}
+@keyframes space-transfer-arrow{from{translate:-2px 0;opacity:.65}to{translate:3px 0;opacity:1}}
+@media(prefers-reduced-motion:reduce){.space-transfer-signal,.space-transfer-signal .space-transfer-route i{animation:none!important}}
+@media(max-width:520px){.space-transfer-signal{top:48%;width:min(260px,calc(100% - 24px));padding:10px 11px;gap:9px}.space-transfer-signal .space-transfer-emoji{flex-basis:40px;width:40px;height:40px;font-size:23px}.space-transfer-signal strong{font-size:11px}.space-transfer-signal span{font-size:9px}}
+

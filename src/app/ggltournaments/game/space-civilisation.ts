@@ -162,7 +162,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     travelNotes: Array.isArray(saved.travelNotes) ? saved.travelNotes.filter((note): note is string => typeof note === "string").slice(0, 8) : [],
     acclaim: boundedInteger(saved.acclaim, 0, 0, 1000000),
     asteroidsShot: boundedInteger(saved.asteroidsShot, 0, 0, 1000000),
-    havenPopulation: boundedInteger(saved.havenPopulation, 60, 0, 240),
+    havenPopulation: boundedInteger(saved.havenPopulation, 60, 0, 1000000),
     machineInventory: boundedInteger(saved.machineInventory, 12, 0, 10000),
     worldTimeMinutes: Math.max(0, finiteNumber(saved.worldTimeMinutes, 0)),
     lastSimulatedAt: Math.max(0, finiteNumber(saved.lastSimulatedAt, now)),

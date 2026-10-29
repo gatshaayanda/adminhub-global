@@ -774,3 +774,29 @@
   .space-proximity-actions { width: min(154px, 42%) !important; max-height: 38% !important; }
   .space-proximity-actions button { min-height: 32px !important; font-size: 7px !important; }
 }
+
+
+/* Keep the embedded GGL page focused on flying, not stacked status cards. */
+.race-hub-embedded .race-inline-heading,
+.race-hub-embedded .warmup-hud,
+.race-hub-embedded .warmup-nos {
+  display: none !important;
+}
+/* Exploration has no combat: do not show a fire/projectile control. */
+.race-hub-embedded .warmup-driving .projectile-button {
+  display: none !important;
+}
+/* Keep only the one contextual interaction tray when the ship is close enough. */
+.race-hub-embedded .space-proximity-actions {
+  width: min(250px, 52%) !important;
+  max-height: 46% !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+}
+@media (max-width: 520px) {
+  .race-hub-embedded .space-proximity-actions {
+    width: min(210px, 56%) !important;
+    max-height: 42% !important;
+    padding: 6px !important;
+  }
+}

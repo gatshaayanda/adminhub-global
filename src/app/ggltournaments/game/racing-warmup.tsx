@@ -174,7 +174,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         // At negative velocity, steering rotates the nose in the opposite direction as expected.
         const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65;
         const gripLimit = 9.2 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
-        const demandedLateralAccel = targetYawRate * Math.max(0, longitudinalVelocity);
         // Spacecraft yaw is independent of tyre grip. The old racing grip ratio
         // nearly cancelled steering at speed and made the stick feel unresponsive.
         const gripRatio = 1;

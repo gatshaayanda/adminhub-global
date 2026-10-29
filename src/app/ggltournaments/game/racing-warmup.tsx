@@ -7,8 +7,8 @@ import Racing3DScene from "./racing-3d-scene";
 
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; flight: number; accelerate: boolean; brake: boolean; boost: boolean; fire: boolean };
-export type SpaceState = { nearbyTarget: string | null; cargoPeople: number; cargoEquipment: number; visitedPlanets: string[]; deployedEquipment: Record<string, number>; planetProgress: Record<string, number>; travelNotes: string[]; acclaim: number };
-const newSpaceState = (): SpaceState => ({ nearbyTarget: null, cargoPeople: 0, cargoEquipment: 0, visitedPlanets: [], deployedEquipment: { Aster: 0, Cobalt: 0, Verdant: 0, Ember: 0, Frost: 0 }, planetProgress: { Aster: 0, Cobalt: 0, Verdant: 0, Ember: 0, Frost: 0 }, travelNotes: [], acclaim: 0 });
+export type SpaceState = { nearbyTarget: string | null; cargoPeople: number; cargoEquipment: number; visitedPlanets: string[]; deployedEquipment: Record<string, number>; planetProgress: Record<string, number>; travelNotes: string[]; acclaim: number; asteroidsShot: number };
+const newSpaceState = (): SpaceState => ({ nearbyTarget: null, cargoPeople: 0, cargoEquipment: 0, visitedPlanets: [], deployedEquipment: { Aster: 0, Cobalt: 0, Verdant: 0, Ember: 0, Frost: 0 }, planetProgress: { Aster: 0, Cobalt: 0, Verdant: 0, Ember: 0, Frost: 0 }, travelNotes: [], acclaim: 0, asteroidsShot: 0 });
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
@@ -292,9 +292,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     if (!target) { notify("Fly closer to GGL Haven or a planet to dock.", "info"); return; }
     if (target === "GGL Haven") {
       if (state.cargoPeople > 0 && state.visitedPlanets.length) {
-        const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — the crew saw the world up close during your flight.");
+        const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — the crew saw the world up close; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
         state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8); const award = Math.max(1, state.visitedPlanets.length * 2); state.acclaim += award;
-        notify("Crew notes published. Station media acclaim +" + award + ".", "success"); state.cargoPeople = 0; state.visitedPlanets = [];
+        notify("Crew notes published. Station media acclaim +" + award + ".", "success"); state.cargoPeople = 0; state.visitedPlanets = []; state.asteroidsShot = 0;
       } else notify("Docked at GGL Haven. Read the news or board a mission.", "success");
       setSpaceUiTick(n => n + 1); return;
     }

@@ -9,9 +9,9 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 function makeCar() {
   const ship = new THREE.Group();
-  const hull = new THREE.MeshStandardMaterial({ color: "#ff70bd", metalness: .68, roughness: .24 });
-  const darkHull = new THREE.MeshStandardMaterial({ color: "#090b12", metalness: .62, roughness: .34 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: "#ff9bd0", metalness: .48, roughness: .12, clearcoat: 1, emissive: "#8b285b", emissiveIntensity: .65 });
+  const hull = new THREE.MeshStandardMaterial({ color: "#ff8acb", metalness: .48, roughness: .3, emissive: "#351027", emissiveIntensity: .22 });
+  const darkHull = new THREE.MeshStandardMaterial({ color: "#202b40", metalness: .48, roughness: .36, emissive: "#101a2d", emissiveIntensity: .28 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: "#ffb7df", metalness: .28, roughness: .1, clearcoat: 1, emissive: "#a83d7a", emissiveIntensity: .9 });
   const cyan = new THREE.MeshStandardMaterial({ color: "#65f5ff", emissive: "#13cde8", emissiveIntensity: 2.4, metalness: .25, roughness: .2 });
   const magenta = new THREE.MeshStandardMaterial({ color: "#ff70bd", emissive: "#a82d69", emissiveIntensity: 1.25, metalness: .35, roughness: .25 });
   const engine = new THREE.MeshStandardMaterial({ color: "#7cecff", emissive: "#32cfff", emissiveIntensity: 3.2, metalness: .4, roughness: .18 });
@@ -35,6 +35,13 @@ function makeCar() {
   }
   const noseLight=new THREE.Mesh(new THREE.SphereGeometry(.11,8,6),cyan);
   noseLight.position.set(0,.56,-2.38); ship.add(noseLight);
+  // Low-intensity navigation fill keeps the spacecraft silhouette readable in deep space.
+  const pilotFill = new THREE.PointLight("#9cefff", 5.5, 18, 2);
+  pilotFill.position.set(0, 1.4, -1.2);
+  ship.add(pilotFill);
+  const rearRim = new THREE.PointLight("#ff70bd", 3.5, 12, 2);
+  rearRim.position.set(0, .7, 1.6);
+  ship.add(rearRim);
   const flame=new THREE.Mesh(new THREE.ConeGeometry(.24,1.35,10),new THREE.MeshBasicMaterial({color:"#55eaff",transparent:true,opacity:.9}));
   flame.rotation.x=Math.PI/2; flame.position.set(0,.47,2.05); flame.visible=false; ship.add(flame);
   ship.userData.flame=flame;
@@ -68,17 +75,19 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#030716");
     const camera = new THREE.PerspectiveCamera(63,(host.clientWidth||800)/(host.clientHeight||480),.1,900);
-    scene.add(new THREE.HemisphereLight("#9ebdff","#080b18",0.42));
-    // A shared star lights the worlds; local time and rotation move the day/night boundary.
+    scene.add(new THREE.HemisphereLight("#b9d5ff", "#101729", 0.72));
+    // One stable star illuminates every world; planetary rotation changes each world's day/night side.
     const sunPosition = new THREE.Vector3(-320, 130, -250);
-    const solarLight = new THREE.DirectionalLight("#ffe0a0", 3.2);
+    const solarLight = new THREE.DirectionalLight("#fff0cf", 4.2);
     solarLight.position.copy(sunPosition); solarLight.target.position.set(0, 0, 0); scene.add(solarLight, solarLight.target);
-    const starLight = new THREE.PointLight("#ffe0a0", 420, 1200, 1.5);
+    const starLight = new THREE.PointLight("#ffe0a0", 680, 1500, 1.35);
     starLight.position.copy(sunPosition); scene.add(starLight);
-    const sun = new THREE.Mesh(new THREE.SphereGeometry(24, 32, 24), new THREE.MeshBasicMaterial({ color: "#fff0bd" }));
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(26, 40, 32), new THREE.MeshBasicMaterial({ color: "#fff6d6" }));
     sun.position.copy(sunPosition); scene.add(sun);
-    const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(32, 24, 16), new THREE.MeshBasicMaterial({ color: "#ffbd65", transparent: true, opacity: .12, side: THREE.BackSide }));
+    const sunHalo = new THREE.Mesh(new THREE.SphereGeometry(35, 32, 24), new THREE.MeshBasicMaterial({ color: "#ffbd65", transparent: true, opacity: .16, side: THREE.BackSide, depthWrite: false }));
     sunHalo.position.copy(sunPosition); scene.add(sunHalo);
+    const sunCorona = new THREE.Mesh(new THREE.SphereGeometry(44, 32, 24), new THREE.MeshBasicMaterial({ color: "#ff8c42", transparent: true, opacity: .045, side: THREE.BackSide, depthWrite: false }));
+    sunCorona.position.copy(sunPosition); scene.add(sunCorona);
     const nebulaLight=new THREE.PointLight("#d04cff",90,420,2); nebulaLight.position.set(130,45,100); scene.add(nebulaLight);
     const planetaryBodies: Array<{ body: THREE.Group; periodHours: number }> = [];
     const planetBarriers: Array<{ center: THREE.Vector3; radius: number }> = [];
@@ -181,7 +190,10 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         // teleporting the ship to an immediate stop.
         const verticalInput = (controls.accelerate ? 1 : 0) - (controls.brake ? 1 : 0);
         race.velocityY = clamp(race.velocityY + verticalInput * 18 * frameDelta, -12, 12);
-        race.velocityY *= Math.exp(-frameDelta * (verticalInput ? 0.42 : 1.8));
+        // In this arcade-style flight model, releasing the vertical thrusters means hold position.
+        // No residual momentum: the ship stays where the pilot leaves it.
+        if (verticalInput === 0) race.velocityY = 0;
+        else race.velocityY *= Math.exp(-frameDelta * 0.42);
         race.worldY = clamp(race.worldY + race.velocityY * frameDelta, -90, 90);
         if (Math.abs(race.worldY) >= 90 && Math.sign(race.worldY) === Math.sign(race.velocityY)) {
           race.velocityY = 0;

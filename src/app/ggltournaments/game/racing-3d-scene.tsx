@@ -9,11 +9,11 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 function makeCar() {
   const ship = new THREE.Group();
-  const hull = new THREE.MeshStandardMaterial({ color: "#b9d9e8", metalness: .82, roughness: .24 });
+  const hull = new THREE.MeshStandardMaterial({ color: "#b5f52a", metalness: .72, roughness: .25 });
   const darkHull = new THREE.MeshStandardMaterial({ color: "#17283f", metalness: .7, roughness: .3 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: "#1a8bc2", metalness: .48, roughness: .12, clearcoat: 1, emissive: "#075078", emissiveIntensity: .8 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: "#4c8d20", metalness: .48, roughness: .12, clearcoat: 1, emissive: "#234b0b", emissiveIntensity: .8 });
   const cyan = new THREE.MeshStandardMaterial({ color: "#65f5ff", emissive: "#13cde8", emissiveIntensity: 2.4, metalness: .25, roughness: .2 });
-  const magenta = new THREE.MeshStandardMaterial({ color: "#ff67d5", emissive: "#b31b8b", emissiveIntensity: 1.5, metalness: .35, roughness: .25 });
+  const magenta = new THREE.MeshStandardMaterial({ color: "#b5f52a", emissive: "#568d0d", emissiveIntensity: 1.2, metalness: .35, roughness: .25 });
   const engine = new THREE.MeshStandardMaterial({ color: "#7cecff", emissive: "#32cfff", emissiveIntensity: 3.2, metalness: .4, roughness: .18 });
   const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(.25,.56,2.75,10,1),hull);
   fuselage.rotation.x=Math.PI/2; fuselage.position.set(0,.56,.05); fuselage.castShadow=true; ship.add(fuselage);
@@ -123,6 +123,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
     const car = makeCar();
     const projectiles: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; age: number }> = [];
     let nextProjectileAt = 0;
+    // Small, occasional asteroid clusters drift across the flight path as shootable targets.
+    const asteroids: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; radius: number; age: number }> = [];
+    const asteroidGeometry = new THREE.IcosahedronGeometry(1, 1);
+    const asteroidMaterial = new THREE.MeshStandardMaterial({ color: "#777f8b", roughness: .96, metalness: .12, flatShading: true });
+    const asteroidDustMaterial = new THREE.PointsMaterial({ color: "#a9b7c8", size: .8, transparent: true, opacity: .48, sizeAttenuation: true });
+    let nextAsteroidAt = 1.8;
     const projectileGeometry = new THREE.SphereGeometry(0.22, 8, 6);
     const projectileMaterial = new THREE.MeshBasicMaterial({ color: "#7cf7ff" });
     const impactMaterial = new THREE.MeshBasicMaterial({ color: "#fff0a3", transparent: true, opacity: 0.9 });
@@ -186,6 +192,61 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
           altitude = shipPosition.y - .015;
         }
       }
+      // Asteroid groups enter ahead of the ship occasionally, then drift past like space debris.
+      if (currentPhase === "running" && flightElapsedSeconds >= nextAsteroidAt) {
+        const travel = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
+        const across = new THREE.Vector3(-travel.z, 0, travel.x);
+        const clusterCount = 3 + Math.floor(Math.random() * 4);
+        const center = shipPosition.clone().addScaledVector(travel, 95 + Math.random() * 45)
+          .addScaledVector(across, (Math.random() - .5) * 48);
+        center.y += (Math.random() - .5) * 28;
+        for (let i = 0; i < clusterCount && asteroids.length < 42; i++) {
+          const radius = .65 + Math.random() * 1.5;
+          const rock = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
+          rock.scale.set(radius * (.75 + Math.random() * .65), radius * (.7 + Math.random() * .55), radius * (.75 + Math.random() * .6));
+          rock.position.copy(center).add(new THREE.Vector3((Math.random() - .5) * 18, (Math.random() - .5) * 13, (Math.random() - .5) * 18));
+          rock.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+          scene.add(rock);
+          const drift = travel.clone().multiplyScalar(-24 - Math.random() * 28)
+            .addScaledVector(across, (Math.random() - .5) * 9);
+          drift.y += (Math.random() - .5) * 5;
+          asteroids.push({ mesh: rock, velocity: drift, radius: radius * 1.35, age: 0 });
+        }
+        // A brief trail of tiny dust points makes each debris pass feel like a field.
+        const dustPositions: number[] = [];
+        for (let i = 0; i < 28; i++) {
+          dustPositions.push((Math.random() - .5) * 25, (Math.random() - .5) * 18, (Math.random() - .5) * 25);
+        }
+        const dustGeometry = new THREE.BufferGeometry();
+        dustGeometry.setAttribute("position", new THREE.Float32BufferAttribute(dustPositions, 3));
+        const dust = new THREE.Points(dustGeometry, asteroidDustMaterial);
+        dust.position.copy(center);
+        scene.add(dust);
+        // Dust is intentionally short-lived; keep its geometry attached for cleanup.
+        asteroids.push({ mesh: new THREE.Mesh(dustGeometry, asteroidMaterial), velocity: travel.clone().multiplyScalar(-30), radius: 0, age: -0.35 });
+        asteroids[asteroids.length - 1].mesh.visible = false;
+        asteroids[asteroids.length - 1].mesh.userData.dust = dust;
+        nextAsteroidAt = flightElapsedSeconds + 2.4 + Math.random() * 3.6;
+      }
+      for (let i = asteroids.length - 1; i >= 0; i--) {
+        const rock = asteroids[i];
+        const dust = rock.mesh.userData.dust as THREE.Points | undefined;
+        if (dust) {
+          dust.position.addScaledVector(rock.velocity, frameDelta);
+          rock.age += frameDelta;
+          if (rock.age >= 2.8 || dust.position.distanceTo(shipPosition) > 210) {
+            scene.remove(dust); dust.geometry.dispose(); asteroids.splice(i, 1);
+          }
+          continue;
+        }
+        rock.mesh.position.addScaledVector(rock.velocity, frameDelta);
+        rock.mesh.rotation.x += frameDelta * .32;
+        rock.mesh.rotation.y += frameDelta * .48;
+        rock.age += frameDelta;
+        if (rock.age > 8 || rock.mesh.position.distanceTo(shipPosition) > 230) {
+          scene.remove(rock.mesh); asteroids.splice(i, 1);
+        }
+      }
       // Hold-to-fire launches fast, visible energy bolts from the ship nose.
       if (currentPhase === "running" && controls.fire && flightElapsedSeconds >= nextProjectileAt) {
         const shotForward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
@@ -204,7 +265,22 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
         for (const barrier of planetBarriers) {
           if (shot.mesh.position.distanceTo(barrier.center) <= barrier.radius) { hit = true; break; }
         }
-        if (hit) {
+        let asteroidHitIndex = -1;
+        if (!hit) {
+          for (let j = asteroids.length - 1; j >= 0; j--) {
+            const rock = asteroids[j];
+            if (rock.radius > 0 && shot.mesh.position.distanceTo(rock.mesh.position) <= rock.radius + .35) {
+              asteroidHitIndex = j; hit = true; break;
+            }
+          }
+        }
+        if (asteroidHitIndex >= 0) {
+          const rock = asteroids[asteroidHitIndex];
+          const flash = new THREE.Mesh(new THREE.SphereGeometry(1.1, 8, 6), impactMaterial);
+          flash.position.copy(rock.mesh.position); scene.add(flash); impacts.push({ mesh: flash, age: 0 });
+          scene.remove(rock.mesh); asteroids.splice(asteroidHitIndex, 1);
+        }
+        if (hit && asteroidHitIndex < 0) {
           const flash = new THREE.Mesh(new THREE.SphereGeometry(1.1, 8, 6), impactMaterial);
           flash.position.copy(shot.mesh.position); scene.add(flash); impacts.push({ mesh: flash, age: 0 });
         }
@@ -256,6 +332,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef }: Props)
       projectiles.forEach((shot) => scene.remove(shot.mesh));
       impacts.forEach((impact) => { scene.remove(impact.mesh); impact.mesh.geometry.dispose(); });
       projectileGeometry.dispose(); projectileMaterial.dispose(); impactMaterial.dispose();
+      asteroidGeometry.dispose(); asteroidMaterial.dispose(); asteroidDustMaterial.dispose();
+      asteroids.forEach((rock) => {
+        const dust = rock.mesh.userData.dust as THREE.Points | undefined;
+        if (dust) { scene.remove(dust); dust.geometry.dispose(); }
+        else scene.remove(rock.mesh);
+      });
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.geometry) mesh.geometry.dispose();

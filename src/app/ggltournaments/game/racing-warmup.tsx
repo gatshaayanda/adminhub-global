@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, formatWorldTime, habitatCapacity, habitatStage, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, formatWorldTime, getFirstFootholdCue, habitatCapacity, habitatStage, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 
@@ -375,22 +375,33 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     }
     setSpaceUiTick(n => n + 1);
   };
-  const boardAtStation = () => {
+  const boardCrewAtStation = () => {
     const state = spaceStateRef.current;
-    if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven first.", "info"); return; }
-    const crewAvailable = Math.max(0, state.havenPopulation - 36);
-    const crewAdded = Math.min(3, 6 - state.cargoPeople, crewAvailable);
-    const machinesAdded = Math.min(2, 4 - state.cargoEquipment, state.machineInventory);
-    state.cargoPeople += crewAdded;
-    state.havenPopulation -= crewAdded;
-    state.cargoEquipment += machinesAdded;
-    state.machineInventory -= machinesAdded;
-    if (crewAdded || machinesAdded) {
-      notify(crewAdded + " person(s) and " + machinesAdded + " machine(s) loaded. Haven retains a 36-person reserve.");
-      signalTransfer("🧑‍🚀", "CREW + CARGO ABOARD", crewAdded + " person(s) · " + machinesAdded + " finite machine(s) loaded.", "STATION  →  SHIP");
-    } else {
-      notify("No cargo loaded. Check the six-person/four-machine hold, Haven reserve, and remaining stock.", "info");
+    if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven before boarding crew.", "info"); return; }
+    const available = Math.max(0, state.havenPopulation - 36);
+    const added = Math.min(3, 6 - state.cargoPeople, available);
+    if (added <= 0) {
+      notify(state.cargoPeople >= 6 ? "Crew hold full. Deliver people before boarding more." : "Haven must retain its 36-person reserve.", "info");
+      return;
     }
+    state.cargoPeople += added;
+    state.havenPopulation -= added;
+    notify(added + " descendant(s) of Haven's original 60 boarded. Their place is now on your ship.");
+    signalTransfer("🧑‍🚀", "FOUNDING CREW ABOARD", added + " people transferred from Haven to the ship.", "HAVEN  →  SHIP");
+    setSpaceUiTick(n => n + 1);
+  };
+  const loadMachinesAtStation = () => {
+    const state = spaceStateRef.current;
+    if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven before loading machinery.", "info"); return; }
+    const added = Math.min(2, 4 - state.cargoEquipment, state.machineInventory);
+    if (added <= 0) {
+      notify(state.cargoEquipment >= 4 ? "Machine hold full. Deploy machinery before collecting more." : "Haven's initial machine stock is exhausted.", "info");
+      return;
+    }
+    state.cargoEquipment += added;
+    state.machineInventory -= added;
+    notify(added + " finite terraforming machine(s) loaded. Remaining Haven stock: " + state.machineInventory + ".");
+    signalTransfer("🤖", "MACHINES LOADED", added + " machine(s) moved from Haven's finite stores into your cargo.", "STATION  →  SHIP");
     setSpaceUiTick(n => n + 1);
   };
   const toggleBoost = () => {
@@ -400,6 +411,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setBoostActive(next);
   };
   const world = spaceStateRef.current;
+  const mission = getFirstFootholdCue(world);
   const colonyPopulation = Object.values(world.colonies).reduce((total, colony) => total + colony.population, 0);
   const civilisationPopulation = world.havenPopulation + world.cargoPeople + colonyPopulation;
 
@@ -417,11 +429,27 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <i />
           <span><b>{spaceStateRef.current.visitedPlanets.length}</b> worlds</span>
         </div>
-        <div className="space-radio-ticker" aria-live="polite"><span>RADIO</span> Outer routes report drifting debris · Keep your eyes open</div>
-        {spaceStateRef.current.nearbyTarget && <div className="space-proximity-actions" aria-label="Nearby interaction">
-          <div className="space-proximity-copy"><span>{spaceStateRef.current.nearbyTarget === "GGL Haven" ? "STATION IN RANGE" : "PLANET IN RANGE"}</span><strong>{spaceStateRef.current.nearbyTarget}</strong></div>
-          <button type="button" onClick={dockOrLand}>{spaceStateRef.current.nearbyTarget === "GGL Haven" ? "Dock" : "Visit world"} <span>↗</span></button>
-          {spaceStateRef.current.nearbyTarget === "GGL Haven" && <button type="button" onClick={boardAtStation}>Board crew + equipment <span>＋</span></button>}
+        <div className="space-mission-cue" aria-label="Suggested mission: first foothold">
+          <div className="space-mission-cue-top"><span>FIRST FOOTHOLD</span><span>STEP {mission.step} / 3</span></div>
+          <strong>{mission.title}</strong>
+          <p>{mission.detail}</p>
+          <div className="space-mission-progress" aria-label={"Mission progress " + mission.progress + "%"}><span style={{ width: mission.progress + "%" }} /></div>
+          <div className="space-mission-footer"><span>NAV TARGET</span><b>{mission.target}</b></div>
+        </div>
+        {world.nearbyTarget && <div className="space-proximity-actions" aria-label="Nearby interaction">
+          <div className="space-proximity-copy"><span>{world.nearbyTarget === "GGL Haven" ? "HAVEN DOCKING BAY" : "PLANETARY APPROACH"}</span><strong>{world.nearbyTarget}</strong></div>
+          {world.nearbyTarget === "GGL Haven" ? <>
+            <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage</div>
+            <button type="button" onClick={dockOrLand}>Dock / return cargo <span>↙</span></button>
+            <button type="button" onClick={loadMachinesAtStation} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load machines +2 <span>＋</span></button>
+            <button type="button" onClick={boardCrewAtStation} disabled={world.havenPopulation <= 36 || world.cargoPeople >= 6}>Board crew +3 <span>＋</span></button>
+          </> : <>
+            {(() => { const planet = WORLD_PLANETS.find(item => item.name === world.nearbyTarget); if (!planet) return null; const progress = world.planetProgress[planet.name] ?? planet.initialProgress; const installed = world.deployedEquipment[planet.name] || 0; const stage = habitatStage(progress); const colony = world.colonies[planet.name]; return <div className="space-proximity-data">
+              <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
+              {installed}/{planet.colonyMachineRequirement} founding machines · {colony ? colony.population + " settlers" : "no settlement yet"}
+            </div>; })()}
+            <button type="button" onClick={dockOrLand}>{world.cargoEquipment > 0 ? "Deploy machinery" : world.cargoPeople > 0 ? "Attempt settlement" : "Scan this world"} <span>↗</span></button>
+          </>}
         </div>}
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
         {transferSignal && <div key={transferSignal.id} className="space-transfer-signal" role="status" aria-live="polite">
@@ -435,45 +463,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <p>{phase === "ready" ? "Use the familiar controls to fly through open space and look around the nearby planets." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Enjoy the open space. You can pause or restart whenever you like."}</p>
         </div>
       </div>
-
-      <section className="space-world-board" aria-label="Living world and mission status">
-        <div className="space-world-heading">
-          <div><span className="space-world-kicker">THE LIVING SYSTEM</span><h3>Every world starts from Haven.</h3><p>Install finite machinery, let system time pass, then seed a settlement when the habitat and machine requirements are met.</p></div>
-          <span className="space-world-time">{formatWorldTime(world.worldTimeMinutes)}</span>
-        </div>
-        <div className="space-world-stats">
-          <div><span>HAVEN POPULATION</span><strong>{world.havenPopulation}</strong><small>founders descend from the original 60</small></div>
-          <div><span>CIVILISATION</span><strong>{civilisationPopulation}</strong><small>Haven + ship + descendant settlements</small></div>
-          <div><span>MACHINES IN STOCK</span><strong>{world.machineInventory}</strong><small>Finite stock · no free reloads</small></div>
-          <div><span>SHIP CARGO</span><strong>{world.cargoPeople} crew · {world.cargoEquipment} machines</strong><small>Hold limit: 6 people / 4 machines</small></div>
-        </div>
-        <div className="space-planet-grid">
-          {WORLD_PLANETS.map((planet) => {
-            const progress = world.planetProgress[planet.name] ?? planet.initialProgress;
-            const stage = habitatStage(progress);
-            const installed = world.deployedEquipment[planet.name] || 0;
-            const colony = world.colonies[planet.name];
-            const missing = Math.max(0, planet.colonyMachineRequirement - installed);
-            return <article className="space-planet-card" key={planet.name}>
-              <div className="space-planet-card-top">
-                <span className="space-planet-orb" style={{ background: stage.color, boxShadow: "0 0 15px " + stage.color + "70" }} />
-                <div className="space-planet-name"><strong>{planet.name}</strong><small>{planet.summary}</small></div>
-                <span className="space-habitat-badge" style={{ color: stage.color, borderColor: stage.color }}>{stage.label}</span>
-              </div>
-              <div className="space-planet-progress-track" role="progressbar" aria-label={planet.name + " habitat restoration"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
-                <span style={{ width: progress + "%", background: stage.color }} />
-              </div>
-              <div className="space-planet-meta"><span>{Math.round(progress)}% restored</span><span>{installed} machine{installed === 1 ? "" : "s"} installed</span></div>
-              <div className="space-planet-next">
-                {colony
-                  ? <><strong>{colony.population} settlers · {colony.operators} local operator{colony.operators === 1 ? "" : "s"}</strong><span>{colony.independent ? "SELF-GOVERNING DESCENDANT COLONY" : "Founded from Haven · growing locally"}</span></>
-                  : <><strong>{progress < 80 ? "Needs " + planet.colonyMachineRequirement + " machines to found" : missing > 0 ? "Install " + missing + " more machine" + (missing === 1 ? "" : "s") : "Ready for founding crew"}</strong><span>{progress < 80 ? "Habitat must reach 80% first" : "Safe capacity " + habitatCapacity(progress) + " people"}</span></>}
-              </div>
-            </article>;
-          })}
-        </div>
-        <div className="space-world-event" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "System is stable. Your next delivery changes its future."}</strong></div>
-      </section>
 
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">

@@ -621,3 +621,9 @@
 .space-map-target{animation:space-map-ping 1.65s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
 @keyframes space-map-ping{0%,100%{stroke-opacity:.68;opacity:.72}50%{stroke-opacity:1;opacity:1}}
 @media(prefers-reduced-motion:reduce){.space-map-target{animation:none}}
+
+
+.space-machine-load-options{display:grid;grid-template-columns:1fr 1fr;gap:5px;min-width:0}
+.space-proximity-actions .space-machine-load-options button{min-height:40px;padding:7px 5px;background:#d7f1ff;border-color:#81c8e5;color:#133b52;font-size:9px}
+@media(max-width:520px){.space-machine-load-options{gap:4px}.space-proximity-actions .space-machine-load-options button{min-height:38px;font-size:8px;padding:6px 3px}}
+@media(max-width:360px){.space-machine-load-options{gap:3px}.space-proximity-actions .space-machine-load-options button{font-size:7px;letter-spacing:-.02em}}

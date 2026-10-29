@@ -406,12 +406,18 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         <circle cx="123.3" cy="63" r="13.5" fill="#276f9f" stroke="#77d7f5" strokeWidth="1.5" />
         <circle cx="161.1" cy="17" r="16" fill="#367b62" stroke="#85d8ad" strokeWidth="1.5" />
         <circle cx="85.6" cy="114" r="9.5" fill="#9ebdce" stroke="#ccefff" strokeWidth="1.2" />
+        <g aria-label="GGL Haven station" transform="translate(53 52)">
+          <circle r="7.8" fill="rgba(255,208,107,.14)" stroke="#ffd06b" strokeWidth="1.4" />
+          <circle r="3.2" fill="#ffd06b" />
+          <path d="M-10 0H-5 M5 0H10 M0 -10V-5 M0 5V10" stroke="#ffd06b" strokeWidth="1.5" strokeLinecap="round" />
+          <text x="9" y="12" fill="#ffe4a6" fontSize="6.5" fontWeight="800" letterSpacing=".2">HAVEN</text>
+        </g>
         <g ref={shipMapMarkerRef} transform="translate(58.9 48.4)">
           <circle r="7.5" fill="rgba(102,242,255,.17)" stroke="#66f2ff" strokeOpacity=".7" />
           <path d="M0 -6 L4.2 5 L0 2.7 L-4.2 5 Z" fill="#ffffff" stroke="#66f2ff" strokeWidth="1.1" />
         </g>
       </svg>
-      <div className="space-mini-map-legend"><span><i className="map-ship-dot" /> YOU</span><span><i className="map-world-dot" /> PLANETS</span></div>
+      <div className="space-mini-map-legend"><span><i className="map-ship-dot" /> YOU</span><span><i className="map-world-dot" /> PLANETS</span><span><i className="map-station-dot" /> STATION</span></div>
     </div>
   </div>;
 }

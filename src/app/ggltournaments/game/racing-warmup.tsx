@@ -40,6 +40,15 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const cornerSkillRef = useRef({ brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 });
   const [boostActive, setBoostActive] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
+  const [transferSignal, setTransferSignal] = useState<{ id: number; emoji: string; title: string; detail: string; route: string } | null>(null);
+  const transferSignalId = useRef(0);
+  const transferTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const signalTransfer = useCallback((emoji: string, title: string, detail: string, route: string) => {
+    transferSignalId.current += 1;
+    setTransferSignal({ id: transferSignalId.current, emoji, title, detail, route });
+    if (transferTimer.current) clearTimeout(transferTimer.current);
+    transferTimer.current = setTimeout(() => setTransferSignal(null), 2600);
+  }, []);
   const businessName = "GGL Racing";
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   phaseRef.current = phase;
@@ -49,7 +58,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2200);
   }, []);
-  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    if (transferTimer.current) clearTimeout(transferTimer.current);
+  }, []);
   useEffect(() => { if (!embedded) document.title = "GGL Space · Open-space exploration"; }, [embedded]);
 
   const reset = useCallback((start: boolean) => {
@@ -251,19 +263,36 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     if (target === "GGL Haven") {
       if (state.cargoPeople > 0 && state.visitedPlanets.length) {
         const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — the crew saw the world up close; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
+        const returnedCrew = state.cargoPeople;
         state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8); const award = Math.max(1, state.visitedPlanets.length * 2); state.acclaim += award;
-        notify("Crew notes published. Station media acclaim +" + award + ".", "success"); state.cargoPeople = 0; state.visitedPlanets = []; state.asteroidsShot = 0;
+        notify("Crew notes published. Station media acclaim +" + award + ".", "success");
+        signalTransfer("🧑‍🚀", "CREW RETURNED TO HAVEN", returnedCrew + " crew member(s) disembarked safely.", "SHIP  →  STATION");
+        state.cargoPeople = 0; state.visitedPlanets = []; state.asteroidsShot = 0;
       } else notify("Docked at GGL Haven. Read the news or board a mission.", "success");
       setSpaceUiTick(n => n + 1); return;
     }
     if (target in state.deployedEquipment) {
       if (!state.visitedPlanets.includes(target)) state.visitedPlanets.push(target);
-      if (state.cargoEquipment > 0) { const count = state.cargoEquipment; state.deployedEquipment[target] += count; state.cargoEquipment = 0; notify(count + " terraforming machine(s) deployed on " + target + "."); }
+      if (state.cargoEquipment > 0) { const count = state.cargoEquipment; state.deployedEquipment[target] += count; state.cargoEquipment = 0; notify(count + " terraforming machine(s) deployed on " + target + "."); signalTransfer("🤖", "MACHINES DEPLOYED", count + " terraforming machine(s) delivered to " + target + ".", "SHIP  →  " + target.toUpperCase()); }
       else notify("Planet visit logged. No equipment aboard — you can still explore and take passengers.", "info");
       setSpaceUiTick(n => n + 1);
     }
   };
-  const boardAtStation = () => { const state = spaceStateRef.current; if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven first.", "info"); return; } state.cargoPeople = Math.min(6, state.cargoPeople + 3); state.cargoEquipment = Math.min(4, state.cargoEquipment + 2); notify("3 passengers and 2 terraforming machines boarded."); setSpaceUiTick(n => n + 1); };
+  const boardAtStation = () => {
+    const state = spaceStateRef.current;
+    if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven first.", "info"); return; }
+    const crewAdded = Math.min(6, state.cargoPeople + 3) - state.cargoPeople;
+    const machinesAdded = Math.min(4, state.cargoEquipment + 2) - state.cargoEquipment;
+    state.cargoPeople = Math.min(6, state.cargoPeople + 3);
+    state.cargoEquipment = Math.min(4, state.cargoEquipment + 2);
+    if (crewAdded || machinesAdded) {
+      notify(crewAdded + " passenger(s) and " + machinesAdded + " terraforming machine(s) boarded.");
+      signalTransfer("🧑‍🚀", "CREW + CARGO ABOARD", crewAdded + " crew member(s) · " + machinesAdded + " machine(s) loaded.", "STATION  →  SHIP");
+    } else {
+      notify("Cargo holds are full. Deliver crew or machines before boarding more.", "info");
+    }
+    setSpaceUiTick(n => n + 1);
+  };
   const toggleBoost = () => {
     if (phaseRef.current !== "running" || raceRef.current.nos <= 0) return;
     const next = !controlsRef.current.boost;
@@ -292,6 +321,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           {spaceStateRef.current.nearbyTarget === "GGL Haven" && <button type="button" onClick={boardAtStation}>Board crew + equipment <span>＋</span></button>}
         </div>}
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
+        {transferSignal && <div key={transferSignal.id} className="space-transfer-signal" role="status" aria-live="polite">
+          <div className="space-transfer-emoji" aria-hidden="true">{transferSignal.emoji}</div>
+          <div className="space-transfer-copy"><strong>{transferSignal.title}</strong><span>{transferSignal.detail}</span><div className="space-transfer-route">{transferSignal.route} <i aria-hidden="true">➜</i></div></div>
+        </div>}
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
           <span>GGL SPACE · FREE EXPLORATION</span>

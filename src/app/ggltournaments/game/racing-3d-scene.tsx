@@ -93,6 +93,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     const planetaryBodies: Array<{ body: THREE.Group; periodHours: number }> = [];
     const planetBarriers: Array<{ center: THREE.Vector3; radius: number }> = [];
     const planetVisuals: Record<string, { body: THREE.Group; surface: THREE.Mesh; atmosphere: THREE.Mesh; forcefield: THREE.Mesh; radius: number; baseColor: THREE.Color }> = {};
+    const colonyVisuals: Record<string, THREE.Group> = {};
     const deployedMachines: Record<string, THREE.Group[]> = {};
     let simulationSeconds = spaceStateRef.current.worldTimeMinutes * 60;
     let flightElapsedSeconds = 0;
@@ -121,6 +122,40 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       }
       world.position.set(...position); scene.add(world);
       planetVisuals[name] = { body: world, surface, atmosphere, forcefield, radius, baseColor: new THREE.Color(color) };
+      // The settlement is a small, legible silhouette on the equator; its scale grows with the actual local population.
+      const settlement = new THREE.Group();
+      settlement.name = name + " settlement";
+      const buildingMaterial = new THREE.MeshStandardMaterial({ color: "#b8d5e6", metalness: .5, roughness: .48, emissive: "#245d70", emissiveIntensity: .18 });
+      const habitatGlass = new THREE.MeshStandardMaterial({ color: "#75f0e0", metalness: .22, roughness: .2, emissive: "#26d8c9", emissiveIntensity: 1.5 });
+      const solarMaterial = new THREE.MeshStandardMaterial({ color: "#3e73a5", metalness: .62, roughness: .26, emissive: "#185187", emissiveIntensity: .6 });
+      for (let i = 0; i < 6; i++) {
+        const angle = i * Math.PI / 3;
+        const habitat = new THREE.Group();
+        habitat.position.set(Math.cos(angle) * (radius + 1.6), 0, Math.sin(angle) * (radius + 1.6));
+        habitat.rotation.y = -angle;
+        const footing = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.65, .6, 8), buildingMaterial);
+        footing.position.y = .3;
+        habitat.add(footing);
+        const tower = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.1, 2.2), buildingMaterial);
+        tower.position.y = 2.0;
+        habitat.add(tower);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(1.4, 10, 7), habitatGlass);
+        dome.scale.y = .7;
+        dome.position.y = 3.8;
+        habitat.add(dome);
+        const solar = new THREE.Mesh(new THREE.BoxGeometry(3.8, .12, 1.4), solarMaterial);
+        solar.position.set(2.1, 1.5, .1);
+        solar.rotation.z = -.1;
+        habitat.add(solar);
+        settlement.add(habitat);
+      }
+      const beacon = new THREE.Mesh(new THREE.CylinderGeometry(.12, .3, 4.8, 6), habitatGlass);
+      beacon.position.set(0, radius + 1.8, 0);
+      settlement.add(beacon);
+      settlement.visible = false;
+      settlement.scale.setScalar(.08);
+      world.add(settlement);
+      colonyVisuals[name] = settlement;
       planetaryBodies.push({ body: world, periodHours: 18 + planetaryBodies.length * 7 });
       deployedMachines[name] = [];
       for (let i = 0; i < 12; i++) { const machine = new THREE.Group(); const metal = new THREE.MeshStandardMaterial({ color: "#b7c6d7", metalness: .72, roughness: .34, emissive: "#2c6d82", emissiveIntensity: .22 }); const core = new THREE.Mesh(new THREE.CylinderGeometry(.8, 1.05, 2.5, 8), metal); core.position.y = 1.25; machine.add(core); const cap = new THREE.Mesh(new THREE.CylinderGeometry(.35, .65, .45, 8), new THREE.MeshStandardMaterial({ color: "#24364b", metalness: .48, roughness: .5 })); cap.position.y = 2.65; machine.add(cap); const panel = new THREE.Mesh(new THREE.BoxGeometry(2.8, .12, 1.2), new THREE.MeshStandardMaterial({ color: "#4c86b5", metalness: .55, roughness: .32, emissive: "#102b4c", emissiveIntensity: .25 })); panel.position.set(1.6, 1.1, .1); panel.rotation.z = -.12; machine.add(panel); const angle = i * Math.PI / 6; machine.position.set(position[0] + Math.cos(angle) * (radius + 1.2), position[1] + Math.sin(angle) * (radius + 1.2), position[2]); machine.lookAt(position[0], position[1], position[2]); machine.visible = false; scene.add(machine); deployedMachines[name].push(machine); }
@@ -229,6 +264,16 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
           machine.visible = index < count;
           if (machine.visible && currentPhase === "running") machine.rotation.y += frameDelta * .34;
         });
+        const settlement = colonyVisuals[planet.name];
+        const colony = state.colonies[planet.name];
+        if (settlement && colony) {
+          if (!settlement.visible) settlement.visible = true;
+          const size = .62 + Math.min(1, colony.population / 28) * .62;
+          settlement.scale.lerp(new THREE.Vector3(size, size, size), 1 - Math.exp(-frameDelta * 1.5));
+          settlement.rotation.y += frameDelta * .025;
+        } else if (settlement) {
+          settlement.visible = false;
+        }
       }
       for (const barrier of planetBarriers) {
         const offset = shipPosition.clone().sub(barrier.center);

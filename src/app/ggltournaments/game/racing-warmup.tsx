@@ -273,7 +273,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const y = rawY * scale;
     controlsRef.current.steer = clamp(x, -1, 1);
     controlsRef.current.flight = clamp(-y, -1, 1);
-    const knob = event.currentTarget.querySelector<HTMLElement>(".steering-stick-knob");
     if (knob) knob.style.transform = `translate3d(${x * maxX}px, ${y * maxY}px, 0)`;
   };
   const releaseSteerStick = (event: { currentTarget: HTMLDivElement }) => {

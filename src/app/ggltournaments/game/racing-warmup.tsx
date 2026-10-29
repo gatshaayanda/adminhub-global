@@ -7,6 +7,8 @@ import Racing3DScene from "./racing-3d-scene";
 
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; flight: number; accelerate: boolean; brake: boolean; boost: boolean; fire: boolean };
+export type SpaceState = { nearbyTarget: string | null; cargoPeople: number; cargoEquipment: number; visitedPlanets: string[]; deployedEquipment: Record<string, number>; planetProgress: Record<string, number>; travelNotes: string[]; acclaim: number };
+const newSpaceState = (): SpaceState => ({ nearbyTarget: null, cargoPeople: 0, cargoEquipment: 0, visitedPlanets: [], deployedEquipment: { Aster: 0, Cobalt: 0, Verdant: 0, Ember: 0, Frost: 0 }, planetProgress: { Aster: 0, Cobalt: 0, Verdant: 0, Ember: 0, Frost: 0 }, travelNotes: [], acclaim: 0 });
 export type Race = {
   progress: number; speed: number; elapsed: number; lap: number; lapTime: number; steering: number; throttle: number; brakePressure: number;
   bestLap: number | null; lateral: number; lateralVelocity: number; heading: number; drift: number;
@@ -25,6 +27,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const expanded = true;
   const raceRef = useRef<Race>(newRace());
   const controlsRef = useRef<Controls>({ steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false });
+  const spaceStateRef = useRef<SpaceState>(newSpaceState());
+  const [, setSpaceUiTick] = useState(0);
+  useEffect(() => { const timer = window.setInterval(() => setSpaceUiTick(n => n + 1), 500); return () => window.clearInterval(timer); }, []);
   const phaseRef = useRef<Phase>("ready");
   const [phase, setPhase] = useState<Phase>("ready");
   const [countdown, setCountdown] = useState(3);
@@ -282,6 +287,25 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   };
   // NOS is a compact tap-to-toggle tactical burst, not a hold pedal.
   // Tap once to fire, tap again to cut it; braking safely cancels the burst.
+  const dockOrLand = () => {
+    const state = spaceStateRef.current; const target = state.nearbyTarget;
+    if (!target) { notify("Fly closer to GGL Haven or a planet to dock.", "info"); return; }
+    if (target === "GGL Haven") {
+      if (state.cargoPeople > 0 && state.visitedPlanets.length) {
+        const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — the crew saw the world up close during your flight.");
+        state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8); const award = Math.max(1, state.visitedPlanets.length * 2); state.acclaim += award;
+        notify("Crew notes published. Station media acclaim +" + award + ".", "success"); state.cargoPeople = 0; state.visitedPlanets = [];
+      } else notify("Docked at GGL Haven. Read the news or board a mission.", "success");
+      setSpaceUiTick(n => n + 1); return;
+    }
+    if (target in state.deployedEquipment) {
+      if (!state.visitedPlanets.includes(target)) state.visitedPlanets.push(target);
+      if (state.cargoEquipment > 0) { const count = state.cargoEquipment; state.deployedEquipment[target] += count; state.cargoEquipment = 0; notify(count + " terraforming machine(s) deployed on " + target + "."); }
+      else notify("Planet visit logged. No equipment aboard — you can still explore and take passengers.", "info");
+      setSpaceUiTick(n => n + 1);
+    }
+  };
+  const boardAtStation = () => { const state = spaceStateRef.current; if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven first.", "info"); return; } state.cargoPeople = Math.min(6, state.cargoPeople + 3); state.cargoEquipment = Math.min(4, state.cargoEquipment + 2); notify("3 passengers and 2 terraforming machines boarded."); setSpaceUiTick(n => n + 1); };
   const toggleBoost = () => {
     if (phaseRef.current !== "running" || raceRef.current.nos <= 0) return;
     const next = !controlsRef.current.boost;
@@ -295,7 +319,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     <section className="big-brothers-section warmup-game">
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds nearby</span><strong>05</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
-        <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} />
+        <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
@@ -304,6 +328,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <p>{phase === "ready" ? "Use the familiar controls to fly through open space and look around the nearby planets." : phase === "countdown" ? "Get set. Smooth steering beats sudden corrections." : phase === "paused" ? "Take a breath. Resume when you're ready." : "Enjoy the open space. You can pause or restart whenever you like."}</p>
         </div>
       </div>
+      <section className="space-mission-panel" aria-label="GGL Haven station and trip board">
+        <div className="space-mission-top"><div><span className="space-panel-kicker">GGL HAVEN · STATION BOARD</span><h3>{spaceStateRef.current.nearbyTarget === "GGL Haven" ? "Docking range: GGL Haven" : spaceStateRef.current.nearbyTarget ? "Docking range: " + spaceStateRef.current.nearbyTarget : "Fly close to the station or a planet"}</h3><p>Get close and tap Dock. You can visit a planet without carrying equipment.</p></div><span className="space-acclaim">★ {spaceStateRef.current.acclaim} acclaim</span></div>
+        <div className="space-cargo-stats"><span>People aboard <b>{spaceStateRef.current.cargoPeople}</b></span><span>Machines aboard <b>{spaceStateRef.current.cargoEquipment}</b></span><span>Worlds visited <b>{spaceStateRef.current.visitedPlanets.length}</b></span></div>
+        <div className="space-mission-actions"><button type="button" disabled={!spaceStateRef.current.nearbyTarget} onClick={dockOrLand}>{spaceStateRef.current.nearbyTarget === "GGL Haven" ? "Dock at station" : spaceStateRef.current.nearbyTarget ? "Dock at " + spaceStateRef.current.nearbyTarget : "Fly closer to dock"}</button><button type="button" disabled={spaceStateRef.current.nearbyTarget !== "GGL Haven"} onClick={boardAtStation}>Board 3 people + 2 machines</button></div>
+        <div className="space-station-news"><strong>Station news & radio</strong><p>Latest bulletin: asteroid activity reported along the outer routes. Crew travel notes are published when you return to GGL Haven.</p><p className="space-note-caption">Station link: {spaceStateRef.current.nearbyTarget === "GGL Haven" ? "connected" : "out of docking range — last bulletin shown"}.</p></div>
+        <div className="space-planet-progress"><strong>Planet restoration</strong>{Object.entries(spaceStateRef.current.deployedEquipment).map(([planet,count]) => <div key={planet}><span>{planet}</span><span>{count ? count + " machine(s) · " + Math.floor(spaceStateRef.current.planetProgress[planet] || 0) + "% progress" : "No machines yet"}</span></div>)}</div>
+        {spaceStateRef.current.travelNotes.length > 0 && <div className="space-travel-notes"><strong>Published crew notes</strong>{spaceStateRef.current.travelNotes.slice(0,3).map((note,i)=><p key={i}>{note}</p>)}</div>}
+      </section>
       <div className="warmup-nos"><div><strong>NOS</strong><span>{Math.round(nos)}%</span></div><div className="nos-track"><span style={{ width: nos + "%" }} /></div></div>
       <div className="warmup-controls warmup-circuit-controls">
         <div className="warmup-steering" aria-label="Analog steering">

@@ -615,3 +615,9 @@
  .space-proximity-actions button{min-height:38px;font-size:8px;padding:6px 4px}
 }
 @media(prefers-reduced-motion:reduce){.space-mission-cue{animation:none}.space-mission-progress span{transition:none}}
+
+
+/* The live system map links the ship to its current mission; the ring breathes around the target. */
+.space-map-target{animation:space-map-ping 1.65s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes space-map-ping{0%,100%{stroke-opacity:.68;opacity:.72}50%{stroke-opacity:1;opacity:1}}
+@media(prefers-reduced-motion:reduce){.space-map-target{animation:none}}

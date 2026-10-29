@@ -1120,6 +1120,18 @@ These are the highest-priority examples because they have paid, made a partial p
 - Social-ecological resilience and collapse: https://pubmed.ncbi.nlm.nih.gov/28734593/ ; https://www.nature.com/articles/nature08227
 
 
+## Graphics, rendering and visual-direction decision gate
+
+When the user asks about a game's graphics, rendering, visual style, appearance, or “look”, treat this as a **decision stage before implementation**, not automatic permission to change the game.
+
+- Pause before coding and inspect the current game's actual renderer, scene structure, available assets, and existing visual baseline.
+- Explain the current approach in plain English and compare only relevant alternatives, including what each makes easier/harder, asset requirements, mobile performance, and implementation cost. Use visual references or examples when useful, clearly distinguishing generic references from screenshots of our actual game.
+- Agree on the intended player-facing look and rendering approach before implementation: for example, Phaser, Three.js, PixiJS, regular HTML/CSS, Canvas 2D, or a hybrid. Do not assume that a library alone determines the game's quality.
+- For interactive decision narratives, preserve this principle: **This can use Phaser, regular HTML/CSS, or a hybrid. The important work is the quality of the decisions, causal consequences and narrative—not the rendering engine.**
+- For **PixiJS**, preserve this description: **A 2D rendering library focused on fast graphics, sprites, filters and visual effects. Like Three.js, it isn't a complete game engine by itself. Good for visually rich 2D worlds, effects-heavy scenes and custom interfaces where we want to build the game systems ourselves.**
+- Choose based on the intended experience, causal/gameplay needs, real available assets, and device constraints—not novelty or engine popularity. Prefer a strong, asset-backed result over a flashy concept made from placeholder shapes.
+- Do not migrate engines, replace assets, or change the established game's look/control layout as an exploratory step. Present the trade-offs and get the user's direction first; then implement the smallest approved slice and verify it.
+
 ## GGL Space — gameplay and controls preservation lock (2026-10-29)
 
 - **The existing playable experience is the baseline.** Preserve the gameplay, flight behaviour, game controls, control placement, camera/viewport, game layout, and interaction flow across the entire experience. Do not redesign or rearrange them while working on another feature.

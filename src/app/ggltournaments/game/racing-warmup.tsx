@@ -390,12 +390,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     signalTransfer("🧑‍🚀", "FOUNDING CREW ABOARD", added + " people transferred from Haven to the ship.", "HAVEN  →  SHIP");
     setSpaceUiTick(n => n + 1);
   };
-  const loadMachinesAtStation = () => {
+  const loadMachinesAtStation = (requested: number) => {
     const state = spaceStateRef.current;
     if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven before loading machinery.", "info"); return; }
-    const added = Math.min(2, 4 - state.cargoEquipment, state.machineInventory);
+    const added = Math.min(requested, 4 - state.cargoEquipment, state.machineInventory);
     if (added <= 0) {
-      notify(state.cargoEquipment >= 4 ? "Machine hold full. Deploy machinery before collecting more." : "Haven's initial machine stock is exhausted.", "info");
+      notify(state.cargoEquipment >= 4 ? "Machine hold full. Deliver machinery before collecting more." : "Haven's initial machine stock is exhausted.", "info");
       return;
     }
     state.cargoEquipment += added;
@@ -441,7 +441,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           {world.nearbyTarget === "GGL Haven" ? <>
             <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage</div>
             <button type="button" onClick={dockOrLand}>Dock / return cargo <span>↙</span></button>
-            <button type="button" onClick={loadMachinesAtStation} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load machines +2 <span>＋</span></button>
+            <div className="space-machine-load-options" aria-label="Choose machinery load">
+              <button type="button" onClick={() => loadMachinesAtStation(1)} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load 1 machine</button>
+              <button type="button" onClick={() => loadMachinesAtStation(2)} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load 2 machines</button>
+            </div>
             <button type="button" onClick={boardCrewAtStation} disabled={world.havenPopulation <= 36 || world.cargoPeople >= 6}>Board crew +3 <span>＋</span></button>
           </> : <>
             {(() => { const planet = WORLD_PLANETS.find(item => item.name === world.nearbyTarget); if (!planet) return null; const progress = world.planetProgress[planet.name] ?? planet.initialProgress; const installed = world.deployedEquipment[planet.name] || 0; const stage = habitatStage(progress); const colony = world.colonies[planet.name]; return <div className="space-proximity-data">

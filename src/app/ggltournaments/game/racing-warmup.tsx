@@ -59,7 +59,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       lastProcessedWorldMinutesRef.current = state.worldTimeMinutes;
       setSpaceUiTick(n => n + 1);
     };
-    const timer = window.setInterval(() => { saveWorld(); setSpaceUiTick(n => n + 1); }, 1000);
+    const timer = window.setInterval(() => { if (document.visibilityState !== "hidden") saveWorld(); setSpaceUiTick(n => n + 1); }, 1000);
     window.addEventListener("pagehide", saveWorld);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
@@ -311,7 +311,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8);
         const award = state.visitedPlanets.length * 2;
         state.acclaim += award;
-        notify("Trip logged. Haven's archive gained " + state.visitedPlanets.length + " world report(s).", "success");
+        notify("Trip logged. Haven archive gained " + state.visitedPlanets.length + " world report(s). Archive acclaim +" + award + ".", "success");
       } else if (returnedCrew || returnedMachines) {
         notify("Unused crew and machinery safely returned to Haven.", "success");
       } else {
@@ -441,7 +441,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <span className="space-world-time">{formatWorldTime(world.worldTimeMinutes)}</span>
         </div>
         <div className="space-world-stats">
-          <div><span>HAVEN POPULATION</span><strong>{world.havenPopulation}</strong><small>of the original 60, then natural growth</small></div>
+          <div><span>HAVEN POPULATION</span><strong>{world.havenPopulation}</strong><small>founders descend from the original 60</small></div>
           <div><span>CIVILISATION</span><strong>{civilisationPopulation}</strong><small>Haven + ship + descendant settlements</small></div>
           <div><span>MACHINES IN STOCK</span><strong>{world.machineInventory}</strong><small>Finite stock · no free reloads</small></div>
           <div><span>SHIP CARGO</span><strong>{world.cargoPeople} crew · {world.cargoEquipment} machines</strong><small>Hold limit: 6 people / 4 machines</small></div>

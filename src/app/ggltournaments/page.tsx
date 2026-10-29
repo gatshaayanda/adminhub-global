@@ -58,16 +58,7 @@ export default function GGLTournamentsPage() {
       </nav>
     </header>
 
-    <section id="space-game" className="ggl-game-section" aria-label="Playable GGL open-space exploration game">
-      <div className="ggl-game-section-head">
-        <div className="ggl-game-promo-copy">
-          <p className="ggl-eyebrow">GGL SPACE / PLAY NOW · FREE ROAM</p>
-          <h2>Drop in.<br /><em>Explore space.</em></h2>
-          <p>Fly freely between worlds. Steer, climb, descend and burst forward with NOS. No race track. No entry fee.</p>
-        </div>
-      </div>
-      <GGLRacingGame embedded />
-    </section>
+
 
 
     <section className="ggl-hero">
@@ -145,6 +136,17 @@ export default function GGLTournamentsPage() {
     </section>
 
 
+
+    <section id="space-game" className="ggl-game-section" aria-label="Playable GGL open-space exploration game">
+      <div className="ggl-game-section-head">
+        <div className="ggl-game-promo-copy">
+          <p className="ggl-eyebrow">GGL SPACE / PLAY NOW · FREE ROAM</p>
+          <h2>Take the helm.<br /><em>Explore space.</em></h2>
+          <p>Your free-roam mission is waiting. Fly between worlds, discover the system and use NOS to push farther. No tournament entry required.</p>
+        </div>
+      </div>
+      <GGLRacingGame embedded />
+    </section>
 
     <footer className="ggl-footer">
       <Link href="/" className="ggl-brand"><span className="ggl-mark">GGL</span><span className="ggl-brand-copy">GGL <span>TOURNAMENTS</span><small>POWERED BY ADMIN HUB</small></span></Link>

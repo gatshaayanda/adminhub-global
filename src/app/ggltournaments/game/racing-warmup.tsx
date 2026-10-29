@@ -17,7 +17,7 @@ export type Race = {
   worldX: number; worldZ: number; worldYaw: number; velocityX: number; velocityZ: number; damage: number; lastImpactAt: number; trackT: number;
 };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
-const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: 72, worldYaw: -1.34, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
+const newRace = (): Race => ({ progress: 0, speed: 0, elapsed: 0, lap: 1, lapTime: 0, steering: 0, throttle: 0, brakePressure: 0, bestLap: null, lateral: 0, lateralVelocity: 0, heading: 0, drift: 0, nos: 100, last: 0, lapInvalid: false, offTrack: 0, longitudinalLoad: 0, lateralG: 0, wheelLock: 0, worldX: 0, worldZ: -35, worldYaw: 0, velocityX: 0, velocityZ: 0, damage: 0, lastImpactAt: 0, trackT: 0 });
 function fmt(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return "—";
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
@@ -175,8 +175,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const targetYawRate = Math.tan(steerAngle) * longitudinalVelocity / 2.65;
         const gripLimit = 9.2 * clamp(1.08 - race.brakePressure * 0.35 - race.wheelLock * 0.5, 0.42, 1.08);
         const demandedLateralAccel = targetYawRate * Math.max(0, longitudinalVelocity);
-        const gripRatio = Math.min(1, gripLimit / Math.max(0.001, Math.abs(demandedLateralAccel)));
-        race.worldYaw += targetYawRate * gripRatio * dt;
+        // Spacecraft yaw is independent of tyre grip. The old racing grip ratio
+        // nearly cancelled steering at speed and made the stick feel unresponsive.
+        const gripRatio = 1;
+        race.worldYaw += targetYawRate * dt;
         race.worldYaw = Math.atan2(Math.sin(race.worldYaw), Math.cos(race.worldYaw));
         const updatedForwardX = -Math.sin(race.worldYaw);
         const updatedForwardZ = -Math.cos(race.worldYaw);
@@ -259,8 +261,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   // The knob follows the thumb in two dimensions; horizontal displacement steers the car.
   const steerStickPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const maxX = Math.max(1, rect.width * 0.28);
-    const maxY = Math.max(1, rect.height * 0.28);
+    // Use the full usable stick radius while keeping the knob inside the rim.
+    const knob = event.currentTarget.querySelector<HTMLElement>(".steering-stick-knob");
+    const knobRadius = (knob?.offsetWidth || 38) / 2;
+    const maxX = Math.max(1, rect.width / 2 - knobRadius - 5);
+    const maxY = Math.max(1, rect.height / 2 - knobRadius - 5);
     const rawX = (event.clientX - (rect.left + rect.width / 2)) / maxX;
     const rawY = (event.clientY - (rect.top + rect.height / 2)) / maxY;
     const magnitude = Math.hypot(rawX, rawY);

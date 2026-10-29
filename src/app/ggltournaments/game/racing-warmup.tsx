@@ -436,6 +436,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <div className="space-mission-progress" aria-label={"Mission progress " + mission.progress + "%"}><span style={{ width: mission.progress + "%" }} /></div>
           <div className="space-mission-footer"><span>NAV TARGET</span><b>{mission.target}</b></div>
         </div>
+        <div className="space-world-signal" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "Your actions are shaping the system."}</strong></div>
         {world.nearbyTarget && <div className="space-proximity-actions" aria-label="Nearby interaction">
           <div className="space-proximity-copy"><span>{world.nearbyTarget === "GGL Haven" ? "HAVEN DOCKING BAY" : "PLANETARY APPROACH"}</span><strong>{world.nearbyTarget}</strong></div>
           {world.nearbyTarget === "GGL Haven" ? <>
@@ -449,7 +450,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           </> : <>
             {(() => { const planet = WORLD_PLANETS.find(item => item.name === world.nearbyTarget); if (!planet) return null; const progress = world.planetProgress[planet.name] ?? planet.initialProgress; const installed = world.deployedEquipment[planet.name] || 0; const stage = habitatStage(progress); const colony = world.colonies[planet.name]; return <div className="space-proximity-data">
               <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
-              {installed}/{planet.colonyMachineRequirement} founding machines · {colony ? colony.population + " settlers" : "no settlement yet"}
+              {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}
             </div>; })()}
             <button type="button" onClick={dockOrLand}>{world.cargoEquipment > 0 ? "Deploy machinery" : world.cargoPeople > 0 ? "Attempt settlement" : "Scan this world"} <span>↗</span></button>
           </>}

@@ -320,6 +320,19 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds nearby</span><strong>05</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
+        <div className="space-flight-status" aria-label="Live flight status">
+          <span><b>{spaceStateRef.current.cargoPeople}</b> crew</span>
+          <i />
+          <span><b>{spaceStateRef.current.cargoEquipment}</b> machines</span>
+          <i />
+          <span><b>{spaceStateRef.current.visitedPlanets.length}</b> worlds</span>
+        </div>
+        <div className="space-radio-ticker" aria-live="polite"><span>RADIO</span> Outer routes report drifting debris · Keep your eyes open</div>
+        {spaceStateRef.current.nearbyTarget && <div className="space-proximity-actions" aria-label="Nearby interaction">
+          <div className="space-proximity-copy"><span>{spaceStateRef.current.nearbyTarget === "GGL Haven" ? "STATION IN RANGE" : "PLANET IN RANGE"}</span><strong>{spaceStateRef.current.nearbyTarget}</strong></div>
+          <button type="button" onClick={dockOrLand}>{spaceStateRef.current.nearbyTarget === "GGL Haven" ? "Dock" : "Visit world"} <span>↗</span></button>
+          {spaceStateRef.current.nearbyTarget === "GGL Haven" && <button type="button" onClick={boardAtStation}>Board crew + equipment <span>＋</span></button>}
+        </div>}
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
         {toast && <div className={"warmup-toast " + toast.kind} role="status">{toast.text}</div>}
         <div className="warmup-3d-overlay" hidden={phase === "running"} aria-live="polite">
@@ -354,15 +367,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         </div>
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => reset(false)}>Restart ↻</button></div>
       </div>
-      <details className="space-mission-panel" aria-label="GGL Haven station and trip board">
-        <summary className="space-board-summary"><span>GGL HAVEN · STATION BOARD</span><strong>Optional missions, crew & restoration</strong><span className="space-board-chevron" aria-hidden="true">＋</span></summary>
-        <div className="space-mission-top"><div><span className="space-panel-kicker">GGL HAVEN · STATION BOARD</span><h3>{spaceStateRef.current.nearbyTarget === "GGL Haven" ? "Docking range: GGL Haven" : spaceStateRef.current.nearbyTarget ? "Docking range: " + spaceStateRef.current.nearbyTarget : "Fly close to the station or a planet"}</h3><p>Get close and tap Dock. You can visit a planet without carrying equipment.</p></div><span className="space-acclaim">★ {spaceStateRef.current.acclaim} acclaim</span></div>
-        <div className="space-cargo-stats"><span>People aboard <b>{spaceStateRef.current.cargoPeople}</b></span><span>Machines aboard <b>{spaceStateRef.current.cargoEquipment}</b></span><span>Worlds visited <b>{spaceStateRef.current.visitedPlanets.length}</b></span></div>
-        <div className="space-mission-actions"><button type="button" disabled={!spaceStateRef.current.nearbyTarget} onClick={dockOrLand}>{spaceStateRef.current.nearbyTarget === "GGL Haven" ? "Dock at station" : spaceStateRef.current.nearbyTarget ? "Dock at " + spaceStateRef.current.nearbyTarget : "Fly closer to dock"}</button><button type="button" disabled={spaceStateRef.current.nearbyTarget !== "GGL Haven"} onClick={boardAtStation}>Board 3 people + 2 machines</button></div>
-        <div className="space-station-news"><strong>Station news & radio</strong><p>Latest bulletin: asteroid activity reported along the outer routes. Crew travel notes are published when you return to GGL Haven.</p><p className="space-note-caption">Station link: {spaceStateRef.current.nearbyTarget === "GGL Haven" ? "connected" : "out of docking range — last bulletin shown"}.</p></div>
-        <div className="space-planet-progress"><strong>Planet restoration</strong>{Object.entries(spaceStateRef.current.deployedEquipment).map(([planet,count]) => <div key={planet}><span>{planet}</span><span>{count ? count + " machine(s) · " + Math.floor(spaceStateRef.current.planetProgress[planet] || 0) + "% progress" : "No machines yet"}</span></div>)}</div>
-        {spaceStateRef.current.travelNotes.length > 0 && <div className="space-travel-notes"><strong>Published crew notes</strong>{spaceStateRef.current.travelNotes.slice(0,3).map((note,i)=><p key={i}>{note}</p>)}</div>}
-      </details>
+
       <p className="warmup-help">Phone: drag the analog stick left/right to steer and up/down to fly forward/back. UP THRUST ↑ raises altitude; DOWN THRUST ↓ lowers altitude. Tap NOS to toggle a burst. Desktop: ← / → or A / D steer, ↑ / W forward, ↓ / S reverse, E up thrust, Q down thrust, Space / Shift NOS, F / Enter fire, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>
     </section>
     {!embedded && <footer className="big-brothers-footer"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>TOURNAMENTS · OPEN SPACE</small></span></Link><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></footer>}

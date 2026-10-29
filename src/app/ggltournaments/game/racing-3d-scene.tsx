@@ -54,6 +54,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
   const flightClockRef = useRef<HTMLDivElement>(null);
   const shipMapMarkerRef = useRef<SVGGElement>(null);
   const mapRouteRef = useRef<SVGLineElement>(null);
+  const mapTargetMarkerRef = useRef<SVGCircleElement>(null);
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
@@ -463,6 +464,10 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
           mapRouteRef.current.setAttribute("x2", targetPoint[0].toFixed(2));
           mapRouteRef.current.setAttribute("y2", targetPoint[1].toFixed(2));
         }
+        if (mapTargetMarkerRef.current) {
+          mapTargetMarkerRef.current.setAttribute("cx", targetPoint[0].toFixed(2));
+          mapTargetMarkerRef.current.setAttribute("cy", targetPoint[1].toFixed(2));
+        }
       }
       // The spacecraft banks into turns and pitches slightly with vertical thrust.
       // Visual attitude follows pilot input; it never feeds back into flight physics.
@@ -517,18 +522,20 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       <div className="space-mini-map-title">SYSTEM MAP <span>FREE SPACE</span></div>
       <svg viewBox="0 0 180 128" role="img" aria-label="Live system map. The ship marker moves and turns with your flight.">
         <path d="M8 64H172 M90 8V120" stroke="rgba(156,204,255,.14)" strokeDasharray="3 5" fill="none" />
-        <circle cx="21.1" cy="18" r="6.8" fill="#a75b42" stroke="#eab08b" strokeWidth="1.2" />
-        <circle cx="96.7" cy="40" r="10.5" fill="#4d438d" stroke="#a6a0ff" strokeWidth="1.5" />
-        <ellipse cx="96.7" cy="40" rx="16" ry="3.5" fill="none" stroke="#a6a0ff" strokeWidth="1.5" transform="rotate(-18 96.7 40)" />
-        <circle cx="123.3" cy="63" r="13.5" fill="#276f9f" stroke="#77d7f5" strokeWidth="1.5" />
-        <circle cx="161.1" cy="17" r="16" fill="#367b62" stroke="#85d8ad" strokeWidth="1.5" />
-        <circle cx="85.6" cy="114" r="9.5" fill="#9ebdce" stroke="#ccefff" strokeWidth="1.2" />
+        <line ref={mapRouteRef} x1="58.9" y1="48.4" x2="53" y2="52" stroke="#c5f36b" strokeWidth="1.2" strokeDasharray="3 2" opacity=".92" />
+        <circle cx="21.1" cy="18" r="6.8" fill={habitatStage(spaceStateRef.current.planetProgress.Ember ?? 6).color} stroke="#eab08b" strokeWidth="1.2" />
+        <circle cx="96.7" cy="40" r="10.5" fill={habitatStage(spaceStateRef.current.planetProgress.Aster ?? 46).color} stroke="#a6a0ff" strokeWidth="1.5" />
+        <ellipse cx="96.7" cy="40" rx="16" ry="3.5" fill="none" stroke={habitatStage(spaceStateRef.current.planetProgress.Aster ?? 46).color} strokeWidth="1.5" transform="rotate(-18 96.7 40)" />
+        <circle cx="123.3" cy="63" r="13.5" fill={habitatStage(spaceStateRef.current.planetProgress.Cobalt ?? 66).color} stroke="#77d7f5" strokeWidth="1.5" />
+        <circle cx="161.1" cy="17" r="16" fill={habitatStage(spaceStateRef.current.planetProgress.Verdant ?? 86).color} stroke="#85d8ad" strokeWidth="1.5" />
+        <circle cx="85.6" cy="114" r="9.5" fill={habitatStage(spaceStateRef.current.planetProgress.Frost ?? 26).color} stroke="#ccefff" strokeWidth="1.2" />
         <g aria-label="GGL Haven station" transform="translate(53 52)">
           <circle r="7.8" fill="rgba(255,208,107,.14)" stroke="#ffd06b" strokeWidth="1.4" />
           <circle r="3.2" fill="#ffd06b" />
           <path d="M-10 0H-5 M5 0H10 M0 -10V-5 M0 5V10" stroke="#ffd06b" strokeWidth="1.5" strokeLinecap="round" />
           <text x="9" y="12" fill="#ffe4a6" fontSize="6.5" fontWeight="800" letterSpacing=".2">HAVEN</text>
         </g>
+        <circle ref={mapTargetMarkerRef} cx="53" cy="52" r="9.5" fill="none" stroke="#c5f36b" strokeWidth="1.6" strokeDasharray="3 2" className="space-map-target" />
         <g ref={shipMapMarkerRef} transform="translate(58.9 48.4)">
           <circle r="7.5" fill="rgba(102,242,255,.17)" stroke="#66f2ff" strokeOpacity=".7" />
           <path d="M0 -6 L4.2 5 L0 2.7 L-4.2 5 Z" fill="#ffffff" stroke="#66f2ff" strokeWidth="1.1" />

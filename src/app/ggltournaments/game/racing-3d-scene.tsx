@@ -287,7 +287,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
           const rock = asteroids[asteroidHitIndex];
           const flash = new THREE.Mesh(new THREE.SphereGeometry(1.1, 8, 6), impactMaterial);
           flash.position.copy(rock.mesh.position); scene.add(flash); impacts.push({ mesh: flash, age: 0 });
-          scene.remove(rock.mesh); asteroids.splice(asteroidHitIndex, 1);
+          scene.remove(rock.mesh); asteroids.splice(asteroidHitIndex, 1); spaceStateRef.current.asteroidsShot += 1;
         }
         if (hit && asteroidHitIndex < 0) {
           const flash = new THREE.Mesh(new THREE.SphereGeometry(1.1, 8, 6), impactMaterial);

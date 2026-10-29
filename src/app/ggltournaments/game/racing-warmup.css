@@ -533,3 +533,44 @@
 @media(prefers-reduced-motion:reduce){.space-transfer-signal,.space-transfer-signal .space-transfer-route i{animation:none!important}}
 @media(max-width:520px){.space-transfer-signal{top:48%;width:min(260px,calc(100% - 24px));padding:10px 11px;gap:9px}.space-transfer-signal .space-transfer-emoji{flex-basis:40px;width:40px;height:40px;font-size:23px}.space-transfer-signal strong{font-size:11px}.space-transfer-signal span{font-size:9px}}
 
+/* GGL Space golden UX adjustment: keep contextual actions off the central ship view. */
+.space-proximity-actions{
+  left:auto;right:12px;top:50%;bottom:auto;transform:translateY(-50%);
+  width:min(214px,44%);display:flex;flex-direction:column;align-items:stretch;
+  justify-content:flex-start;gap:7px;padding:9px;pointer-events:auto;
+}
+.space-proximity-copy{margin-right:0;padding:0 3px}
+.space-proximity-copy strong{white-space:normal;overflow-wrap:anywhere}
+.space-proximity-actions button{width:100%;min-width:0;white-space:normal}
+.space-transfer-signal{
+  left:12px;right:auto;top:50%;transform:translateY(-50%);
+  width:min(238px,42%);gap:8px;padding:10px; 
+}
+.space-transfer-signal .space-transfer-emoji{flex-basis:38px;width:38px;height:38px;font-size:22px}
+.space-transfer-signal strong{font-size:10px}
+.space-transfer-signal span{font-size:9px}
+.space-transfer-signal .space-transfer-route{font-size:8px;letter-spacing:.03em;flex-wrap:wrap}
+.warmup-circuit-controls .warmup-driving .nos-button{
+  grid-column:2;justify-self:stretch;width:100%;min-width:0!important;
+  min-height:42px!important;padding:6px 5px!important;border-radius:12px!important;
+  font-size:9px!important;letter-spacing:.025em;line-height:1.1;
+  touch-action:manipulation!important;
+}
+@media(max-width:520px){
+  .space-proximity-actions{right:8px;width:min(194px,44%);padding:7px;gap:5px}
+  .space-proximity-copy span{font-size:7px}
+  .space-proximity-copy strong{font-size:10px}
+  .space-proximity-actions button{min-height:42px;padding:7px 6px;font-size:9px}
+  .space-transfer-signal{left:8px;width:min(205px,42%);padding:8px;gap:6px}
+  .space-transfer-signal .space-transfer-emoji{flex-basis:30px;width:30px;height:30px;font-size:18px}
+  .space-transfer-signal strong{font-size:9px}
+  .space-transfer-signal span{font-size:8px}
+  .space-transfer-signal .space-transfer-route{font-size:7px}
+  .warmup-circuit-controls .warmup-driving .nos-button{min-height:42px!important}
+}
+@media(max-width:360px){
+  .space-proximity-actions{right:6px;width:45%;padding:6px}
+  .space-transfer-signal{left:6px;width:42%;padding:7px}
+  .warmup-circuit-controls .warmup-driving .nos-button{padding:5px 3px!important;font-size:8px!important}
+}
+

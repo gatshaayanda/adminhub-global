@@ -9,11 +9,11 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 function makeCar() {
   const ship = new THREE.Group();
-  const hull = new THREE.MeshStandardMaterial({ color: "#b5f52a", metalness: .72, roughness: .25 });
-  const darkHull = new THREE.MeshStandardMaterial({ color: "#17283f", metalness: .7, roughness: .3 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: "#4c8d20", metalness: .48, roughness: .12, clearcoat: 1, emissive: "#234b0b", emissiveIntensity: .8 });
+  const hull = new THREE.MeshStandardMaterial({ color: "#ff70bd", metalness: .68, roughness: .24 });
+  const darkHull = new THREE.MeshStandardMaterial({ color: "#090b12", metalness: .62, roughness: .34 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: "#ff9bd0", metalness: .48, roughness: .12, clearcoat: 1, emissive: "#8b285b", emissiveIntensity: .65 });
   const cyan = new THREE.MeshStandardMaterial({ color: "#65f5ff", emissive: "#13cde8", emissiveIntensity: 2.4, metalness: .25, roughness: .2 });
-  const magenta = new THREE.MeshStandardMaterial({ color: "#b5f52a", emissive: "#568d0d", emissiveIntensity: 1.2, metalness: .35, roughness: .25 });
+  const magenta = new THREE.MeshStandardMaterial({ color: "#ff70bd", emissive: "#a82d69", emissiveIntensity: 1.25, metalness: .35, roughness: .25 });
   const engine = new THREE.MeshStandardMaterial({ color: "#7cecff", emissive: "#32cfff", emissiveIntensity: 3.2, metalness: .4, roughness: .18 });
   const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(.25,.56,2.75,10,1),hull);
   fuselage.rotation.x=Math.PI/2; fuselage.position.set(0,.56,.05); fuselage.castShadow=true; ship.add(fuselage);

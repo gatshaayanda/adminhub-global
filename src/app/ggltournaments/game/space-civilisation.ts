@@ -122,7 +122,7 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     colony.operators = Math.max(1, Math.min(colony.population, Math.floor(colony.population / 4)));
     const previousRemainder = state.colonyGrowthRemainders[planet.name] || 0;
     if (colony.population < capacity) {
-      let remainder = previousRemainder + colony.population * 0.0015 * hours;
+      let remainder = previousRemainder + colony.population * (0.018 + colony.operators * 0.0005) * hours;
       while (remainder >= 1 && colony.population < capacity) {
         colony.population += 1;
         remainder -= 1;

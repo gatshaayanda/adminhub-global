@@ -280,7 +280,7 @@ export function getFirstFootholdCue(state: SpaceState): FirstFootholdCue {
         target: "GGL Haven",
         step: 1,
         title: "Load your next investment",
-        detail: candidate.name + " is " + Math.round(progress) + "% restored and needs " + needMachines + " machines before a settlement can be founded. Choose an exact load quantity, then deliver it.",
+        detail: candidate.name + " is " + Math.round(progress) + "% restored; " + installed + "/" + needMachines + " required machines are installed. Load " + (needMachines - installed) + " more, then deliver it.",
         action: "Load machines at Haven",
         progress: 14,
       };

@@ -455,3 +455,23 @@
 @media(max-width:360px){.warmup-circuit-controls .warmup-actions .big-brothers-button{font-size:12px}}
 
 /* chore: refresh deployment after the space-flight control fixes. */
+
+/* GGL Space mission board */
+.space-mission-panel{margin:14px 0 6px;padding:16px;border:1px solid #b8d2dd;border-radius:16px;background:linear-gradient(145deg,#f7fbff,#edf5f7);color:#172b3d;box-shadow:0 8px 24px #09243b12}
+.space-mission-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.space-panel-kicker{font-size:10px;letter-spacing:.12em;font-weight:900;color:#34738b}
+.space-mission-top h3{font-size:20px;line-height:1.2;margin:5px 0;color:#122a40}
+.space-mission-top p,.space-station-news p,.space-travel-notes p{font-size:13px;line-height:1.5;color:#43566a;margin:6px 0}
+.space-acclaim{flex-shrink:0;background:#fff0bd;border:1px solid #d7b64e;border-radius:999px;padding:7px 10px;color:#614a05;font-size:12px;font-weight:900}
+.space-cargo-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.space-cargo-stats span{display:flex;flex-direction:column;gap:5px;padding:10px;border-radius:10px;background:#fff;border:1px solid #dbe5e9;color:#56697a;font-size:11px}
+.space-cargo-stats b{font-size:19px;color:#193a4d}
+.space-mission-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.space-mission-actions button{min-height:48px;padding:10px 12px;border-radius:11px;border:1px solid #3d7182;background:#e2f4f7;color:#163f51;font-weight:900;font-size:13px}
+.space-mission-actions button:first-child{background:#173f54;color:#fff;border-color:#173f54}
+.space-mission-actions button:disabled{opacity:.45;cursor:not-allowed}
+.space-station-news,.space-planet-progress,.space-travel-notes{margin-top:12px;padding:12px;border-radius:11px;background:#fff;border:1px solid #dbe5e9}
+.space-station-news strong,.space-planet-progress strong,.space-travel-notes strong{font-size:13px;color:#173b50}
+.space-planet-progress>div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #edf1f3;font-size:12px;color:#3d5365}
+.space-planet-progress>div:last-child{border-bottom:0}.space-planet-progress>div span:last-child{text-align:right;color:#617787}.space-note-caption{opacity:.75;font-size:11px!important}
+@media(max-width:520px){.space-mission-panel{padding:12px}.space-mission-top{flex-direction:column}.space-cargo-stats{gap:5px}.space-cargo-stats span{padding:8px;font-size:10px}.space-cargo-stats b{font-size:17px}.space-mission-actions{grid-template-columns:1fr}.space-mission-actions button{min-height:48px}.space-planet-progress>div{font-size:11px}}

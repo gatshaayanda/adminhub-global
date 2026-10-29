@@ -98,6 +98,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     const colonyVisuals: Record<string, { root: THREE.Group; buildings: THREE.Group[] }> = {};
     const deployedMachines: Record<string, THREE.Group[]> = {};
     const terraformPulses: Record<string, { mesh: THREE.Mesh; age: number; installed: number }> = {};
+    const planetBeacons: Record<string, { root: THREE.Group; ring: THREE.Mesh; beam: THREE.Mesh; orb: THREE.Mesh }> = {};
     const worldOriginUp = new THREE.Vector3(0, 1, 0);
     let simulationSeconds = spaceStateRef.current.worldTimeMinutes * 60;
     let flightElapsedSeconds = 0;
@@ -126,6 +127,20 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       }
       world.position.set(...position); scene.add(world);
       planetVisuals[name] = { body: world, surface, atmosphere, forcefield, radius, baseColor: new THREE.Color(color) };
+      const navBeacon = new THREE.Group();
+      navBeacon.name = name + " navigation beacon";
+      const beaconMaterial = new THREE.MeshBasicMaterial({ color: "#c5f36b", transparent: true, opacity: .72, depthWrite: false });
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(.18, .65, 13, 8), beaconMaterial);
+      beam.position.y = radius + 5.6;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(4.1, .32, 8, 36), new THREE.MeshBasicMaterial({ color: "#c5f36b", transparent: true, opacity: .9, depthWrite: false }));
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = radius + 13;
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(.8, 10, 8), new THREE.MeshBasicMaterial({ color: "#f4ffbe", transparent: true, opacity: .95 }));
+      orb.position.y = radius + 16;
+      navBeacon.add(beam, ring, orb);
+      navBeacon.visible = false;
+      world.add(navBeacon);
+      planetBeacons[name] = { root: navBeacon, ring, beam, orb };
       const terraformPulse = new THREE.Mesh(
         new THREE.SphereGeometry(radius + 8, 22, 16),
         new THREE.MeshBasicMaterial({ color: "#78f0b1", wireframe: true, transparent: true, opacity: 0, depthWrite: false })
@@ -181,6 +196,17 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     addPlanet("Ember", [-170, 52, -80], 24, "#a75b42", "#512216");
     addPlanet("Frost", [120, -88, 400], 35, "#9ebdce", "#315a75");
     const station = new THREE.Group(); const stationMetal = new THREE.MeshStandardMaterial({ color: "#7c9ab8", metalness: .72, roughness: .35 }); const stationCore = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 10, 12), stationMetal); stationCore.rotation.x = Math.PI / 2; station.add(stationCore); const stationRing = new THREE.Mesh(new THREE.TorusGeometry(13, 1.2, 8, 48), new THREE.MeshStandardMaterial({ color: "#61d9ef", emissive: "#187b9a", emissiveIntensity: .6, metalness: .55, roughness: .32 })); stationRing.rotation.x = Math.PI / 2; station.add(stationRing); for (let i = 0; i < 4; i++) { const angle = i * Math.PI / 2; const spoke = new THREE.Mesh(new THREE.BoxGeometry(2,2,10), stationMetal); spoke.position.set(Math.cos(angle)*8,Math.sin(angle)*8,0); station.add(spoke); const pod = new THREE.Mesh(new THREE.BoxGeometry(4,3,5), stationMetal); pod.position.set(Math.cos(angle)*16,Math.sin(angle)*16,0); station.add(pod); const lamp = new THREE.PointLight("#65eaff",8,28,2); lamp.position.copy(pod.position); station.add(lamp); } station.position.set(-24, 0, 70); station.name = "GGL Haven"; scene.add(station); const stationCenter = station.position.clone();
+    const havenNavigationBeacon = new THREE.Group();
+    const havenBeaconBeam = new THREE.Mesh(new THREE.CylinderGeometry(.22, .7, 20, 8), new THREE.MeshBasicMaterial({ color: "#c5f36b", transparent: true, opacity: .72, depthWrite: false }));
+    havenBeaconBeam.position.y = 13;
+    const havenBeaconRing = new THREE.Mesh(new THREE.TorusGeometry(5.2, .38, 8, 40), new THREE.MeshBasicMaterial({ color: "#c5f36b", transparent: true, opacity: .9, depthWrite: false }));
+    havenBeaconRing.rotation.x = Math.PI / 2;
+    havenBeaconRing.position.y = 24;
+    const havenBeaconOrb = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshBasicMaterial({ color: "#f4ffbe" }));
+    havenBeaconOrb.position.y = 27;
+    havenNavigationBeacon.add(havenBeaconBeam, havenBeaconRing, havenBeaconOrb);
+    havenNavigationBeacon.visible = false;
+    station.add(havenNavigationBeacon);
     const moon = new THREE.Mesh(new THREE.SphereGeometry(10, 20, 16), new THREE.MeshStandardMaterial({ color: "#7b9bb4", roughness: .95, metalness: .12, flatShading: true }));
     moon.position.set(-155, 12, -85); scene.add(moon);
     const moonBarrier = new THREE.Mesh(
@@ -261,12 +287,24 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       // against the same spheres shown to the player, and remove inward horizontal speed.
       const shipPosition = new THREE.Vector3(race.worldX, .015 + race.worldY, race.worldZ);
       let nearest: string | null = null; let nearestDistance = Infinity; const stationDistance = shipPosition.distanceTo(stationCenter); if (stationDistance < 34) { nearest = "GGL Haven"; nearestDistance = stationDistance; } for (const [planetName, visual] of Object.entries(planetVisuals)) { const distance = shipPosition.distanceTo(visual.body.position); if (distance < visual.radius + 25 && distance < nearestDistance) { nearest = planetName; nearestDistance = distance; } } state.nearbyTarget = nearest;
+      const navigationTarget = getFirstFootholdCue(state).target;
+      havenNavigationBeacon.visible = navigationTarget === "GGL Haven";
+      havenBeaconRing.rotation.y += frameDelta * .55;
       // Habitat stages are real world-state signals: surface tint, atmosphere, forcefield and visible machinery transition together.
       for (const planet of WORLD_PLANETS) {
         const visual = planetVisuals[planet.name];
         if (!visual) continue;
         const progress = Math.max(0, Math.min(100, state.planetProgress[planet.name] ?? planet.initialProgress));
         const stage = habitatStage(progress);
+        const navigationBeacon = planetBeacons[planet.name];
+        if (navigationBeacon) {
+          navigationBeacon.root.visible = navigationTarget === planet.name;
+          const beaconColor = new THREE.Color(stage.color);
+          (navigationBeacon.beam.material as THREE.MeshBasicMaterial).color.copy(beaconColor);
+          (navigationBeacon.ring.material as THREE.MeshBasicMaterial).color.copy(beaconColor);
+          navigationBeacon.ring.rotation.y += frameDelta * .65;
+          navigationBeacon.orb.scale.setScalar(.82 + (Math.sin(simulationSeconds * .004) + 1) * .14);
+        }
         const surfaceMaterial = visual.surface.material as THREE.MeshStandardMaterial;
         const atmosphereMaterial = visual.atmosphere.material as THREE.MeshBasicMaterial;
         const fieldMaterial = visual.forcefield.material as THREE.MeshBasicMaterial;

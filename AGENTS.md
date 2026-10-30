@@ -1412,3 +1412,31 @@ Implementation progress (do not overstate completion):
 - Full scope and hands-on QA steps are in `docs/SPACE-MILESTONES-2-7-QA.md`.
 
 Do not merge this feature branch or call items 2–7 complete. First obtain a READY preview for the exact latest branch commit, run the QA checklist, correct any regressions, and get explicit owner approval. The Vercel build-rate limit can block preview creation; wait for it to clear rather than spamming commits/builds. Item 8 and item 9 remain outside this branch's requested scope.
+
+
+## GGL Space — post-preview QA findings and active follow-up (2026-10-30)
+
+The product owner QA-tested the READY preview at commit `7d9291d42f3a52cc5128ed788d67f75181975101`. It was merged to `main` through PR #17; merge commit: `93666216e30e0ab7a796d73dfea3ed4be7eaa24f`. The active follow-up branch is `feat/ggl-space-qa-followup`, created from that merge commit. This section supersedes the earlier pre-approval instruction that the Milestones 2–7 branch must remain unmerged.
+
+### QA findings — failures and partial results
+- **Combat assist — failed/not observed:** firing near planets and asteroids did not demonstrate aim assistance. Trace FIRE input → target acquisition → projectile guidance → collision/impact. Only guide shots the player fires; never auto-fire.
+- **Cache recovery — failed/blocked:** floating cache appeared but its recovery button was not pressable. Fix touch/pointer hit testing, layering, disabled/proximity state and event propagation. Confirm recovery with a visible signal and exactly +1 finite machine cargo; test full cargo and repeated taps.
+- **Colonies/history — partial:** settlement founding worked, but no meaningful history/storylines appeared. Build a durable Haven chronicle first, then colony-specific histories derived from founding, people, family relationships, resource/governance decisions and hazards. All narrative must be projections of structured, causal event records, not fabricated story facts.
+- **Docking/hazards — failed:** asteroid impacts continued while docked at or near Haven. Add an explicit docking action/state and clear safe-harbour feedback. Docked ships must be excluded from ordinary asteroid collision damage. Proximity alone is not docking.
+- **Machine resupply/repair — gameplay gap:** the player could not understand how to replenish Haven machine stock to repair the ship. Build a clear finite chain for inputs, production queue/time, output, storage, transfer and repair consumption. Explain costs and duration; no infinite or unexplained stock.
+- Other tested systems were reported good. Preserve golden flight handling, camera, steering, thrust/reverse, altitude, NOS, FIRE cadence, rendering, map, pause/save/time and settlement flow; retest after relevant changes.
+
+### Required implementation order
+1. Make equipment recovery reliably touch-accessible and verifiable.
+2. Fix combat assist/projectile feedback while proving no autonomous fire.
+3. Implement explicit docking and safe-harbour hazard rules.
+4. Implement understandable finite Haven machine production/resupply and ship repair.
+5. Implement persistent Haven history and causal personal/family events, then colony-specific chronicles.
+6. Continue deeper life-course causality, migration/diplomacy, colony autonomy, station damage and evacuation in later coherent slices.
+
+### Acceptance gates
+- Add focused automated tests for touch interaction, target selection/guidance, docking collision exclusion, resource conservation/production timing, event persistence and save migration.
+- Preserve save compatibility; test pause/resume, offline progression, save/load, restart, mobile controls and golden flight behaviour.
+- Keep work on `feat/ggl-space-qa-followup` until the exact latest preview is READY and the product owner completes hands-on QA and explicitly approves merge.
+- Preview handoffs must link directly to `/ggltournaments`, not the Admin Hub root. Verify deployment commit, READY status and route response before sharing.
+- Detailed findings and acceptance checklist: `docs/SPACE-MILESTONES-2-7-QA.md`.

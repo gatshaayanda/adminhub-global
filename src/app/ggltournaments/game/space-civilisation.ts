@@ -228,12 +228,15 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       agenda: motivationNames[motivation]?.[1] || "Represent local interests",
       influence: residents.length ? Math.round(count / residents.length * 100) : 0,
     }));
+    const previousGovernance = colony.governance;
     colony.governance = colony.independent ? "self-governing" : colony.population >= 8 && colony.autonomy >= 35 ? "local-council" : "provisional";
+    if (previousGovernance !== colony.governance) recordSpaceChronicle(state, "society", planet.name, planet.name + " governance changed", "Local governance matured from " + previousGovernance + " to " + colony.governance + " as population and autonomy changed.");
     if (!colony.independent && colony.population >= 18 && colony.autonomy >= 55 && state.worldTimeMinutes - colony.foundedAtWorldMinutes >= 7 * 1440) {
       colony.independent = true;
       colony.governance = "self-governing";
       state.events.unshift(planet.name + " has become self-governing after local capacity and autonomy matured.");
       state.events = state.events.slice(0, 6);
+      recordSpaceChronicle(state, "society", planet.name, planet.name + " became self-governing", "The colony reached its population, autonomy and time thresholds for independence from Haven.");
     }
   }
   const populationCounts = Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population]));

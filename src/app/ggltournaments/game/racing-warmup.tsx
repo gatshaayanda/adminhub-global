@@ -435,6 +435,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     }
 
     if (target === "GGL Haven") {
+      state.dockedAt = "GGL Haven";
       const returnedCrew = state.cargoPeople;
       const returnedMachines = state.cargoEquipment;
       if (returnedCrew > 0) { state.havenPopulation += returnedCrew; movePeople(state.population, "ship", "haven", returnedCrew); } // Returning citizens are never discarded at the station capacity threshold.
@@ -515,6 +516,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     } else {
       notify(target + " · " + habitatStage(progress).label + " · " + Math.round(progress) + "% habitat restored.", "info");
     }
+    setSpaceUiTick(n => n + 1);
+  };
+  const undockFromHaven = () => {
+    const state = spaceStateRef.current;
+    if (state.dockedAt !== "GGL Haven") return;
+    state.dockedAt = null;
+    notify("Undocked from GGL Haven. Open-space collision hazards are active again.", "info");
     setSpaceUiTick(n => n + 1);
   };
   const repairShip = () => {
@@ -644,7 +652,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <button type="button" onClick={dockOrLand} disabled={world.cargoEquipment >= 4}>Recover equipment <span>＋</span></button>
           </> : world.nearbyTarget === "GGL Haven" ? <>
             <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage<br /><small>{(world.population?.people || []).filter(person => person.alive && person.location === "haven").slice(0, 4).map(person => person.name).join(" · ")}</small></div>
-            <button type="button" onClick={dockOrLand}>Dock / return cargo <span>↙</span></button>
+            <button type="button" onClick={world.dockedAt === "GGL Haven" ? undockFromHaven : dockOrLand}>{world.dockedAt === "GGL Haven" ? "Undock · safe harbour active" : "Dock / return cargo"} <span>{world.dockedAt === "GGL Haven" ? "↗" : "↙"}</span></button>
             {raceRef.current.damage > 0 && <button type="button" onClick={repairShip}>Repair ship · {Math.ceil(raceRef.current.damage / 35)} machine(s) <span>🛠</span></button>}
             <div className="space-machine-load-options" aria-label="Choose machinery load">
               <button type="button" onClick={() => loadMachinesAtStation(1)} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load 1 machine</button>

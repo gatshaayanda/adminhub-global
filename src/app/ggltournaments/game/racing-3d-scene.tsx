@@ -220,6 +220,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     let nextProjectileAt = 0;
     // Small, occasional asteroid clusters drift across the flight path as shootable targets.
     const asteroids: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; radius: number; age: number }> = [];
+    let activeCache: { mesh: THREE.Group; velocity: THREE.Vector3; age: number } | null = null;
+    let nextCacheAt = 11;
+    let observedRecovered = spaceStateRef.current.salvageRecovered || 0;
     const asteroidGeometry = new THREE.IcosahedronGeometry(1, 1);
     const asteroidMaterial = new THREE.MeshStandardMaterial({ color: "#777f8b", roughness: .96, metalness: .12, flatShading: true });
     const asteroidDustMaterial = new THREE.PointsMaterial({ color: "#a9b7c8", size: .8, transparent: true, opacity: .48, sizeAttenuation: true });
@@ -286,7 +289,41 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       // Planetary atmosphere is a soft-looking but solid boundary. Resolve the ship
       // against the same spheres shown to the player, and remove inward horizontal speed.
       const shipPosition = new THREE.Vector3(race.worldX, .015 + race.worldY, race.worldZ);
-      let nearest: string | null = null; let nearestDistance = Infinity; const stationDistance = shipPosition.distanceTo(stationCenter); if (stationDistance < 34) { nearest = "GGL Haven"; nearestDistance = stationDistance; } for (const [planetName, visual] of Object.entries(planetVisuals)) { const distance = shipPosition.distanceTo(visual.body.position); if (distance < visual.radius + 25 && distance < nearestDistance) { nearest = planetName; nearestDistance = distance; } } state.nearbyTarget = nearest;
+      let nearest: string | null = null; let nearestDistance = Infinity; const stationDistance = shipPosition.distanceTo(stationCenter); if (stationDistance < 34) { nearest = "GGL Haven"; nearestDistance = stationDistance; } for (const [planetName, visual] of Object.entries(planetVisuals)) { const distance = shipPosition.distanceTo(visual.body.position); if (distance < visual.radius + 25 && distance < nearestDistance) { nearest = planetName; nearestDistance = distance; } }
+      if ((state.salvageRecovered || 0) !== observedRecovered) {
+        observedRecovered = state.salvageRecovered || 0;
+        if (activeCache) { scene.remove(activeCache.mesh); activeCache.mesh.traverse((item) => { const mesh = item as THREE.Mesh; mesh.geometry?.dispose(); if (mesh.material) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((material) => material.dispose()); }); activeCache = null; }
+        nextCacheAt = flightElapsedSeconds + 28;
+      }
+      if (currentPhase === "running" && !activeCache && flightElapsedSeconds >= nextCacheAt) {
+        const forwardForCache = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
+        const cross = new THREE.Vector3(-forwardForCache.z, 0, forwardForCache.x);
+        const cache = new THREE.Group();
+        const casing = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.5, 2.1), new THREE.MeshStandardMaterial({ color: "#d8e2ee", metalness: .72, roughness: .28, emissive: "#1b536d", emissiveIntensity: .5 }));
+        const core = new THREE.Mesh(new THREE.OctahedronGeometry(.72, 0), new THREE.MeshBasicMaterial({ color: "#70f4ff" }));
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(2.2, .09, 6, 24), new THREE.MeshBasicMaterial({ color: "#c5f36b", transparent: true, opacity: .9 }));
+        halo.rotation.x = Math.PI / 2;
+        cache.add(casing, core, halo);
+        cache.position.copy(shipPosition).addScaledVector(forwardForCache, 82).addScaledVector(cross, 13);
+        cache.position.y += 8;
+        scene.add(cache);
+        activeCache = { mesh: cache, velocity: forwardForCache.multiplyScalar(-1.8).addScaledVector(cross, 1.1), age: 0 };
+        nextCacheAt = flightElapsedSeconds + 52;
+      }
+      if (activeCache) {
+        activeCache.age += frameDelta;
+        activeCache.mesh.position.addScaledVector(activeCache.velocity, frameDelta);
+        activeCache.mesh.rotation.y += frameDelta * .5;
+        activeCache.mesh.rotation.x += frameDelta * .18;
+        const cacheDistance = shipPosition.distanceTo(activeCache.mesh.position);
+        if (cacheDistance < 17 && cacheDistance < nearestDistance) { nearest = "Floating Equipment"; nearestDistance = cacheDistance; }
+        if (activeCache.age > 58 || cacheDistance > 230) {
+          scene.remove(activeCache.mesh);
+          activeCache.mesh.traverse((item) => { const mesh = item as THREE.Mesh; mesh.geometry?.dispose(); if (mesh.material) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((material) => material.dispose()); });
+          activeCache = null;
+        }
+      }
+      state.nearbyTarget = nearest;
       const navigationTarget = getFirstFootholdCue(state).target;
       havenNavigationBeacon.visible = navigationTarget === "GGL Haven";
       havenBeaconRing.rotation.y += frameDelta * .55;
@@ -440,10 +477,31 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       // Hold-to-fire launches fast, visible energy bolts from the ship nose.
       if (currentPhase === "running" && controls.fire && flightElapsedSeconds >= nextProjectileAt) {
         const shotForward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
+        // Contextual aim assistance only bends a player-fired shot; it never fires on its own.
+        // It softly favours a visible asteroid or planet inside a forward 28-degree / 190-unit cone.
+        let assistedDirection = shotForward.clone();
+        let bestAssistScore = Infinity;
+        const aimCandidates: Array<{ position: THREE.Vector3; radius: number }> = [];
+        for (const visual of Object.values(planetVisuals)) aimCandidates.push({ position: visual.body.position, radius: visual.radius });
+        for (const rock of asteroids) if (rock.radius > 0) aimCandidates.push({ position: rock.mesh.position, radius: rock.radius });
+        for (const candidate of aimCandidates) {
+          const offset = candidate.position.clone().sub(shipPosition);
+          const distance = offset.length();
+          if (distance < 5 || distance > 190) continue;
+          const direction = offset.normalize();
+          const alignment = shotForward.dot(direction);
+          if (alignment < Math.cos(28 * Math.PI / 180)) continue;
+          const score = distance + (1 - alignment) * 95;
+          if (score < bestAssistScore) {
+            bestAssistScore = score;
+            const strength = clamp(.42 * (1 - distance / 220), .08, .38);
+            assistedDirection = shotForward.clone().lerp(direction, strength).normalize();
+          }
+        }
         const bolt = new THREE.Mesh(projectileGeometry, projectileMaterial);
         bolt.position.copy(shipPosition).addScaledVector(shotForward, 3.1);
         scene.add(bolt);
-        projectiles.push({ mesh: bolt, velocity: shotForward.multiplyScalar(190), age: 0 });
+        projectiles.push({ mesh: bolt, velocity: assistedDirection.multiplyScalar(190), age: 0 });
         nextProjectileAt = flightElapsedSeconds + 0.13;
       }
       for (let i = projectiles.length - 1; i >= 0; i--) {

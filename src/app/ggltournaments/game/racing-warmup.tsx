@@ -81,6 +81,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [boostActive, setBoostActive] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [transferSignal, setTransferSignal] = useState<{ id: number; emoji: string; title: string; detail: string; route: string } | null>(null);
+  const [proximityMenuOpen, setProximityMenuOpen] = useState(true);
   const transferSignalId = useRef(0);
   const transferTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signalTransfer = useCallback((emoji: string, title: string, detail: string, route: string) => {
@@ -435,7 +436,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <div className="space-mission-footer"><span>NAV TARGET</span><b>{mission.target}</b></div>
         </div>
         <div className="space-world-signal" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "Your actions are shaping the system."}</strong></div>
-        {world.nearbyTarget && <div className="space-proximity-actions" aria-label="Nearby interaction">
+        {world.nearbyTarget && <>
+          <button type="button" className="space-proximity-toggle" aria-expanded={proximityMenuOpen} onClick={() => setProximityMenuOpen(open => !open)}>{proximityMenuOpen ? "CLOSE" : "PLANET MENU"} <span aria-hidden="true">{proximityMenuOpen ? "−" : "+"}</span></button>
+          {proximityMenuOpen && <div className="space-proximity-actions" aria-label="Nearby interaction">
           <div className="space-proximity-copy"><span>{world.nearbyTarget === "GGL Haven" ? "HAVEN DOCKING BAY" : "PLANETARY APPROACH"}</span><strong>{world.nearbyTarget}</strong></div>
           {world.nearbyTarget === "GGL Haven" ? <>
             <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage</div>
@@ -452,7 +455,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             </div>; })()}
             <button type="button" onClick={dockOrLand}>{world.cargoEquipment > 0 ? (world.cargoPeople > 0 ? "Deliver machines + crew" : "Deploy machinery") : world.cargoPeople > 0 ? "Check settlement conditions" : "Inspect world"} <span>↗</span></button>
           </>}
-        </div>}
+          </div>}
+        </>}
         <div className={"warmup-signal-chip " + signal.tone} aria-live="polite"><span />{signal.label}</div>
         {transferSignal && <div key={transferSignal.id} className="space-transfer-signal" role="status" aria-live="polite">
           <div className="space-transfer-emoji" aria-hidden="true">{transferSignal.emoji}</div>

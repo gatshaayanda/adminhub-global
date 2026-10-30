@@ -234,6 +234,14 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     if ((hazard.status === "warning" || hazard.status === "mitigated") && state.worldTimeMinutes >= hazard.impactAtWorldMinutes) {
       const damage = Math.max(0, hazard.severity * (hazard.type === "power-dust" ? 5 : 2.2) - hazard.mitigation * 2);
       state.planetProgress[hazard.target] = Math.max(0, (state.planetProgress[hazard.target] || 0) - damage);
+      const ecology = state.ecology?.[hazard.target];
+      if (ecology) {
+        ecology.biodiversity = Math.max(0, ecology.biodiversity - damage * (hazard.type === "power-dust" ? 2.2 : .55));
+        ecology.contamination = Math.min(100, ecology.contamination + damage * (hazard.type === "power-dust" ? 1.8 : .35));
+        ecology.foodProduction = Math.max(0, ecology.foodProduction - damage * .7);
+        ecology.energyPotential = Math.max(0, ecology.energyPotential - damage * .9);
+        ecology.maintenanceLoad = Math.min(100, ecology.maintenanceLoad + damage * 1.2);
+      }
       hazard.status = "impact";
       state.events.unshift(hazard.type === "power-dust"
         ? hazard.target + " was struck by charged power-dust. Habitat and ecological systems suffered " + damage.toFixed(1) + " points of damage."

@@ -1351,3 +1351,48 @@ This is the next approved design direction for GGL Space. It extends the living-
   - Evacuation behaviour depends on personal attributes, environment, procedures, communication and social ties; information networks and trust affect collective response. https://arxiv.org/abs/2310.15761
   - Media frames can shape how the same event is interpreted; distinguish event facts from framing and opinion. https://arxiv.org/abs/2410.03151
 
+
+
+## GGL Space — golden baseline and mandatory development workflow (2026-10-30)
+
+### Latest accepted golden baseline
+- The product owner explicitly QA-approved the Pause / Restart / Save / Load lifecycle preview on 2026-10-30.
+- The approved implementation was merged by PR #15. Golden merge commit: `457ae87145cc220e4eca47bfd8e69e0d231bb8b1`.
+- This commit is the accepted GGL Space golden baseline for the next development cycle. Preserve it as a recoverable reference branch named `golden/ggl-space-2026-10-30-lifecycle`; do not rewrite or delete it.
+- It includes the existing pink ship and protected flight baseline, GGL Haven map marker, event-triggered crew/equipment signals, existing civilization foundation, centred pause overlay, confirmed civilisation restart, versioned world+flight autosave, manual save/load in the expanded Ship Manifest, and paused-aware offline progression.
+- The accepted QA preview was tested and approved by the product owner. Production release still requires the matching Vercel deployment to reach READY and route verification; do not conflate merge approval with deployment verification.
+- If later work regresses, recover only the affected feature/files from this golden baseline. Never reset all of main or discard unrelated later work.
+
+### Mandatory workflow for every future GGL Space chat/session
+1. Read this AGENTS.md and the GGL Space roadmap below before touching code. Do not ask the product owner to restate decisions already recorded here.
+2. Inspect current GitHub `main`, the current golden reference branch, relevant game source, simulation modules, tests, and QA docs. Verify the actual latest commit; do not rely on chat summaries alone.
+3. Treat `main` as the accepted production baseline and create a fresh feature branch from current `main` for each coherent milestone/slice. Never develop directly on `main`.
+4. Preserve the golden baseline and all protected flight behaviour: ship handling, steering, thrust/reverse, altitude, NOS, FIRE, projectiles, camera, collision, rendering, mini-map, GGL Haven marker, crew/equipment signals, contextual menus and panel placement. Do not refactor or redesign these while implementing simulation features.
+5. Implement one coherent, playable, testable slice at a time. The product owner may authorize work across several roadmap milestones, but each milestone must still have its own acceptance checks and working checkpoint. Do not mark a milestone complete merely because its types or UI exist.
+6. Add/update focused automated tests for deterministic simulation rules, save migration, offline progression, event causality, resource accounting, damage severity and evacuation accounting as applicable. Run the repository's actual lint/typecheck/test/build scripts; report any check that cannot be run rather than implying it passed.
+7. Deploy the feature branch to a Vercel Preview. Verify the preview build is READY and the exact GGL route responds. Give the product owner the preview URL and a concise mobile/desktop QA checklist.
+8. Do not merge a feature branch to `main` until the product owner explicitly approves that preview. After approval, merge, preserve the resulting accepted golden checkpoint, verify the matching production deployment and live route, then create a fresh feature branch from the new accepted baseline for the next cycle.
+9. Report branch, PR, commit SHA, test/build status, preview URL, production deployment status and QA status separately. Never claim implementation, merge, deployment or QA that has not actually happened.
+10. Unexpected result = STOP → inspect actual state → identify first failing assumption → make the smallest correction → rerun relevant checks. Do not compensate with speculative changes or repeatedly trigger builds.
+
+### Roadmap numbering and current scope
+The detailed design below contains **nine** development-order items, not seven. The product owner's current requested scope is to progress through item 7; items 8 and 9 remain later roadmap work unless separately approved.
+
+1. **Accepted / golden:** pause, restart confirmation, complete world+flight save/load, autosave and offline/pause-safe progression. Keep this as the recovery baseline.
+2. **Contextual target assist:** proximity-aware aim assistance for planets, asteroids and recoverable floating equipment. Assistance may guide/align aim but must never auto-fire. Preserve projectile and flight physics. Give scan, recover and damage interactions distinct, understandable outcomes.
+3. **Typed individual foundation:** model Haven's original 60 people as typed, persistent individuals with stable IDs, deterministic new-game psychological/cultural seeds, family/person/event relationships and save-version migration. Existing saves must remain safe; do not silently regenerate or overwrite them.
+4. **Life-course simulation:** introduce a bounded first slice of needs, relationships, skills, work, births/deaths and causal personal events. Events must affect people and the collective state; no arbitrary invisible rolls or narrative claims unsupported by recorded simulation events.
+5. **Planet ecology and production:** distinct planet conditions; finite equipment recipes/manufacturing; operators, power/material inputs, maintenance, carrying capacity, resource production and visible consequences. A machine must have a defined cost, function, output, timescale and failure/maintenance conditions.
+6. **Collective societies:** households, subgroups, colony identity, governance, migration and evolving relationships with Haven/other colonies. Cooperation, neutrality, independence, competition and conflict must emerge from recorded incentives/actions rather than random mandatory plot beats.
+7. **Asteroid damage, repair and power-dust threat:** proportionate impacts on planets, habitats, ship and station; repair choices using finite materials/time/specialists; a rare fictional power-dust hazard that can be studied and forecast with uncertainty; legible warning/response windows and honest evacuation accounting. The power-dust attraction/signature mechanism is explicitly speculative game fiction, not real astrophysics. Destruction of Haven is not game-over while descendant populations survive elsewhere.
+8. **Later / not in current scope:** trade, local currencies, colony contracts, immigration and ship-service/upgrades.
+9. **Later / not in current scope:** event-driven news/chronicle and timeline high-score recap across all simulation systems.
+
+### Cross-milestone acceptance rules
+- Keep the game an inhabitable, observable "aquarium" rather than turning it into a dashboard. Flight view stays uncluttered; use existing planet/station contextual menus and the existing collapsible Ship Manifest for deliberate detail. No new page, persistent HUD panel or scrolling dashboard without explicit approval.
+- Simulation is authoritative structured state; scene meshes and UI are projections, never the source of truth. Use bounded deterministic updates and stable IDs. Seeded variation may influence outcomes but must not dictate them.
+- Every consequential event needs a cause, affected entities, timestamp, and durable event record. Separate confirmed facts, estimates, opinions and rumours.
+- Save compatibility is mandatory. Version every schema change; migrate older saves deliberately; never destroy a valid manual save when autosave/restart fails.
+- Keep population simulation bounded and mobile performant. Avoid pretending 60 people require an expensive high-fidelity agent simulation; use compact state and event-driven updates.
+- Never silently alter starting planet conditions, Haven's 60-person origin, initial stock, or existing save meaning. New-game balancing changes require explicit migration/reset design and product-owner review.
+- Test new-game seed determinism, old-save migration, pause/resume, offline progression, save/load round trips, restart preserving manual saves, simulation determinism, causal events, capacity/shortage feedback, impacts, repair, warning/forecast updates and evacuation accounting as each applies.

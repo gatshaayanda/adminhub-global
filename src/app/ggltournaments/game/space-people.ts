@@ -93,12 +93,14 @@ export function restorePopulationState(value: unknown, counts: { haven: number; 
   const total = Math.max(60, counts.haven + counts.ship + Object.values(counts.colonies).reduce((sum,n)=>sum+n,0));
   const state = createPopulationState(0x47474c, total, worldMinute);
   let cursor = 0;
-  const move = (location: PopulationLocation, amount: number) => {
-    for (const person of state.people) { if (cursor >= amount) break; person.location = location; cursor++; }
+  const assign = (location: PopulationLocation, amount: number) => {
+    const safeAmount = Math.max(0, Math.floor(amount));
+    for (let i = 0; i < safeAmount && cursor < state.people.length; i++, cursor++) state.people[cursor].location = location;
   };
-  move("haven", counts.haven);
-  move("ship", counts.ship);
-  for (const [planet, amount] of Object.entries(counts.colonies)) move(("planet:" + planet) as PopulationLocation, amount);
+  assign("haven", counts.haven);
+  assign("ship", counts.ship);
+  for (const [planet, amount] of Object.entries(counts.colonies)) assign(("planet:" + planet) as PopulationLocation, amount);
+  for (; cursor < state.people.length; cursor++) state.people[cursor].alive = false;
   return state;
 }
 
@@ -141,7 +143,7 @@ export function advancePopulation(population: PopulationState | undefined, world
     needs.belonging = clamp(needs.belonging + (environment.belonging - needs.belonging) * Math.min(.2, days * .05));
     needs.purpose = clamp(needs.purpose + (environment.purpose - needs.purpose) * Math.min(.2, days * .04));
     needs.learning = clamp(needs.learning + (environment.learning - needs.learning) * Math.min(.2, days * .035));
-    needs.autonomy = clamp(needs.autonomy + (person.traits.autonomy - needs.autonomy / 100) * Math.min(.2, days * .025));
+    needs.autonomy = clamp(needs.autonomy + (person.traits.autonomy - needs.autonomy) * Math.min(.2, days * .025));
     const average = materialKeys.reduce((sum,key)=>sum+needs[key],0)/materialKeys.length;
     person.health = clamp(person.health + (average < 42 ? -days * .45 : average > 70 ? days * .025 : 0));
     needs.health = person.health;

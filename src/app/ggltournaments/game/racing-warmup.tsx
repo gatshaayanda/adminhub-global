@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
+import { movePeople } from "./space-people";
 
 const SPACE_AUTOSAVE_KEY = "ggl-space-autosave-v1";
 const SPACE_MANUAL_SAVE_KEY = "ggl-space-manual-save-v1";
@@ -436,7 +437,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     if (target === "GGL Haven") {
       const returnedCrew = state.cargoPeople;
       const returnedMachines = state.cargoEquipment;
-      if (returnedCrew > 0) state.havenPopulation += returnedCrew; // Returning citizens are never discarded at the station capacity threshold.
+      if (returnedCrew > 0) { state.havenPopulation += returnedCrew; movePeople(state.population, "ship", "haven", returnedCrew); } // Returning citizens are never discarded at the station capacity threshold.
       if (returnedMachines > 0) state.machineInventory += returnedMachines;
       if (state.visitedPlanets.length) {
         const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — " + (state.deployedEquipment[planet] || 0) + " machine(s) installed; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
@@ -491,6 +492,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             state.colonyGrowthRemainders[target] = 0;
           }
           state.cargoPeople -= moved;
+          movePeople(state.population, "ship", ("planet:" + target) as const, moved);
           state.events.unshift(target + " settlement founded by " + moved + " people from GGL Haven.");
           state.events = state.events.slice(0, 6);
           notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations.", "success");
@@ -517,6 +519,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     }
     state.cargoPeople += added;
     state.havenPopulation -= added;
+    movePeople(state.population, "haven", "ship", added);
     notify(added + " descendant(s) of Haven's original 60 boarded. Their place is now on your ship.");
     signalTransfer("🧑‍🚀", "FOUNDING CREW ABOARD", added + " people transferred from Haven to the ship.", "HAVEN  →  SHIP");
     setSpaceUiTick(n => n + 1);

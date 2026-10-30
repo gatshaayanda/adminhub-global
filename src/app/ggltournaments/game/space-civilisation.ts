@@ -151,7 +151,17 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       state.events = state.events.slice(0, 6);
     }
   }
-  advancePopulation(state.population, state.worldTimeMinutes, state.planetProgress, Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population])), state.events);
+  const populationCounts = Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population]));
+  populationCounts.Haven = state.havenPopulation;
+  const populationDelta = advancePopulation(state.population, state.worldTimeMinutes, state.planetProgress, populationCounts, state.events);
+  state.havenPopulation = Math.max(0, state.havenPopulation + (populationDelta.births.haven || 0) - (populationDelta.deaths.haven || 0));
+  for (const planet of WORLD_PLANETS) {
+    const colony = state.colonies[planet.name];
+    if (!colony) continue;
+    const location = "planet:" + planet.name;
+    colony.population = Math.max(0, colony.population + (populationDelta.births[location] || 0) - (populationDelta.deaths[location] || 0));
+    if (colony.population === 0) delete state.colonies[planet.name];
+  }
 }
 
 export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState {

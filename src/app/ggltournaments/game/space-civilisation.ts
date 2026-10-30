@@ -53,6 +53,10 @@ export type SpaceState = {
   nearbyTarget: string | null;
   /** Explicit station docking state; proximity alone never implies docking. */
   dockedAt?: string | null;
+  cargoMaterials?: number;
+  havenMaterials?: number;
+  machineProductionQueue?: number;
+  machineProductionProgress?: number;
   cargoPeople: number;
   cargoEquipment: number;
   visitedPlanets: string[];
@@ -91,6 +95,10 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     version: 1,
     nearbyTarget: null,
     dockedAt: null,
+    cargoMaterials: 0,
+    havenMaterials: 12,
+    machineProductionQueue: 0,
+    machineProductionProgress: 0,
     chronicle: [{ id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "The original 60 inhabitants begin the first chapter of the GGL civilisation." }],
     cargoPeople: 0,
     cargoEquipment: 0,
@@ -130,6 +138,18 @@ export function recordSpaceChronicle(state: SpaceState, kind: SpaceChronicleEven
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
   if (!Number.isFinite(elapsedWorldMinutes) || elapsedWorldMinutes <= 0) return;
   const hours = elapsedWorldMinutes / 60;
+  // Haven's finite fabricator converts six delivered material units into one machine over four system hours.
+  if ((state.machineProductionQueue || 0) > 0) {
+    state.machineProductionProgress = (state.machineProductionProgress || 0) + hours;
+    while ((state.machineProductionQueue || 0) > 0 && (state.machineProductionProgress || 0) >= 4) {
+      state.machineProductionProgress = (state.machineProductionProgress || 0) - 4;
+      state.machineProductionQueue = (state.machineProductionQueue || 0) - 1;
+      state.machineInventory += 1;
+      recordSpaceChronicle(state, "production", "GGL Haven", "Machine completed", "Haven's fabricator completed one machine unit from six delivered material units.");
+      state.events.unshift("Haven completed one machine unit. Storage now holds " + state.machineInventory + ".");
+      state.events = state.events.slice(0, 6);
+    }
+  }
   if (!state.ecology) state.ecology = createPlanetEcology();
   advancePlanetEcology(
     state.ecology,
@@ -287,6 +307,10 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     ...initial,
     nearbyTarget: typeof saved.nearbyTarget === "string" ? saved.nearbyTarget : null,
     dockedAt: saved.dockedAt === "GGL Haven" ? "GGL Haven" : null,
+    cargoMaterials: boundedInteger(saved.cargoMaterials, 0, 0, 20),
+    havenMaterials: boundedInteger(saved.havenMaterials, 12, 0, 100000),
+    machineProductionQueue: boundedInteger(saved.machineProductionQueue, 0, 0, 1000),
+    machineProductionProgress: Math.max(0, Math.min(3.999, finiteNumber(saved.machineProductionProgress, 0))),
     chronicle: Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")).slice(-1200) : initial.chronicle,
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),

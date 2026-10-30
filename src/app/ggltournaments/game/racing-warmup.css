@@ -903,11 +903,11 @@
 .race-hub-embedded .space-machine-load-options { display: flex; gap: 5px; width: 100%; }
 .race-hub-embedded .space-machine-load-options button { flex: 1 1 0; min-width: 0; }
 .race-hub-embedded .space-transfer-signal {
-  top: auto !important;
+  top: 50% !important;
   left: 50% !important;
   right: auto !important;
-  bottom: 10px !important;
-  transform: translateX(-50%) !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
   width: min(340px, calc(100% - 24px)) !important;
   max-height: 86px !important;
   overflow: hidden !important;
@@ -943,8 +943,9 @@
   }
   .race-hub-embedded .space-proximity-actions button { min-height: 31px !important; padding: 5px !important; font-size: 8px !important; }
   .race-hub-embedded .space-transfer-signal {
-    bottom: 7px !important;
-    width: calc(100% - 14px) !important;
+    top: 50% !important;
+    bottom: auto !important;
+    width: min(300px, calc(100% - 24px)) !important;
     max-height: 72px !important;
     padding: 6px 8px !important;
   }

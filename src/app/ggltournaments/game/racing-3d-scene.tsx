@@ -251,6 +251,10 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       const frameDelta = Math.min(clock.getDelta(), .05);
       // One saved simulation clock drives stellar rotation, settlements, and offline catch-up.
       const state = spaceStateRef.current;
+      // Docking is an explicit safe-harbour state. Any deliberate flight input undocks first.
+      if (state.dockedAt === "GGL Haven" && (Math.abs(controls.steer) > .04 || Math.abs(controls.flight) > .04 || controls.accelerate || controls.brake || controls.boost)) {
+        state.dockedAt = null;
+      }
       if (currentPhase === "running") {
         state.worldTimeMinutes += frameDelta * 4;
         simulationSeconds = state.worldTimeMinutes * 60;
@@ -469,7 +473,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         rock.mesh.position.addScaledVector(rock.velocity, frameDelta);
         rock.mesh.rotation.x += frameDelta * .32;
         rock.mesh.rotation.y += frameDelta * .48;
-        if (currentPhase === "running" && rock.mesh.position.distanceTo(shipPosition) <= rock.radius + 2.4) {
+        if (currentPhase === "running" && state.dockedAt !== "GGL Haven" && rock.mesh.position.distanceTo(shipPosition) <= rock.radius + 2.4) {
           const hullDamage = Math.max(3, Math.round(rock.radius * 2.2));
           race.damage = clamp(race.damage + hullDamage, 0, 100);
           state.events.unshift("Asteroid collision damaged the ship hull by " + hullDamage + " points. Dock at GGL Haven for repairs.");
@@ -488,23 +492,29 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       if (currentPhase === "running" && controls.fire && flightElapsedSeconds >= nextProjectileAt) {
         const shotForward = new THREE.Vector3(-Math.sin(race.worldYaw), 0, -Math.cos(race.worldYaw)).normalize();
         // Contextual aim assistance only bends a player-fired shot; it never fires on its own.
-        // It softly favours a visible asteroid or planet inside a forward 28-degree / 190-unit cone.
+        // Aim at the near surface (not the body's centre) so the projectile actually intersects it.
+        // A generous but bounded 42-degree / 340-unit acquisition window makes the assist perceptible.
         let assistedDirection = shotForward.clone();
         let bestAssistScore = Infinity;
         const aimCandidates: Array<{ position: THREE.Vector3; radius: number }> = [];
-        for (const visual of Object.values(planetVisuals)) aimCandidates.push({ position: visual.body.position, radius: visual.radius });
+        for (const visual of Object.values(planetVisuals)) aimCandidates.push({ position: visual.body.position, radius: visual.radius + 7 });
         for (const rock of asteroids) if (rock.radius > 0) aimCandidates.push({ position: rock.mesh.position, radius: rock.radius });
         for (const candidate of aimCandidates) {
-          const offset = candidate.position.clone().sub(shipPosition);
-          const distance = offset.length();
-          if (distance < 5 || distance > 190) continue;
-          const direction = offset.normalize();
+          const toCentre = candidate.position.clone().sub(shipPosition);
+          const centreDistance = toCentre.length();
+          if (centreDistance < 5 || centreDistance > 340) continue;
+          const centreDirection = toCentre.normalize();
+          const nearSurface = candidate.position.clone().addScaledVector(centreDirection, -candidate.radius * .82);
+          const targetOffset = nearSurface.sub(shipPosition);
+          const surfaceDistance = targetOffset.length();
+          if (surfaceDistance < 3) continue;
+          const direction = targetOffset.normalize();
           const alignment = shotForward.dot(direction);
-          if (alignment < Math.cos(28 * Math.PI / 180)) continue;
-          const score = distance + (1 - alignment) * 95;
+          if (alignment < Math.cos(42 * Math.PI / 180)) continue;
+          const score = surfaceDistance + (1 - alignment) * 125;
           if (score < bestAssistScore) {
             bestAssistScore = score;
-            const strength = clamp(.42 * (1 - distance / 220), .08, .38);
+            const strength = clamp(.9 - surfaceDistance / 520, .48, .82);
             assistedDirection = shotForward.clone().lerp(direction, strength).normalize();
           }
         }

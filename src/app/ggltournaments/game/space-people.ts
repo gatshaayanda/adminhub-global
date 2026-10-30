@@ -130,7 +130,7 @@ export function advancePopulation(population: PopulationState | undefined, world
     const populationCount = colonyPopulation[planet] || 0;
     const capacity = Math.max(1, 12 + Math.floor((progress - 80) * 1.6));
     const pressure = Math.max(0, populationCount / capacity - .78) * 48;
-    const habitability = clamp((progress - 60) * 2.1, 20, 96);
+    const habitability = clamp(20 + (progress - 60) * 1.75, 20, 85);
     return { air: habitability - 3 - pressure, safety: habitability - pressure, food: habitability - pressure * .8, water: habitability - pressure * .65, shelter: habitability + 5 - pressure, belonging: 66 - pressure * .4, purpose: 68, learning: 52 + progress * .12 };
   };
   for (const person of population.people) {

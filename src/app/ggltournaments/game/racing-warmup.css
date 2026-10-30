@@ -809,3 +809,55 @@
   grid-column: 2 !important;
   grid-row: 2 !important;
 }
+
+
+/* GGL embedded play view: event signalers live in the unused upper-left HUD lane,
+   never in the centre of the flight camera or over the spacecraft. */
+.race-hub-embedded .space-transfer-signal {
+  top: 58px !important;
+  left: 10px !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: min(252px, calc(100% - 142px)) !important;
+  max-height: 94px !important;
+  overflow: hidden !important;
+  transform: none !important;
+  padding: 7px 9px !important;
+  gap: 8px !important;
+  border-radius: 10px !important;
+  background: rgba(5, 15, 32, .88) !important;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .24) !important;
+}
+.race-hub-embedded .space-transfer-signal .space-transfer-emoji {
+  flex-basis: 34px !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 8px !important;
+  font-size: 19px !important;
+}
+.race-hub-embedded .space-transfer-signal strong {
+  font-size: 10px !important;
+}
+.race-hub-embedded .space-transfer-signal span {
+  font-size: 8px !important;
+  line-height: 1.25 !important;
+}
+.race-hub-embedded .space-transfer-signal .space-transfer-route {
+  font-size: 7px !important;
+}
+@media (max-width: 520px) {
+  .race-hub-embedded .space-transfer-signal {
+    top: 52px !important;
+    left: 7px !important;
+    width: min(190px, calc(100% - 126px)) !important;
+    max-height: 78px !important;
+    padding: 6px 7px !important;
+    gap: 6px !important;
+  }
+  .race-hub-embedded .space-transfer-signal .space-transfer-emoji {
+    flex-basis: 28px !important;
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 16px !important;
+  }
+}

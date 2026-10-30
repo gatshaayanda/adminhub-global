@@ -29,6 +29,8 @@ export const HABITAT_STAGES: HabitatStage[] = [
   { index: 4, key: "habitable", label: "HABITABLE", color: "#78f0b1", atmosphereColor: "#49dcb8", description: "Crew can establish a settlement" },
 ];
 
+export type SpaceHazard = { id: string; type: "asteroid-impact" | "power-dust"; target: string; severity: 1 | 2 | 3; forecastStartWorldMinutes: number; impactAtWorldMinutes: number; confidence: number; status: "warning" | "mitigated" | "impact"; mitigation: number };
+
 export type SpaceColony = {
   population: number;
   founders: number;
@@ -58,6 +60,8 @@ export type SpaceState = {
   colonyGrowthRemainders: Record<string, number>;
   events: string[];
   population?: PopulationState;
+  hazards?: SpaceHazard[];
+  nextHazardAtWorldMinutes?: number;
 };
 
 export function habitatStage(progress: number): HabitatStage {
@@ -91,6 +95,8 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     colonyGrowthRemainders: {},
     events: ["Mission signal: Cobalt is 66% restored. Three machines can move it from thin air toward a safe habitat."],
     population: createPopulationState(0x47474c, 60, 0),
+    hazards: [],
+    nextHazardAtWorldMinutes: 14 * 1440,
   };
 }
 
@@ -154,6 +160,54 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
   const populationCounts = Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population]));
   populationCounts.Haven = state.havenPopulation;
   advancePopulation(state.population, state.worldTimeMinutes, state.planetProgress, populationCounts, state.events);
+
+  const activeHazard = (state.hazards || []).find(hazard => hazard.status === "warning" || hazard.status === "mitigated");
+  const developedWorld = WORLD_PLANETS.find(planet => (state.planetProgress[planet.name] || 0) >= 92 && Boolean(state.colonies[planet.name]));
+  if (!activeHazard && state.worldTimeMinutes >= (state.nextHazardAtWorldMinutes || 14 * 1440) && (Object.keys(state.colonies).length > 0 || Object.values(state.deployedEquipment).some(count => count >= 2))) {
+    const powerDust = Boolean(developedWorld && (state.deployedEquipment[developedWorld.name] || 0) >= 4 && state.worldTimeMinutes >= 30 * 1440);
+    const target = powerDust ? developedWorld!.name : WORLD_PLANETS[(Math.floor(state.worldTimeMinutes / 1440) + state.asteroidsShot) % WORLD_PLANETS.length].name;
+    const severity = (powerDust ? 3 : 1 + (Math.floor(state.worldTimeMinutes / 1440) % 3)) as 1|2|3;
+    const warningHours = powerDust ? 16 : 8 + (Math.floor(state.worldTimeMinutes / 60) % 8);
+    const hazard: SpaceHazard = {
+      id: "hazard-" + Math.floor(state.worldTimeMinutes).toString(36),
+      type: powerDust ? "power-dust" : "asteroid-impact",
+      target,
+      severity,
+      forecastStartWorldMinutes: state.worldTimeMinutes + warningHours * 60 * .5,
+      impactAtWorldMinutes: state.worldTimeMinutes + warningHours * 60,
+      confidence: powerDust ? .58 : .72,
+      status: "warning",
+      mitigation: 0,
+    };
+    state.hazards = [...(state.hazards || []), hazard].slice(-24);
+    state.events.unshift(powerDust
+      ? "SENSOR WARNING: a rare charged power-dust field is converging on " + target + ". Forecast confidence is limited; inspect and prepare before the impact window."
+      : "ORBITAL WARNING: debris trajectory may impact " + target + ". A response window is available; forecast confidence may change.");
+    state.nextHazardAtWorldMinutes = state.worldTimeMinutes + 21 * 1440;
+  }
+  for (const hazard of state.hazards || []) {
+    if ((hazard.status === "warning" || hazard.status === "mitigated") && state.worldTimeMinutes >= hazard.impactAtWorldMinutes) {
+      const damage = Math.max(0, hazard.severity * (hazard.type === "power-dust" ? 5 : 2.2) - hazard.mitigation * 2);
+      state.planetProgress[hazard.target] = Math.max(0, (state.planetProgress[hazard.target] || 0) - damage);
+      hazard.status = "impact";
+      state.events.unshift(hazard.type === "power-dust"
+        ? hazard.target + " was struck by charged power-dust. Habitat and ecological systems suffered " + damage.toFixed(1) + " points of damage."
+        : hazard.target + " was struck by orbital debris. Habitat restoration lost " + damage.toFixed(1) + " points.");
+    }
+  }
+  if (state.events.length > 6) state.events.length = 6;
+}
+
+export function mitigateSpaceHazard(state: SpaceState, target: string): boolean {
+  const hazard = (state.hazards || []).find(item => item.target === target && item.status === "warning");
+  if (!hazard || state.machineInventory <= 0) return false;
+  state.machineInventory -= 1;
+  hazard.mitigation = Math.min(3, hazard.mitigation + 1);
+  hazard.status = "mitigated";
+  hazard.impactAtWorldMinutes += 4 * 60;
+  state.events.unshift("A finite Haven machine was diverted to mitigation at " + target + ". The forecast window widened; impact severity is reduced.");
+  state.events = state.events.slice(0, 6);
+  return true;
 }
 
 export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState {
@@ -211,6 +265,9 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     ship: state.cargoPeople,
     colonies: Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population])),
   }, state.worldTimeMinutes);
+  const savedHazards = Array.isArray((saved as Partial<SpaceState>).hazards) ? (saved as Partial<SpaceState>).hazards! : [];
+  state.hazards = savedHazards.filter(hazard => hazard && typeof hazard.id === "string" && (hazard.type === "asteroid-impact" || hazard.type === "power-dust") && typeof hazard.target === "string" && Number.isFinite(hazard.impactAtWorldMinutes) && Number.isFinite(hazard.severity) && ["warning","mitigated","impact"].includes(hazard.status)).slice(-24).map(hazard => ({ ...hazard, severity: Math.max(1, Math.min(3, Math.round(hazard.severity))) as 1|2|3, confidence: Math.max(0, Math.min(1, Number(hazard.confidence) || .5)), mitigation: Math.max(0, Math.min(3, Math.round(Number(hazard.mitigation) || 0))) }));
+  state.nextHazardAtWorldMinutes = Math.max(state.worldTimeMinutes, finiteNumber((saved as Partial<SpaceState>).nextHazardAtWorldMinutes, 14 * 1440));
 
   // Offline catch-up follows the accelerated world clock, capped at seven simulated days.
   const elapsedWallSeconds = Math.max(0, Math.min(30 * 24 * 60 * 60, (now - state.lastSimulatedAt) / 1000));

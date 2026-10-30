@@ -49,6 +49,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [, setSpaceUiTick] = useState(0);
   const stateHydratedRef = useRef(false);
   const lastProcessedWorldMinutesRef = useRef(0);
+  const phaseRef = useRef<Phase>("running");
+  const [phase, setPhase] = useState<Phase>("running");
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [manualSaveAvailable, setManualSaveAvailable] = useState(false);
   useEffect(() => { const timer = window.setInterval(() => setSpaceUiTick(n => n + 1), 500); return () => window.clearInterval(timer); }, []);
@@ -164,7 +166,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const reset = useCallback(() => {
     raceRef.current = newRace();
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
-    neutralControls();
+    controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false };
     setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
     phaseRef.current = "running"; setPhase("running");
   }, []);

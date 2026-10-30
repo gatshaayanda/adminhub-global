@@ -1,3 +1,6 @@
+import { advancePlanetEcology, createPlanetEcology, restorePlanetEcology, type PlanetEcologyMap } from "./space-ecology";
+import { advancePopulation, createPopulationState, restorePopulationState, type PopulationState } from "./space-people";
+
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
 
 export const WORLD_PLANETS = [
@@ -27,12 +30,20 @@ export const HABITAT_STAGES: HabitatStage[] = [
   { index: 4, key: "habitable", label: "HABITABLE", color: "#78f0b1", atmosphereColor: "#49dcb8", description: "Crew can establish a settlement" },
 ];
 
+export type SpaceHazard = { id: string; type: "asteroid-impact" | "power-dust"; target: string; severity: 1 | 2 | 3; forecastStartWorldMinutes: number; impactAtWorldMinutes: number; confidence: number; status: "warning" | "mitigated" | "impact"; mitigation: number };
+
+export type SpaceFaction = { id: string; name: string; agenda: string; influence: number };
 export type SpaceColony = {
   population: number;
   founders: number;
   operators: number;
   foundedAtWorldMinutes: number;
   independent: boolean;
+  trustWithHaven: number;
+  autonomy: number;
+  governance: "provisional" | "local-council" | "self-governing";
+  lastContactWorldMinutes: number;
+  factions: SpaceFaction[];
 };
 
 export type SpaceState = {
@@ -46,6 +57,7 @@ export type SpaceState = {
   travelNotes: string[];
   acclaim: number;
   asteroidsShot: number;
+  salvageRecovered: number;
   havenPopulation: number;
   machineInventory: number;
   worldTimeMinutes: number;
@@ -54,6 +66,10 @@ export type SpaceState = {
   colonies: Record<string, SpaceColony>;
   colonyGrowthRemainders: Record<string, number>;
   events: string[];
+  population?: PopulationState;
+  hazards?: SpaceHazard[];
+  nextHazardAtWorldMinutes?: number;
+  ecology?: PlanetEcologyMap;
 };
 
 export function habitatStage(progress: number): HabitatStage {
@@ -77,6 +93,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     travelNotes: [],
     acclaim: 0,
     asteroidsShot: 0,
+    salvageRecovered: 0,
     havenPopulation: 60,
     machineInventory: 12,
     worldTimeMinutes: 0,
@@ -85,6 +102,10 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     colonies: {},
     colonyGrowthRemainders: {},
     events: ["Mission signal: Cobalt is 66% restored. Three machines can move it from thin air toward a safe habitat."],
+    population: createPopulationState(0x47474c, 60, 0),
+    hazards: [],
+    nextHazardAtWorldMinutes: 14 * 1440,
+    ecology: createPlanetEcology(),
   };
 }
 
@@ -96,6 +117,13 @@ const boundedInteger = (value: unknown, fallback: number, min: number, max: numb
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
   if (!Number.isFinite(elapsedWorldMinutes) || elapsedWorldMinutes <= 0) return;
   const hours = elapsedWorldMinutes / 60;
+  if (!state.ecology) state.ecology = createPlanetEcology();
+  advancePlanetEcology(
+    state.ecology,
+    elapsedWorldMinutes,
+    state.deployedEquipment,
+    Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.operators])),
+  );
 
   for (const planet of WORLD_PLANETS) {
     const machines = state.deployedEquipment[planet.name] || 0;
@@ -104,7 +132,9 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       // Preserve the prototype's visible pace while tying it to simulation time: 3.3% per simulated hour per machine.
       const previousProgress = state.planetProgress[planet.name] || 0;
       const previousStage = habitatStage(previousProgress);
-      const rate = machines + operators * 0.18;
+      const ecology = state.ecology?.[planet.name];
+      const maintenanceReliability = ecology ? (ecology.maintenanceLoad >= 85 ? .35 : ecology.maintenanceLoad >= 65 ? .65 : 1) : 1;
+      const rate = (machines + operators * 0.18) * maintenanceReliability;
       const nextProgress = Math.min(100, previousProgress + hours * 3.3 * rate);
       state.planetProgress[planet.name] = nextProgress;
       const nextStage = habitatStage(nextProgress);
@@ -128,9 +158,12 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     const progress = state.planetProgress[planet.name] || 0;
     const capacity = habitatCapacity(progress);
     colony.operators = Math.max(1, Math.min(colony.population, Math.floor(colony.population / 4)));
+    const ecologySupport = state.ecology?.[planet.name]
+      ? Math.max(.25, Math.min(1.1, .25 + state.ecology[planet.name].foodProduction * .004 + state.ecology[planet.name].accessibleWater * .002 + (100 - state.ecology[planet.name].contamination) * .001))
+      : 1;
     const previousRemainder = state.colonyGrowthRemainders[planet.name] || 0;
     if (colony.population < capacity) {
-      let remainder = previousRemainder + colony.population * (0.018 + colony.operators * 0.0005) * hours;
+      let remainder = previousRemainder + colony.population * (0.018 + colony.operators * 0.0005) * hours * ecologySupport;
       while (remainder >= 1 && colony.population < capacity) {
         colony.population += 1;
         remainder -= 1;
@@ -139,12 +172,95 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     } else {
       state.colonyGrowthRemainders[planet.name] = 0;
     }
-    if (!colony.independent && colony.population >= 18 && state.worldTimeMinutes - colony.foundedAtWorldMinutes >= 7 * 1440) {
+    const ecology = state.ecology?.[planet.name];
+    colony.autonomy = Math.min(100, colony.autonomy + hours * (colony.operators * .08 + (ecology?.manufacturedModules || 0) * .02));
+    if (state.worldTimeMinutes - colony.lastContactWorldMinutes > 3 * 1440) colony.trustWithHaven = Math.max(0, colony.trustWithHaven - hours * .025);
+    const residents = (state.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name));
+    const motivationNames: Record<string, [string,string]> = {
+      exploration: ["Exploration Circle","Map and study the unknown"],
+      refuge: ["Safety Coalition","Protect people and preserve reserves"],
+      autonomy: ["Free Settlers","Increase local decision-making"],
+      science: ["Research Guild","Invest in knowledge and discovery"],
+      family: ["Community Network","Prioritise care and belonging"],
+      service: ["Stewardship Council","Maintain shared systems and habitats"],
+      opportunity: ["Resource Cooperative","Develop local production fairly"],
+      recognition: ["Pioneer Assembly","Recognise contribution and achievement"],
+    };
+    const motiveCounts = new Map<string, number>();
+    for (const person of residents) motiveCounts.set(person.motivation, (motiveCounts.get(person.motivation) || 0) + 1);
+    colony.factions = [...motiveCounts.entries()].filter(([,count]) => count >= 2).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([motivation,count]) => ({
+      id: planet.name.toLowerCase() + "-" + motivation,
+      name: motivationNames[motivation]?.[0] || "Local group",
+      agenda: motivationNames[motivation]?.[1] || "Represent local interests",
+      influence: residents.length ? Math.round(count / residents.length * 100) : 0,
+    }));
+    colony.governance = colony.independent ? "self-governing" : colony.population >= 8 && colony.autonomy >= 35 ? "local-council" : "provisional";
+    if (!colony.independent && colony.population >= 18 && colony.autonomy >= 55 && state.worldTimeMinutes - colony.foundedAtWorldMinutes >= 7 * 1440) {
       colony.independent = true;
-      state.events.unshift(`${planet.name} has become self-governing, founded by people from Haven.`);
+      colony.governance = "self-governing";
+      state.events.unshift(planet.name + " has become self-governing after local capacity and autonomy matured.");
       state.events = state.events.slice(0, 6);
     }
   }
+  const populationCounts = Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population]));
+  populationCounts.Haven = state.havenPopulation;
+  advancePopulation(state.population, state.worldTimeMinutes, state.planetProgress, populationCounts, state.events);
+
+  const activeHazard = (state.hazards || []).find(hazard => hazard.status === "warning" || hazard.status === "mitigated");
+  const developedWorld = WORLD_PLANETS.find(planet => (state.planetProgress[planet.name] || 0) >= 92 && Boolean(state.colonies[planet.name]));
+  if (!activeHazard && state.worldTimeMinutes >= (state.nextHazardAtWorldMinutes || 14 * 1440) && (Object.keys(state.colonies).length > 0 || Object.values(state.deployedEquipment).some(count => count >= 2))) {
+    const powerDust = Boolean(developedWorld && (state.deployedEquipment[developedWorld.name] || 0) >= 4 && state.worldTimeMinutes >= 30 * 1440);
+    const target = powerDust ? developedWorld!.name : WORLD_PLANETS[(Math.floor(state.worldTimeMinutes / 1440) + state.asteroidsShot) % WORLD_PLANETS.length].name;
+    const severity = (powerDust ? 3 : 1 + (Math.floor(state.worldTimeMinutes / 1440) % 3)) as 1|2|3;
+    const warningHours = powerDust ? 16 : 8 + (Math.floor(state.worldTimeMinutes / 60) % 8);
+    const hazard: SpaceHazard = {
+      id: "hazard-" + Math.floor(state.worldTimeMinutes).toString(36),
+      type: powerDust ? "power-dust" : "asteroid-impact",
+      target,
+      severity,
+      forecastStartWorldMinutes: state.worldTimeMinutes + warningHours * 60 * .5,
+      impactAtWorldMinutes: state.worldTimeMinutes + warningHours * 60,
+      confidence: powerDust ? .58 : .72,
+      status: "warning",
+      mitigation: 0,
+    };
+    state.hazards = [...(state.hazards || []), hazard].slice(-24);
+    state.events.unshift(powerDust
+      ? "SENSOR WARNING: a rare charged power-dust field is converging on " + target + ". Forecast confidence is limited; inspect and prepare before the impact window."
+      : "ORBITAL WARNING: debris trajectory may impact " + target + ". A response window is available; forecast confidence may change.");
+    state.nextHazardAtWorldMinutes = state.worldTimeMinutes + 21 * 1440;
+  }
+  for (const hazard of state.hazards || []) {
+    if ((hazard.status === "warning" || hazard.status === "mitigated") && state.worldTimeMinutes >= hazard.impactAtWorldMinutes) {
+      const damage = Math.max(0, hazard.severity * (hazard.type === "power-dust" ? 5 : 2.2) - hazard.mitigation * 2);
+      state.planetProgress[hazard.target] = Math.max(0, (state.planetProgress[hazard.target] || 0) - damage);
+      const ecology = state.ecology?.[hazard.target];
+      if (ecology) {
+        ecology.biodiversity = Math.max(0, ecology.biodiversity - damage * (hazard.type === "power-dust" ? 2.2 : .55));
+        ecology.contamination = Math.min(100, ecology.contamination + damage * (hazard.type === "power-dust" ? 1.8 : .35));
+        ecology.foodProduction = Math.max(0, ecology.foodProduction - damage * .7);
+        ecology.energyPotential = Math.max(0, ecology.energyPotential - damage * .9);
+        ecology.maintenanceLoad = Math.min(100, ecology.maintenanceLoad + damage * 1.2);
+      }
+      hazard.status = "impact";
+      state.events.unshift(hazard.type === "power-dust"
+        ? hazard.target + " was struck by charged power-dust. Habitat and ecological systems suffered " + damage.toFixed(1) + " points of damage."
+        : hazard.target + " was struck by orbital debris. Habitat restoration lost " + damage.toFixed(1) + " points.");
+    }
+  }
+  if (state.events.length > 6) state.events.length = 6;
+}
+
+export function mitigateSpaceHazard(state: SpaceState, target: string): boolean {
+  const hazard = (state.hazards || []).find(item => item.target === target && item.status === "warning");
+  if (!hazard || state.machineInventory <= 0) return false;
+  state.machineInventory -= 1;
+  hazard.mitigation = Math.min(3, hazard.mitigation + 1);
+  hazard.status = "mitigated";
+  hazard.impactAtWorldMinutes += 4 * 60;
+  state.events.unshift("A finite Haven machine was diverted to mitigation at " + target + ". The forecast window widened; impact severity is reduced.");
+  state.events = state.events.slice(0, 6);
+  return true;
 }
 
 export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState {
@@ -162,6 +278,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     travelNotes: Array.isArray(saved.travelNotes) ? saved.travelNotes.filter((note): note is string => typeof note === "string").slice(0, 8) : [],
     acclaim: boundedInteger(saved.acclaim, 0, 0, 1000000),
     asteroidsShot: boundedInteger(saved.asteroidsShot, 0, 0, 1000000),
+    salvageRecovered: boundedInteger((saved as Partial<SpaceState> & { salvageRecovered?: number }).salvageRecovered, 0, 0, 1000000),
     havenPopulation: boundedInteger(saved.havenPopulation, 60, 0, 1000000),
     machineInventory: boundedInteger(saved.machineInventory, 12, 0, 10000),
     worldTimeMinutes: Math.max(0, finiteNumber(saved.worldTimeMinutes, 0)),
@@ -184,18 +301,33 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
       const colony = rawColony as Partial<SpaceColony>;
       const population = boundedInteger(colony.population, 0, 0, habitatCapacity(state.planetProgress[planet.name]));
       if (population > 0) {
+        const foundedAt = Math.max(0, finiteNumber(colony.foundedAtWorldMinutes, 0));
         state.colonies[planet.name] = {
           population,
           founders: boundedInteger(colony.founders, population, 0, 60),
           operators: boundedInteger(colony.operators, Math.max(1, Math.floor(population / 4)), 1, population),
-          foundedAtWorldMinutes: Math.max(0, finiteNumber(colony.foundedAtWorldMinutes, 0)),
+          foundedAtWorldMinutes: foundedAt,
           independent: Boolean(colony.independent),
+          trustWithHaven: Math.max(0, Math.min(100, finiteNumber((colony as Partial<SpaceColony>).trustWithHaven, 70))),
+          autonomy: Math.max(0, Math.min(100, finiteNumber((colony as Partial<SpaceColony>).autonomy, 15))),
+          governance: (["provisional","local-council","self-governing"].includes(String((colony as Partial<SpaceColony>).governance)) ? (colony as Partial<SpaceColony>).governance : (colony.independent ? "self-governing" : "provisional")) as SpaceColony["governance"],
+          lastContactWorldMinutes: Math.max(foundedAt, finiteNumber((colony as Partial<SpaceColony>).lastContactWorldMinutes, foundedAt)),
+          factions: Array.isArray((colony as Partial<SpaceColony>).factions) ? (colony as Partial<SpaceColony>).factions!.filter(faction => faction && typeof faction.id === "string" && typeof faction.name === "string" && typeof faction.agenda === "string" && Number.isFinite(faction.influence)).slice(0, 5) : [],
         };
       }
     }
     const remainders = saved.colonyGrowthRemainders as Record<string, unknown> | undefined;
     state.colonyGrowthRemainders[planet.name] = Math.max(0, Math.min(0.999999, finiteNumber(remainders?.[planet.name], 0)));
   }
+  state.population = restorePopulationState(saved.population, {
+    haven: state.havenPopulation,
+    ship: state.cargoPeople,
+    colonies: Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population])),
+  }, state.worldTimeMinutes);
+  const savedHazards = Array.isArray((saved as Partial<SpaceState>).hazards) ? (saved as Partial<SpaceState>).hazards! : [];
+  state.hazards = savedHazards.filter(hazard => hazard && typeof hazard.id === "string" && (hazard.type === "asteroid-impact" || hazard.type === "power-dust") && typeof hazard.target === "string" && Number.isFinite(hazard.impactAtWorldMinutes) && Number.isFinite(hazard.severity) && ["warning","mitigated","impact"].includes(hazard.status)).slice(-24).map(hazard => ({ ...hazard, severity: Math.max(1, Math.min(3, Math.round(hazard.severity))) as 1|2|3, confidence: Math.max(0, Math.min(1, Number(hazard.confidence) || .5)), mitigation: Math.max(0, Math.min(3, Math.round(Number(hazard.mitigation) || 0))) }));
+  state.nextHazardAtWorldMinutes = Math.max(state.worldTimeMinutes, finiteNumber((saved as Partial<SpaceState>).nextHazardAtWorldMinutes, 14 * 1440));
+  state.ecology = restorePlanetEcology((saved as Partial<SpaceState>).ecology);
 
   // Offline catch-up follows the accelerated world clock, capped at seven simulated days.
   const elapsedWallSeconds = Math.max(0, Math.min(30 * 24 * 60 * 60, (now - state.lastSimulatedAt) / 1000));

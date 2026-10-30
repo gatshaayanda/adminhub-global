@@ -1396,3 +1396,19 @@ The detailed design below contains **nine** development-order items, not seven. 
 - Keep population simulation bounded and mobile performant. Avoid pretending 60 people require an expensive high-fidelity agent simulation; use compact state and event-driven updates.
 - Never silently alter starting planet conditions, Haven's 60-person origin, initial stock, or existing save meaning. New-game balancing changes require explicit migration/reset design and product-owner review.
 - Test new-game seed determinism, old-save migration, pause/resume, offline progression, save/load round trips, restart preserving manual saves, simulation determinism, causal events, capacity/shortage feedback, impacts, repair, warning/forecast updates and evacuation accounting as each applies.
+
+
+## Current GGL feature branch checkpoint — 2026-10-30
+
+Active branch: `feat/ggl-space-milestones-2-to-7`, based directly on the accepted `eff5d936311b5e66747fc9b72455b6889661bea4` main checkpoint and its golden recovery branch.
+
+Implementation progress (do not overstate completion):
+- **Item 2 — implemented slice:** soft aim assist for player-fired shots toward planets/asteroids in a forward range/cone; no auto-fire. Added a floating equipment cache with a separate proximity recovery action. Existing planet inspection and asteroid FIRE damage remain distinct interactions.
+- **Item 3 — foundation implemented:** deterministic named records for the original 60 people; stable IDs, ages/life stages, motivations, traits, needs, skills, households and relationships; migration from legacy count-only saves; named-person transfers on boarding/return/settlement; compact names in existing manifest/contextual console.
+- **Item 4 — partial:** needs, age, life stage, skills and relationship trust/affinity evolve with world time. Unsafe material needs create warnings. Birth/death causality, full family histories, illness/accident/violence systems and event-driven personal arcs remain outstanding.
+- **Item 5 — partial:** planet-specific environmental and resource profiles, extraction, maintenance load, fabrication progress/modules, maintenance-dependent restoration reliability and ecology-dependent colony growth. Full recipe chains, station production, supply logistics and maintenance action/repair workflows remain outstanding.
+- **Item 6 — partial:** colony trust with Haven, autonomy, provisional/local-council/self-governing states and motivation-based civic groups; support visits update trust and prolonged absence reduces it. Migration, faction negotiation, diplomacy, conflict, independent decisions and docking permissions remain outstanding.
+- **Item 7 — partial:** asteroid collision hull damage, finite-machine ship repair at Haven, orbital/power-dust forecasts, mitigation using finite machines, and planet/ecology impact aftermath. Full station damage, advanced threat study/sensor upgrades, evacuation accounting and shelter/transport response remain outstanding.
+- Full scope and hands-on QA steps are in `docs/SPACE-MILESTONES-2-7-QA.md`.
+
+Do not merge this feature branch or call items 2–7 complete. First obtain a READY preview for the exact latest branch commit, run the QA checklist, correct any regressions, and get explicit owner approval. The Vercel build-rate limit can block preview creation; wait for it to clear rather than spamming commits/builds. Item 8 and item 9 remain outside this branch's requested scope.

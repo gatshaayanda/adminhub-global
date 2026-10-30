@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
-import { getFirstFootholdCue, habitatStage, WORLD_PLANETS } from "./space-civilisation";
+import { getFirstFootholdCue, habitatStage, recordSpaceChronicle, WORLD_PLANETS } from "./space-civilisation";
 import type { Controls, Phase, Race, SpaceState } from "./racing-warmup";
 
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; spaceStateRef: RefObject<SpaceState> };
@@ -477,6 +477,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
           const hullDamage = Math.max(3, Math.round(rock.radius * 2.2));
           race.damage = clamp(race.damage + hullDamage, 0, 100);
           state.events.unshift("Asteroid collision damaged the ship hull by " + hullDamage + " points. Dock at GGL Haven for repairs.");
+          recordSpaceChronicle(state, "hazard", "Ship", "Asteroid collision damaged the hull", "A drifting asteroid caused " + hullDamage + " hull damage while the ship was in open space.");
           state.events.length = Math.min(state.events.length, 6);
           const flash = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 6), impactMaterial);
           flash.position.copy(shipPosition); scene.add(flash); impacts.push({ mesh: flash, age: 0 });

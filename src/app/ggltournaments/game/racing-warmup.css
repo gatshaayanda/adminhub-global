@@ -1017,3 +1017,6 @@
 @media(prefers-reduced-motion:reduce) {
   .race-hub-embedded .space-lifecycle-overlay {backdrop-filter:none;-webkit-backdrop-filter:none}
 }
+
+.race-hub-embedded .space-people-roster{display:block;margin:-3px 0 5px;color:#9bb8cc;font:600 7px/1.4 system-ui,sans-serif;letter-spacing:.015em}
+.race-hub-embedded .space-proximity-data small{color:#a9c1d3;font-size:9px;line-height:1.5}

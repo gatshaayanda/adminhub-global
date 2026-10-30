@@ -132,7 +132,9 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       // Preserve the prototype's visible pace while tying it to simulation time: 3.3% per simulated hour per machine.
       const previousProgress = state.planetProgress[planet.name] || 0;
       const previousStage = habitatStage(previousProgress);
-      const rate = machines + operators * 0.18;
+      const ecology = state.ecology?.[planet.name];
+      const maintenanceReliability = ecology ? (ecology.maintenanceLoad >= 85 ? .35 : ecology.maintenanceLoad >= 65 ? .65 : 1) : 1;
+      const rate = (machines + operators * 0.18) * maintenanceReliability;
       const nextProgress = Math.min(100, previousProgress + hours * 3.3 * rate);
       state.planetProgress[planet.name] = nextProgress;
       const nextStage = habitatStage(nextProgress);
@@ -156,9 +158,12 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     const progress = state.planetProgress[planet.name] || 0;
     const capacity = habitatCapacity(progress);
     colony.operators = Math.max(1, Math.min(colony.population, Math.floor(colony.population / 4)));
+    const ecologySupport = state.ecology?.[planet.name]
+      ? Math.max(.25, Math.min(1.1, .25 + state.ecology[planet.name].foodProduction * .004 + state.ecology[planet.name].accessibleWater * .002 + (100 - state.ecology[planet.name].contamination) * .001))
+      : 1;
     const previousRemainder = state.colonyGrowthRemainders[planet.name] || 0;
     if (colony.population < capacity) {
-      let remainder = previousRemainder + colony.population * (0.018 + colony.operators * 0.0005) * hours;
+      let remainder = previousRemainder + colony.population * (0.018 + colony.operators * 0.0005) * hours * ecologySupport;
       while (remainder >= 1 && colony.population < capacity) {
         colony.population += 1;
         remainder -= 1;

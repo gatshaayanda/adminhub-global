@@ -861,3 +861,91 @@
     font-size: 16px !important;
   }
 }
+
+
+/* Exact GGL HUD correction: keep proximity actions in a corner and make them dismissible. */
+.race-hub-embedded .space-proximity-toggle {
+  position: absolute !important;
+  z-index: 11 !important;
+  top: 54px !important;
+  left: 10px !important;
+  right: auto !important;
+  bottom: auto !important;
+  min-height: 30px !important;
+  padding: 6px 10px !important;
+  border: 1px solid rgba(120,232,243,.48) !important;
+  border-radius: 8px !important;
+  background: rgba(4,13,31,.9) !important;
+  color: #eaf7ff !important;
+  font: 800 9px/1 system-ui,sans-serif !important;
+  letter-spacing: .08em !important;
+  cursor: pointer !important;
+}
+.race-hub-embedded .space-proximity-toggle span { margin-left: 5px; color: #c6f36b; }
+.race-hub-embedded .space-proximity-actions {
+  left: 10px !important;
+  right: auto !important;
+  top: 90px !important;
+  bottom: auto !important;
+  transform: none !important;
+  width: min(248px, calc(100% - 158px)) !important;
+  max-height: min(54%, 260px) !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  padding: 8px !important;
+}
+.race-hub-embedded .space-proximity-copy { width: 100%; margin: 0 !important; }
+.race-hub-embedded .space-proximity-actions button { width: 100%; min-height: 34px !important; }
+.race-hub-embedded .space-machine-load-options { display: flex; gap: 5px; width: 100%; }
+.race-hub-embedded .space-machine-load-options button { flex: 1 1 0; min-width: 0; }
+.race-hub-embedded .space-transfer-signal {
+  top: auto !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: 10px !important;
+  transform: translateX(-50%) !important;
+  width: min(340px, calc(100% - 24px)) !important;
+  max-height: 86px !important;
+  overflow: hidden !important;
+  padding: 8px 10px !important;
+  gap: 8px !important;
+  background: rgba(5,15,32,.9) !important;
+}
+.race-hub-embedded .space-transfer-signal .space-transfer-emoji {
+  display: grid !important;
+  flex: 0 0 30px !important;
+  width: 30px !important;
+  height: 30px !important;
+  font-size: 17px !important;
+}
+.race-hub-embedded .space-transfer-signal strong { font-size: 9px !important; }
+.race-hub-embedded .space-transfer-signal span { font-size: 8px !important; line-height: 1.25 !important; }
+.race-hub-embedded .space-transfer-signal .space-transfer-route { font-size: 7px !important; }
+@media (max-width: 520px) {
+  .race-hub-embedded .space-proximity-toggle {
+    top: 43px !important;
+    left: 7px !important;
+    min-height: 28px !important;
+    padding: 5px 8px !important;
+    font-size: 8px !important;
+  }
+  .race-hub-embedded .space-proximity-actions {
+    top: 77px !important;
+    left: 7px !important;
+    width: min(194px, calc(100% - 116px)) !important;
+    max-height: 48% !important;
+    padding: 6px !important;
+    gap: 5px !important;
+  }
+  .race-hub-embedded .space-proximity-actions button { min-height: 31px !important; padding: 5px !important; font-size: 8px !important; }
+  .race-hub-embedded .space-transfer-signal {
+    bottom: 7px !important;
+    width: calc(100% - 14px) !important;
+    max-height: 72px !important;
+    padding: 6px 8px !important;
+  }
+}

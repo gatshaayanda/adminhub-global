@@ -509,6 +509,19 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     }
     setSpaceUiTick(n => n + 1);
   };
+  const repairShip = () => {
+    const state = spaceStateRef.current;
+    if (state.nearbyTarget !== "GGL Haven") { notify("Dock at GGL Haven before attempting hull repairs.", "info"); return; }
+    const damage = raceRef.current.damage;
+    if (damage <= 0) { notify("Hull integrity is already stable.", "info"); return; }
+    const cost = Math.ceil(damage / 35);
+    if (state.machineInventory < cost) { notify("Insufficient spare machinery. Repair requires " + cost + " machine unit(s).", "error"); return; }
+    state.machineInventory -= cost;
+    raceRef.current.damage = 0;
+    notify("Ship hull repaired at GGL Haven. " + cost + " finite machine unit(s) consumed.", "success");
+    signalTransfer("🛠️", "SHIP REPAIRED", "Hull integrity restored using " + cost + " spare machine unit(s).", "HAVEN  →  SHIP");
+    setSpaceUiTick(n => n + 1);
+  };
   const boardCrewAtStation = () => {
     const state = spaceStateRef.current;
     if (state.nearbyTarget !== "GGL Haven") { notify("Fly close to GGL Haven before boarding crew.", "info"); return; }
@@ -590,6 +603,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <div><span>TERRAFORMING MACHINES</span><b>{spaceStateRef.current.cargoEquipment} / 4</b></div>
             <div><span>HAVEN POPULATION</span><b>{spaceStateRef.current.havenPopulation}</b></div>
             <div><span>HAVEN MACHINE STOCK</span><b>{spaceStateRef.current.machineInventory}</b></div>
+            <div><span>SHIP HULL INTEGRITY</span><b>{Math.max(0, 100 - Math.round(raceRef.current.damage))}%</b></div>
             <div><span>WORLDS VISITED</span><b>{spaceStateRef.current.visitedPlanets.length} / 5</b></div>
             <div className="space-manifest-save-actions">
               <button type="button" onClick={saveManualGame}>SAVE RUN</button>
@@ -623,6 +637,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           </> : world.nearbyTarget === "GGL Haven" ? <>
             <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage<br /><small>{(world.population?.people || []).filter(person => person.alive && person.location === "haven").slice(0, 4).map(person => person.name).join(" · ")}</small></div>
             <button type="button" onClick={dockOrLand}>Dock / return cargo <span>↙</span></button>
+            {raceRef.current.damage > 0 && <button type="button" onClick={repairShip}>Repair ship · {Math.ceil(raceRef.current.damage / 35)} machine(s) <span>🛠</span></button>}
             <div className="space-machine-load-options" aria-label="Choose machinery load">
               <button type="button" onClick={() => loadMachinesAtStation(1)} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load 1 machine</button>
               <button type="button" onClick={() => loadMachinesAtStation(2)} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load 2 machines</button>

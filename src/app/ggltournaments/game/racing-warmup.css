@@ -950,3 +950,33 @@
     padding: 6px 8px !important;
   }
 }
+
+
+/* Compact, collapsible cargo and crew readout beneath the system map. */
+.race-hub-embedded .space-ship-manifest {
+  position:absolute!important;z-index:7!important;top:148px!important;right:8px!important;left:auto!important;
+  width:112px!important;max-width:calc(100% - 16px);border:1px solid rgba(133,190,255,.32);border-radius:10px;
+  background:rgba(3,10,27,.84);color:#e5f3ff;backdrop-filter:blur(8px);box-shadow:0 5px 16px rgba(0,0,0,.2);
+  font:600 8px/1.25 system-ui,sans-serif;letter-spacing:.04em;overflow:hidden;
+}
+.race-hub-embedded .space-ship-manifest-toggle {
+  display:flex;width:100%;min-height:38px;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;
+  padding:6px 7px;border:0;background:transparent;color:#d8edff;text-align:left;cursor:pointer;touch-action:manipulation;
+}
+.race-hub-embedded .space-ship-manifest-toggle>span {font-size:7px;font-weight:900;letter-spacing:.1em;color:#74dff4}
+.race-hub-embedded .space-ship-manifest-toggle strong {font-size:8px;font-weight:800;white-space:nowrap}
+.race-hub-embedded .space-ship-manifest-toggle i {position:absolute;right:7px;top:7px;color:#c6f36b;font-size:12px;font-style:normal;font-weight:900}
+.race-hub-embedded .space-ship-manifest-details {display:grid;gap:6px;padding:7px;border-top:1px solid rgba(133,190,255,.2)}
+.race-hub-embedded .space-ship-manifest-details div {display:flex;flex-direction:column;gap:2px}
+.race-hub-embedded .space-ship-manifest-details span {font-size:6px;color:#9db5cc;letter-spacing:.06em}
+.race-hub-embedded .space-ship-manifest-details b {font-size:10px;color:#f4f8ff}
+@media(max-width:520px) {
+  .race-hub-embedded .space-ship-manifest {top:105px!important;right:7px!important;width:86px!important;border-radius:8px}
+  .race-hub-embedded .space-ship-manifest-toggle {min-height:34px;padding:5px}
+  .race-hub-embedded .space-ship-manifest-toggle>span {font-size:6px}
+  .race-hub-embedded .space-ship-manifest-toggle strong {font-size:7px;white-space:normal;max-width:68px}
+  .race-hub-embedded .space-ship-manifest-toggle i {right:5px;top:5px}
+  .race-hub-embedded .space-ship-manifest-details {gap:5px;padding:5px}
+  .race-hub-embedded .space-ship-manifest-details span {font-size:5px}
+  .race-hub-embedded .space-ship-manifest-details b {font-size:9px}
+}

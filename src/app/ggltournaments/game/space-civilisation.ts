@@ -49,6 +49,8 @@ export type SpaceColony = {
 export type SpaceState = {
   version: 1;
   nearbyTarget: string | null;
+  /** Explicit station docking state; proximity alone never implies docking. */
+  dockedAt?: string | null;
   cargoPeople: number;
   cargoEquipment: number;
   visitedPlanets: string[];
@@ -85,6 +87,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
   return {
     version: 1,
     nearbyTarget: null,
+    dockedAt: null,
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],

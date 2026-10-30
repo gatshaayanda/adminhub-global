@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import "./racing-warmup.css";
+import Racing3DScene from "./racing-3d-scene";
 
 const SPACE_AUTOSAVE_KEY = "ggl-space-autosave-v1";
 const SPACE_MANUAL_SAVE_KEY = "ggl-space-manual-save-v1";
@@ -28,13 +30,10 @@ const parseGameSnapshot = (raw: string | null): SpaceGameSnapshot | null => {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<SpaceGameSnapshot>;
-    if (value.version !== 1 || !Number.isFinite(value.savedAt) || !isValidSpaceState(value.world) || !isFiniteRace(value.flight) || typeof value.paused !== "boolean") return null;
+    if (value.version !== 1 || typeof value.savedAt !== "number" || !Number.isFinite(value.savedAt) || !isValidSpaceState(value.world) || !isFiniteRace(value.flight) || typeof value.paused !== "boolean") return null;
     return value as SpaceGameSnapshot;
   } catch { return null; }
 };
-import "./racing-warmup.css";
-import Racing3DScene from "./racing-3d-scene";
-
 export type { SpaceState };
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; flight: number; accelerate: boolean; brake: boolean; boost: boolean; fire: boolean };

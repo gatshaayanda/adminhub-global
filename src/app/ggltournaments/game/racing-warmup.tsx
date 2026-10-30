@@ -492,7 +492,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             state.colonyGrowthRemainders[target] = 0;
           }
           state.cargoPeople -= moved;
-          movePeople(state.population, "ship", ("planet:" + target) as const, moved);
+          movePeople(state.population, "ship", ("planet:" + target) as `planet:${string}`, moved);
           state.events.unshift(target + " settlement founded by " + moved + " people from GGL Haven.");
           state.events = state.events.slice(0, 6);
           notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations.", "success");

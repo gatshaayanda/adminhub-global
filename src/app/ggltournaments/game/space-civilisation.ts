@@ -30,6 +30,8 @@ export const HABITAT_STAGES: HabitatStage[] = [
   { index: 4, key: "habitable", label: "HABITABLE", color: "#78f0b1", atmosphereColor: "#49dcb8", description: "Crew can establish a settlement" },
 ];
 
+export type SpaceChronicleEvent = { id: string; atWorldMinutes: number; kind: "origin" | "settlement" | "habitat" | "recovery" | "docking" | "repair" | "hazard" | "society" | "production"; location: string; title: string; detail: string };
+
 export type SpaceHazard = { id: string; type: "asteroid-impact" | "power-dust"; target: string; severity: 1 | 2 | 3; forecastStartWorldMinutes: number; impactAtWorldMinutes: number; confidence: number; status: "warning" | "mitigated" | "impact"; mitigation: number };
 
 export type SpaceFaction = { id: string; name: string; agenda: string; influence: number };
@@ -72,6 +74,7 @@ export type SpaceState = {
   hazards?: SpaceHazard[];
   nextHazardAtWorldMinutes?: number;
   ecology?: PlanetEcologyMap;
+  chronicle?: SpaceChronicleEvent[];
 };
 
 export function habitatStage(progress: number): HabitatStage {
@@ -88,6 +91,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     version: 1,
     nearbyTarget: null,
     dockedAt: null,
+    chronicle: [{ id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "The original 60 inhabitants begin the first chapter of the GGL civilisation." }],
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
@@ -117,6 +121,12 @@ const finiteNumber = (value: unknown, fallback: number) =>
 const boundedInteger = (value: unknown, fallback: number, min: number, max: number) =>
   Math.max(min, Math.min(max, Math.round(finiteNumber(value, fallback))));
 
+export function recordSpaceChronicle(state: SpaceState, kind: SpaceChronicleEvent["kind"], location: string, title: string, detail: string): void {
+  if (!state.chronicle) state.chronicle = createInitialSpaceState().chronicle || [];
+  state.chronicle.push({ id: "event-" + Math.round(state.worldTimeMinutes) + "-" + state.chronicle.length, atWorldMinutes: state.worldTimeMinutes, kind, location, title, detail });
+  if (state.chronicle.length > 1200) state.chronicle.splice(0, state.chronicle.length - 1200);
+}
+
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
   if (!Number.isFinite(elapsedWorldMinutes) || elapsedWorldMinutes <= 0) return;
   const hours = elapsedWorldMinutes / 60;
@@ -144,6 +154,7 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       if (nextStage.index > previousStage.index) {
         state.events.unshift(planet.name + " has entered " + nextStage.label + " conditions. " + (nextProgress >= 80 ? "Safe settlement capacity: " + habitatCapacity(nextProgress) + " people." : "More restoration is needed before people can settle safely."));
         state.events = state.events.slice(0, 6);
+        recordSpaceChronicle(state, "habitat", planet.name, planet.name + " reached " + nextStage.label, "Habitat restoration moved from " + previousStage.label + " to " + nextStage.label + " conditions at " + Math.round(state.worldTimeMinutes / 60) + " system hours.");
       }
     }
   }
@@ -275,6 +286,8 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
   const state: SpaceState = {
     ...initial,
     nearbyTarget: typeof saved.nearbyTarget === "string" ? saved.nearbyTarget : null,
+    dockedAt: saved.dockedAt === "GGL Haven" ? "GGL Haven" : null,
+    chronicle: Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")).slice(-1200) : initial.chronicle,
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],

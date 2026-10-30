@@ -405,11 +405,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     signalTransfer("🤖", "MACHINES LOADED", added + " machine(s) moved from Haven's finite stores into your cargo.", "STATION  →  SHIP");
     setSpaceUiTick(n => n + 1);
   };
-  const toggleBoost = () => {
+  const engageBoost = () => {
     if (phaseRef.current !== "running" || raceRef.current.nos <= 0) return;
-    const next = !controlsRef.current.boost;
-    controlsRef.current.boost = next;
-    setBoostActive(next);
+    controlsRef.current.boost = true;
+    setBoostActive(true);
+  };
+  const releaseBoost = () => {
+    controlsRef.current.boost = false;
+    setBoostActive(false);
   };
   const world = spaceStateRef.current;
   const mission = getFirstFootholdCue(world);
@@ -486,13 +489,18 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         <div className="warmup-driving">
           <button type="button" className="down-thrust-button" aria-label="Down thrusters" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("brake", true); }} onPointerUp={() => hold("brake", false)} onPointerCancel={() => hold("brake", false)} onLostPointerCapture={() => hold("brake", false)}>DOWN THRUST ↓</button>
           <button type="button" className="accelerate-button up-thrust-button" aria-label="Up thrusters" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); hold("accelerate", true); }} onPointerUp={() => hold("accelerate", false)} onPointerCancel={() => hold("accelerate", false)} onLostPointerCapture={() => hold("accelerate", false)}>UP THRUST ↑</button>
-          <button type="button" className="nos-button" aria-label="Toggle NOS burst" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0} onClick={toggleBoost}>{boostActive ? "NOS ON ⚡" : "NOS ⚡"}</button>
+          <button type="button" className="nos-button" aria-label="Hold to engage NOS boost" aria-pressed={boostActive} disabled={phase !== "running" || nos <= 0}
+            onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); engageBoost(); }}
+            onPointerUp={releaseBoost} onPointerCancel={releaseBoost} onLostPointerCapture={releaseBoost}
+            onKeyDown={e => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); engageBoost(); } }}
+            onKeyUp={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); releaseBoost(); } }}
+            onBlur={releaseBoost}>{boostActive ? "NOS ACTIVE ⚡" : "HOLD NOS ⚡"}</button>
           <button type="button" className="projectile-button" aria-label="Fire projectile" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controlsRef.current.fire = true; }} onPointerUp={() => { controlsRef.current.fire = false; }} onPointerCancel={() => { controlsRef.current.fire = false; }} onLostPointerCapture={() => { controlsRef.current.fire = false; }}>FIRE ✦</button>
         </div>
         <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => reset()}>Restart ↻</button></div>
       </div>
 
-      <p className="warmup-help">Phone: drag the analog stick left/right to steer and up/down to fly forward/back. UP THRUST ↑ raises altitude; DOWN THRUST ↓ lowers altitude. Tap NOS to toggle a burst. Desktop: ← / → or A / D steer, ↑ / W forward, ↓ / S reverse, E up thrust, Q down thrust, Space / Shift NOS, F / Enter fire, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>
+      <p className="warmup-help">Phone: drag the analog stick left/right to steer and up/down to fly forward/back. UP THRUST ↑ raises altitude; DOWN THRUST ↓ lowers altitude. Hold NOS to engage a boost burst. Desktop: ← / → or A / D steer, ↑ / W forward, ↓ / S reverse, E up thrust, Q down thrust, Space / Shift NOS, F / Enter fire, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>
     </section>
     {!embedded && <footer className="big-brothers-footer"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>TOURNAMENTS · OPEN SPACE</small></span></Link><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></footer>}
   </div>;

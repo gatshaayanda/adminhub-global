@@ -417,6 +417,36 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   };
   // NOS is a compact tap-to-toggle burst, not a hold pedal.
   // Tap once to engage, tap again to cut it; vertical thrust remains independent.
+  const minePlanetMaterials = () => {
+    const state = spaceStateRef.current;
+    const target = state.nearbyTarget;
+    const ecology = target ? state.ecology?.[target] : undefined;
+    if (!target || !ecology || (state.deployedEquipment[target] || 0) <= 0) {
+      notify("Deploy a working machine on this world before mining its resources.", "info");
+      return;
+    }
+    const amount = Math.min(5, 20 - (state.cargoMaterials || 0), Math.floor(ecology.resourceStock));
+    if (amount <= 0) {
+      notify((state.cargoMaterials || 0) >= 20 ? "Raw-material hold full. Deliver it to Haven." : "This world's accessible resource stock is depleted.", "info");
+      return;
+    }
+    ecology.resourceStock -= amount;
+    ecology.extractedResource += amount;
+    state.cargoMaterials = (state.cargoMaterials || 0) + amount;
+    recordSpaceChronicle(state, "production", target, "Raw materials extracted", amount + " units of " + ecology.resourceType + " loaded aboard the ship for Haven fabrication.");
+    notify(amount + " units of " + ecology.resourceType + " loaded. Return to Haven to unload them.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
+  const startMachineProduction = () => {
+    const state = spaceStateRef.current;
+    if (state.dockedAt !== "GGL Haven") { notify("Dock at Haven before operating the station fabricator.", "info"); return; }
+    if ((state.havenMaterials || 0) < 6) { notify("Fabrication requires 6 delivered material units. Mine a working colony world and bring the materials back.", "error"); return; }
+    state.havenMaterials = (state.havenMaterials || 0) - 6;
+    state.machineProductionQueue = (state.machineProductionQueue || 0) + 1;
+    recordSpaceChronicle(state, "production", "GGL Haven", "Machine fabrication started", "Six material units entered the station fabricator. One machine will complete after four system hours.");
+    notify("Machine fabrication started. Six material units committed; completion in four system hours.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
   const dockOrLand = () => {
     const state = spaceStateRef.current;
     const target = state.nearbyTarget;
@@ -441,8 +471,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (newlyDocked) recordSpaceChronicle(state, "docking", "GGL Haven", "Ship docked at Haven", "The ship entered Haven safe harbour. Ordinary asteroid collision damage is suppressed while docked.");
       const returnedCrew = state.cargoPeople;
       const returnedMachines = state.cargoEquipment;
+      const returnedMaterials = state.cargoMaterials || 0;
       if (returnedCrew > 0) { state.havenPopulation += returnedCrew; movePeople(state.population, "ship", "haven", returnedCrew); } // Returning citizens are never discarded at the station capacity threshold.
       if (returnedMachines > 0) state.machineInventory += returnedMachines;
+      if (returnedMaterials > 0) state.havenMaterials = (state.havenMaterials || 0) + returnedMaterials;
       if (state.visitedPlanets.length) {
         const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — " + (state.deployedEquipment[planet] || 0) + " machine(s) installed; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
         state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8);
@@ -454,11 +486,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       } else {
         notify("Docked at GGL Haven. Load a mission when you are ready.", "success");
       }
-      if (returnedCrew || returnedMachines) {
-        signalTransfer("🧑‍🚀", "CARGO RETURNED TO HAVEN", returnedCrew + " crew · " + returnedMachines + " unused machine(s) returned.", "SHIP  →  STATION");
+      if (returnedCrew || returnedMachines || returnedMaterials) {
+        signalTransfer("🧑‍🚀", "CARGO RETURNED TO HAVEN", returnedCrew + " crew · " + returnedMachines + " machine(s) · " + returnedMaterials + " raw material units returned.", "SHIP  →  STATION");
       }
       state.cargoPeople = 0;
       state.cargoEquipment = 0;
+      state.cargoMaterials = 0;
       state.visitedPlanets = [];
       state.asteroidsShot = 0;
       setSpaceUiTick(n => n + 1);

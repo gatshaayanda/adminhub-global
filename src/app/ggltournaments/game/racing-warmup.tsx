@@ -476,6 +476,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const progress = state.planetProgress[target] || 0;
     const installed = state.deployedEquipment[target] || 0;
     const existingColony = state.colonies[target];
+    if (existingColony) {
+      existingColony.lastContactWorldMinutes = state.worldTimeMinutes;
+      existingColony.trustWithHaven = Math.min(100, existingColony.trustWithHaven + (delivered > 0 ? 3 : 1));
+    }
     if (state.cargoPeople > 0) {
       if (progress < 80 || installed < planet.colonyMachineRequirement) {
         const missing = Math.max(0, planet.colonyMachineRequirement - installed);
@@ -489,7 +493,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             existingColony.population += moved;
             existingColony.founders += moved;
           } else {
-            state.colonies[target] = { population: moved, founders: moved, operators: Math.max(1, Math.floor(moved / 4)), foundedAtWorldMinutes: state.worldTimeMinutes, independent: false };
+            state.colonies[target] = {
+              population: moved, founders: moved, operators: Math.max(1, Math.floor(moved / 4)),
+              foundedAtWorldMinutes: state.worldTimeMinutes, independent: false,
+              trustWithHaven: 70, autonomy: 15, governance: "provisional",
+              lastContactWorldMinutes: state.worldTimeMinutes, factions: [],
+            };
             state.colonyGrowthRemainders[target] = 0;
           }
           state.cargoPeople -= moved;

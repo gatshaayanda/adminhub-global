@@ -118,10 +118,8 @@ export function movePeople(population: PopulationState | undefined, from: Popula
   return movers.length;
 }
 
-export type PopulationDelta = { births: Record<string, number>; deaths: Record<string, number> };
-export function advancePopulation(population: PopulationState | undefined, worldMinute: number, planetProgress: Record<string, number>, colonyPopulation: Record<string, number>, events: string[]): PopulationDelta {
-  const delta: PopulationDelta = { births: {}, deaths: {} };
-  if (!population || worldMinute <= population.lastUpdatedWorldMinutes) return delta;
+export function advancePopulation(population: PopulationState | undefined, worldMinute: number, planetProgress: Record<string, number>, colonyPopulation: Record<string, number>, events: string[]): void {
+  if (!population || worldMinute <= population.lastUpdatedWorldMinutes) return;
   const elapsed = Math.min(7 * 1440, worldMinute - population.lastUpdatedWorldMinutes);
   const days = elapsed / 1440;
   const environmentFor = (location: PopulationLocation) => {
@@ -153,13 +151,6 @@ export function advancePopulation(population: PopulationState | undefined, world
     if (person.location === "ship") person.skills.navigation = clamp(person.skills.navigation + days * .008);
     else if (person.location === "haven") person.skills.logistics = clamp(person.skills.logistics + days * .004);
     else { person.skills.engineering = clamp(person.skills.engineering + days * .006); person.skills.ecology = clamp(person.skills.ecology + days * .004); }
-    if (person.health <= 1 || (person.ageYears >= 100 && person.health < 20)) {
-      person.alive = false;
-      const location = person.location === "haven" ? "Haven" : person.location === "ship" ? "the ship" : person.location.slice(7);
-      const cause = average < 32 ? "prolonged unsafe living conditions" : "age-related decline";
-      events.unshift(person.name + " died at " + location + " after " + cause + ".");
-      delta.deaths[person.location] = (delta.deaths[person.location] || 0) + 1;
-    }
     if (average < 32 && worldMinute - person.lastWarningAtWorldMinutes > 1440) {
       person.lastWarningAtWorldMinutes = worldMinute;
       events.unshift(person.name + " is experiencing unsafe living conditions at " + person.location.replace("planet:","") + ". Support is needed.");
@@ -178,42 +169,6 @@ export function advancePopulation(population: PopulationState | undefined, world
       relationship.trust = clamp(relationship.trust - days * .01);
     }
   }
-  for (const household of population.households) {
-    const members = population.people.filter(person => person.alive && person.householdId === household.id);
-    if (members.length) household.cohesion = clamp(household.cohesion + (members.reduce((sum,person)=>sum+person.needs.belonging,0)/members.length > 70 ? days * .01 : -days * .012));
-    const partners = population.relationships.filter(rel => rel.kind === "partner" && household.memberIds.includes(rel.personA) && household.memberIds.includes(rel.personB));
-    const pair = partners.map(rel => ({ rel, a: population.people.find(person => person.id === rel.personA), b: population.people.find(person => person.id === rel.personB) })).find(item => item.a?.alive && item.b?.alive);
-    if (!pair || !pair.a || !pair.b || pair.a.location !== pair.b.location) continue;
-    const location = pair.a.location;
-    const capacity = location === "haven" ? 240 : location.startsWith("planet:") ? Math.max(0, 12 + Math.floor(((planetProgress[location.slice(7)] || 0) - 80) * 1.6)) : 0;
-    const currentPopulation = location === "haven" ? 0 : location.startsWith("planet:") ? colonyPopulation[location.slice(7)] || 0 : 0;
-    const safeCapacity = location === "haven" ? 240 : capacity;
-    const wellbeing = (pair.a.health + pair.b.health + pair.a.needs.food + pair.b.needs.food + pair.a.needs.belonging + pair.b.needs.belonging) / 6;
-    if (location !== "ship" && pair.a.ageYears >= 20 && pair.a.ageYears <= 45 && pair.b.ageYears >= 20 && pair.b.ageYears <= 45 && pair.rel.trust >= 82 && household.cohesion >= 78 && wellbeing >= 78 && members.length < 5 && currentPopulation + members.length < safeCapacity && worldMinute - household.lastBirthAtWorldMinutes >= 5 * 525600) {
-      const childIndex = population.people.length + 1;
-      const child: SpacePerson = {
-        id: "person-" + String(childIndex).padStart(4, "0"), name: FIRST_NAMES[hash(population.seed,childIndex,31) % FIRST_NAMES.length] + " " + LAST_NAMES[hash(population.seed,childIndex,32) % LAST_NAMES.length],
-        ageYears: 0, lifeStage: "young", location, householdId: household.id, motivation: pair.a.motivation,
-        traits: {
-          curiosity: Math.round((pair.a.traits.curiosity + pair.b.traits.curiosity)/2),
-          cooperation: Math.round((pair.a.traits.cooperation + pair.b.traits.cooperation)/2),
-          ambition: Math.round((pair.a.traits.ambition + pair.b.traits.ambition)/2),
-          resilience: Math.round((pair.a.traits.resilience + pair.b.traits.resilience)/2),
-          autonomy: Math.round((pair.a.traits.autonomy + pair.b.traits.autonomy)/2),
-        },
-        needs: initialNeeds(), skills: { engineering:0, medicine:0, ecology:0, logistics:0, science:0, leadership:0, mediation:0, navigation:0 },
-        health: 100, alive: true, bornAtWorldMinutes: worldMinute, lastWarningAtWorldMinutes: -1,
-      };
-      population.people.push(child);
-      household.memberIds.push(child.id);
-      household.lastBirthAtWorldMinutes = worldMinute;
-      population.relationships.push({ id: "rel-" + String(population.relationships.length + 1).padStart(4,"0"), personA: pair.a.id, personB: child.id, kind: "kin", trust: 92, affinity: 100, lastChangedAtWorldMinutes: worldMinute });
-      population.relationships.push({ id: "rel-" + String(population.relationships.length + 1).padStart(4,"0"), personA: pair.b.id, personB: child.id, kind: "kin", trust: 92, affinity: 100, lastChangedAtWorldMinutes: worldMinute });
-      delta.births[location] = (delta.births[location] || 0) + 1;
-      events.unshift("A child was born into " + household.id + " at " + (location === "haven" ? "GGL Haven" : location.slice(7)) + ". Their future begins in this civilisation.");
-    }
-  }
   population.lastUpdatedWorldMinutes = worldMinute;
   if (events.length > 6) events.length = 6;
-  return delta;
 }

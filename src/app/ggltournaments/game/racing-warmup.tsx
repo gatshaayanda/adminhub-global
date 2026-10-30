@@ -585,6 +585,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           </button>
           {shipManifestOpen && <div className="space-ship-manifest-details">
             <div><span>CREW ON BOARD</span><b>{spaceStateRef.current.cargoPeople} / 6</b></div>
+            <small className="space-people-roster">{(spaceStateRef.current.population?.people || []).filter(person => person.alive && person.location === "ship").map(person => person.name).join(" · ") || "No named crew aboard"}</small>
             <div><span>TERRAFORMING MACHINES</span><b>{spaceStateRef.current.cargoEquipment} / 4</b></div>
             <div><span>HAVEN POPULATION</span><b>{spaceStateRef.current.havenPopulation}</b></div>
             <div><span>HAVEN MACHINE STOCK</span><b>{spaceStateRef.current.machineInventory}</b></div>
@@ -619,7 +620,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <div className="space-proximity-data">Unattended equipment module detected. Recover it to replenish the ship equipment cargo.</div>
             <button type="button" onClick={dockOrLand} disabled={world.cargoEquipment >= 4}>Recover equipment <span>＋</span></button>
           </> : world.nearbyTarget === "GGL Haven" ? <>
-            <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage</div>
+            <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage<br /><small>{(world.population?.people || []).filter(person => person.alive && person.location === "haven").slice(0, 4).map(person => person.name).join(" · ")}</small></div>
             <button type="button" onClick={dockOrLand}>Dock / return cargo <span>↙</span></button>
             <div className="space-machine-load-options" aria-label="Choose machinery load">
               <button type="button" onClick={() => loadMachinesAtStation(1)} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load 1 machine</button>
@@ -629,7 +630,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           </> : <>
             {(() => { const planet = WORLD_PLANETS.find(item => item.name === world.nearbyTarget); if (!planet) return null; const progress = world.planetProgress[planet.name] ?? planet.initialProgress; const installed = world.deployedEquipment[planet.name] || 0; const stage = habitatStage(progress); const colony = world.colonies[planet.name]; return <div className="space-proximity-data">
               <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
-              {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}
+              {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}<br />{(world.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name)).slice(0, 3).map(person => person.name).join(" · ")}
             </div>; })()}
             <button type="button" onClick={dockOrLand}>{world.cargoEquipment > 0 ? (world.cargoPeople > 0 ? "Deliver machines + crew" : "Deploy machinery") : world.cargoPeople > 0 ? "Check settlement conditions" : "Inspect world"} <span>↗</span></button>
           </>}

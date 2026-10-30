@@ -1,3 +1,5 @@
+import { advancePopulation, createPopulationState, restorePopulationState, type PopulationState } from "./space-people";
+
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
 
 export const WORLD_PLANETS = [
@@ -55,6 +57,7 @@ export type SpaceState = {
   colonies: Record<string, SpaceColony>;
   colonyGrowthRemainders: Record<string, number>;
   events: string[];
+  population?: PopulationState;
 };
 
 export function habitatStage(progress: number): HabitatStage {
@@ -87,6 +90,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     colonies: {},
     colonyGrowthRemainders: {},
     events: ["Mission signal: Cobalt is 66% restored. Three machines can move it from thin air toward a safe habitat."],
+    population: createPopulationState(0x47474c, 60, 0),
   };
 }
 
@@ -147,6 +151,7 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       state.events = state.events.slice(0, 6);
     }
   }
+  advancePopulation(state.population, state.worldTimeMinutes, state.planetProgress, Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population])), state.events);
 }
 
 export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState {
@@ -199,6 +204,11 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     const remainders = saved.colonyGrowthRemainders as Record<string, unknown> | undefined;
     state.colonyGrowthRemainders[planet.name] = Math.max(0, Math.min(0.999999, finiteNumber(remainders?.[planet.name], 0)));
   }
+  state.population = restorePopulationState(saved.population, {
+    haven: state.havenPopulation,
+    ship: state.cargoPeople,
+    colonies: Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population])),
+  }, state.worldTimeMinutes);
 
   // Offline catch-up follows the accelerated world clock, capped at seven simulated days.
   const elapsedWallSeconds = Math.max(0, Math.min(30 * 24 * 60 * 60, (now - state.lastSimulatedAt) / 1000));

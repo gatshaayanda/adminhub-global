@@ -82,6 +82,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [transferSignal, setTransferSignal] = useState<{ id: number; emoji: string; title: string; detail: string; route: string } | null>(null);
   const [proximityMenuOpen, setProximityMenuOpen] = useState(true);
+  const [shipManifestOpen, setShipManifestOpen] = useState(false);
   const transferSignalId = useRef(0);
   const transferTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signalTransfer = useCallback((emoji: string, title: string, detail: string, route: string) => {
@@ -424,6 +425,20 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds nearby</span><strong>05</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
+        <div className="space-ship-manifest" aria-label="Ship manifest">
+          <button type="button" className="space-ship-manifest-toggle" aria-expanded={shipManifestOpen} onClick={() => setShipManifestOpen(open => !open)}>
+            <span>SHIP MANIFEST</span>
+            <strong>{spaceStateRef.current.cargoPeople} crew · {spaceStateRef.current.cargoEquipment} machines</strong>
+            <i aria-hidden="true">{shipManifestOpen ? "−" : "+"}</i>
+          </button>
+          {shipManifestOpen && <div className="space-ship-manifest-details">
+            <div><span>CREW ON BOARD</span><b>{spaceStateRef.current.cargoPeople} / 6</b></div>
+            <div><span>TERRAFORMING MACHINES</span><b>{spaceStateRef.current.cargoEquipment} / 4</b></div>
+            <div><span>HAVEN POPULATION</span><b>{spaceStateRef.current.havenPopulation}</b></div>
+            <div><span>HAVEN MACHINE STOCK</span><b>{spaceStateRef.current.machineInventory}</b></div>
+            <div><span>WORLDS VISITED</span><b>{spaceStateRef.current.visitedPlanets.length} / 5</b></div>
+          </div>}
+        </div>
         <div className="space-flight-status" aria-label="Live flight status">
           <span><b>{spaceStateRef.current.cargoPeople}</b> crew</span>
           <i />

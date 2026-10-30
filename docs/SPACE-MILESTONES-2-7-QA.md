@@ -144,3 +144,17 @@ The product owner tested the READY Vercel preview and reported:
 ## Release and QA gate — supersedes earlier branch instructions
 
 The earlier instruction to keep `feat/ggl-space-milestones-2-to-7` unmerged applied before the product owner approved release. It is superseded by the actual approval and PR #17 merge recorded above. For the current follow-up branch, keep all changes on `feat/ggl-space-qa-followup`; only merge after a READY preview for its exact latest commit, hands-on product-owner QA, and explicit approval. Always provide the direct `/ggltournaments` route in preview handoffs.
+
+
+## Follow-up implementation checkpoint — current branch work
+
+Implemented in the current follow-up branch (not yet product-owner QA-approved):
+- Added an explicit persisted-compatible `dockedAt` state for GGL Haven. Docking is a deliberate menu action; flight input undocks the ship. Ordinary asteroid hull collision damage is suppressed while explicitly docked at Haven.
+- Increased the target-assist acquisition range/cone and steering strength, and changed the aim point from the target centre to its near surface. It remains strictly player-FIRE-triggered.
+- Raised proximity action stacking priority, restored pointer/touch events to the menu and buttons, made transient transfer signalers ignore pointer input, and strengthened focus/touch affordances.
+
+Not yet implemented in this checkpoint:
+- Persistent structured Haven/colony chronicles and causal family/personal storylines.
+- A complete finite Haven manufacturing/resupply chain and a clear repair-material production loop.
+
+These are still explicit roadmap requirements, not completed features. The current branch preview must be tested for the implemented fixes before any claim of success. In particular, confirm a player can recover a cache on touch, observe assisted shots, explicitly dock and remain safe through an asteroid event, and undock to resume normal collision risk.

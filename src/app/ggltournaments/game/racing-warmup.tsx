@@ -3,6 +3,24 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+
+const SPACE_AUTOSAVE_KEY = "ggl-space-autosave-v1";
+const SPACE_MANUAL_SAVE_KEY = "ggl-space-manual-save-v1";
+type SpaceGameSnapshot = { version: 1; savedAt: number; world: SpaceState; flight: Race; paused: boolean };
+const isFiniteRace = (value: unknown): value is Race => {
+  if (!value || typeof value !== "object") return false;
+  const race = value as Record<string, unknown>;
+  const numeric = ["progress","speed","elapsed","lap","lapTime","steering","throttle","brakePressure","lateral","lateralVelocity","heading","drift","nos","last","offTrack","longitudinalLoad","lateralG","wheelLock","worldX","worldY","worldZ","worldYaw","velocityX","velocityY","velocityZ","damage","lastImpactAt","trackT"];
+  return numeric.every((key) => typeof race[key] === "number" && Number.isFinite(race[key])) && typeof race.lapInvalid === "boolean" && (race.bestLap === null || (typeof race.bestLap === "number" && Number.isFinite(race.bestLap)));
+};
+const parseGameSnapshot = (raw: string | null): SpaceGameSnapshot | null => {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<SpaceGameSnapshot>;
+    if (value.version !== 1 || !value.world || value.world.version !== 1 || !isFiniteRace(value.flight) || typeof value.paused !== "boolean") return null;
+    return value as SpaceGameSnapshot;
+  } catch { return null; }
+};
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 
@@ -31,14 +49,30 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [, setSpaceUiTick] = useState(0);
   const stateHydratedRef = useRef(false);
   const lastProcessedWorldMinutesRef = useRef(0);
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  const [manualSaveAvailable, setManualSaveAvailable] = useState(false);
   useEffect(() => { const timer = window.setInterval(() => setSpaceUiTick(n => n + 1), 500); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     const now = Date.now();
     try {
-      const saved = window.localStorage.getItem(SPACE_SAVE_KEY);
-      spaceStateRef.current = saved ? restoreSpaceState(JSON.parse(saved), now) : createInitialSpaceState(now);
+      const autoSnapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_AUTOSAVE_KEY));
+      if (autoSnapshot) {
+        const restoreAt = autoSnapshot.paused ? autoSnapshot.world.lastSimulatedAt : now;
+        spaceStateRef.current = restoreSpaceState(autoSnapshot.world, restoreAt);
+        raceRef.current = { ...autoSnapshot.flight, last: 0 };
+        phaseRef.current = autoSnapshot.paused ? "paused" : "running";
+        setPhase(phaseRef.current);
+      } else {
+        const legacy = window.localStorage.getItem(SPACE_SAVE_KEY);
+        spaceStateRef.current = legacy ? restoreSpaceState(JSON.parse(legacy), now) : createInitialSpaceState(now);
+      }
+      setManualSaveAvailable(Boolean(parseGameSnapshot(window.localStorage.getItem(SPACE_MANUAL_SAVE_KEY))));
     } catch {
       spaceStateRef.current = createInitialSpaceState(now);
+      raceRef.current = newRace();
+      phaseRef.current = "running";
+      setPhase("running");
+      setManualSaveAvailable(false);
     }
     lastProcessedWorldMinutesRef.current = spaceStateRef.current.worldTimeMinutes;
     stateHydratedRef.current = true;
@@ -47,17 +81,27 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const saveWorld = () => {
       if (!stateHydratedRef.current) return;
       const state = spaceStateRef.current;
-      const elapsed = state.worldTimeMinutes - lastProcessedWorldMinutesRef.current;
-      if (elapsed > 0) advanceSpaceWorld(state, elapsed);
+      if (phaseRef.current === "running") {
+        const elapsed = state.worldTimeMinutes - lastProcessedWorldMinutesRef.current;
+        if (elapsed > 0) advanceSpaceWorld(state, elapsed);
+      }
       lastProcessedWorldMinutesRef.current = state.worldTimeMinutes;
-      state.lastSimulatedAt = Date.now();
-      try { window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(state)); } catch { /* Continue the live run if browser storage is unavailable. */ }
+      const savedAt = Date.now();
+      state.lastSimulatedAt = savedAt;
+      const snapshot: SpaceGameSnapshot = { version: 1, savedAt, world: state, flight: { ...raceRef.current, last: 0 }, paused: phaseRef.current === "paused" };
+      try {
+        window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(state));
+        window.localStorage.setItem(SPACE_AUTOSAVE_KEY, JSON.stringify(snapshot));
+      } catch { /* Keep the active run playable if browser storage is unavailable. */ }
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") { saveWorld(); return; }
-      const state = restoreSpaceState(spaceStateRef.current, Date.now());
+      const paused = phaseRef.current === "paused";
+      const state = restoreSpaceState(spaceStateRef.current, paused ? spaceStateRef.current.lastSimulatedAt : Date.now());
       spaceStateRef.current = state;
       lastProcessedWorldMinutesRef.current = state.worldTimeMinutes;
+      raceRef.current.last = 0;
+      saveWorld();
       setSpaceUiTick(n => n + 1);
     };
     const timer = window.setInterval(() => { if (document.visibilityState !== "hidden") saveWorld(); setSpaceUiTick(n => n + 1); }, 1000);
@@ -70,8 +114,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       saveWorld();
     };
   }, []);
-  const phaseRef = useRef<Phase>("running");
-  const [phase, setPhase] = useState<Phase>("running");
   const [countdown, setCountdown] = useState(3);
   const [speed, setSpeed] = useState(0);
   const [lapTime, setLapTime] = useState(0);
@@ -106,14 +148,77 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   }, []);
   useEffect(() => { if (!embedded) document.title = "GGL Space · Open-space exploration"; }, [embedded]);
 
+  const neutralControls = () => { controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false }; };
+  const writeAutoSnapshot = () => {
+    const state = spaceStateRef.current;
+    if (phaseRef.current === "running") {
+      const elapsed = state.worldTimeMinutes - lastProcessedWorldMinutesRef.current;
+      if (elapsed > 0) advanceSpaceWorld(state, elapsed);
+    }
+    lastProcessedWorldMinutesRef.current = state.worldTimeMinutes;
+    const savedAt = Date.now();
+    state.lastSimulatedAt = savedAt;
+    const snapshot: SpaceGameSnapshot = { version: 1, savedAt, world: state, flight: { ...raceRef.current, last: 0 }, paused: phaseRef.current === "paused" };
+    try { window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(state)); window.localStorage.setItem(SPACE_AUTOSAVE_KEY, JSON.stringify(snapshot)); } catch { notify("Browser storage is unavailable. Your current run is still active.", "error"); }
+  };
   const reset = useCallback(() => {
     raceRef.current = newRace();
     cornerSkillRef.current = { brakedForCorner: false, turnedIn: false, exitBoostUntil: 0 };
-    controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false };
+    neutralControls();
     setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
     phaseRef.current = "running"; setPhase("running");
   }, []);
   const startRace = useCallback(() => reset(), [reset]);
+  const saveManualGame = () => {
+    const state = spaceStateRef.current;
+    if (phaseRef.current === "running") {
+      const elapsed = state.worldTimeMinutes - lastProcessedWorldMinutesRef.current;
+      if (elapsed > 0) advanceSpaceWorld(state, elapsed);
+    }
+    lastProcessedWorldMinutesRef.current = state.worldTimeMinutes;
+    const savedAt = Date.now();
+    state.lastSimulatedAt = savedAt;
+    const snapshot: SpaceGameSnapshot = { version: 1, savedAt, world: state, flight: { ...raceRef.current, last: 0 }, paused: phaseRef.current === "paused" };
+    try {
+      window.localStorage.setItem(SPACE_MANUAL_SAVE_KEY, JSON.stringify(snapshot));
+      window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(state));
+      window.localStorage.setItem(SPACE_AUTOSAVE_KEY, JSON.stringify(snapshot));
+      setManualSaveAvailable(true);
+      notify("Manual save secured. Your current civilisation and ship are recorded.");
+    } catch { notify("Save failed. The existing run and previous manual save were left intact.", "error"); }
+  };
+  const loadManualGame = () => {
+    let snapshot: SpaceGameSnapshot | null = null;
+    try { snapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_MANUAL_SAVE_KEY)); } catch { snapshot = null; }
+    if (!snapshot) { notify("No valid manual save was found. Your current run has not changed.", "error"); return; }
+    const restoredWorld = restoreSpaceState(snapshot.world, snapshot.paused ? snapshot.world.lastSimulatedAt : Date.now());
+    const restoredRace = { ...snapshot.flight, last: 0 };
+    spaceStateRef.current = restoredWorld;
+    raceRef.current = restoredRace;
+    lastProcessedWorldMinutesRef.current = restoredWorld.worldTimeMinutes;
+    neutralControls();
+    setSpeed(restoredRace.speed); setLapTime(restoredRace.elapsed); setNos(restoredRace.nos); setBoostActive(false);
+    phaseRef.current = snapshot.paused ? "paused" : "running";
+    setPhase(phaseRef.current);
+    restoredWorld.lastSimulatedAt = Date.now();
+    writeAutoSnapshot();
+    setSpaceUiTick(n => n + 1);
+    notify("Manual save loaded. The saved ship position and civilisation are restored.");
+  };
+  const restartCivilisation = () => {
+    const freshWorld = createInitialSpaceState(Date.now());
+    spaceStateRef.current = freshWorld;
+    lastProcessedWorldMinutesRef.current = freshWorld.worldTimeMinutes;
+    reset();
+    setShowRestartConfirm(false);
+    try {
+      const snapshot: SpaceGameSnapshot = { version: 1, savedAt: Date.now(), world: freshWorld, flight: { ...raceRef.current, last: 0 }, paused: false };
+      window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(freshWorld));
+      window.localStorage.setItem(SPACE_AUTOSAVE_KEY, JSON.stringify(snapshot));
+      setSpaceUiTick(n => n + 1);
+      notify("A new civilisation has begun at GGL Haven. The original 60 are aboard the story again.");
+    } catch { notify("The new run started, but browser autosave is unavailable.", "error"); }
+  };
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
       controlsRef.current = { steer: 0, flight: 0, accelerate: false, brake: false, boost: false, fire: false };
@@ -425,6 +530,26 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds nearby</span><strong>05</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
+        {(phase === "paused" || showRestartConfirm) && <div className="space-lifecycle-overlay" role="dialog" aria-modal="true" aria-labelledby="space-lifecycle-title">
+          <div className="space-lifecycle-card">
+            <span className="space-lifecycle-brand">ADMIN HUB CIPA · FLIGHT SYSTEM</span>
+            {showRestartConfirm ? <>
+              <h2 id="space-lifecycle-title">RESTART CIVILISATION?</h2>
+              <p>This begins a fresh run at GGL Haven with its original 60 people and starting supplies. Your separate manual save will be kept.</p>
+              <div className="space-lifecycle-actions">
+                <button type="button" className="space-lifecycle-secondary" onClick={() => setShowRestartConfirm(false)}>KEEP CURRENT RUN</button>
+                <button type="button" className="space-lifecycle-primary" onClick={restartCivilisation}>RESTART CIVILISATION</button>
+              </div>
+            </> : <>
+              <h2 id="space-lifecycle-title">PAUSED</h2>
+              <p>Flight controls, world time and civilisation progression are on hold.</p>
+              <div className="space-lifecycle-actions">
+                <button type="button" className="space-lifecycle-primary" onClick={pauseRace}>RESUME FLIGHT ▶</button>
+                <button type="button" className="space-lifecycle-secondary" onClick={() => setShowRestartConfirm(true)}>RESTART CIVILISATION ↻</button>
+              </div>
+            </>}
+          </div>
+        </div>}
         <div className="space-ship-manifest" aria-label="Ship manifest">
           <button type="button" className="space-ship-manifest-toggle" aria-expanded={shipManifestOpen} onClick={() => setShipManifestOpen(open => !open)}>
             <span>SHIP MANIFEST</span>
@@ -437,6 +562,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <div><span>HAVEN POPULATION</span><b>{spaceStateRef.current.havenPopulation}</b></div>
             <div><span>HAVEN MACHINE STOCK</span><b>{spaceStateRef.current.machineInventory}</b></div>
             <div><span>WORLDS VISITED</span><b>{spaceStateRef.current.visitedPlanets.length} / 5</b></div>
+            <div className="space-manifest-save-actions">
+              <button type="button" onClick={saveManualGame}>SAVE RUN</button>
+              <button type="button" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVE</button>
+            </div>
+            <small className="space-manifest-save-note">{manualSaveAvailable ? "MANUAL SAVE AVAILABLE · AUTOSAVE ACTIVE" : "AUTOSAVE ACTIVE · NO MANUAL SAVE"}</small>
           </div>}
         </div>
         <div className="space-flight-status" aria-label="Live flight status">
@@ -512,7 +642,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             onBlur={releaseBoost}>{boostActive ? "NOS ACTIVE ⚡" : "HOLD NOS ⚡"}</button>
           <button type="button" className="projectile-button" aria-label="Fire projectile" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controlsRef.current.fire = true; }} onPointerUp={() => { controlsRef.current.fire = false; }} onPointerCancel={() => { controlsRef.current.fire = false; }} onLostPointerCapture={() => { controlsRef.current.fire = false; }}>FIRE ✦</button>
         </div>
-        <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => reset()}>Restart ↻</button></div>
+        <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => setShowRestartConfirm(true)}>Restart ↻</button></div>
       </div>
 
       <p className="warmup-help">Phone: drag the analog stick left/right to steer and up/down to fly forward/back. UP THRUST ↑ raises altitude; DOWN THRUST ↓ lowers altitude. Hold NOS to engage a boost burst. Desktop: ← / → or A / D steer, ↑ / W forward, ↓ / S reverse, E up thrust, Q down thrust, Space / Shift NOS, F / Enter fire, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>

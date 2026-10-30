@@ -13,11 +13,22 @@ const isFiniteRace = (value: unknown): value is Race => {
   const numeric = ["progress","speed","elapsed","lap","lapTime","steering","throttle","brakePressure","lateral","lateralVelocity","heading","drift","nos","last","offTrack","longitudinalLoad","lateralG","wheelLock","worldX","worldY","worldZ","worldYaw","velocityX","velocityY","velocityZ","damage","lastImpactAt","trackT"];
   return numeric.every((key) => typeof race[key] === "number" && Number.isFinite(race[key])) && typeof race.lapInvalid === "boolean" && (race.bestLap === null || (typeof race.bestLap === "number" && Number.isFinite(race.bestLap)));
 };
+const isValidSpaceState = (value: unknown): value is SpaceState => {
+  if (!value || typeof value !== "object") return false;
+  const world = value as Record<string, unknown>;
+  const numeric = ["cargoPeople","cargoEquipment","acclaim","asteroidsShot","havenPopulation","machineInventory","worldTimeMinutes","lastSimulatedAt","havenGrowthRemainder"];
+  const records = ["deployedEquipment","planetProgress","colonies","colonyGrowthRemainders"];
+  return world.version === 1
+    && numeric.every((key) => typeof world[key] === "number" && Number.isFinite(world[key]))
+    && (typeof world.nearbyTarget === "string" || world.nearbyTarget === null)
+    && Array.isArray(world.visitedPlanets) && Array.isArray(world.travelNotes) && Array.isArray(world.events)
+    && records.every((key) => Boolean(world[key]) && typeof world[key] === "object" && !Array.isArray(world[key]));
+};
 const parseGameSnapshot = (raw: string | null): SpaceGameSnapshot | null => {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<SpaceGameSnapshot>;
-    if (value.version !== 1 || !value.world || value.world.version !== 1 || !isFiniteRace(value.flight) || typeof value.paused !== "boolean") return null;
+    if (value.version !== 1 || !Number.isFinite(value.savedAt) || !isValidSpaceState(value.world) || !isFiniteRace(value.flight) || typeof value.paused !== "boolean") return null;
     return value as SpaceGameSnapshot;
   } catch { return null; }
 };

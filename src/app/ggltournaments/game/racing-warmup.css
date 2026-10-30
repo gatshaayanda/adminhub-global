@@ -1020,3 +1020,9 @@
 
 .race-hub-embedded .space-people-roster{display:block;margin:-3px 0 5px;color:#9bb8cc;font:600 7px/1.4 system-ui,sans-serif;letter-spacing:.015em}
 .race-hub-embedded .space-proximity-data small{color:#a9c1d3;font-size:9px;line-height:1.5}
+
+.race-hub-embedded .space-hazard-card{display:grid;gap:5px;margin-top:8px;padding:8px;border:1px solid rgba(255,185,102,.42);border-radius:7px;background:rgba(83,43,18,.28)}
+.race-hub-embedded .space-hazard-card>b{color:#ffd18a;font:900 8px/1.3 system-ui,sans-serif;letter-spacing:.07em}
+.race-hub-embedded .space-hazard-card>small{color:#d6c4aa;font:600 8px/1.45 system-ui,sans-serif}
+.race-hub-embedded .space-hazard-card>button{min-height:29px;border:1px solid rgba(255,190,113,.45);border-radius:5px;background:rgba(255,164,72,.13);color:#ffe5bd;font:800 8px/1.2 system-ui,sans-serif}
+.race-hub-embedded .space-hazard-card>button:disabled{opacity:.4}

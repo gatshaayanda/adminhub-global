@@ -420,6 +420,18 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const state = spaceStateRef.current;
     const target = state.nearbyTarget;
     if (!target) { notify("Fly closer to GGL Haven or a planet to dock.", "info"); return; }
+    if (target === "Floating Equipment") {
+      if (state.cargoEquipment >= 4) { notify("Machine hold full. Return to Haven or deliver equipment before recovering more.", "info"); return; }
+      state.cargoEquipment += 1;
+      state.salvageRecovered = (state.salvageRecovered || 0) + 1;
+      state.acclaim += 1;
+      state.events.unshift("Recoverable station equipment recovered and secured aboard the ship.");
+      state.events = state.events.slice(0, 6);
+      signalTransfer("🧰", "EQUIPMENT RECOVERED", "One floating machine module secured in the ship cargo.", "SPACE  →  SHIP");
+      notify("Equipment module recovered. Cargo +1 machine; archive acclaim +1.", "success");
+      setSpaceUiTick(n => n + 1);
+      return;
+    }
 
     if (target === "GGL Haven") {
       const returnedCrew = state.cargoPeople;
@@ -599,8 +611,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         {world.nearbyTarget && <>
           <button type="button" className="space-proximity-toggle" aria-expanded={proximityMenuOpen} onClick={() => setProximityMenuOpen(open => !open)}>{proximityMenuOpen ? "CLOSE" : "PLANET MENU"} <span aria-hidden="true">{proximityMenuOpen ? "−" : "+"}</span></button>
           {proximityMenuOpen && <div className="space-proximity-actions" aria-label="Nearby interaction">
-          <div className="space-proximity-copy"><span>{world.nearbyTarget === "GGL Haven" ? "HAVEN DOCKING BAY" : "PLANETARY APPROACH"}</span><strong>{world.nearbyTarget}</strong></div>
-          {world.nearbyTarget === "GGL Haven" ? <>
+          <div className="space-proximity-copy"><span>{world.nearbyTarget === "GGL Haven" ? "HAVEN DOCKING BAY" : world.nearbyTarget === "Floating Equipment" ? "RECOVERY SIGNAL" : "PLANETARY APPROACH"}</span><strong>{world.nearbyTarget}</strong></div>
+          {world.nearbyTarget === "Floating Equipment" ? <>
+            <div className="space-proximity-data">Unattended equipment module detected. Recover it to replenish the ship equipment cargo.</div>
+            <button type="button" onClick={dockOrLand} disabled={world.cargoEquipment >= 4}>Recover equipment <span>＋</span></button>
+          </> : world.nearbyTarget === "GGL Haven" ? <>
             <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage</div>
             <button type="button" onClick={dockOrLand}>Dock / return cargo <span>↙</span></button>
             <div className="space-machine-load-options" aria-label="Choose machinery load">

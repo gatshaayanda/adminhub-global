@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
@@ -428,6 +428,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       state.acclaim += 1;
       state.events.unshift("Recoverable station equipment recovered and secured aboard the ship.");
       state.events = state.events.slice(0, 6);
+      recordSpaceChronicle(state, "recovery", "GGL Haven", "Equipment cache recovered", "The pilot recovered one floating machine module; ship cargo increased by one.");
       signalTransfer("🧰", "EQUIPMENT RECOVERED", "One floating machine module secured in the ship cargo.", "SPACE  →  SHIP");
       notify("Equipment module recovered. Cargo +1 machine; archive acclaim +1.", "success");
       setSpaceUiTick(n => n + 1);
@@ -435,7 +436,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     }
 
     if (target === "GGL Haven") {
+      const newlyDocked = state.dockedAt !== "GGL Haven";
       state.dockedAt = "GGL Haven";
+      if (newlyDocked) recordSpaceChronicle(state, "docking", "GGL Haven", "Ship docked at Haven", "The ship entered Haven safe harbour. Ordinary asteroid collision damage is suppressed while docked.");
       const returnedCrew = state.cargoPeople;
       const returnedMachines = state.cargoEquipment;
       if (returnedCrew > 0) { state.havenPopulation += returnedCrew; movePeople(state.population, "ship", "haven", returnedCrew); } // Returning citizens are never discarded at the station capacity threshold.
@@ -504,6 +507,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           state.cargoPeople -= moved;
           movePeople(state.population, "ship", ("planet:" + target) as `planet:${string}`, moved);
           state.events.unshift(target + " settlement founded by " + moved + " people from GGL Haven.");
+          recordSpaceChronicle(state, "settlement", target, target + " settlement founded", moved + " settlers from Haven established the first local community. Its history begins here.");
           state.events = state.events.slice(0, 6);
           notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations.", "success");
           signalTransfer("🧑‍🚀", "SETTLEMENT FOUNDED", moved + " person(s) established local operations on " + target + ".", "SHIP  →  " + target.toUpperCase());
@@ -522,6 +526,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const state = spaceStateRef.current;
     if (state.dockedAt !== "GGL Haven") return;
     state.dockedAt = null;
+    recordSpaceChronicle(state, "docking", "GGL Haven", "Ship undocked", "The ship left safe harbour; ordinary open-space collision hazards are active again.");
     notify("Undocked from GGL Haven. Open-space collision hazards are active again.", "info");
     setSpaceUiTick(n => n + 1);
   };
@@ -533,6 +538,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const cost = Math.ceil(damage / 35);
     if (state.machineInventory < cost) { notify("Insufficient spare machinery. Repair requires " + cost + " machine unit(s).", "error"); return; }
     state.machineInventory -= cost;
+    recordSpaceChronicle(state, "repair", "GGL Haven", "Ship hull repaired", "Haven consumed " + cost + " machine unit(s) to restore the ship hull.");
     raceRef.current.damage = 0;
     notify("Ship hull repaired at GGL Haven. " + cost + " finite machine unit(s) consumed.", "success");
     signalTransfer("🛠️", "SHIP REPAIRED", "Hull integrity restored using " + cost + " spare machine unit(s).", "HAVEN  →  SHIP");

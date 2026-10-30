@@ -469,6 +469,16 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         rock.mesh.position.addScaledVector(rock.velocity, frameDelta);
         rock.mesh.rotation.x += frameDelta * .32;
         rock.mesh.rotation.y += frameDelta * .48;
+        if (currentPhase === "running" && rock.mesh.position.distanceTo(shipPosition) <= rock.radius + 2.4) {
+          const hullDamage = Math.max(3, Math.round(rock.radius * 2.2));
+          race.damage = clamp(race.damage + hullDamage, 0, 100);
+          state.events.unshift("Asteroid collision damaged the ship hull by " + hullDamage + " points. Dock at GGL Haven for repairs.");
+          state.events.length = Math.min(state.events.length, 6);
+          const flash = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 6), impactMaterial);
+          flash.position.copy(shipPosition); scene.add(flash); impacts.push({ mesh: flash, age: 0 });
+          scene.remove(rock.mesh); asteroids.splice(i, 1);
+          continue;
+        }
         rock.age += frameDelta;
         if (rock.age > 8 || rock.mesh.position.distanceTo(shipPosition) > 230) {
           scene.remove(rock.mesh); asteroids.splice(i, 1);

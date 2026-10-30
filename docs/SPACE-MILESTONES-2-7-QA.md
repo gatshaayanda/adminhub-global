@@ -152,9 +152,12 @@ Implemented in the current follow-up branch (not yet product-owner QA-approved):
 - Added an explicit persisted-compatible `dockedAt` state for GGL Haven. Docking is a deliberate menu action; flight input undocks the ship. Ordinary asteroid hull collision damage is suppressed while explicitly docked at Haven.
 - Increased the target-assist acquisition range/cone and steering strength, and changed the aim point from the target centre to its near surface. It remains strictly player-FIRE-triggered.
 - Raised proximity action stacking priority, restored pointer/touch events to the menu and buttons, made transient transfer signalers ignore pointer input, and strengthened focus/touch affordances.
+- Added a persistent structured chronicle with an initial Haven origin entry and event-backed records for habitat stages, settlement founding, colony governance/independence, equipment recovery, docking/undocking, ship repairs, machine production and asteroid hull impacts. The existing contextual Haven/planet menu surfaces recent entries.
+- Added a finite machine resupply loop: deploy machinery on a planet, mine its finite resource stock into a 20-unit ship material hold, return and dock at Haven to unload, then spend 6 material units to queue one machine. Fabrication takes four simulated system hours; completion adds one machine to Haven storage. Ship repairs continue to consume finite machine stock.
 
-Not yet implemented in this checkpoint:
-- Persistent structured Haven/colony chronicles and causal family/personal storylines.
-- A complete finite Haven manufacturing/resupply chain and a clear repair-material production loop.
+Still outstanding:
+- Full family/person life histories with causal births/deaths, illness/accidents and meaningful personal arcs. Current chronicle records civilisation milestones and selected consequential events, not a complete biography system.
+- Richer production recipes, station power/maintenance, logistics and multiple machine types. The current resupply loop is a deliberately bounded first playable chain.
+- Narrative perspective distinctions (confirmed facts vs estimates, beliefs and rumours) and deeper faction diplomacy/migration remain later work.
 
-These are still explicit roadmap requirements, not completed features. The current branch preview must be tested for the implemented fixes before any claim of success. In particular, confirm a player can recover a cache on touch, observe assisted shots, explicitly dock and remain safe through an asteroid event, and undock to resume normal collision risk.
+The current branch preview must be tested for the implemented fixes before any claim of success. In particular, confirm a player can recover a cache on touch, observe assisted shots, explicitly dock and remain safe through an asteroid event, mine and deliver materials, queue and complete machine fabrication, repair a damaged ship, and inspect Haven/colony histories.

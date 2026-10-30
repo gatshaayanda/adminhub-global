@@ -1440,3 +1440,12 @@ The product owner QA-tested the READY preview at commit `7d9291d42f3a52cc5128ed7
 - Keep work on `feat/ggl-space-qa-followup` until the exact latest preview is READY and the product owner completes hands-on QA and explicitly approves merge.
 - Preview handoffs must link directly to `/ggltournaments`, not the Admin Hub root. Verify deployment commit, READY status and route response before sharing.
 - Detailed findings and acceptance checklist: `docs/SPACE-MILESTONES-2-7-QA.md`.
+
+
+### Follow-up implementation checkpoint (branch `feat/ggl-space-qa-followup`, 2026-10-30)
+- Equipment recovery UI now explicitly restores pointer/touch interaction and ignores transient transfer-signal pointer events; still requires mobile QA.
+- Player-fired aim assist now acquires within a 42-degree / 340-unit window and guides toward the near target surface with stronger bounded steering. No auto-fire; still requires gameplay QA.
+- Explicit Haven docking is persisted compatibly. Flight inputs undock; ordinary asteroid hull collision is suppressed while docked at Haven. Mere proximity is not docking.
+- Structured chronicle records Haven origin, habitat stage changes, settlement founding, governance/independence changes, equipment recovery, docking/undocking, ship repair, machine production and asteroid hull impacts. Contextual station/planet menus show recent records. Full family/personal life histories remain incomplete.
+- First finite machine loop: deployed planet machinery enables mining finite resource stock into 20-unit ship material cargo; return/dock at Haven to unload; 6 materials queue one machine; 4 simulated system hours complete it into finite Haven stock. Repairs consume machine stock.
+- Do not describe these as QA-passed. Exact preview for latest branch commit must be READY and tested by the product owner before merge. Vercel reported its API deployment allowance exhausted for 24 hours during preview creation; do not retry or spam builds before the limit resets.

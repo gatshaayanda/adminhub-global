@@ -46,6 +46,7 @@ export type SpaceState = {
   travelNotes: string[];
   acclaim: number;
   asteroidsShot: number;
+  salvageRecovered: number;
   havenPopulation: number;
   machineInventory: number;
   worldTimeMinutes: number;
@@ -77,6 +78,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     travelNotes: [],
     acclaim: 0,
     asteroidsShot: 0,
+    salvageRecovered: 0,
     havenPopulation: 60,
     machineInventory: 12,
     worldTimeMinutes: 0,
@@ -162,6 +164,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     travelNotes: Array.isArray(saved.travelNotes) ? saved.travelNotes.filter((note): note is string => typeof note === "string").slice(0, 8) : [],
     acclaim: boundedInteger(saved.acclaim, 0, 0, 1000000),
     asteroidsShot: boundedInteger(saved.asteroidsShot, 0, 0, 1000000),
+    salvageRecovered: boundedInteger((saved as Partial<SpaceState> & { salvageRecovered?: number }).salvageRecovered, 0, 0, 1000000),
     havenPopulation: boundedInteger(saved.havenPopulation, 60, 0, 1000000),
     machineInventory: boundedInteger(saved.machineInventory, 12, 0, 10000),
     worldTimeMinutes: Math.max(0, finiteNumber(saved.worldTimeMinutes, 0)),

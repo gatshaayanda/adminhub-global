@@ -42,7 +42,7 @@ export function restorePlanetEcology(value: unknown): PlanetEcologyMap {
     const keys: Array<keyof PlanetEcology> = ["temperatureC","pressureKpa","accessibleWater","radiation","contamination","biodiversity","energyPotential","foodProduction","resourceStock","extractedResource","maintenanceLoad","fabricationProgress","manufacturedModules"];
     for (const key of keys) {
       const numeric = item[key];
-      if (typeof numeric === "number" && Number.isFinite(numeric)) (profile[key] as number) = numeric;
+      if (typeof numeric === "number" && Number.isFinite(numeric)) Object.assign(profile, { [key]: numeric });
     }
     if (typeof item.resourceType === "string") profile.resourceType = item.resourceType.slice(0, 40);
     profile.pressureKpa = clamp(profile.pressureKpa, 0, 150);

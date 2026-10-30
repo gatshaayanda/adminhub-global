@@ -32,12 +32,18 @@ export const HABITAT_STAGES: HabitatStage[] = [
 
 export type SpaceHazard = { id: string; type: "asteroid-impact" | "power-dust"; target: string; severity: 1 | 2 | 3; forecastStartWorldMinutes: number; impactAtWorldMinutes: number; confidence: number; status: "warning" | "mitigated" | "impact"; mitigation: number };
 
+export type SpaceFaction = { id: string; name: string; agenda: string; influence: number };
 export type SpaceColony = {
   population: number;
   founders: number;
   operators: number;
   foundedAtWorldMinutes: number;
   independent: boolean;
+  trustWithHaven: number;
+  autonomy: number;
+  governance: "provisional" | "local-council" | "self-governing";
+  lastContactWorldMinutes: number;
+  factions: SpaceFaction[];
 };
 
 export type SpaceState = {
@@ -161,9 +167,33 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     } else {
       state.colonyGrowthRemainders[planet.name] = 0;
     }
-    if (!colony.independent && colony.population >= 18 && state.worldTimeMinutes - colony.foundedAtWorldMinutes >= 7 * 1440) {
+    const ecology = state.ecology?.[planet.name];
+    colony.autonomy = Math.min(100, colony.autonomy + hours * (colony.operators * .08 + (ecology?.manufacturedModules || 0) * .02));
+    if (state.worldTimeMinutes - colony.lastContactWorldMinutes > 3 * 1440) colony.trustWithHaven = Math.max(0, colony.trustWithHaven - hours * .025);
+    const residents = (state.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name));
+    const motivationNames: Record<string, [string,string]> = {
+      exploration: ["Exploration Circle","Map and study the unknown"],
+      refuge: ["Safety Coalition","Protect people and preserve reserves"],
+      autonomy: ["Free Settlers","Increase local decision-making"],
+      science: ["Research Guild","Invest in knowledge and discovery"],
+      family: ["Community Network","Prioritise care and belonging"],
+      service: ["Stewardship Council","Maintain shared systems and habitats"],
+      opportunity: ["Resource Cooperative","Develop local production fairly"],
+      recognition: ["Pioneer Assembly","Recognise contribution and achievement"],
+    };
+    const motiveCounts = new Map<string, number>();
+    for (const person of residents) motiveCounts.set(person.motivation, (motiveCounts.get(person.motivation) || 0) + 1);
+    colony.factions = [...motiveCounts.entries()].filter(([,count]) => count >= 2).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([motivation,count]) => ({
+      id: planet.name.toLowerCase() + "-" + motivation,
+      name: motivationNames[motivation]?.[0] || "Local group",
+      agenda: motivationNames[motivation]?.[1] || "Represent local interests",
+      influence: residents.length ? Math.round(count / residents.length * 100) : 0,
+    }));
+    colony.governance = colony.independent ? "self-governing" : colony.population >= 8 && colony.autonomy >= 35 ? "local-council" : "provisional";
+    if (!colony.independent && colony.population >= 18 && colony.autonomy >= 55 && state.worldTimeMinutes - colony.foundedAtWorldMinutes >= 7 * 1440) {
       colony.independent = true;
-      state.events.unshift(`${planet.name} has become self-governing, founded by people from Haven.`);
+      colony.governance = "self-governing";
+      state.events.unshift(planet.name + " has become self-governing after local capacity and autonomy matured.");
       state.events = state.events.slice(0, 6);
     }
   }
@@ -258,12 +288,18 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
       const colony = rawColony as Partial<SpaceColony>;
       const population = boundedInteger(colony.population, 0, 0, habitatCapacity(state.planetProgress[planet.name]));
       if (population > 0) {
+        const foundedAt = Math.max(0, finiteNumber(colony.foundedAtWorldMinutes, 0));
         state.colonies[planet.name] = {
           population,
           founders: boundedInteger(colony.founders, population, 0, 60),
           operators: boundedInteger(colony.operators, Math.max(1, Math.floor(population / 4)), 1, population),
-          foundedAtWorldMinutes: Math.max(0, finiteNumber(colony.foundedAtWorldMinutes, 0)),
+          foundedAtWorldMinutes: foundedAt,
           independent: Boolean(colony.independent),
+          trustWithHaven: Math.max(0, Math.min(100, finiteNumber((colony as Partial<SpaceColony>).trustWithHaven, 70))),
+          autonomy: Math.max(0, Math.min(100, finiteNumber((colony as Partial<SpaceColony>).autonomy, 15))),
+          governance: (["provisional","local-council","self-governing"].includes(String((colony as Partial<SpaceColony>).governance)) ? (colony as Partial<SpaceColony>).governance : (colony.independent ? "self-governing" : "provisional")) as SpaceColony["governance"],
+          lastContactWorldMinutes: Math.max(foundedAt, finiteNumber((colony as Partial<SpaceColony>).lastContactWorldMinutes, foundedAt)),
+          factions: Array.isArray((colony as Partial<SpaceColony>).factions) ? (colony as Partial<SpaceColony>).factions!.filter(faction => faction && typeof faction.id === "string" && typeof faction.name === "string" && typeof faction.agenda === "string" && Number.isFinite(faction.influence)).slice(0, 5) : [],
         };
       }
     }

@@ -108,8 +108,6 @@ export function movePeople(population: PopulationState | undefined, from: Popula
   if (!population || count <= 0) return 0;
   const movers = population.people.filter(person => person.alive && person.location === from).sort((a,b)=>a.id.localeCompare(b.id)).slice(0, Math.floor(count));
   for (const person of movers) person.location = to;
-  const householdLocations = new Map<string, PopulationLocation>();
-  for (const person of population.people) if (person.alive) householdLocations.set(person.householdId, person.location);
   for (const household of population.households) {
     const member = population.people.find(person => person.alive && person.householdId === household.id);
     if (member) household.location = member.location;
@@ -122,15 +120,15 @@ export function advancePopulation(population: PopulationState | undefined, world
   const elapsed = Math.min(7 * 1440, worldMinute - population.lastUpdatedWorldMinutes);
   const days = elapsed / 1440;
   const environmentFor = (location: PopulationLocation) => {
-    if (location === "haven") return { safety: 94, food: 92, water: 93, shelter: 96, belonging: 70, purpose: 67, learning: 58 };
-    if (location === "ship") return { safety: 86, food: 78, water: 82, shelter: 76, belonging: 54, purpose: 75, learning: 60 };
+    if (location === "haven") return { air: 98, safety: 94, food: 92, water: 93, shelter: 96, belonging: 70, purpose: 67, learning: 58 };
+    if (location === "ship") return { air: 95, safety: 86, food: 78, water: 82, shelter: 76, belonging: 54, purpose: 75, learning: 60 };
     const planet = location.slice(7);
     const progress = planetProgress[planet] || 0;
     const populationCount = colonyPopulation[planet] || 0;
     const capacity = Math.max(1, 12 + Math.floor((progress - 80) * 1.6));
     const pressure = Math.max(0, populationCount / capacity - .78) * 48;
     const habitability = clamp((progress - 60) * 2.1, 20, 96);
-    return { safety: habitability - pressure, food: habitability - pressure * .8, water: habitability - pressure * .65, shelter: habitability + 5 - pressure, belonging: 66 - pressure * .4, purpose: 68, learning: 52 + progress * .12 };
+    return { air: habitability - 3 - pressure, safety: habitability - pressure, food: habitability - pressure * .8, water: habitability - pressure * .65, shelter: habitability + 5 - pressure, belonging: 66 - pressure * .4, purpose: 68, learning: 52 + progress * .12 };
   };
   for (const person of population.people) {
     if (!person.alive) continue;

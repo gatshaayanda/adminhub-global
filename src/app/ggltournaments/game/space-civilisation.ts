@@ -1,3 +1,4 @@
+import { advancePlanetEcology, createPlanetEcology, restorePlanetEcology, type PlanetEcologyMap } from "./space-ecology";
 import { advancePopulation, createPopulationState, restorePopulationState, type PopulationState } from "./space-people";
 
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
@@ -62,6 +63,7 @@ export type SpaceState = {
   population?: PopulationState;
   hazards?: SpaceHazard[];
   nextHazardAtWorldMinutes?: number;
+  ecology?: PlanetEcologyMap;
 };
 
 export function habitatStage(progress: number): HabitatStage {
@@ -97,6 +99,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     population: createPopulationState(0x47474c, 60, 0),
     hazards: [],
     nextHazardAtWorldMinutes: 14 * 1440,
+    ecology: createPlanetEcology(),
   };
 }
 
@@ -108,6 +111,13 @@ const boundedInteger = (value: unknown, fallback: number, min: number, max: numb
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
   if (!Number.isFinite(elapsedWorldMinutes) || elapsedWorldMinutes <= 0) return;
   const hours = elapsedWorldMinutes / 60;
+  if (!state.ecology) state.ecology = createPlanetEcology();
+  advancePlanetEcology(
+    state.ecology,
+    elapsedWorldMinutes,
+    state.deployedEquipment,
+    Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.operators])),
+  );
 
   for (const planet of WORLD_PLANETS) {
     const machines = state.deployedEquipment[planet.name] || 0;
@@ -268,6 +278,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
   const savedHazards = Array.isArray((saved as Partial<SpaceState>).hazards) ? (saved as Partial<SpaceState>).hazards! : [];
   state.hazards = savedHazards.filter(hazard => hazard && typeof hazard.id === "string" && (hazard.type === "asteroid-impact" || hazard.type === "power-dust") && typeof hazard.target === "string" && Number.isFinite(hazard.impactAtWorldMinutes) && Number.isFinite(hazard.severity) && ["warning","mitigated","impact"].includes(hazard.status)).slice(-24).map(hazard => ({ ...hazard, severity: Math.max(1, Math.min(3, Math.round(hazard.severity))) as 1|2|3, confidence: Math.max(0, Math.min(1, Number(hazard.confidence) || .5)), mitigation: Math.max(0, Math.min(3, Math.round(Number(hazard.mitigation) || 0))) }));
   state.nextHazardAtWorldMinutes = Math.max(state.worldTimeMinutes, finiteNumber((saved as Partial<SpaceState>).nextHazardAtWorldMinutes, 14 * 1440));
+  state.ecology = restorePlanetEcology((saved as Partial<SpaceState>).ecology);
 
   // Offline catch-up follows the accelerated world clock, capped at seven simulated days.
   const elapsedWallSeconds = Math.max(0, Math.min(30 * 24 * 60 * 60, (now - state.lastSimulatedAt) / 1000));

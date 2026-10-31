@@ -134,6 +134,23 @@ export function getPilotCareer(state: SpaceState): PilotCareer {
   return { rank: current.title, score, nextRank: next?.title || null, nextThreshold: next?.threshold || null, achievements, operationalLicence: issued, licenceActive: active };
 }
 
+export function awardPilotCredits(state: SpaceState, amount: number, reason: string): void {
+  const reward = Math.max(0, Math.floor(amount));
+  if (!reward) return;
+  state.pilotCredits = (state.pilotCredits || 0) + reward;
+  recordSpaceChronicle(state, "production", "GGL Haven", reason, "Pilot account credited " + reward + " credits. Available balance: " + state.pilotCredits + ".");
+}
+
+export function updatePilotLicence(state: SpaceState): boolean {
+  if (!state.pilotTheoryPassed || !state.pilotName?.trim() || state.pilotLicenceIssuedAtWorldMinutes !== null && state.pilotLicenceIssuedAtWorldMinutes !== undefined) return false;
+  const hasPopulatedWorld = Object.values(state.colonies || {}).some(colony => colony.population > 0);
+  if (!hasPopulatedWorld) return false;
+  state.pilotLicenceIssuedAtWorldMinutes = state.worldTimeMinutes;
+  state.pilotLicenceExpiresAtWorldMinutes = state.worldTimeMinutes + 30 * 1440;
+  recordSpaceChronicle(state, "society", "GGL Haven", "Operational pilot licence issued", state.pilotName + " earned an operational spaceship licence after establishing the first populated planet. The licence is valid for 30 system days.");
+  return true;
+}
+
 export function habitatStage(progress: number): HabitatStage {
   const index = progress >= 80 ? 4 : progress >= 60 ? 3 : progress >= 40 ? 2 : progress >= 20 ? 1 : 0;
   return HABITAT_STAGES[index];
@@ -219,6 +236,7 @@ export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
   };
   state.surveyRecords = { ...(state.surveyRecords || {}), [worldId]: record };
   state.acclaim += world.scanReward;
+  awardPilotCredits(state, 25, "Planetary survey mission reward");
   state.events.unshift("SURVEY COMPLETE: " + world.revealedName + " identified. " + world.surveyFinding);
   state.events = state.events.slice(0, 6);
   recordSpaceChronicle(
@@ -242,6 +260,13 @@ export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
   if (!Number.isFinite(elapsedWorldMinutes) || elapsedWorldMinutes <= 0) return;
   const hours = elapsedWorldMinutes / 60;
+  const settledPopulation = Object.values(state.colonies || {}).reduce((sum, colony) => sum + colony.population, 0);
+  state.planetIncomeRemainder = (state.planetIncomeRemainder || 0) + settledPopulation * hours * 0.01;
+  const planetIncome = Math.floor(state.planetIncomeRemainder);
+  if (planetIncome > 0) {
+    state.pilotCredits = (state.pilotCredits || 0) + planetIncome;
+    state.planetIncomeRemainder -= planetIncome;
+  }
   // Haven's finite fabricator converts six delivered material units into one machine over four system hours.
   if ((state.machineProductionQueue || 0) > 0) {
     state.machineProductionProgress = (state.machineProductionProgress || 0) + hours;

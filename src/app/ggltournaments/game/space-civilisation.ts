@@ -99,7 +99,40 @@ export type SpaceState = {
   discoveredWorlds?: string[];
   selectedSurveyTarget?: string | null;
   surveyRecords?: Record<string, SpaceSurveyRecord>;
+  pilotName?: string;
+  pilotTheoryPassed?: boolean;
+  pilotLicenceIssuedAtWorldMinutes?: number | null;
+  pilotLicenceExpiresAtWorldMinutes?: number | null;
+  pilotCredits?: number;
+  planetIncomeRemainder?: number;
 };
+
+export type PilotCareer = { rank: string; score: number; nextRank: string | null; nextThreshold: number | null; achievements: string[]; operationalLicence: boolean; licenceActive: boolean };
+
+export function getPilotCareer(state: SpaceState): PilotCareer {
+  const discoveries = state.discoveredWorlds?.length || 0;
+  const colonies = Object.values(state.colonies || {}).filter(colony => colony.population > 0).length;
+  const settlements = Object.values(state.colonies || {}).reduce((sum, colony) => sum + colony.population, 0);
+  const trips = state.travelNotes?.length || 0;
+  const hours = Math.floor((state.worldTimeMinutes || 0) / 60);
+  const achievements = [
+    ...(state.pilotTheoryPassed ? ["Flight theory passed"] : []),
+    ...(discoveries ? [discoveries + " planetary surveys"] : []),
+    ...(trips ? [trips + " completed return trips"] : []),
+    ...(colonies ? [colonies + " populated world(s)"] : []),
+    ...((state.salvageRecovered || 0) ? [(state.salvageRecovered || 0) + " equipment recoveries"] : []),
+    ...((state.asteroidsShot || 0) ? [(state.asteroidsShot || 0) + " hazards cleared"] : []),
+    ...(hours ? [hours + " hours in service"] : []),
+  ];
+  const score = Math.floor(hours / 6) + discoveries * 12 + trips * 8 + colonies * 35 + Math.floor(settlements / 5) + (state.salvageRecovered || 0) * 3 + (state.asteroidsShot || 0) * 2;
+  const ranks = [{ title: "Cadet", threshold: 0 }, { title: "Flight Officer", threshold: 25 }, { title: "Survey Specialist", threshold: 60 }, { title: "Pathfinder", threshold: 120 }, { title: "Expedition Commander", threshold: 220 }, { title: "Pioneer", threshold: 360 }];
+  let current = ranks[0];
+  for (const rank of ranks) if (score >= rank.threshold) current = rank;
+  const next = ranks[ranks.indexOf(current) + 1] || null;
+  const issued = typeof state.pilotLicenceIssuedAtWorldMinutes === "number";
+  const active = issued && (state.pilotLicenceExpiresAtWorldMinutes || 0) > state.worldTimeMinutes;
+  return { rank: current.title, score, nextRank: next?.title || null, nextThreshold: next?.threshold || null, achievements, operationalLicence: issued, licenceActive: active };
+}
 
 export function habitatStage(progress: number): HabitatStage {
   const index = progress >= 80 ? 4 : progress >= 60 ? 3 : progress >= 40 ? 2 : progress >= 20 ? 1 : 0;
@@ -124,6 +157,12 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     discoveredWorlds: [],
     selectedSurveyTarget: null,
     surveyRecords: {},
+    pilotName: "",
+    pilotTheoryPassed: false,
+    pilotLicenceIssuedAtWorldMinutes: null,
+    pilotLicenceExpiresAtWorldMinutes: null,
+    pilotCredits: 0,
+    planetIncomeRemainder: 0,
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
@@ -392,6 +431,12 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     discoveredWorlds: Array.isArray(saved.discoveredWorlds) ? saved.discoveredWorlds.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))) : [],
     selectedSurveyTarget: typeof saved.selectedSurveyTarget === "string" && (Boolean(getSurveyWorld(saved.selectedSurveyTarget)) || WORLD_PLANETS.some(planet => planet.name === saved.selectedSurveyTarget)) ? saved.selectedSurveyTarget : null,
     surveyRecords: saved.surveyRecords && typeof saved.surveyRecords === "object" ? Object.fromEntries(Object.entries(saved.surveyRecords).filter(([id, record]) => Boolean(getSurveyWorld(id)) && record && typeof record === "object" && typeof (record as SpaceSurveyRecord).revealedName === "string" && typeof (record as SpaceSurveyRecord).atmosphere === "string").map(([id, record]) => [id, record as SpaceSurveyRecord])) : {},
+    pilotName: typeof saved.pilotName === "string" ? saved.pilotName.slice(0, 28) : "",
+    pilotTheoryPassed: Boolean(saved.pilotTheoryPassed),
+    pilotLicenceIssuedAtWorldMinutes: typeof saved.pilotLicenceIssuedAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceIssuedAtWorldMinutes) ? Math.max(0, saved.pilotLicenceIssuedAtWorldMinutes) : null,
+    pilotLicenceExpiresAtWorldMinutes: typeof saved.pilotLicenceExpiresAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceExpiresAtWorldMinutes) ? Math.max(0, saved.pilotLicenceExpiresAtWorldMinutes) : null,
+    pilotCredits: boundedInteger(saved.pilotCredits, 0, 0, 100000000),
+    planetIncomeRemainder: Math.max(0, Math.min(0.999999, finiteNumber(saved.planetIncomeRemainder, 0))),
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],

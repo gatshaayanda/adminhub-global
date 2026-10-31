@@ -108,10 +108,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       setManualSaveAvailable(false);
     }
     try {
-      const requestedSurveyTarget = window.localStorage.getItem(SPACE_SURVEY_TARGET_KEY);
-      if (requestedSurveyTarget) selectSpaceSurveyTarget(spaceStateRef.current, requestedSurveyTarget);
-    } catch { /* The ship remains playable if browser storage is unavailable. */ }
-    try {
       const pendingSurveyTarget = window.localStorage.getItem(SPACE_SURVEY_TARGET_KEY);
       if (pendingSurveyTarget && getSurveyWorld(pendingSurveyTarget)) selectSpaceSurveyTarget(spaceStateRef.current, pendingSurveyTarget);
     } catch { /* The ship remains playable without cross-page navigation storage. */ }
@@ -725,7 +721,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   };
   const world = spaceStateRef.current;
   const mission = getFirstFootholdCue(world);
-  const chronicleLocations = ["GGL Haven", ...WORLD_PLANETS.map((planet) => planet.name)];
+  const chronicleLocations = ["GGL Haven", ...WORLD_PLANETS.map((planet) => planet.name), ...Object.values(world.surveyRecords || {}).map((record) => record.revealedName)];
   const chronicleEvents = world.chronicle || [];
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>

@@ -92,8 +92,17 @@ export function createPopulationState(seed = 0x47474c, population = 60, worldMin
     person.traits.resilience = clamp(person.traits.resilience + axes.trauma * 2 / average);
     person.needs.belonging = clamp(person.needs.belonging + axes.solidarity * 2 / average);
     person.needs.autonomy = clamp(person.needs.autonomy + axes.autonomy * 2 / average);
-    if (axes.knowledge > axes.extraction) person.motivation = unit(seed, Number(person.id.slice(-3)), 40) > .45 ? "science" : person.motivation;
-    else if (axes.extraction > axes.knowledge) person.motivation = unit(seed, Number(person.id.slice(-3)), 41) > .55 ? "opportunity" : person.motivation;
+    if (unit(seed, Number(person.id.slice(-3)), 42) < .36) {
+      const tendencies: Array<{ score: number; motivation: PersonMotivation }> = [
+        { score: axes.solidarity, motivation: unit(seed, Number(person.id.slice(-3)), 43) > .5 ? "family" : "service" },
+        { score: axes.autonomy, motivation: "autonomy" },
+        { score: axes.hierarchy, motivation: "recognition" },
+        { score: axes.extraction, motivation: "opportunity" },
+        { score: axes.knowledge, motivation: unit(seed, Number(person.id.slice(-3)), 44) > .5 ? "science" : "exploration" },
+        { score: axes.trauma, motivation: "refuge" },
+      ].sort((a,b) => b.score - a.score);
+      if (tendencies[0].score > 0) person.motivation = tendencies[0].motivation;
+    }
   }
   for (const household of households) household.cohesion = clamp(household.cohesion + axes.solidarity * 2 / average - Math.max(0, -axes.trust) * 2 / average, 20, 98);
   for (const relationship of relationships) {

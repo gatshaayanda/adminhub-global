@@ -1497,3 +1497,12 @@ This section is authoritative where earlier roadmap wording or workflow instruct
 - Preserve the dedicated Civilisation History drawer, contextual Planet Menu, flight controls, camera, mini-map, Haven marker, manifest, proximity actions and mobile layout.
 - Latest implementation commits before this correction: `c63ba71c9cc59907775a6c9b0cb681a5ae23e61f`, `2b8194aeb28251de3e9b66ca25e01aaa2e04d842`, and `59d2a6e816693f9eae76355743318bc34a091114`. Current baseline correction commits are recorded in Git history and must be verified before QA.
 - Build and live-route verification remain separate from the GitHub commit. Product-owner hands-on QA remains separate.
+
+
+## GGL Space — macro founding networks and authored world origins — 2026-10-31
+
+- The original 60 are a living founding population, not 60 separate biography assignments. Their authored social starting point is five interconnected population networks, each spanning founding households and carrying a distinct shared agenda, origin, pressure point and links to other networks. Household and person simulation remains causal and emergent; do not turn every resident into a chronicle entry.
+- Civilisation History must present these macro agendas and their connections. Chronicle entries are reserved for civilisation-scale turning points and notable people whose actions materially affect the population. Do not narrate every person or manufacture personal events to fill a timeline.
+- Aster, Cobalt, Verdant, Ember and Frost each have a distinct authored survey-origin account, known conditions and unresolved frontier questions. All five begin at 0% restoration and remain uninhabitable. Their different ecology/resource profiles and machine requirements are preserved; Cobalt is only a lower-cost first investment, never a partly habitable starting world.
+- Canonical network seeds live in src/app/ggltournaments/game/space-people.ts; planet-origin canon and opening chronicle events live in src/app/ggltournaments/game/space-civilisation.ts. The dedicated Civilisation History drawer surfaces networks and per-world origins. Legacy saves retain their recorded chronicle and receive any missing canonical origin entries; existing planet progress is not reset during save migration.
+- Preserve the golden flight controls, camera, start/pause/save/restart lifecycle, mobile interactions, finite machine loop and existing QA fixes. This feature branch is for owner QA; do not merge until its exact preview is READY and the owner approves after testing.

@@ -186,13 +186,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
     phaseRef.current = "running"; setPhase("running");
   }, []);
-  const startGame = useCallback(() => {
+  const startGame = () => {
     neutralControls();
     raceRef.current.last = 0;
     phaseRef.current = "running";
     setPhase("running");
     writeAutoSnapshot();
-  }, []); 
+  };
   const startRace = useCallback(() => reset(), [reset]);
   const saveManualGame = () => {
     const state = spaceStateRef.current;
@@ -203,7 +203,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     lastProcessedWorldMinutesRef.current = state.worldTimeMinutes;
     const savedAt = Date.now();
     state.lastSimulatedAt = savedAt;
-    const snapshot: SpaceGameSnapshot = { version: 1, savedAt, world: state, flight: { ...raceRef.current, last: 0 }, paused: phaseRef.current === "paused" };
+    const snapshot: SpaceGameSnapshot = { version: 1, savedAt, world: state, flight: { ...raceRef.current, last: 0 }, paused: phaseRef.current !== "running" };
     try {
       window.localStorage.setItem(SPACE_MANUAL_SAVE_KEY, JSON.stringify(snapshot));
       window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(state));

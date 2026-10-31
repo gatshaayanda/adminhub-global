@@ -1,6 +1,7 @@
 import { advancePlanetEcology, createPlanetEcology, restorePlanetEcology, type PlanetEcologyMap } from "./space-ecology";
 import { advancePopulation, createPopulationState, restorePopulationState, type PopulationState } from "./space-people";
 import { DEFAULT_FOUNDING_IDS } from "./space-founding";
+import { getSurveyWorld, SURVEY_WORLDS } from "./space-universe";
 
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
 
@@ -44,7 +45,9 @@ export const HABITAT_STAGES: HabitatStage[] = [
   { index: 4, key: "habitable", label: "HABITABLE", color: "#78f0b1", atmosphereColor: "#49dcb8", description: "Crew can establish a settlement" },
 ];
 
-export type SpaceChronicleEvent = { id: string; atWorldMinutes: number; kind: "origin" | "settlement" | "habitat" | "recovery" | "docking" | "repair" | "hazard" | "society" | "production"; location: string; title: string; detail: string };
+export type SpaceChronicleEvent = { id: string; atWorldMinutes: number; kind: "origin" | "discovery" | "settlement" | "habitat" | "recovery" | "docking" | "repair" | "hazard" | "society" | "production"; location: string; title: string; detail: string };
+
+export type SpaceSurveyRecord = { worldId: string; revealedName: string; classification: string; atmosphere: string; resources: string; meteorExposure: string; surveyedAtWorldMinutes: number };
 
 export type SpaceHazard = { id: string; type: "asteroid-impact" | "power-dust"; target: string; severity: 1 | 2 | 3; forecastStartWorldMinutes: number; impactAtWorldMinutes: number; confidence: number; status: "warning" | "mitigated" | "impact"; mitigation: number };
 
@@ -93,6 +96,10 @@ export type SpaceState = {
   nextHazardAtWorldMinutes?: number;
   ecology?: PlanetEcologyMap;
   chronicle?: SpaceChronicleEvent[];
+  /** Unknown system bodies become known only after a successful close-range survey. */
+  discoveredWorlds?: string[];
+  selectedSurveyTarget?: string | null;
+  surveyRecords?: Record<string, SpaceSurveyRecord>;
 };
 
 export function habitatStage(progress: number): HabitatStage {
@@ -115,6 +122,9 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     machineProductionQueue: 0,
     machineProductionProgress: 0,
     chronicle: createOpeningChronicle(population),
+    discoveredWorlds: [],
+    selectedSurveyTarget: null,
+    surveyRecords: {},
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
@@ -148,6 +158,40 @@ export function recordSpaceChronicle(state: SpaceState, kind: SpaceChronicleEven
   if (!state.chronicle) state.chronicle = createInitialSpaceState().chronicle || [];
   state.chronicle.push({ id: "event-" + Math.round(state.worldTimeMinutes) + "-" + state.chronicle.length, atWorldMinutes: state.worldTimeMinutes, kind, location, title, detail });
   if (state.chronicle.length > 1200) state.chronicle.splice(0, state.chronicle.length - 1200);
+}
+
+export function selectSpaceSurveyTarget(state: SpaceState, worldId: string | null): boolean {
+  if (worldId !== null && !getSurveyWorld(worldId) && !WORLD_PLANETS.some(planet => planet.name === worldId)) return false;
+  state.selectedSurveyTarget = worldId;
+  return true;
+}
+
+export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
+  const world = getSurveyWorld(worldId);
+  if (!world || (state.discoveredWorlds || []).includes(worldId)) return false;
+  state.discoveredWorlds = [...(state.discoveredWorlds || []), worldId];
+  const record: SpaceSurveyRecord = {
+    worldId,
+    revealedName: world.revealedName,
+    classification: world.classification,
+    atmosphere: world.atmosphere,
+    resources: world.resources,
+    meteorExposure: world.meteorExposure,
+    surveyedAtWorldMinutes: state.worldTimeMinutes,
+  };
+  state.surveyRecords = { ...(state.surveyRecords || {}), [worldId]: record };
+  state.acclaim += world.scanReward;
+  state.events.unshift("SURVEY COMPLETE: " + world.revealedName + " identified. " + world.surveyFinding);
+  state.events = state.events.slice(0, 6);
+  recordSpaceChronicle(
+    state,
+    "discovery",
+    world.revealedName,
+    "New world discovered: " + world.revealedName,
+    world.surveyFinding + " Survey reward: " + world.scanReward + " archive acclaim. Meteor exposure: " + world.meteorExposure + ".",
+  );
+  if (state.selectedSurveyTarget === worldId) state.selectedSurveyTarget = null;
+  return true;
 }
 
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
@@ -339,6 +383,9 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     machineProductionQueue: boundedInteger(saved.machineProductionQueue, 0, 0, 1000),
     machineProductionProgress: Math.max(0, Math.min(3.999, finiteNumber(saved.machineProductionProgress, 0))),
     chronicle: [],
+    discoveredWorlds: Array.isArray(saved.discoveredWorlds) ? saved.discoveredWorlds.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))) : [],
+    selectedSurveyTarget: typeof saved.selectedSurveyTarget === "string" && (Boolean(getSurveyWorld(saved.selectedSurveyTarget)) || WORLD_PLANETS.some(planet => planet.name === saved.selectedSurveyTarget)) ? saved.selectedSurveyTarget : null,
+    surveyRecords: {},
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],
@@ -385,6 +432,22 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     }
     const remainders = saved.colonyGrowthRemainders as Record<string, unknown> | undefined;
     state.colonyGrowthRemainders[planet.name] = Math.max(0, Math.min(0.999999, finiteNumber(remainders?.[planet.name], 0)));
+  }
+  const rawSurveyRecords = saved.surveyRecords && typeof saved.surveyRecords === "object" ? saved.surveyRecords : {};
+  for (const id of state.discoveredWorlds || []) {
+    const world = getSurveyWorld(id);
+    if (!world) continue;
+    const raw = (rawSurveyRecords as Record<string, unknown>)[id];
+    const record = raw && typeof raw === "object" ? raw as Partial<SpaceSurveyRecord> : {};
+    state.surveyRecords![id] = {
+      worldId: id,
+      revealedName: typeof record.revealedName === "string" ? record.revealedName : world.revealedName,
+      classification: typeof record.classification === "string" ? record.classification : world.classification,
+      atmosphere: typeof record.atmosphere === "string" ? record.atmosphere : world.atmosphere,
+      resources: typeof record.resources === "string" ? record.resources : world.resources,
+      meteorExposure: typeof record.meteorExposure === "string" ? record.meteorExposure : world.meteorExposure,
+      surveyedAtWorldMinutes: Math.max(0, finiteNumber(record.surveyedAtWorldMinutes, 0)),
+    };
   }
   const restoredPopulation = restorePopulationState(saved.population, {
     haven: state.havenPopulation,

@@ -142,7 +142,7 @@ export default function GGLTournamentsPage() {
         <div className="ggl-game-promo-copy">
           <p className="ggl-eyebrow">GGL SPACE / PLAY NOW · FREE ROAM</p>
           <h2>Take the helm.<br /><em>Explore space.</em></h2>
-          <p>Your free-roam mission is waiting. Fly between worlds, discover the system and use NOS to push farther. No tournament entry required.</p>
+          <p>Your free-roam mission is waiting. Fly between worlds, discover the system and use NOS to push farther. No tournament entry required.</p>\n          <p><Link href="/ggltournaments/solar-system" className="ggl-secondary">Open the 20-world system map ↗</Link></p>
         </div>
       </div>
       <GGLRacingGame embedded />

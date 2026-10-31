@@ -1,7 +1,7 @@
 import { advancePlanetEcology, createPlanetEcology, restorePlanetEcology, type PlanetEcologyMap } from "./space-ecology";
 import { advancePopulation, createPopulationState, restorePopulationState, type PopulationState } from "./space-people";
 import { DEFAULT_FOUNDING_IDS } from "./space-founding";
-import { getSurveyWorld, SURVEY_WORLDS } from "./space-universe";
+import { getSurveyWorld } from "./space-universe";
 
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
 export const WORLD_PLANETS = [

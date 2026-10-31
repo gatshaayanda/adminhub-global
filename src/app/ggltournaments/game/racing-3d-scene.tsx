@@ -231,6 +231,16 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     const projectileMaterial = new THREE.MeshBasicMaterial({ color: "#7cf7ff" });
     const impactMaterial = new THREE.MeshBasicMaterial({ color: "#fff0a3", transparent: true, opacity: 0.9 });
     const impacts: Array<{ mesh: THREE.Mesh; age: number }> = [];
+    const targetReticle = new THREE.Group();
+    const targetRing = new THREE.Mesh(new THREE.TorusGeometry(1, .045, 8, 40), new THREE.MeshBasicMaterial({ color: "#c5f36b", depthTest: false, depthWrite: false }));
+    targetReticle.add(targetRing);
+    const targetCanvas = document.createElement("canvas"); targetCanvas.width = 512; targetCanvas.height = 80;
+    const targetContext = targetCanvas.getContext("2d");
+    const targetTexture = new THREE.CanvasTexture(targetCanvas);
+    const targetSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: targetTexture, transparent: true, depthTest: false, depthWrite: false }));
+    targetSprite.position.y = 1.5; targetSprite.scale.set(5.8, .9, 1); targetReticle.add(targetSprite);
+    targetReticle.visible = false; scene.add(targetReticle);
+    let targetReticleTime = 0;
     // Preserve the original spacecraft silhouette and its established scale.
     car.scale.setScalar(0.82);
     scene.add(car);
@@ -497,9 +507,12 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         // A generous but bounded 42-degree / 340-unit acquisition window makes the assist perceptible.
         let assistedDirection = shotForward.clone();
         let bestAssistScore = Infinity;
-        const aimCandidates: Array<{ position: THREE.Vector3; radius: number }> = [];
-        for (const visual of Object.values(planetVisuals)) aimCandidates.push({ position: visual.body.position, radius: visual.radius + 7 });
-        for (const rock of asteroids) if (rock.radius > 0) aimCandidates.push({ position: rock.mesh.position, radius: rock.radius });
+        const aimCandidates: Array<{ position: THREE.Vector3; radius: number; name: string }> = [];
+        for (const [name, visual] of Object.entries(planetVisuals)) aimCandidates.push({ position: visual.body.position, radius: visual.radius + 7, name });
+        for (const rock of asteroids) if (rock.radius > 0) aimCandidates.push({ position: rock.mesh.position, radius: rock.radius, name: "ASTEROID" });
+        let acquiredTargetName = "";
+        let acquiredTargetSurface: THREE.Vector3 | null = null;
+        let acquiredTargetRadius = 2;
         for (const candidate of aimCandidates) {
           const toCentre = candidate.position.clone().sub(shipPosition);
           const centreDistance = toCentre.length();
@@ -517,7 +530,24 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
             bestAssistScore = score;
             const strength = clamp(.9 - surfaceDistance / 520, .48, .82);
             assistedDirection = shotForward.clone().lerp(direction, strength).normalize();
+            acquiredTargetName = candidate.name;
+            acquiredTargetSurface = nearSurface.clone();
+            acquiredTargetRadius = candidate.radius;
           }
+        }
+        if (acquiredTargetSurface) {
+          targetReticle.position.copy(acquiredTargetSurface).addScaledVector(acquiredTargetSurface.clone().sub(shipPosition).normalize(), .8);
+          targetReticle.scale.setScalar(clamp(acquiredTargetRadius * .16, 1.25, 7.5));
+          if (targetContext) {
+            targetContext.clearRect(0, 0, 512, 80);
+            targetContext.fillStyle = "rgba(3,12,24,.9)"; targetContext.fillRect(0, 0, 512, 80);
+            targetContext.strokeStyle = "#c5f36b"; targetContext.lineWidth = 4; targetContext.strokeRect(3, 3, 506, 74);
+            targetContext.fillStyle = "#f4ffbe"; targetContext.font = "bold 34px Arial"; targetContext.textAlign = "center"; targetContext.textBaseline = "middle";
+            targetContext.fillText("TARGET: " + acquiredTargetName.toUpperCase().slice(0, 22), 256, 40);
+            targetTexture.needsUpdate = true;
+          }
+          targetSprite.scale.set(5.8 / targetReticle.scale.x, .9 / targetReticle.scale.x, 1);
+          targetReticleTime = 1.3; targetReticle.visible = true;
         }
         const bolt = new THREE.Mesh(projectileGeometry, projectileMaterial);
         bolt.position.copy(shipPosition).addScaledVector(shotForward, 3.1);
@@ -595,6 +625,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       const cameraPosition = new THREE.Vector3(carWorld.x - forward.x * 12.5, carWorld.y + 6.2, carWorld.z - forward.z * 12.5);
       camera.position.lerp(cameraPosition, 1 - Math.exp(-frameDelta * 4.5));
       camera.lookAt(cameraTarget);
+      if (targetReticleTime > 0) { targetReticleTime = Math.max(0, targetReticleTime - frameDelta); targetReticle.visible = targetReticleTime > 0; targetReticle.quaternion.copy(camera.quaternion); }
+      else targetReticle.visible = false;
       const flame = car.userData.flame as THREE.Object3D | undefined;
       if (flame) {
         flame.visible = controls.boost && race.nos > 0 && !controls.brake && currentPhase === "running";

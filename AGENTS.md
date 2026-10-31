@@ -1452,3 +1452,43 @@ The product owner QA-tested the READY preview at commit `7d9291d42f3a52cc5128ed7
 
 ### QA handoff refresh (2026-10-31)
 - Fresh documentation-only chore checkpoint; preserve all gameplay implementation and keep PR #18 unmerged pending exact-commit READY preview and product-owner QA.
+
+
+## GGL Space — product-owner direction and current main checkpoint (2026-10-31)
+
+This section is authoritative where earlier roadmap wording or workflow instructions conflict.
+
+### Main release checkpoint
+- PR #18 was explicitly directed by the product owner to be merged and was merged to `main` on 2026-10-31.
+- Squash merge commit: `74c7910eeade5478108bc628eb34174f96c6d2a6`.
+- Source branch: `feat/ggl-space-qa-followup`, source head: `83a2632a5e5f90ba153eb926df481d339383c5e0`.
+- The merged implementation includes touch-accessible equipment recovery, bounded player-fired aim assist (never auto-fire), explicit persisted Haven docking/safe harbour, structured persistent Haven/colony chronicle records, and finite planetary resource mining → ship cargo → Haven delivery → machine fabrication → repair consumption.
+- The finite mining-and-delivery loop is already the beginning of resource logistics and trade-related gameplay. Do NOT describe roadmap item 8 (trade and ship services) as wholly unstarted or outside the user's scope. It is **started / partial**: resource extraction, cargo transport and delivery to Haven exist. Further trade systems such as exchange, contracts, currencies, inter-colony commerce and ship services may still be developed, but do not erase or discount the working resource-delivery loop.
+- Item 9 (full event-driven news/chronicle and timeline high-score recap) is also not wholly unstarted: structured persistent event records and contextual chronicle presentation have begun. Full personal/family histories, richer narrative perspectives, civilisation-wide news and timeline/high-score recap remain incomplete.
+- Do not repeat obsolete instructions that PR #18 must remain unmerged. It is merged.
+
+### Product-owner's next requested GGL Space refinements
+Implement these as direct, narrowly scoped improvements on top of current `main`, preserving the merged gameplay and golden flight controls:
+
+1. **Space-efficient chronicles inside the in-game menu**
+   - Haven Chronicle and each population/colony chronicle must be independently expandable/collapsible within the existing in-game menu.
+   - The outer in-game menu must itself remain openable/closeable.
+   - Collapsed state should show a compact recent-event preview/count; expanded content should use a bounded internal scroll region so a long chronicle never pushes essential operations off-screen.
+   - Keep chronicle content in the existing menu/contextual information flow. Do not add a permanent HUD panel or separate dashboard.
+
+2. **Visible player aim-assist target feedback**
+   - When a valid target is acquired for a player-fired shot, show a clear, temporary target reticle/crosshair on the actual acquired target, with a concise target identity label where useful.
+   - Make acquisition/loss legible to the player; clear the reticle when the target is no longer valid/in range.
+   - Aim assist may guide only shots initiated by the player's FIRE input. Never auto-fire or change the protected firing cadence/flight controls.
+
+3. **Toast/notification stacking**
+   - Fix notifications/toasts that currently render behind game menus.
+   - Establish a consistent overlay stacking order so toasts are visible above menus and panels, while avoiding blocking menu controls and respecting mobile safe areas.
+   - Check all notification types, including transfer signals, success/error/info messages and menu-triggered notices.
+
+### Workflow instruction — obey explicit product-owner release direction
+- The product owner is the final decision-maker for scope, merge and release. The assistant is the technical implementer/navigator.
+- When the product owner explicitly instructs "merge and push to main", do not substitute an assistant-created QA gate, preview requirement, or preference for a different sequence. Execute the requested merge/push directly, unless GitHub itself blocks it or a genuine technical/security constraint prevents it. Report the actual blocker plainly; do not silently decide not to merge.
+- Do not ask the product owner to repeat decisions already stated. Do not respond to a direct implementation instruction with a plan telling the owner what they should do.
+- Continue to report deployment readiness and QA status accurately and separately from Git merge status. A merge is not proof that Vercel production has deployed or that the owner has tested the latest version.
+- For this requested UI refinement, inspect current `main` after merge, implement the three requested changes, run available checks, commit and push to `main` as directed. Do not expand scope into unrelated milestone redesigns.

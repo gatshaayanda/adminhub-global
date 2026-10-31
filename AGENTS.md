@@ -1467,24 +1467,11 @@ This section is authoritative where earlier roadmap wording or workflow instruct
 - Item 9 (full event-driven news/chronicle and timeline high-score recap) is also not wholly unstarted: structured persistent event records and contextual chronicle presentation have begun. Full personal/family histories, richer narrative perspectives, civilisation-wide news and timeline/high-score recap remain incomplete.
 - Do not repeat obsolete instructions that PR #18 must remain unmerged. It is merged.
 
-### Product-owner's next requested GGL Space refinements
-Implement these as direct, narrowly scoped improvements on top of current `main`, preserving the merged gameplay and golden flight controls:
-
-1. **Space-efficient chronicles inside the in-game menu**
-   - Haven Chronicle and each population/colony chronicle must be independently expandable/collapsible within the existing in-game menu.
-   - The outer in-game menu must itself remain openable/closeable.
-   - Collapsed state should show a compact recent-event preview/count; expanded content should use a bounded internal scroll region so a long chronicle never pushes essential operations off-screen.
-   - Keep chronicle content in the existing menu/contextual information flow. Do not add a permanent HUD panel or separate dashboard.
-
-2. **Visible player aim-assist target feedback**
-   - When a valid target is acquired for a player-fired shot, show a clear, temporary target reticle/crosshair on the actual acquired target, with a concise target identity label where useful.
-   - Make acquisition/loss legible to the player; clear the reticle when the target is no longer valid/in range.
-   - Aim assist may guide only shots initiated by the player's FIRE input. Never auto-fire or change the protected firing cadence/flight controls.
-
-3. **Toast/notification stacking**
-   - Fix notifications/toasts that currently render behind game menus.
-   - Establish a consistent overlay stacking order so toasts are visible above menus and panels, while avoiding blocking menu controls and respecting mobile safe areas.
-   - Check all notification types, including transfer signals, success/error/info messages and menu-triggered notices.
+### Product-owner's requested GGL Space refinements — implementation status
+- **Chronicles:** implemented as a dedicated, independently openable/closeable Civilisation History drawer, separate from the contextual Planet Menu. Haven and each of the five planets have their own collapsible history group; each history has an internally scrollable event list. Do not put the histories back inside the planet operation panel or create a full-screen dashboard.
+- **Target feedback:** implemented as a temporary world-space acquisition reticle and target identity label on the actual aim-assist target for player-fired shots only. Never add autonomous firing.
+- **Toast stacking:** notifications and transfer signals are layered above menus and remain non-interactive so they cannot steal taps from game controls.
+- Preserve the approved ship/flight controls, camera, mini-map, Haven marker, manifest, proximity actions and mobile layout while making any further changes.
 
 ### Workflow instruction — obey explicit product-owner release direction
 - The product owner is the final decision-maker for scope, merge and release. The assistant is the technical implementer/navigator.
@@ -1495,7 +1482,15 @@ Implement these as direct, narrowly scoped improvements on top of current `main`
 
 
 ### GGL Space UI refinement implementation checkpoint — 2026-10-31
-- Implemented independent native disclosure accordions for Haven Chronicle and each planet/colony chronicle inside the existing proximity menu. Each expanded history has a bounded internal scroll region; the outer proximity menu remains independently openable/closeable.
+- The first chronicle accordion pass was superseded by the owner-requested cleaner information architecture: a dedicated Civilisation History drawer is now independent of the collapsible Planet Menu. Haven and each planet's chronicle are separate collapsible groups inside that drawer; long histories scroll internally.
 - Implemented a temporary world-space acquisition ring and target-identity label on the actual aim-assist target when a player-fired projectile acquires it. It remains tied to player FIRE; no autonomous firing was added.
 - Raised toast and transfer-signal stacking above game menus and made these transient overlays non-interactive so they do not intercept menu controls.
-- These changes are committed directly to `main`; run the repository's available lint/typecheck/build checks and verify the matching Vercel deployment before claiming runtime QA. Product-owner hands-on QA remains separate.
+
+### GGL Space — active-entry and deterministic restart checkpoint — 2026-10-31
+- Entering or re-entering GGL Space must open directly into the active simulation. Restore the latest autosaved world and apply elapsed simulation time; do not strand the player on a paused/start screen because the previous tab was paused.
+- Loading a manual save restores that saved civilisation/ship and returns to active play. Manual saves remain separate from the active autosave.
+- Restart Civilisation is a genuinely fresh deterministic run: Haven returns to its original 60 people and 12 finite machines/resources; all colonies, deployed machinery, planet progress, ecology changes, population changes and chronicles return to the approved authored opening state. The five planets retain their deliberately distinct starting habitability levels and machine requirements. Never normalize all planets to the same state or silently change those approved starting conditions.
+- Confirming restart pauses the active run while the confirmation is open. Cancelling restores the prior running/paused state. Confirming resets the flight scene as well as simulation data, so cached 3D objects cannot visually survive the new-world reset. The existing manual save is preserved.
+- Keep the opening playable and self-explanatory: GGL Haven is the origin for the 60 people; all future settlements descend from them; the first loop is inspect worlds → load finite people/machines at Haven → fly and deliver machinery → observe timed habitat restoration → return for crew/material logistics → establish a descendant settlement. Use short contextual cues, not a mandatory racing-style start gate or a long tutorial.
+- Latest implementation commits: `c63ba71c9cc59907775a6c9b0cb681a5ae23e61f` (active entry, load/restart handling and chronicle separation) and `2b8194aeb28251de3e9b66ca25e01aaa2e04d842` (chronicle drawer styling).
+- Build and live-route verification remain separate from the GitHub commit. Product-owner hands-on QA remains separate.

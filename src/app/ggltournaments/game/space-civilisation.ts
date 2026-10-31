@@ -386,12 +386,13 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     const remainders = saved.colonyGrowthRemainders as Record<string, unknown> | undefined;
     state.colonyGrowthRemainders[planet.name] = Math.max(0, Math.min(0.999999, finiteNumber(remainders?.[planet.name], 0)));
   }
-  state.population = restorePopulationState(saved.population, {
+  const restoredPopulation = restorePopulationState(saved.population, {
     haven: state.havenPopulation,
     ship: state.cargoPeople,
     colonies: Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population])),
   }, state.worldTimeMinutes);
-  const openingEvents = createOpeningChronicle(state.population).map(event => savedChronicle.find(savedEvent => savedEvent.id === event.id) || event);
+  state.population = restoredPopulation;
+  const openingEvents = createOpeningChronicle(restoredPopulation).map(event => savedChronicle.find(savedEvent => savedEvent.id === event.id) || event);
   const openingEventIds = new Set(openingEvents.map(event => event.id));
   const savedHistoryEvents = savedChronicle.filter(event => !openingEventIds.has(event.id));
   state.chronicle = [...openingEvents, ...savedHistoryEvents].slice(-1200);

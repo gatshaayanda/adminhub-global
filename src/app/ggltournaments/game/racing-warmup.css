@@ -1074,3 +1074,16 @@
   display:block;color:#b8cbb9;font:600 7px/1.45 system-ui,sans-serif;
 }
 .race-hub-embedded .space-chronicle>small strong { color:#f0f7e8; }
+
+
+/* GGL Space owner-requested compact chronicle disclosure and reliable notification layering. */
+.space-chronicle{min-width:0}
+.space-chronicle>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;list-style:none;min-height:34px;padding:8px 10px;font-weight:900}
+.space-chronicle>summary::-webkit-details-marker{display:none}
+.space-chronicle>summary:after{content:"+";font-size:16px;line-height:1}
+.space-chronicle[open]>summary:after{content:"−"}
+.space-chronicle-list{display:grid;gap:6px;max-height:112px;overflow-y:auto;overscroll-behavior:contain;padding:2px 10px 10px;scrollbar-width:thin}
+.space-chronicle-list small{display:block;line-height:1.35}
+.warmup-toast,.space-transfer-signal{z-index:1200!important;isolation:isolate}
+.warmup-toast{pointer-events:none}
+.space-transfer-signal{pointer-events:none}

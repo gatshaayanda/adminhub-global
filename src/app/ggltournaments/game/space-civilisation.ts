@@ -104,6 +104,7 @@ export type SpaceState = {
   pilotLicenceIssuedAtWorldMinutes?: number | null;
   pilotLicenceExpiresAtWorldMinutes?: number | null;
   pilotCredits?: number;
+  pilotMissionsCompleted?: number;
   planetIncomeRemainder?: number;
 };
 
@@ -113,7 +114,7 @@ export function getPilotCareer(state: SpaceState): PilotCareer {
   const discoveries = state.discoveredWorlds?.length || 0;
   const colonies = Object.values(state.colonies || {}).filter(colony => colony.population > 0).length;
   const settlements = Object.values(state.colonies || {}).reduce((sum, colony) => sum + colony.population, 0);
-  const trips = state.travelNotes?.length || 0;
+  const trips = state.pilotMissionsCompleted || 0;
   const hours = Math.floor((state.worldTimeMinutes || 0) / 60);
   const achievements = [
     ...(state.pilotTheoryPassed ? ["Flight theory passed"] : []),
@@ -179,6 +180,7 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     pilotLicenceIssuedAtWorldMinutes: null,
     pilotLicenceExpiresAtWorldMinutes: null,
     pilotCredits: 0,
+    pilotMissionsCompleted: 0,
     planetIncomeRemainder: 0,
     cargoPeople: 0,
     cargoEquipment: 0,
@@ -461,6 +463,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     pilotLicenceIssuedAtWorldMinutes: typeof saved.pilotLicenceIssuedAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceIssuedAtWorldMinutes) ? Math.max(0, saved.pilotLicenceIssuedAtWorldMinutes) : null,
     pilotLicenceExpiresAtWorldMinutes: typeof saved.pilotLicenceExpiresAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceExpiresAtWorldMinutes) ? Math.max(0, saved.pilotLicenceExpiresAtWorldMinutes) : null,
     pilotCredits: boundedInteger(saved.pilotCredits, 0, 0, 100000000),
+    pilotMissionsCompleted: boundedInteger(saved.pilotMissionsCompleted, 0, 0, 1000000),
     planetIncomeRemainder: Math.max(0, Math.min(0.999999, finiteNumber(saved.planetIncomeRemainder, 0))),
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),

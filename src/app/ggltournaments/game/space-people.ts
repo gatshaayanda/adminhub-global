@@ -81,7 +81,26 @@ export function createPopulationState(seed = 0x47474c, population = 60, worldMin
       }
     }
   }
-  const foundingProfile = buildFoundingProfile(foundingIds, worldMinute || Date.now());\n  return { version: 1, seed, lastUpdatedWorldMinutes: worldMinute, people, relationships, households, foundingProfile, foundingNetworks: deriveFoundingNetworks(households, foundingProfile, seed) };
+  const foundingProfile = buildFoundingProfile(foundingIds, worldMinute || Date.now());
+  const axes = foundingProfile.axes;
+  const average = Math.max(1, foundingProfile.circumstanceIds.length);
+  for (const person of people) {
+    person.traits.cooperation = clamp(person.traits.cooperation + axes.solidarity * 5 / average);
+    person.traits.autonomy = clamp(person.traits.autonomy + axes.autonomy * 5 / average);
+    person.traits.ambition = clamp(person.traits.ambition + (axes.hierarchy + axes.extraction) * 3 / average);
+    person.traits.curiosity = clamp(person.traits.curiosity + axes.knowledge * 5 / average);
+    person.traits.resilience = clamp(person.traits.resilience + axes.trauma * 2 / average);
+    person.needs.belonging = clamp(person.needs.belonging + axes.solidarity * 2 / average);
+    person.needs.autonomy = clamp(person.needs.autonomy + axes.autonomy * 2 / average);
+    if (axes.knowledge > axes.extraction) person.motivation = unit(seed, Number(person.id.slice(-3)), 40) > .45 ? "science" : person.motivation;
+    else if (axes.extraction > axes.knowledge) person.motivation = unit(seed, Number(person.id.slice(-3)), 41) > .55 ? "opportunity" : person.motivation;
+  }
+  for (const household of households) household.cohesion = clamp(household.cohesion + axes.solidarity * 2 / average - Math.max(0, -axes.trust) * 2 / average, 20, 98);
+  for (const relationship of relationships) {
+    relationship.trust = clamp(relationship.trust + axes.trust * 3 / average + axes.solidarity * 2 / average);
+    relationship.affinity = clamp(relationship.affinity + axes.solidarity * 2 / average);
+  }
+  return { version: 1, seed, lastUpdatedWorldMinutes: worldMinute, people, relationships, households, foundingProfile, foundingNetworks: deriveFoundingNetworks(households, foundingProfile, seed) };
 }
 
 export function restorePopulationState(value: unknown, counts: { haven: number; ship: number; colonies: Record<string, number> }, worldMinute = 0): PopulationState {

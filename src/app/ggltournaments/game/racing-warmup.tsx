@@ -230,6 +230,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     reset();
     setSceneGeneration((generation) => generation + 1);
     setChronicleMenuOpen(false);
+    setShipManifestOpen(false);
+    setProximityMenuOpen(true);
+    setTransferSignal(null);
+    if (transferTimer.current) clearTimeout(transferTimer.current);
     setShowRestartConfirm(false);
     try {
       const snapshot: SpaceGameSnapshot = { version: 1, savedAt: Date.now(), world: freshWorld, flight: { ...raceRef.current, last: 0 }, paused: false };

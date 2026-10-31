@@ -320,6 +320,8 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
   if (saved.version !== 1) return initial;
   const savedChronicle = Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")) : [];
   const openingEvents = initial.chronicle || [];
+  const openingEventIds = new Set(openingEvents.map(event => event.id));
+  const savedHistoryEvents = savedChronicle.filter(event => !openingEventIds.has(event.id));
 
   const state: SpaceState = {
     ...initial,
@@ -329,7 +331,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     havenMaterials: boundedInteger(saved.havenMaterials, 12, 0, 100000),
     machineProductionQueue: boundedInteger(saved.machineProductionQueue, 0, 0, 1000),
     machineProductionProgress: Math.max(0, Math.min(3.999, finiteNumber(saved.machineProductionProgress, 0))),
-    chronicle: [...openingEvents.filter(origin => !savedChronicle.some(event => event.id === origin.id)), ...savedChronicle].slice(-1200),
+    chronicle: [...openingEvents, ...savedHistoryEvents.slice(-(1200 - openingEvents.length))],
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],

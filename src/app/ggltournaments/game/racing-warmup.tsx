@@ -64,17 +64,22 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [phase, setPhase] = useState<Phase>("running");
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [manualSaveAvailable, setManualSaveAvailable] = useState(false);
+  const [chronicleMenuOpen, setChronicleMenuOpen] = useState(false);
+  const [sceneGeneration, setSceneGeneration] = useState(0);
+  const restartWasRunningRef = useRef(true);
   useEffect(() => { const timer = window.setInterval(() => setSpaceUiTick(n => n + 1), 500); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     const now = Date.now();
     try {
       const autoSnapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_AUTOSAVE_KEY));
       if (autoSnapshot) {
-        const restoreAt = autoSnapshot.paused ? autoSnapshot.world.lastSimulatedAt : now;
-        spaceStateRef.current = restoreSpaceState(autoSnapshot.world, restoreAt);
+        // Re-entering GGL Space always returns the player to the live simulation.
+        // Restore the saved world and apply elapsed offline time, but do not make
+        // a previously paused tab become a mandatory "Start" screen.
+        spaceStateRef.current = restoreSpaceState(autoSnapshot.world, now);
         raceRef.current = { ...autoSnapshot.flight, last: 0 };
-        phaseRef.current = autoSnapshot.paused ? "paused" : "running";
-        setPhase(phaseRef.current);
+        phaseRef.current = "running";
+        setPhase("running");
       } else {
         const legacy = window.localStorage.getItem(SPACE_SAVE_KEY);
         spaceStateRef.current = legacy ? restoreSpaceState(JSON.parse(legacy), now) : createInitialSpaceState(now);
@@ -204,15 +209,15 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     let snapshot: SpaceGameSnapshot | null = null;
     try { snapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_MANUAL_SAVE_KEY)); } catch { snapshot = null; }
     if (!snapshot) { notify("No valid manual save was found. Your current run has not changed.", "error"); return; }
-    const restoredWorld = restoreSpaceState(snapshot.world, snapshot.paused ? snapshot.world.lastSimulatedAt : Date.now());
+    const restoredWorld = restoreSpaceState(snapshot.world, Date.now());
     const restoredRace = { ...snapshot.flight, last: 0 };
     spaceStateRef.current = restoredWorld;
     raceRef.current = restoredRace;
     lastProcessedWorldMinutesRef.current = restoredWorld.worldTimeMinutes;
     neutralControls();
     setSpeed(restoredRace.speed); setLapTime(restoredRace.elapsed); setNos(restoredRace.nos); setBoostActive(false);
-    phaseRef.current = snapshot.paused ? "paused" : "running";
-    setPhase(phaseRef.current);
+    phaseRef.current = "running";
+    setPhase("running");
     restoredWorld.lastSimulatedAt = Date.now();
     writeAutoSnapshot();
     setSpaceUiTick(n => n + 1);
@@ -223,6 +228,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     spaceStateRef.current = freshWorld;
     lastProcessedWorldMinutesRef.current = freshWorld.worldTimeMinutes;
     reset();
+    setSceneGeneration((generation) => generation + 1);
+    setChronicleMenuOpen(false);
     setShowRestartConfirm(false);
     try {
       const snapshot: SpaceGameSnapshot = { version: 1, savedAt: Date.now(), world: freshWorld, flight: { ...raceRef.current, last: 0 }, paused: false };
@@ -231,6 +238,23 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       setSpaceUiTick(n => n + 1);
       notify("A new civilisation has begun at GGL Haven. The original 60 are aboard the story again.");
     } catch { notify("The new run started, but browser autosave is unavailable.", "error"); }
+  };
+  const requestRestartCivilisation = () => {
+    restartWasRunningRef.current = phaseRef.current === "running";
+    if (restartWasRunningRef.current) {
+      neutralControls();
+      phaseRef.current = "paused";
+      setPhase("paused");
+    }
+    setShowRestartConfirm(true);
+  };
+  const cancelRestartCivilisation = () => {
+    setShowRestartConfirm(false);
+    if (restartWasRunningRef.current) {
+      raceRef.current.last = 0;
+      phaseRef.current = "running";
+      setPhase("running");
+    }
   };
   const pauseRace = useCallback(() => {
     if (phaseRef.current === "running") {
@@ -618,6 +642,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   };
   const world = spaceStateRef.current;
   const mission = getFirstFootholdCue(world);
+  const chronicleLocations = ["GGL Haven", ...WORLD_PLANETS.map((planet) => planet.name)];
+  const chronicleEvents = world.chronicle || [];
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
     {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Space · free exploration</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>OPEN SPACE EXPLORATION</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL SPACE · EXPLORE AT YOUR PACE</p><h1>Find your place among the stars.</h1><p>Take the ship into open space, steer between distant worlds, and explore at your own pace. The analog stick handles direction and forward/reverse flight; up/down thrusters handle altitude.</p><p className="warmup-family-note">Open space, a handful of planets, and room to explore.</p></section></>}
@@ -625,7 +651,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     <section className="big-brothers-section warmup-game">
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds nearby</span><strong>05</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
-        <Racing3DScene raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
+        <Racing3DScene key={sceneGeneration} raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
         {(phase === "paused" || showRestartConfirm) && <div className="space-lifecycle-overlay" role="dialog" aria-modal="true" aria-labelledby="space-lifecycle-title">
           <div className="space-lifecycle-card">
             <span className="space-lifecycle-brand">ADMIN HUB CIPA · FLIGHT SYSTEM</span>
@@ -633,7 +659,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               <h2 id="space-lifecycle-title">RESTART CIVILISATION?</h2>
               <p>This begins a fresh run at GGL Haven with its original 60 people and starting supplies. Your separate manual save will be kept.</p>
               <div className="space-lifecycle-actions">
-                <button type="button" className="space-lifecycle-secondary" onClick={() => setShowRestartConfirm(false)}>KEEP CURRENT RUN</button>
+                <button type="button" className="space-lifecycle-secondary" onClick={cancelRestartCivilisation}>KEEP CURRENT RUN</button>
                 <button type="button" className="space-lifecycle-primary" onClick={restartCivilisation}>RESTART CIVILISATION</button>
               </div>
             </> : <>
@@ -641,7 +667,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               <p>Flight controls, world time and civilisation progression are on hold.</p>
               <div className="space-lifecycle-actions">
                 <button type="button" className="space-lifecycle-primary" onClick={pauseRace}>RESUME FLIGHT ▶</button>
-                <button type="button" className="space-lifecycle-secondary" onClick={() => setShowRestartConfirm(true)}>RESTART CIVILISATION ↻</button>
+                <button type="button" className="space-lifecycle-secondary" onClick={requestRestartCivilisation}>RESTART CIVILISATION ↻</button>
               </div>
             </>}
           </div>
@@ -682,6 +708,23 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <div className="space-mission-footer"><span>NAV TARGET</span><b>{mission.target}</b></div>
         </div>
         <div className="space-world-signal" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "Your actions are shaping the system."}</strong></div>
+        <div className="space-chronicle-dock">
+          <button type="button" className="space-chronicle-toggle" aria-expanded={chronicleMenuOpen} onClick={() => setChronicleMenuOpen((open) => !open)}>
+            CHRONICLES <span>{chronicleEvents.length} EVENTS</span><i aria-hidden="true">{chronicleMenuOpen ? "−" : "+"}</i>
+          </button>
+          {chronicleMenuOpen && <div className="space-chronicle-drawer" aria-label="Haven and planet population chronicles">
+            <div className="space-chronicle-drawer-heading"><strong>CIVILISATION HISTORY</strong><button type="button" onClick={() => setChronicleMenuOpen(false)} aria-label="Close chronicles">×</button></div>
+            {chronicleLocations.map((location) => {
+              const events = chronicleEvents.filter((event) => event.location === location).slice().reverse();
+              return <details className="space-chronicle-group" key={location}>
+                <summary><span>{location === "GGL Haven" ? "HAVEN" : location.toUpperCase()}</span><small>{events.length} EVENTS</small></summary>
+                <div className="space-chronicle-list">
+                  {events.length ? events.map((event) => <small key={event.id}>T+{Math.floor(event.atWorldMinutes / 60)}h · <strong>{event.title}</strong> — {event.detail}</small>) : <small>History begins when people, equipment and events reach this world.</small>}
+                </div>
+              </details>;
+            })}
+          </div>}
+        </div>
         {world.nearbyTarget && <>
           <button type="button" className="space-proximity-toggle" aria-expanded={proximityMenuOpen} onClick={() => setProximityMenuOpen(open => !open)}>{proximityMenuOpen ? "CLOSE" : "PLANET MENU"} <span aria-hidden="true">{proximityMenuOpen ? "−" : "+"}</span></button>
           {proximityMenuOpen && <div className="space-proximity-actions" aria-label="Nearby interaction">
@@ -691,7 +734,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <button type="button" onClick={dockOrLand} disabled={world.cargoEquipment >= 4}>Recover equipment <span>＋</span></button>
           </> : world.nearbyTarget === "GGL Haven" ? <>
             <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage<br /><small>{world.havenMaterials || 0} raw materials · {world.machineProductionQueue || 0} machine(s) queued · {Math.floor(world.machineProductionProgress || 0)}/4 system hours</small><br /><small>{(world.population?.people || []).filter(person => person.alive && person.location === "haven").slice(0, 4).map(person => person.name).join(" · ")}</small></div>
-            <details className="space-chronicle"><summary>HAVEN CHRONICLE · {(world.chronicle || []).filter(event => event.location === "GGL Haven").length} EVENTS</summary><div className="space-chronicle-list">{(world.chronicle || []).filter(event => event.location === "GGL Haven").slice().reverse().map(event => <small key={event.id}>T+{Math.floor(event.atWorldMinutes / 60)}h · <strong>{event.title}</strong> — {event.detail}</small>)}</div></details>
+            
             <button type="button" onClick={world.dockedAt === "GGL Haven" ? undockFromHaven : dockOrLand}>{world.dockedAt === "GGL Haven" ? "Undock · safe harbour active" : "Dock / return cargo"} <span>{world.dockedAt === "GGL Haven" ? "↗" : "↙"}</span></button>
             {raceRef.current.damage > 0 && <button type="button" onClick={repairShip}>Repair ship · {Math.ceil(raceRef.current.damage / 35)} machine(s) <span>🛠</span></button>}
             <div className="space-machine-load-options" aria-label="Choose machinery load">
@@ -704,7 +747,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             {(() => { const planet = WORLD_PLANETS.find(item => item.name === world.nearbyTarget); if (!planet) return null; const progress = world.planetProgress[planet.name] ?? planet.initialProgress; const installed = world.deployedEquipment[planet.name] || 0; const stage = habitatStage(progress); const colony = world.colonies[planet.name]; const ecology = world.ecology?.[planet.name]; return <div className="space-proximity-data">
               <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
               {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}<br />{(world.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name)).slice(0, 3).map(person => person.name).join(" · ")}
-              <details className="space-chronicle"><summary>{planet.name.toUpperCase()} CHRONICLE · {(world.chronicle || []).filter(event => event.location === planet.name).length} EVENTS</summary><div className="space-chronicle-list">{(world.chronicle || []).filter(event => event.location === planet.name).slice().reverse().map(event => <small key={event.id}>T+{Math.floor(event.atWorldMinutes / 60)}h · <strong>{event.title}</strong> — {event.detail}</small>)}{!(world.chronicle || []).some(event => event.location === planet.name) && <small>History begins when the first people and machines arrive.</small>}</div></details>{ecology && <div className="space-ecology-data"><b>WORLD SYSTEMS</b><span>{Math.round(ecology.temperatureC)}°C · {Math.round(ecology.pressureKpa)} kPa · water {Math.round(ecology.accessibleWater)}%</span><span>Radiation {Math.round(ecology.radiation)}% · ecology {Math.round(ecology.biodiversity)}% · food {Math.round(ecology.foodProduction)}%</span><span>{ecology.resourceType}: {Math.round(ecology.resourceStock)} units · fabrication {Math.round(ecology.fabricationProgress)}%</span><span>Local modules produced: {ecology.manufacturedModules} · maintenance load {Math.round(ecology.maintenanceLoad)}%</span></div>}
+              {ecology && <div className="space-ecology-data"><b>WORLD SYSTEMS</b><span>{Math.round(ecology.temperatureC)}°C · {Math.round(ecology.pressureKpa)} kPa · water {Math.round(ecology.accessibleWater)}%</span><span>Radiation {Math.round(ecology.radiation)}% · ecology {Math.round(ecology.biodiversity)}% · food {Math.round(ecology.foodProduction)}%</span><span>{ecology.resourceType}: {Math.round(ecology.resourceStock)} units · fabrication {Math.round(ecology.fabricationProgress)}%</span><span>Local modules produced: {ecology.manufacturedModules} · maintenance load {Math.round(ecology.maintenanceLoad)}%</span></div>}
               {(() => { {colony && <div className="space-society-data"><b>{colony.governance.replace("-", " ").toUpperCase()}</b><span>Haven trust {Math.round(colony.trustWithHaven)}% · local autonomy {Math.round(colony.autonomy)}%</span>{colony.factions.length > 0 ? colony.factions.map(faction => <small key={faction.id}>{faction.name} · {faction.influence}% influence — {faction.agenda}</small>) : <small>Local groups are still forming from settlers' shared experiences.</small>}</div>}const hazard = (world.hazards || []).find(item => item.target === planet.name && (item.status === "warning" || item.status === "mitigated")); if (!hazard) return null; const hours = Math.max(0, (hazard.impactAtWorldMinutes - world.worldTimeMinutes) / 60); return <div className="space-hazard-card"><b>{hazard.type === "power-dust" ? "POWER-DUST SIGNATURE" : "ORBITAL IMPACT WARNING"}</b><small>Estimated impact window: {hours.toFixed(1)} system hours · confidence {Math.round(hazard.confidence * 100)}%</small>{hazard.status === "warning" ? <button type="button" onClick={() => { const ok = mitigateSpaceHazard(world, planet.name); notify(ok ? "Mitigation deployed. One finite Haven machine was committed to the response." : "No machine stock is available for mitigation.", ok ? "success" : "error"); setSpaceUiTick(n => n + 1); }} disabled={world.machineInventory <= 0}>Deploy mitigation · 1 machine</button> : <small>Mitigation deployed · revised impact window active</small>}</div>; })()}
             </div>; })()}
             {WORLD_PLANETS.some(item => item.name === world.nearbyTarget && (world.deployedEquipment[item.name] || 0) > 0) && <button type="button" onClick={minePlanetMaterials} disabled={(world.cargoMaterials || 0) >= 20 || !WORLD_PLANETS.some(item => item.name === world.nearbyTarget && (world.ecology?.[item.name]?.resourceStock || 0) >= 1)}>Mine 5 raw materials · cargo {(world.cargoMaterials || 0)}/20</button>}
@@ -749,7 +792,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             onBlur={releaseBoost}>{boostActive ? "NOS ACTIVE ⚡" : "HOLD NOS ⚡"}</button>
           <button type="button" className="projectile-button" aria-label="Fire projectile" disabled={phase !== "running"} onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); controlsRef.current.fire = true; }} onPointerUp={() => { controlsRef.current.fire = false; }} onPointerCancel={() => { controlsRef.current.fire = false; }} onLostPointerCapture={() => { controlsRef.current.fire = false; }}>FIRE ✦</button>
         </div>
-        <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={() => setShowRestartConfirm(true)}>Restart ↻</button></div>
+        <div className="warmup-actions">{phase === "ready" ? <button type="button" className="big-brothers-button primary" onClick={startRace}>Start exploring ↗</button> : phase === "countdown" ? <button type="button" className="big-brothers-button primary" disabled>Ready {countdown || 1}…</button> : phase === "running" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Pause Ⅱ</button> : phase === "paused" ? <button type="button" className="big-brothers-button primary" onClick={pauseRace}>Resume ▶</button> : <button type="button" className="big-brothers-button primary" onClick={startRace}>Try Again ↻</button>}<button type="button" className="big-brothers-button secondary" onClick={requestRestartCivilisation}>Restart ↻</button></div>
       </div>
 
       <p className="warmup-help">Phone: drag the analog stick left/right to steer and up/down to fly forward/back. UP THRUST ↑ raises altitude; DOWN THRUST ↓ lowers altitude. Hold NOS to engage a boost burst. Desktop: ← / → or A / D steer, ↑ / W forward, ↓ / S reverse, E up thrust, Q down thrust, Space / Shift NOS, F / Enter fire, P pause. Practice is free. This is a free exploration mode; no tournament prize is attached to this solo mode.</p>

@@ -8,6 +8,7 @@ import type { Controls, Phase, Race, SpaceState } from "./racing-warmup";
 
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; spaceStateRef: RefObject<SpaceState> };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const mapPoint = (x: number, z: number): [number, number] => [10 + ((x + 650) / 1300) * 160, 10 + ((z + 600) / 1150) * 108];
 
 function makeCar() {
   const ship = new THREE.Group();
@@ -287,9 +288,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     const clock = new THREE.Clock();
     let lastClockPaint = -1;
     let raf = 0;
-    const toMapPoint = (x: number, z: number): [number, number] => [10 + ((x + 650) / 1300) * 160, 10 + ((z + 600) / 1150) * 108];
     const mapTargetPositions: Record<string, [number, number]> = {
-      "GGL Haven": toMapPoint(-24, 70),
+      "GGL Haven": mapPoint(-24, 70),
       Ember: toMapPoint(-170, -80), Aster: toMapPoint(170, 30), Cobalt: toMapPoint(290, 145), Verdant: toMapPoint(460, -85), Frost: toMapPoint(120, 400),
       ...Object.fromEntries(SURVEY_WORLDS.map(world => [world.id, toMapPoint(world.position[0], world.position[2])])),
     };
@@ -381,7 +381,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         }
       }
       state.nearbyTarget = nearest;
-      const navigationTarget = getFirstFootholdCue(state).target;
+      const navigationTarget = state.selectedSurveyTarget || getFirstFootholdCue(state).target;
       havenNavigationBeacon.visible = navigationTarget === "GGL Haven";
       havenBeaconRing.rotation.y += frameDelta * .55;
       // Habitat stages are real world-state signals: surface tint, atmosphere, forcefield and visible machinery transition together.

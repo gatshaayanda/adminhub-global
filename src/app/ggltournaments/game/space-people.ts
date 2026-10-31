@@ -15,7 +15,7 @@ export type SpacePerson = {
 };
 export type PersonRelationship = { id: string; personA: string; personB: string; kind: "kin" | "partner" | "friend" | "rival"; trust: number; affinity: number; lastChangedAtWorldMinutes: number };
 export type SpaceHousehold = { id: string; memberIds: string[]; location: PopulationLocation; cohesion: number; lastBirthAtWorldMinutes: number };
-import { buildFoundingProfile, DEFAULT_FOUNDING_IDS, deriveFoundingNetworks, type FoundingNetwork, type FoundingProfile } from "./space-founding";
+import { buildFoundingProfile, createLegacyFoundingProfile, DEFAULT_FOUNDING_IDS, deriveFoundingNetworks, type FoundingNetwork, type FoundingProfile } from "./space-founding";
 export type { FoundingNetwork, FoundingProfile } from "./space-founding";
 export type PopulationState = { version: 1; seed: number; lastUpdatedWorldMinutes: number; people: SpacePerson[]; relationships: PersonRelationship[]; households: SpaceHousehold[]; foundingNetworks: FoundingNetwork[]; foundingProfile: FoundingProfile };
 
@@ -123,7 +123,7 @@ export function restorePopulationState(value: unknown, counts: { haven: number; 
       if (people.length) {
         const validHouseholds = new Set(households.map(household => household.id));
         const seed = Number.isFinite(saved.seed) ? Number(saved.seed) : 0x47474c;
-        const savedProfile = saved.foundingProfile && Array.isArray(saved.foundingProfile.circumstanceIds) ? saved.foundingProfile : buildFoundingProfile(DEFAULT_FOUNDING_IDS, worldMinute);
+        const savedProfile = saved.foundingProfile && Array.isArray(saved.foundingProfile.circumstanceIds) ? saved.foundingProfile : createLegacyFoundingProfile();
         const savedNetworks = Array.isArray(saved.foundingNetworks) ? saved.foundingNetworks.filter(network => network && typeof network.id === "string" && typeof network.name === "string" && typeof network.agenda === "string" && typeof network.origin === "string" && typeof network.pressurePoint === "string" && Array.isArray(network.householdIds)).map(network => ({ ...network, householdIds: network.householdIds.filter(id => validHouseholds.has(id)), linkedNetworks: Array.isArray(network.linkedNetworks) ? network.linkedNetworks.filter(id => typeof id === "string") : [] })) : [];
         const foundingNetworks = savedNetworks.length ? savedNetworks : deriveFoundingNetworks(households, savedProfile, seed);
         return { version: 1, seed, lastUpdatedWorldMinutes: Number.isFinite(saved.lastUpdatedWorldMinutes) ? Number(saved.lastUpdatedWorldMinutes) : worldMinute, people, relationships, households, foundingProfile: savedProfile, foundingNetworks };

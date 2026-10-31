@@ -205,7 +205,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const entry: FoundingArchiveEntry = { id: "origin-" + Date.now().toString(36), title: selected.map(item => item!.title).join(" + "), circumstanceIds: ids, savedAt: Date.now() };
     const next = [entry, ...foundingArchive.filter(item => item.circumstanceIds.join("|") !== ids.join("|"))].slice(0, 30);
     setFoundingArchive(next);
-    try { window.localStorage.setItem(SPACE_FOUNDING_ARCHIVE_KEY, JSON.stringify(next)); } catch { notify("The civilisation is playable, but its founding archive could not be written.", "error"); }
+    try { window.localStorage.setItem(SPACE_FOUNDING_ARCHIVE_KEY, JSON.stringify(next)); notify("Founding profile archived. You can load it into another civilisation."); } catch { notify("The civilisation is playable, but its founding archive could not be written.", "error"); }
   };
   const toggleFoundingChoice = (id: string) => {
     setSelectedFoundingIds(current => current.includes(id) ? current.filter(value => value !== id) : current.length < 3 ? [...current, id] : current);
@@ -720,7 +720,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                 <div className="space-founding-categories">{FOUNDING_CATEGORIES.map(category => <button type="button" key={category.id} className={foundingCategory === category.id ? "is-active" : ""} onClick={() => setFoundingCategory(category.id)}>{category.label}</button>)}</div>
                 <small>{FOUNDING_CATEGORIES.find(item => item.id === foundingCategory)?.description}</small>
                 <div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item => item.category === foundingCategory).map(item => <button type="button" key={item.id} className={selectedFoundingIds.includes(item.id) ? "is-selected" : ""} onClick={() => toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}<br /><b>Founder experience:</b> {item.livedExperience}<br /><b>Likely tension:</b> {item.likelyTensions}</span><em>{selectedFoundingIds.includes(item.id) ? "SELECTED" : "ADD TO ORIGIN"}</em></button>)}</div>
-                <small>{selectedFoundingIds.length}/3 selected · Select circumstances across categories to create a mixed beginning.</small>
+                <small>{selectedFoundingIds.length}/3 selected · Select circumstances across categories to create a mixed beginning.</small><button type="button" className="space-founding-archive-action" onClick={() => archiveFoundingChoice(selectedFoundingIds)} disabled={selectedFoundingIds.length === 0}>ARCHIVE THIS ORIGIN</button>
                 {foundingArchive.length > 0 && <div className="space-founding-archive"><strong>ARCHIVED FOUNDING PROFILES</strong>{foundingArchive.map(entry => <button type="button" key={entry.id} onClick={() => loadFoundingArchive(entry)}>{entry.title} <span>LOAD</span></button>)}</div>}
               </div>
               <div className="space-lifecycle-actions">

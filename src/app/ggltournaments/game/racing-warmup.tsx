@@ -222,6 +222,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       spaceStateRef.current = freshWorld;
       lastProcessedWorldMinutesRef.current = 0;
       raceRef.current = newRace();
+      setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
       setSceneGeneration(generation => generation + 1);
       archiveFoundingChoice(selectedFoundingIds);
       setFoundingSetupOpen(false);

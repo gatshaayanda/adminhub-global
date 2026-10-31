@@ -278,8 +278,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     let raf = 0;
     const mapTargetPositions: Record<string, [number, number]> = {
       "GGL Haven": mapPoint(-24, 70),
-      Ember: toMapPoint(-170, -80), Aster: toMapPoint(170, 30), Cobalt: toMapPoint(290, 145), Verdant: toMapPoint(460, -85), Frost: toMapPoint(120, 400),
-      ...Object.fromEntries(SURVEY_WORLDS.map(world => [world.id, toMapPoint(world.position[0], world.position[2])])),
+      Ember: mapPoint(-170, -80), Aster: mapPoint(170, 30), Cobalt: mapPoint(290, 145), Verdant: mapPoint(460, -85), Frost: mapPoint(120, 400),
+      ...Object.fromEntries(SURVEY_WORLDS.map(world => [world.id, mapPoint(world.position[0], world.position[2])])),
     };
     const resize = () => {
       const w = Math.max(280, host.clientWidth), h = Math.max(320, host.clientHeight);
@@ -638,8 +638,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
       if (shipMapMarkerRef.current) {
-        const mapX = toMapPoint(race.worldX, race.worldZ)[0];
-        const mapY = toMapPoint(race.worldX, race.worldZ)[1];
+        const mapX = mapPoint(race.worldX, race.worldZ)[0];
+        const mapY = mapPoint(race.worldX, race.worldZ)[1];
         const mapAngle = -race.worldYaw * 180 / Math.PI;
         shipMapMarkerRef.current.setAttribute("transform", `translate(${mapX.toFixed(2)} ${mapY.toFixed(2)}) rotate(${mapAngle.toFixed(1)})`);
         const target = state.selectedSurveyTarget || getFirstFootholdCue(state).target;
@@ -718,7 +718,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         <circle cx="161.1" cy="17" r="16" fill={habitatStage(spaceStateRef.current.planetProgress.Verdant ?? 86).color} stroke="#85d8ad" strokeWidth="1.5" />
         <circle cx="85.6" cy="114" r="9.5" fill={habitatStage(spaceStateRef.current.planetProgress.Frost ?? 26).color} stroke="#ccefff" strokeWidth="1.2" />
         {SURVEY_WORLDS.map(world => {
-          const [x, y] = toMapPoint(world.position[0], world.position[2]);
+          const [x, y] = mapPoint(world.position[0], world.position[2]);
           const discovered = (spaceStateRef.current.discoveredWorlds || []).includes(world.id);
           return <circle key={world.id} cx={x} cy={y} r={discovered ? 3.4 : 2.5} fill={discovered ? "#c5f36b" : "#8296a8"} stroke={discovered ? "#efffb8" : "#a4b6c5"} strokeWidth=".8" opacity={discovered ? .95 : .72} />;
         })}

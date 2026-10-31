@@ -185,9 +185,16 @@ export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
   recordSpaceChronicle(
     state,
     "discovery",
+    "GGL Haven",
+    "Survey report received: " + world.revealedName,
+    "The ship transmitted a close-range planetary survey to Haven. " + world.surveyFinding + " Meteor exposure: " + world.meteorExposure + ". Archive acclaim earned: " + world.scanReward + ".",
+  );
+  recordSpaceChronicle(
+    state,
+    "discovery",
     world.revealedName,
     "New world discovered: " + world.revealedName,
-    world.surveyFinding + " Survey reward: " + world.scanReward + " archive acclaim. Meteor exposure: " + world.meteorExposure + ".",
+    world.surveyFinding + " Meteor exposure: " + world.meteorExposure + ".",
   );
   if (state.selectedSurveyTarget === worldId) state.selectedSurveyTarget = null;
   return true;

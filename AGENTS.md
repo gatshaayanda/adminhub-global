@@ -1521,3 +1521,20 @@ This section supersedes any earlier instruction that describes the five founding
 - Catalogue and extension rules live in `docs/FOUNDING-CIRCUMSTANCE-LIBRARY.md`; data and derivation live in `src/app/ggltournaments/game/space-founding.ts`.
 - Preserve the current five worlds, their distinct origins, 0% restoration baseline, existing flight controls, finite machinery, ecology, save lifecycle and mobile interactions.
 - This work remains on its feature branch for owner QA. Do not merge to main without explicit owner approval.
+
+
+## GGL Space — 20-world universe and discovery-first direction (2026-10-31)
+
+The product owner's approved next direction is documented in `docs/GGL-SPACE-UNIVERSE-DESIGN.md`. Treat that document as the authoritative design record for the 20-world/four-quadrant solar system, OG Haven chronicles and missions, meteor-driven planetary destruction and evacuation rewards, conquest/renaming/leadership/taxation, population-built bot ships during war, currency progression, and the staged roadmap.
+
+Immediate next playable milestone is **Stage A — Solar System Discovery**:
+- 20 planetary signatures in four quadrants of five; preserve Aster, Cobalt, Verdant, Ember and Frost as the five existing authored worlds.
+- Discovery is progressive. Do not reveal unknown planetary conditions or pretend an unscanned world has been surveyed.
+- Keep the existing five-world simulation/save data intact while the discovery map is introduced.
+- The three initial meteor-safe worlds include the rare naturally habitable dark world; keep this information hidden from the player until discovery.
+- Preserve the approved habitability count: 15 level-zero worlds, two slightly-above-zero but still uninhabitable worlds, one rare naturally habitable world, and two reserved frontier/anomaly worlds whose exact classifications remain to be authored.
+- Do not claim the later evacuation, planet destruction, conquest, recurring tax, family, or bot-fleet systems are implemented merely because they are documented.
+- Keep the game embedded and preserve the golden flight controls, save compatibility, simulation, finite machinery and mobile interaction.
+- Keep work on the active feature branch. No merge to `main` without explicit product-owner approval. No QA handoff until the exact latest commit has a READY preview.
+
+The first map presentation is available at `/ggltournaments/solar-system`. Its selected-signal mission panel is a planning view only until actual ship navigation, survey actions and persistent discovery are integrated into the game.

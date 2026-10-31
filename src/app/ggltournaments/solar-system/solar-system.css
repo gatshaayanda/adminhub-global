@@ -11,3 +11,6 @@
 .system-footer{max-width:1450px;margin:20px auto 0;padding:22px clamp(18px,5vw,70px);border-top:1px solid #ffffff18;display:flex;justify-content:space-between;gap:15px;color:#8094a3;font:9px "DM Mono",monospace}.system-footer a{color:#c8f36d;text-decoration:none}
 @media(max-width:760px){.system-section-heading{align-items:flex-start;flex-direction:column}.system-quadrants{grid-template-columns:1fr}.system-intel-layout{grid-template-columns:1fr}.system-roster{grid-template-columns:repeat(2,minmax(0,1fr))}.system-orbit-node b{font-size:9px}.system-orbit-node small{font-size:7px}.system-quadrant{padding:14px}.system-orbits{gap:3px}.system-legend{gap:10px}.system-nav{padding:0 15px}.system-nav>a:last-child{font-size:8px}}
 @media(max-width:380px){.system-roster{grid-template-columns:1fr}.system-orbit-node b{font-size:8px}.system-orbit-node .system-planet-art{width:31px;height:31px}}
+.system-course-button{width:100%;margin:18px 0 10px;min-height:44px;padding:12px 15px;border:1px solid #c8f36d;border-radius:8px;background:#c8f36d;color:#142016;font:700 10px "DM Mono",monospace;letter-spacing:.08em;cursor:pointer}
+.system-course-button:hover{background:#d9ff87}
+.system-course-button:focus-visible{outline:2px solid #fff;outline-offset:3px}

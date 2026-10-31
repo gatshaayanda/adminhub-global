@@ -1163,3 +1163,6 @@
  .race-hub-embedded .space-founding-categories{grid-template-columns:repeat(2,minmax(0,1fr))}
  .race-hub-embedded .space-founding-cards{max-height:210px}
 }
+
+.race-hub-embedded .space-founding-archive-action{min-height:34px;padding:7px 9px;border:1px solid rgba(197,243,107,.55);border-radius:7px;background:rgba(197,243,107,.09);color:#dfffac;font:900 8px/1.2 system-ui,sans-serif;letter-spacing:.08em;cursor:pointer}
+.race-hub-embedded .space-founding-archive-action:disabled{opacity:.4;cursor:not-allowed}

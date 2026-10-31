@@ -27,6 +27,9 @@ export const FOUNDING_CIRCUMSTANCES: FoundingCircumstance[] = [
  { id:"quiet-relocation", category:"neutral", title:"A planned relocation for a new beginning", period:"Demographic pattern · planned resettlement", summary:"The founders chose to leave a stable but crowded world for a carefully planned settlement with no immediate crisis forcing them out.", livedExperience:"Some see Haven as a fresh start; others miss home, question the cost or wonder whether the plan was worth leaving behind.", likelyTensions:"Commitment versus homesickness, voluntary return, and how much risk the group should accept for a future generation.", axes:{solidarity:1,autonomy:2,hierarchy:0,extraction:0,knowledge:1,scarcity:0,trust:1,trauma:0}, historicalBasis:"Inspired by documented voluntary migration and resettlement histories.", historicalUrl:"https://www.unhcr.org/history-of-unhcr", researchBasis:memory.title,researchUrl:memory.url }
 ];
 export const DEFAULT_FOUNDING_IDS = ["long-range-survey"];
+export function createLegacyFoundingProfile(): FoundingProfile {
+ return { id:"legacy-unattributed", circumstanceIds:[], createdAt:0, title:"Legacy founding record", originSummary:"This civilisation began before player-selected founding circumstances were introduced. Its saved population and chronicle are preserved without assigning a new origin.", categoryMix:{beneficial:0,harmful:0,mixed:0,neutral:0}, axes:{solidarity:0,autonomy:0,hierarchy:0,extraction:0,knowledge:0,scarcity:0,trust:0,trauma:0} };
+}
 export function getCircumstance(id: string) { return FOUNDING_CIRCUMSTANCES.find(item => item.id === id); }
 export function buildFoundingProfile(ids: string[], now = Date.now()): FoundingProfile {
  const chosen = [...new Set(ids)].map(getCircumstance).filter((x): x is FoundingCircumstance => Boolean(x)).slice(0,3);

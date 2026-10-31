@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, recordPlanetSurvey, restoreSpaceState, SPACE_SAVE_KEY, SYSTEM_SURVEY_TARGETS, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
@@ -710,20 +710,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setSpaceUiTick(n => n + 1);
   };
 
-  const scanNearbyWorld = () => {
-    const state = spaceStateRef.current;
-    const targetName = state.nearbyTarget;
-    if (!targetName || targetName === "GGL Haven" || targetName === "Floating Equipment") { notify("Fly within scanning range of a planetary body first.", "info"); return; }
-    const target = SYSTEM_SURVEY_TARGETS.find(item => item.name === targetName);
-    if (!target) { notify("No recognised planetary signal is in scanning range.", "error"); return; }
-    if (state.surveyRecords?.[target.id]) { notify(target.name + " already has a survey report in Haven's archive.", "info"); return; }
-    if (recordPlanetSurvey(state, target.id)) {
-      notify(target.name + " scanned. Survey data transmitted to Haven's chronicle.");
-      signalTransfer("🛰️", "PLANETARY SURVEY COMPLETE", target.name + " has been added to the persistent system chart.", "SHIP  →  HAVEN ARCHIVE");
-      writeAutoSnapshot();
-      setSpaceUiTick(n => n + 1);
-    }
-  };
   const engageBoost = () => {
     if (phaseRef.current !== "running" || raceRef.current.nos <= 0) return;
     controlsRef.current.boost = true;
@@ -742,7 +728,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Space · free exploration</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>OPEN SPACE EXPLORATION</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL SPACE · EXPLORE AT YOUR PACE</p><h1>Find your place among the stars.</h1><p>Take the ship into open space, steer between distant worlds, and explore at your own pace. The analog stick handles direction and forward/reverse flight; up/down thrusters handle altitude.</p><p className="warmup-family-note">Open space, a handful of planets, and room to explore.</p></section></>}
     {embedded && <div className="race-inline-heading"><div><p className="big-brothers-eyebrow">GGL / OPEN SPACE</p><h2>Explore the system.</h2><p>Use the analog stick to steer and fly forward or backward. UP THRUST raises altitude; DOWN THRUST lowers altitude.</p></div></div>}
     <section className="big-brothers-section warmup-game">
-      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds surveyed</span><strong>{world.discoveredPlanets?.length || 5} / 20</strong></div></div>
+      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds surveyed</span><strong>{5 + (world.discoveredWorlds?.length || 0)} / 20</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene key={sceneGeneration} raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
         {(phase === "ready" || phase === "paused" || showRestartConfirm) && <div className="space-lifecycle-overlay" role="dialog" aria-modal="true" aria-labelledby="space-lifecycle-title">
@@ -800,7 +786,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <div><span>HAVEN POPULATION</span><b>{spaceStateRef.current.havenPopulation}</b></div>
             <div><span>HAVEN MACHINE STOCK</span><b>{spaceStateRef.current.machineInventory}</b></div>
             <div><span>SHIP HULL INTEGRITY</span><b>{Math.max(0, 100 - Math.round(raceRef.current.damage))}%</b></div>
-            <div><span>WORLDS VISITED</span><b>{spaceStateRef.current.discoveredPlanets?.length || 5} / 20</b></div>
+            <div><span>WORLDS VISITED</span><b>{5 + (spaceStateRef.current.discoveredWorlds?.length || 0)} / 20</b></div>
             <div className="space-manifest-save-actions">
               <button type="button" onClick={saveManualGame}>SAVE RUN</button>
               <button type="button" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVE</button>
@@ -823,12 +809,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <div className="space-mission-footer"><span>NAV TARGET</span><b>{mission.target}</b></div>
         </div>
         <div className="space-world-signal" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "Your actions are shaping the system."}</strong></div>
-        <div className="space-survey-panel">
-          <div><span>PLANETARY SURVEY / SHIP SCANNER</span><strong>{world.nearbyTarget && SYSTEM_SURVEY_TARGETS.some(item => item.name === world.nearbyTarget) ? world.nearbyTarget : "NO PLANET IN SCANNING RANGE"}</strong></div>
-          <p>{world.nearbyTarget && SYSTEM_SURVEY_TARGETS.some(item => item.name === world.nearbyTarget) ? (world.surveyRecords?.[SYSTEM_SURVEY_TARGETS.find(item => item.name === world.nearbyTarget)!.id] ? "Survey report already secured in Haven's chronicle." : "Hold position near the planetary body and transmit an orbital survey to Haven.") : "Fly close to a planetary body to identify its signal and unlock the survey action."}</p>
-          <button type="button" onClick={scanNearbyWorld} disabled={!world.nearbyTarget || !SYSTEM_SURVEY_TARGETS.some(item => item.name === world.nearbyTarget) || Boolean(world.surveyRecords?.[SYSTEM_SURVEY_TARGETS.find(item => item.name === world.nearbyTarget)?.id || ""])}>{world.nearbyTarget && world.surveyRecords?.[SYSTEM_SURVEY_TARGETS.find(item => item.name === world.nearbyTarget)?.id || ""] ? "SURVEY FILED ✓" : "SCAN & TRANSMIT REPORT"}</button>
-          <Link href="/ggltournaments/solar-system">OPEN SYSTEM MAP ↗</Link>
-        </div>
         <div className="space-chronicle-dock">
           <button type="button" className="space-chronicle-toggle" aria-expanded={chronicleMenuOpen} onClick={() => setChronicleMenuOpen((open) => !open)}>
             CHRONICLES <span>{chronicleEvents.length} EVENTS</span><i aria-hidden="true">{chronicleMenuOpen ? "−" : "+"}</i>

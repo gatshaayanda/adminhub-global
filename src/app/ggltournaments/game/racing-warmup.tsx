@@ -862,7 +862,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             </div>
             {world.dockedAt === "GGL Haven" && <button type="button" onClick={startMachineProduction} disabled={(world.havenMaterials || 0) < 6}>Fabricate 1 machine · 6 materials <span>⚙</span></button>}
             <button type="button" onClick={boardCrewAtStation} disabled={world.havenPopulation <= 36 || world.cargoPeople >= 6}>Board crew +3 <span>＋</span></button>
-          </> : getSurveyWorld(world.nearbyTarget) ? (() => {
+          </> : getSurveyWorld(world.nearbyTarget || "") ? (() => {
             const survey = getSurveyWorld(world.nearbyTarget!);
             if (!survey) return null;
             const record = world.surveyRecords?.[survey.id];

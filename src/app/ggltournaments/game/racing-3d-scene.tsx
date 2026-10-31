@@ -224,18 +224,6 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       planetBeacons[worldData.id] = { root: beacon, ring, beam, orb };
     }
 
-    // Fifteen additional planetary signatures complete the four-quadrant system.
-    // Their conditions remain unknown until the player reaches and surveys them.
-    for (let index = 0; index < 15; index++) {
-      const number = index + 6;
-      const angle = index * 2.399963229728653;
-      const distance = 555 + (index % 5) * 43;
-      const y = ((index % 4) - 1.5) * 48;
-      const position: [number, number, number] = [Math.cos(angle) * distance, y, Math.sin(angle) * distance];
-      const colors = ["#667b91", "#7c718f", "#557f83", "#8b735e", "#647b70"];
-      const color = colors[index % colors.length];
-      addPlanet("Signal " + String(number).padStart(2, "0"), position, 13 + (index % 4) * 2, color, "#263b50", index % 5 === 2);
-    }
     const station = new THREE.Group(); const stationMetal = new THREE.MeshStandardMaterial({ color: "#7c9ab8", metalness: .72, roughness: .35 }); const stationCore = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 10, 12), stationMetal); stationCore.rotation.x = Math.PI / 2; station.add(stationCore); const stationRing = new THREE.Mesh(new THREE.TorusGeometry(13, 1.2, 8, 48), new THREE.MeshStandardMaterial({ color: "#61d9ef", emissive: "#187b9a", emissiveIntensity: .6, metalness: .55, roughness: .32 })); stationRing.rotation.x = Math.PI / 2; station.add(stationRing); for (let i = 0; i < 4; i++) { const angle = i * Math.PI / 2; const spoke = new THREE.Mesh(new THREE.BoxGeometry(2,2,10), stationMetal); spoke.position.set(Math.cos(angle)*8,Math.sin(angle)*8,0); station.add(spoke); const pod = new THREE.Mesh(new THREE.BoxGeometry(4,3,5), stationMetal); pod.position.set(Math.cos(angle)*16,Math.sin(angle)*16,0); station.add(pod); const lamp = new THREE.PointLight("#65eaff",8,28,2); lamp.position.copy(pod.position); station.add(lamp); } station.position.set(-24, 0, 70); station.name = "GGL Haven"; scene.add(station); const stationCenter = station.position.clone();
     const havenNavigationBeacon = new THREE.Group();
     const havenBeaconBeam = new THREE.Mesh(new THREE.CylinderGeometry(.22, .7, 20, 8), new THREE.MeshBasicMaterial({ color: "#c5f36b", transparent: true, opacity: .72, depthWrite: false }));

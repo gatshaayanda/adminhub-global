@@ -7,6 +7,7 @@ import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
 import { FOUNDING_CATEGORIES, FOUNDING_CIRCUMSTANCES, getCircumstance, DEFAULT_FOUNDING_IDS } from "./space-founding";
+import { getSurveyWorld, SPACE_SURVEY_TARGET_KEY } from "./space-universe";
 
 const SPACE_AUTOSAVE_KEY = "ggl-space-autosave-v1";
 const SPACE_MANUAL_SAVE_KEY = "ggl-space-manual-save-v1";
@@ -106,6 +107,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       setPhase("ready");
       setManualSaveAvailable(false);
     }
+    try {
+      const requestedSurveyTarget = window.localStorage.getItem(SPACE_SURVEY_TARGET_KEY);
+      if (requestedSurveyTarget) selectSpaceSurveyTarget(spaceStateRef.current, requestedSurveyTarget);
+    } catch { /* The ship remains playable if browser storage is unavailable. */ }
     lastProcessedWorldMinutesRef.current = spaceStateRef.current.worldTimeMinutes;
     stateHydratedRef.current = true;
     setSpaceUiTick(n => n + 1);
@@ -530,6 +535,20 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     notify("Machine fabrication started. Six material units committed; completion in four system hours.", "success");
     setSpaceUiTick(n => n + 1);
   };
+  const surveyNearbyWorld = () => {
+    const state = spaceStateRef.current;
+    const targetId = state.nearbyTarget;
+    const target = targetId ? getSurveyWorld(targetId) : undefined;
+    if (!target) { notify("Fly closer to an unidentified planetary body before scanning.", "info"); return; }
+    if ((state.discoveredWorlds || []).includes(target.id)) { notify(target.revealedName + " is already in Haven's survey archive.", "info"); return; }
+    const completed = surveySpaceWorld(state, target.id);
+    if (!completed) { notify("Survey could not be completed. Hold a stable close approach and try again.", "error"); return; }
+    try { window.localStorage.removeItem(SPACE_SURVEY_TARGET_KEY); } catch {}
+    signalTransfer("⌖", "PLANETARY SURVEY COMPLETE", target.revealedName + " identified. Findings transmitted to Haven's chronicle.", "SHIP  →  HAVEN ARCHIVE");
+    notify(target.revealedName + " discovered. +" + target.scanReward + " archive acclaim. Haven's chronicle updated.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
+
   const dockOrLand = () => {
     const state = spaceStateRef.current;
     const target = state.nearbyTarget;
@@ -858,7 +877,22 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             </div>
             {world.dockedAt === "GGL Haven" && <button type="button" onClick={startMachineProduction} disabled={(world.havenMaterials || 0) < 6}>Fabricate 1 machine · 6 materials <span>⚙</span></button>}
             <button type="button" onClick={boardCrewAtStation} disabled={world.havenPopulation <= 36 || world.cargoPeople >= 6}>Board crew +3 <span>＋</span></button>
-          </> : <>
+          </> : getSurveyWorld(world.nearbyTarget) ? (() => {
+            const survey = getSurveyWorld(world.nearbyTarget!);
+            if (!survey) return null;
+            const record = world.surveyRecords?.[survey.id];
+            return <>
+              <div className="space-proximity-data">
+                <b>{record ? record.revealedName : "UNIDENTIFIED PLANETARY BODY"}</b><br />
+                {record ? "Survey complete · " + record.classification.replaceAll("-", " ") : "Long-range signature acquired. Close-range scan required."}<br />
+                {record ? record.atmosphere + " · " + record.resources : "Atmosphere, resources, habitability and meteor exposure remain unknown."}
+                {record && <><br />Meteor exposure: {record.meteorExposure}</>}
+              </div>
+              {!record
+                ? <button type="button" onClick={surveyNearbyWorld}>Complete planetary scan <span>⌖</span></button>
+                : <button type="button" onClick={() => { selectSpaceSurveyTarget(world, null); setSpaceUiTick(n => n + 1); }}>Clear navigation target <span>×</span></button>}
+            </>;
+          })() : <>
             {(() => { const planet = WORLD_PLANETS.find(item => item.name === world.nearbyTarget); if (!planet) return null; const progress = world.planetProgress[planet.name] ?? planet.initialProgress; const installed = world.deployedEquipment[planet.name] || 0; const stage = habitatStage(progress); const colony = world.colonies[planet.name]; const ecology = world.ecology?.[planet.name]; return <div className="space-proximity-data">
               <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
               {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}<br />{(world.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name)).slice(0, 3).map(person => person.name).join(" · ")}

@@ -1538,3 +1538,18 @@ Immediate next playable milestone is **Stage A — Solar System Discovery**:
 - Keep work on the active feature branch. No merge to `main` without explicit product-owner approval. No QA handoff until the exact latest commit has a READY preview.
 
 The first map presentation is available at `/ggltournaments/solar-system`. Its selected-signal mission panel is a planning view only until actual ship navigation, survey actions and persistent discovery are integrated into the game.
+
+
+## GGL Space — playable 20-world survey integration (2026-10-31)
+
+This section supersedes the earlier statement that the /ggltournaments/solar-system route is only a planning view. The discovery loop is now connected to the ship on the active feature branch.
+
+- The 20-world chart is available at /ggltournaments/solar-system. Its Set Course action writes a pending survey target; the flight experience restores it, updates the active mission cue, mini-map route and 3D navigation beacon.
+- The 15 additional bodies are physically instantiated in the existing 3D flight space with visible approach boundaries and live mini-map markers. They are not yet full terraformable/settleable ecology worlds; keep the current five-world simulation systems unchanged.
+- A player must fly into close approach range and explicitly complete the scan. Map selection alone must never reveal findings, award acclaim or create a discovery record.
+- A successful survey persists the discovered world ID and authored survey record, awards archive acclaim once, and appends a discovery event to Civilisation History. The chronicle drawer must include newly discovered world names as groups.
+- The map reads the civilisation autosave to reveal discovered names/findings and update the charted count. Save migration must preserve all existing five-world progress and history.
+- The authored hidden distribution across the 15 new worlds is ten additional level-zero, two near-zero but unsafe, one rare naturally habitable dark world and two frontier anomalies. Exactly three of the 20 initial worlds are meteor-safe; that information remains hidden until each world is surveyed.
+- QA the complete route: map select → set course → return to ship → fly to body → close-range scan → chronicle and save → reload map and verify discovery.
+- Do not treat this milestone as implementation of later meteor destruction/evacuation, conquest/taxation, bot fleets, family raising or black-hole systems.
+- Preserve golden flight controls, existing five planets, mobile UI, pause/save/restart, offline progression, Haven docking, finite machinery and legacy-save compatibility.

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, selectSpaceSurveyTarget, surveySpaceWorld, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
@@ -111,6 +111,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const requestedSurveyTarget = window.localStorage.getItem(SPACE_SURVEY_TARGET_KEY);
       if (requestedSurveyTarget) selectSpaceSurveyTarget(spaceStateRef.current, requestedSurveyTarget);
     } catch { /* The ship remains playable if browser storage is unavailable. */ }
+    try {
+      const pendingSurveyTarget = window.localStorage.getItem(SPACE_SURVEY_TARGET_KEY);
+      if (pendingSurveyTarget && getSurveyWorld(pendingSurveyTarget)) selectSpaceSurveyTarget(spaceStateRef.current, pendingSurveyTarget);
+    } catch { /* The ship remains playable without cross-page navigation storage. */ }
     lastProcessedWorldMinutesRef.current = spaceStateRef.current.worldTimeMinutes;
     stateHydratedRef.current = true;
     setSpaceUiTick(n => n + 1);

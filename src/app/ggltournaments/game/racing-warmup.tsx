@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, selectSpaceSurveyTarget, surveySpaceWorld, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, awardPilotCredits, updatePilotLicence, getPilotCareer, selectSpaceSurveyTarget, surveySpaceWorld, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
@@ -162,6 +162,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [transferSignal, setTransferSignal] = useState<{ id: number; emoji: string; title: string; detail: string; route: string } | null>(null);
   const [proximityMenuOpen, setProximityMenuOpen] = useState(true);
   const [shipManifestOpen, setShipManifestOpen] = useState(false);
+  const [pilotCareerOpen, setPilotCareerOpen] = useState(true);
+  const [pilotTheoryAnswers, setPilotTheoryAnswers] = useState<string[]>(["", "", "", ""]);
   const transferSignalId = useRef(0);
   const transferTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signalTransfer = useCallback((emoji: string, title: string, detail: string, route: string) => {
@@ -535,6 +537,29 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     notify("Machine fabrication started. Six material units committed; completion in four system hours.", "success");
     setSpaceUiTick(n => n + 1);
   };
+  const submitPilotTheory = () => {
+    const state = spaceStateRef.current;
+    if (!state.pilotName?.trim()) { notify("Enter your pilot name before taking the theory test.", "error"); return; }
+    if (pilotTheoryAnswers.join("|") !== "vertical|fire|toggle|approach") { notify("Theory test not passed. Review the flight controls and try again.", "error"); return; }
+    state.pilotTheoryPassed = true;
+    recordSpaceChronicle(state, "society", "GGL Haven", "Pilot theory examination passed", state.pilotName + " demonstrated knowledge of thrust, firing, NOS and safe docking procedures.");
+    const licenceIssued = updatePilotLicence(state);
+    writeAutoSnapshot();
+    notify(licenceIssued ? "Theory passed. Your operational pilot licence has been issued." : "Theory passed. Operational licence awaits your first populated planet.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
+  const renewPilotLicence = () => {
+    const state = spaceStateRef.current;
+    if (state.dockedAt !== "GGL Haven") { notify("Dock at GGL Haven to renew your pilot licence.", "error"); return; }
+    if (state.pilotLicenceIssuedAtWorldMinutes == null) { notify("Earn your operational licence by establishing a populated planet first.", "info"); return; }
+    if ((state.pilotCredits || 0) < 100) { notify("Licence renewal costs 100 credits. Complete missions or earn planetary income first.", "error"); return; }
+    state.pilotCredits = (state.pilotCredits || 0) - 100;
+    state.pilotLicenceExpiresAtWorldMinutes = Math.max(state.worldTimeMinutes, state.pilotLicenceExpiresAtWorldMinutes || 0) + 30 * 1440;
+    recordSpaceChronicle(state, "society", "GGL Haven", "Pilot licence renewed", state.pilotName + " paid 100 credits to renew the operational licence for 30 system days.");
+    writeAutoSnapshot();
+    notify("Pilot licence renewed for 30 system days.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
   const surveyNearbyWorld = () => {
     const state = spaceStateRef.current;
     const targetId = state.nearbyTarget;
@@ -558,6 +583,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (state.cargoEquipment >= 4) { notify("Machine hold full. Return to Haven or deliver equipment before recovering more.", "info"); return; }
       state.cargoEquipment += 1;
       state.salvageRecovered = (state.salvageRecovered || 0) + 1;
+      awardPilotCredits(state, 10, "Equipment recovery mission reward");
       state.acclaim += 1;
       state.events.unshift("Recoverable station equipment recovered and secured aboard the ship.");
       state.events = state.events.slice(0, 6);
@@ -582,6 +608,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — " + (state.deployedEquipment[planet] || 0) + " machine(s) installed; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
         state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8);
         const award = state.visitedPlanets.length * 2;
+        awardPilotCredits(state, state.visitedPlanets.length * 20, "Completed planetary delivery and return mission");
         state.acclaim += award;
         notify("Trip logged. Haven archive gained " + state.visitedPlanets.length + " world report(s). Archive acclaim +" + award + ".", "success");
       } else if (returnedCrew || returnedMachines) {
@@ -641,11 +668,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             state.colonyGrowthRemainders[target] = 0;
           }
           state.cargoPeople -= moved;
+          awardPilotCredits(state, 100, "First populated-world settlement mission reward");
+          const licenceIssued = updatePilotLicence(state);
           movePeople(state.population, "ship", ("planet:" + target) as `planet:${string}`, moved);
           state.events.unshift(target + " settlement founded by " + moved + " people from GGL Haven.");
           recordSpaceChronicle(state, "settlement", target, target + " settlement founded", moved + " settlers from Haven established the first local community. Its history begins here.");
           state.events = state.events.slice(0, 6);
-          notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations.", "success");
+          notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations." + (licenceIssued ? " Operational pilot licence issued!" : ""), "success");
           signalTransfer("🧑‍🚀", "SETTLEMENT FOUNDED", moved + " person(s) established local operations on " + target + ".", "SHIP  →  " + target.toUpperCase());
         } else {
           notify(target + " has no safe living capacity remaining. Crew remain aboard.", "info");
@@ -792,6 +821,27 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <div><span>HAVEN POPULATION</span><b>{spaceStateRef.current.havenPopulation}</b></div>
             <div><span>HAVEN MACHINE STOCK</span><b>{spaceStateRef.current.machineInventory}</b></div>
             <div><span>SHIP HULL INTEGRITY</span><b>{Math.max(0, 100 - Math.round(raceRef.current.damage))}%</b></div>
+            <details className="space-pilot-career" open={pilotCareerOpen} onToggle={event => setPilotCareerOpen(event.currentTarget.open)}>
+              <summary><span>PILOT LICENCE & CAREER</span><b>{getPilotCareer(world).rank.toUpperCase()}</b></summary>
+              <div className="space-pilot-career-body">
+                <label>PILOT NAME<input maxLength={28} value={world.pilotName || ""} placeholder="Enter your pilot name" onChange={event => { world.pilotName = event.target.value.slice(0, 28); setSpaceUiTick(n => n + 1); }} onBlur={writeAutoSnapshot} /></label>
+                <div className="space-pilot-career-stats"><span>CAREER RANK<strong>{getPilotCareer(world).rank}</strong></span><span>CAREER SCORE<strong>{getPilotCareer(world).score}</strong></span><span>MISSION CREDITS<strong>{world.pilotCredits || 0}</strong></span></div>
+                <div className="space-pilot-licence-status"><b>{world.pilotTheoryPassed ? "THEORY PASSED" : "THEORY EXAM REQUIRED"}</b><span>{getPilotCareer(world).operationalLicence ? (getPilotCareer(world).licenceActive ? "OPERATIONAL LICENCE ACTIVE" : "OPERATIONAL LICENCE EXPIRED") : "OPERATIONAL LICENCE: EARNED AFTER FIRST POPULATED PLANET"}</span></div>
+                {!world.pilotTheoryPassed && <div className="space-pilot-theory">
+                  <p>FLIGHT THEORY · Four checks before certification</p>
+                  {[
+                    {question:"Which control changes vertical thrust?",correct:"vertical",options:[["steer","Steering"],["vertical","Vertical thrust / up-down"],["fire","Fire"]]},
+                    {question:"How do you fire the ship's weapon?",correct:"fire",options:[["boost","NOS"],["fire","FIRE / F key"],["dock","Dock"]]},
+                    {question:"How does NOS engage?",correct:"toggle",options:[["toggle","Tap to toggle boost"],["hold","Hold the steering stick"],["brake","Press brake"]]},
+                    {question:"What is required before docking?",correct:"approach",options:[["approach","Approach a valid target, then dock"],["anywhere","Dock from any distance"],["automatic","Docking is always automatic"]]}
+                  ].map((question,index)=><label key={question.correct}><span>{index+1}. {question.question}</span><select value={pilotTheoryAnswers[index]} onChange={event=>setPilotTheoryAnswers(current=>current.map((value,i)=>i===index?event.target.value:value))}><option value="">Choose answer</option>{question.options.map(option=><option key={option[0]} value={option[0]}>{option[1]}</option>)}</select></label>)}
+                  <button type="button" onClick={submitPilotTheory}>SUBMIT THEORY TEST</button>
+                </div>}
+                {getPilotCareer(world).operationalLicence && <div className="space-pilot-renewal"><span>VALID UNTIL T+{Math.floor((world.pilotLicenceExpiresAtWorldMinutes || 0)/1440)} SYSTEM DAYS · 100 CREDITS / 30 DAYS</span><button type="button" onClick={renewPilotLicence} disabled={world.dockedAt!=="GGL Haven" || (world.pilotCredits||0)<100}>RENEW AT HAVEN · 100 CR</button></div>}
+                <div className="space-pilot-achievements"><b>CAREER RECORD</b>{getPilotCareer(world).achievements.length ? getPilotCareer(world).achievements.map(item=><small key={item}>✓ {item}</small>) : <small>Your career record begins with your first flight and mission.</small>}</div>
+                <small className="space-pilot-rank-note">{getPilotCareer(world).nextRank ? "Next rank: "+getPilotCareer(world).nextRank+" · "+Math.max(0,(getPilotCareer(world).nextThreshold||0)-getPilotCareer(world).score)+" points to go. Time served and real achievements both count." : "Top career rank reached. Your history continues to grow."}</small>
+              </div>
+            </details>
             <div><span>WORLDS VISITED</span><b>{5 + (spaceStateRef.current.discoveredWorlds?.length || 0)} / 20</b></div>
             <div className="space-manifest-save-actions">
               <button type="button" onClick={saveManualGame}>SAVE RUN</button>

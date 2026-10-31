@@ -384,7 +384,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     chronicle: [],
     discoveredWorlds: Array.isArray(saved.discoveredWorlds) ? saved.discoveredWorlds.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))) : [],
     selectedSurveyTarget: typeof saved.selectedSurveyTarget === "string" && (Boolean(getSurveyWorld(saved.selectedSurveyTarget)) || WORLD_PLANETS.some(planet => planet.name === saved.selectedSurveyTarget)) ? saved.selectedSurveyTarget : null,
-    surveyRecords: {},
+    surveyRecords: saved.surveyRecords && typeof saved.surveyRecords === "object" ? Object.fromEntries(Object.entries(saved.surveyRecords).filter(([id, record]) => Boolean(getSurveyWorld(id)) && record && typeof record === "object" && typeof (record as SpaceSurveyRecord).revealedName === "string" && typeof (record as SpaceSurveyRecord).atmosphere === "string").map(([id, record]) => [id, record as SpaceSurveyRecord])) : {},
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],

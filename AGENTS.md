@@ -1449,3 +1449,6 @@ The product owner QA-tested the READY preview at commit `7d9291d42f3a52cc5128ed7
 - Structured chronicle records Haven origin, habitat stage changes, settlement founding, governance/independence changes, equipment recovery, docking/undocking, ship repair, machine production and asteroid hull impacts. Contextual station/planet menus show recent records. Full family/personal life histories remain incomplete.
 - First finite machine loop: deployed planet machinery enables mining finite resource stock into 20-unit ship material cargo; return/dock at Haven to unload; 6 materials queue one machine; 4 simulated system hours complete it into finite Haven stock. Repairs consume machine stock.
 - Do not describe these as QA-passed. Exact preview for latest branch commit must be READY and tested by the product owner before merge. Vercel reported its API deployment allowance exhausted for 24 hours during preview creation; do not retry or spam builds before the limit resets.
+
+### QA handoff refresh (2026-10-31)
+- Fresh documentation-only chore checkpoint; preserve all gameplay implementation and keep PR #18 unmerged pending exact-commit READY preview and product-owner QA.

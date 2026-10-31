@@ -609,6 +609,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8);
         const award = state.visitedPlanets.length * 2;
         awardPilotCredits(state, state.visitedPlanets.length * 20, "Completed planetary delivery and return mission");
+        state.pilotMissionsCompleted = (state.pilotMissionsCompleted || 0) + 1;
         state.acclaim += award;
         notify("Trip logged. Haven archive gained " + state.visitedPlanets.length + " world report(s). Archive acclaim +" + award + ".", "success");
       } else if (returnedCrew || returnedMachines) {

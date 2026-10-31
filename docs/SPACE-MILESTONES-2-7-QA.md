@@ -161,3 +161,22 @@ Still outstanding:
 - Narrative perspective distinctions (confirmed facts vs estimates, beliefs and rumours) and deeper faction diplomacy/migration remain later work.
 
 The current branch preview must be tested for the implemented fixes before any claim of success. In particular, confirm a player can recover a cache on touch, observe assisted shots, explicitly dock and remain safe through an asteroid event, mine and deliver materials, queue and complete machine fabrication, repair a damaged ship, and inspect Haven/colony histories.
+
+
+## Macro founding agendas and authored planetary origins — 2026-10-31
+
+Implemented on feat/ggl-space-seeded-origins (owner QA pending):
+- Seeded five connected founding networks across the original 20 households / 60 people. Each network has a collective origin, shared agenda, pressure point and explicit links to other networks. These are population-scale starting conditions, not 60 individual biography prompts or fixed good/evil factions.
+- Added a Founding Networks section to the existing Civilisation History drawer. It shows each agenda, current living household membership, shared pressure point and network connections. Existing individual people and relationships remain available to simulation logic without being individually chronicled.
+- Authored distinct survey-origin records for Aster, Cobalt, Verdant, Ember and Frost, including known conditions and unresolved exploration questions. The records appear as the opening event in each world's history group.
+- New worlds remain at 0% restoration on all five planets. Legacy saves retain their saved restoration progress; missing canonical opening-origin events are added without replacing existing history.
+
+Owner QA for this slice:
+1. Start a genuinely new civilisation and open Civilisation History. Confirm five named founding networks appear, each has a distinct agenda/origin/pressure point and linked networks, and the population is still 60 at Haven.
+2. Confirm the history drawer is readable and scrollable on mobile; each network is collapsible and does not replace the existing Haven/planet chronicle groups.
+3. Open each planet history. Confirm its distinct origin story and unresolved exploration questions appear for Aster, Cobalt, Verdant, Ember and Frost.
+4. Confirm all five planets begin at 0% restoration and show no safe crew capacity. Confirm their ecology/resource identity and machinery requirements remain distinct.
+5. Load an existing save. Confirm existing progress, colonies, population, events and flight state remain intact while any missing canonical planet-origin entry is added.
+6. Regression: START GAME gate, pause/resume, save/load/restart, offline-time semantics, mobile flight controls, target assist, cache recovery, docking safety, finite materials/machine fabrication and ship repair.
+
+No owner QA pass is claimed by this implementation checkpoint. Keep the branch unmerged until the exact latest commit has a READY preview and the product owner approves.

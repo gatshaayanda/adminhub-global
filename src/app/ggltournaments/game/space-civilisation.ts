@@ -4,11 +4,11 @@ import { advancePopulation, createPopulationState, restorePopulationState, type 
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
 
 export const WORLD_PLANETS = [
-  { name: "Ember", initialProgress: 6, colonyMachineRequirement: 6, identityColor: "#a75b42", summary: "Sterile rock · full rebuild" },
-  { name: "Frost", initialProgress: 26, colonyMachineRequirement: 5, identityColor: "#9ebdce", summary: "Toxic ice · atmosphere work" },
-  { name: "Aster", initialProgress: 46, colonyMachineRequirement: 4, identityColor: "#4d438d", summary: "Trace atmosphere · heavy support" },
-  { name: "Cobalt", initialProgress: 66, colonyMachineRequirement: 3, identityColor: "#276f9f", summary: "Thin air · settlement prep" },
-  { name: "Verdant", initialProgress: 86, colonyMachineRequirement: 2, identityColor: "#367b62", summary: "Stable biosphere · ready to seed" },
+  { name: "Ember", initialProgress: 0, colonyMachineRequirement: 6, identityColor: "#a75b42", summary: "Sterile rock · full rebuild" },
+  { name: "Frost", initialProgress: 0, colonyMachineRequirement: 5, identityColor: "#9ebdce", summary: "Toxic ice · atmosphere work" },
+  { name: "Aster", initialProgress: 0, colonyMachineRequirement: 4, identityColor: "#4d438d", summary: "Trace atmosphere · heavy support" },
+  { name: "Cobalt", initialProgress: 0, colonyMachineRequirement: 3, identityColor: "#276f9f", summary: "Thin air · settlement prep" },
+  { name: "Verdant", initialProgress: 0, colonyMachineRequirement: 2, identityColor: "#367b62", summary: "Stable biosphere · ready to seed" },
 ] as const;
 
 export type PlanetName = (typeof WORLD_PLANETS)[number]["name"];
@@ -99,7 +99,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     havenMaterials: 12,
     machineProductionQueue: 0,
     machineProductionProgress: 0,
-    chronicle: [{ id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "The original 60 inhabitants begin the first chapter of the GGL civilisation." }],
+    chronicle: [{ id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "The original 60 inhabitants begin the first chapter of the GGL civilisation at Haven. All five worlds await their first restoration investment." }],
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
@@ -116,7 +116,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     havenGrowthRemainder: 0,
     colonies: {},
     colonyGrowthRemainders: {},
-    events: ["Mission signal: Cobalt is 66% restored. Three machines can move it from thin air toward a safe habitat."],
+    events: ["Mission signal: Cobalt is awaiting its first restoration investment. Three machines are required to begin its path toward a safe habitat."],
     population: createPopulationState(0x47474c, 60, 0),
     hazards: [],
     nextHazardAtWorldMinutes: 14 * 1440,
@@ -401,7 +401,7 @@ export type FirstFootholdCue = {
 };
 
 export function getFirstFootholdCue(state: SpaceState): FirstFootholdCue {
-  // Make the first guided investment produce a readable stage change: Cobalt begins at thin-air (66%), so restoration visibly crosses into habitable conditions. This is a suggestion, not a lock; other planets remain interactable.
+  // Cobalt remains the suggested first foothold because its three-machine requirement is the lowest practical entry point. Every world begins at 0% restoration; their environmental identities and machine requirements remain distinct.
   const candidate = !state.colonies.Cobalt
     ? WORLD_PLANETS.find((planet) => planet.name === "Cobalt")
     : WORLD_PLANETS

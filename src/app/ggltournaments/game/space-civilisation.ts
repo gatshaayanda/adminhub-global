@@ -1,5 +1,6 @@
 import { advancePlanetEcology, createPlanetEcology, restorePlanetEcology, type PlanetEcologyMap } from "./space-ecology";
 import { advancePopulation, createPopulationState, restorePopulationState, type PopulationState } from "./space-people";
+import { DEFAULT_FOUNDING_IDS } from "./space-founding";
 
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
 
@@ -21,8 +22,8 @@ export const PLANET_ORIGIN_STORIES: Record<PlanetName, { title: string; discover
   Frost: { title: "Frost — the buried-water world", discovery: "Frost is an extreme cold trap with a hostile, thin atmosphere. Survey returns indicate substantial water ice locked below fractured surface layers, making it strategically important for future life-support chemistry despite its severe temperature and radiation hazards.", unresolved: "The depth, purity and accessibility of the ice are not yet confirmed. Heating and drilling could destabilise the surface, so extraction methods must be tested before large-scale deployment." },
 };
 
-const OPENING_CHRONICLE: SpaceChronicleEvent[] = [
-  { id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "Sixty founders from five connected population networks made Haven a shared refuge. Their common survival compact binds the founding households together, while their different priorities will shape what this civilisation becomes." },
+const createOpeningChronicle = (population: PopulationState): SpaceChronicleEvent[] => [
+  { id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "The founding of Haven: " + (population.foundingProfile?.title || "A new beginning"), detail: (population.foundingProfile?.originSummary || "Sixty founders establish a shared refuge.") + " Five social networks now take shape from their shared circumstances, different interpretations and competing priorities. Their identities are starting conditions, not fixed factions." },
   ...WORLD_PLANETS.map((planet) => ({ id: "planet-origin-" + planet.name.toLowerCase(), atWorldMinutes: 0, kind: "origin" as const, location: planet.name, title: PLANET_ORIGIN_STORIES[planet.name].title, detail: PLANET_ORIGIN_STORIES[planet.name].discovery + " Unresolved frontier: " + PLANET_ORIGIN_STORIES[planet.name].unresolved })),
 ];
 
@@ -103,7 +104,8 @@ export function habitatCapacity(progress: number): number {
   return progress < 80 ? 0 : 12 + Math.floor((progress - 80) * 1.6);
 }
 
-export function createInitialSpaceState(now = Date.now()): SpaceState {
+export function createInitialSpaceState(now = Date.now(), foundingIds: string[] = DEFAULT_FOUNDING_IDS): SpaceState {
+  const population = createPopulationState(0x47474c, 60, 0, foundingIds);
   return {
     version: 1,
     nearbyTarget: null,
@@ -112,7 +114,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     havenMaterials: 12,
     machineProductionQueue: 0,
     machineProductionProgress: 0,
-    chronicle: OPENING_CHRONICLE.map(event => ({ ...event })),
+    chronicle: createOpeningChronicle(population),
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
@@ -130,7 +132,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     colonies: {},
     colonyGrowthRemainders: {},
     events: ["Mission signal: Cobalt is awaiting its first restoration investment. Three machines are required to begin its path toward a safe habitat."],
-    population: createPopulationState(0x47474c, 60, 0),
+    population,
     hazards: [],
     nextHazardAtWorldMinutes: 14 * 1440,
     ecology: createPlanetEcology(),

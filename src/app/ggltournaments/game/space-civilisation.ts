@@ -329,9 +329,6 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
   const saved = value as Partial<SpaceState>;
   if (saved.version !== 1) return initial;
   const savedChronicle = Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")) : [];
-  const openingEvents = initial.chronicle || [];
-  const openingEventIds = new Set(openingEvents.map(event => event.id));
-  const savedHistoryEvents = savedChronicle.filter(event => !openingEventIds.has(event.id));
 
   const state: SpaceState = {
     ...initial,
@@ -341,7 +338,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     havenMaterials: boundedInteger(saved.havenMaterials, 12, 0, 100000),
     machineProductionQueue: boundedInteger(saved.machineProductionQueue, 0, 0, 1000),
     machineProductionProgress: Math.max(0, Math.min(3.999, finiteNumber(saved.machineProductionProgress, 0))),
-    chronicle: [...openingEvents, ...savedHistoryEvents.slice(-(1200 - openingEvents.length))],
+    chronicle: [],
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],
@@ -394,6 +391,10 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     ship: state.cargoPeople,
     colonies: Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population])),
   }, state.worldTimeMinutes);
+  const openingEvents = createOpeningChronicle(state.population).map(event => savedChronicle.find(savedEvent => savedEvent.id === event.id) || event);
+  const openingEventIds = new Set(openingEvents.map(event => event.id));
+  const savedHistoryEvents = savedChronicle.filter(event => !openingEventIds.has(event.id));
+  state.chronicle = [...openingEvents, ...savedHistoryEvents].slice(-1200);
   const savedHazards = Array.isArray((saved as Partial<SpaceState>).hazards) ? (saved as Partial<SpaceState>).hazards! : [];
   state.hazards = savedHazards.filter(hazard => hazard && typeof hazard.id === "string" && (hazard.type === "asteroid-impact" || hazard.type === "power-dust") && typeof hazard.target === "string" && Number.isFinite(hazard.impactAtWorldMinutes) && Number.isFinite(hazard.severity) && ["warning","mitigated","impact"].includes(hazard.status)).slice(-24).map(hazard => ({ ...hazard, severity: Math.max(1, Math.min(3, Math.round(hazard.severity))) as 1|2|3, confidence: Math.max(0, Math.min(1, Number(hazard.confidence) || .5)), mitigation: Math.max(0, Math.min(3, Math.round(Number(hazard.mitigation) || 0))) }));
   state.nextHazardAtWorldMinutes = Math.max(state.worldTimeMinutes, finiteNumber((saved as Partial<SpaceState>).nextHazardAtWorldMinutes, 14 * 1440));

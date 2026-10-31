@@ -161,3 +161,73 @@ Still outstanding:
 - Narrative perspective distinctions (confirmed facts vs estimates, beliefs and rumours) and deeper faction diplomacy/migration remain later work.
 
 The current branch preview must be tested for the implemented fixes before any claim of success. In particular, confirm a player can recover a cache on touch, observe assisted shots, explicitly dock and remain safe through an asteroid event, mine and deliver materials, queue and complete machine fabrication, repair a damaged ship, and inspect Haven/colony histories.
+
+
+## Macro founding agendas and authored planetary origins — 2026-10-31
+
+Implemented on feat/ggl-space-seeded-origins (owner QA pending):
+- Seeded five connected founding networks across the original 20 households / 60 people. Each network has a collective origin, shared agenda, pressure point and explicit links to other networks. These are population-scale starting conditions, not 60 individual biography prompts or fixed good/evil factions.
+- Added a Founding Networks section to the existing Civilisation History drawer. It shows each agenda, current living household membership, shared pressure point and network connections. Existing individual people and relationships remain available to simulation logic without being individually chronicled.
+- Authored distinct survey-origin records for Aster, Cobalt, Verdant, Ember and Frost, including known conditions and unresolved exploration questions. The records appear as the opening event in each world's history group.
+- New worlds remain at 0% restoration on all five planets. Legacy saves retain their saved restoration progress; missing canonical opening-origin events are added without replacing existing history.
+
+Owner QA for this slice:
+1. Start a genuinely new civilisation and open Civilisation History. Confirm five named founding networks appear, each has a distinct agenda/origin/pressure point and linked networks, and the population is still 60 at Haven.
+2. Confirm the history drawer is readable and scrollable on mobile; each network is collapsible and does not replace the existing Haven/planet chronicle groups.
+3. Open each planet history. Confirm its distinct origin story and unresolved exploration questions appear for Aster, Cobalt, Verdant, Ember and Frost.
+4. Confirm all five planets begin at 0% restoration and show no safe crew capacity. Confirm their ecology/resource identity and machinery requirements remain distinct.
+5. Load an existing save. Confirm existing progress, colonies, population, events and flight state remain intact while any missing canonical planet-origin entry is added.
+6. Regression: START GAME gate, pause/resume, save/load/restart, offline-time semantics, mobile flight controls, target assist, cache recovery, docking safety, finite materials/machine fabrication and ship repair.
+
+No owner QA pass is claimed by this implementation checkpoint. Keep the branch unmerged until the exact latest commit has a READY preview and the product owner approves.
+
+
+## Player-driven founding circumstances and dynamic OG Haven — 2026-10-31
+
+Implemented on `feat/ggl-dynamic-founding-library`; owner QA pending.
+
+- Replaced fixed five-network seed data with an extensible circumstance library in four categories: Beneficial, Harmful, Mixed and Neutral.
+- Player can select up to three historical circumstances when creating a new civilisation. Starter entries include mutual aid after disaster, peaceful scientific compact, refuge/resettlement, negotiated commons, coercive extraction, authoritarian escape, engineered exclusion, unequal rescue, prosperity with hidden costs, revolutionary coalition, long-range survey, commercial opportunity and planned relocation.
+- Each entry contains a historical basis/source and a psychological research basis/source. Composite scenarios are identified as composites rather than presented as one literal historical event.
+- Selected circumstance axes influence founder traits, motivations, household cohesion and interpersonal trust. Five interconnected networks are generated from those aggregate conditions; their origins, agendas, pressure points, links and influence are not fixed moral factions.
+- Colony interest groups continue to form from the motivations of the people who actually settle there.
+- The selected profile is recorded in Haven's opening chronicle, preserved in manual/autosaves, and archived locally for later loading into a new civilisation setup.
+- Extension rules and current sources are documented in `docs/FOUNDING-CIRCUMSTANCE-LIBRARY.md`.
+
+Owner QA:
+1. Open a genuinely new civilisation and confirm setup appears before START GAME; choose one circumstance from Beneficial, Harmful, Mixed or Neutral.
+2. Create another civilisation combining circumstances from different categories. Confirm max-three selection, selected count and new origin narrative.
+3. Open Civilisation History → The Founding Networks. Confirm five connected networks, 60 founders at Haven, distinct network origins/agendas/pressure points, and that the profile matches the selected circumstances.
+4. Compare profiles: beneficial, harmful, mixed and neutral starts should produce noticeably different founder motivations, trust/cohesion tendencies and network agendas. They must not become fixed good/evil teams.
+5. Create a profile, leave the game, reload the saved game and confirm the origin and networks are unchanged.
+6. Create a second profile and confirm the first appears in the local founding archive and can be loaded back into setup.
+7. Confirm historical and research source links open from the chronicle.
+8. Regression: all five planets remain at 0% and uninhabitable; test start/pause/restart, manual save/load, offline time, mobile flight controls, target assist, cache recovery, docking safety, machine logistics and ship repair.
+
+Do not claim the faction simulation is complete from this setup slice alone. The five starting networks and profile-driven founder motivations are now seeded; later faction evolution still needs deeper QA and iteration. Keep branch unmerged until exact preview is READY and owner approves.
+
+
+## Stage A — 20-world solar-system discovery map (2026-10-31)
+
+Design authority: `docs/GGL-SPACE-UNIVERSE-DESIGN.md`. The first discovery-map presentation is available at `/ggltournaments/solar-system`.
+
+### Playable discovery-loop QA — 20 worlds
+
+1. Open `/ggltournaments/solar-system` on desktop and mobile. Confirm four quadrants, five locations per quadrant and exactly 20 planetary signatures.
+2. Confirm Aster, Cobalt, Verdant, Ember and Frost retain their existing identities and chronicle records.
+3. Select an unidentified signal and choose **SET COURSE IN SHIP**. Return to the flight experience and confirm the mission cue, mini-map route and 3D navigation beacon point to the selected target.
+4. Fly toward the selected body using the existing analog/keyboard flight controls. Confirm the ship collides with its visible approach boundary and the nearby interaction tray identifies the unknown planetary body.
+5. Confirm survey findings remain hidden before scanning. Complete the explicit close-range scan and verify the world name, classification, atmosphere, resources and meteor exposure are revealed only then.
+6. Confirm one survey reward is added to archive acclaim and a discovery event is written to Civilisation History under the newly revealed world. Repeated interaction must not pay or record a duplicate discovery.
+7. Open Civilisation History and confirm the new world's chronicle group appears. Reload the game and map; confirm discovery, revealed name, survey data and charted count persist.
+8. Select a second target, complete another scan and confirm the first discovery remains intact.
+9. Confirm all 15 unknown bodies are physically present and selectable from the system chart; verify the live mini-map includes all 20 bodies and the ship marker remains correctly projected.
+10. Confirm map filters, selected-signal detail, set-course action, return-to-flight links, mobile readability and keyboard focus.
+11. Regression: existing five-world restoration, ecology, settlement, machine logistics, Haven docking/safe harbour, cache recovery, flight controls, camera, pause/resume, restart, manual save/load, autosave and offline progression remain unchanged.
+12. Load a legacy save. Confirm the five established worlds and all prior history remain intact; new discovery state defaults safely without inventing past scans.
+
+### Remaining integration after Stage A
+- Full survey scanning and discovery persistence are implemented as the first playable slice. Planet-specific restoration/ecology/equipment/settlement for the 15 new worlds remains a later milestone.
+- The current map is a strategic overview; precise orbital mechanics, travel costs, meteor corridor forecasts and dynamic planetary orbits remain future work.
+- Do not imply that the later meteor destruction/evacuation economy, conquest/taxation, war fleets, family raising or black-hole endgame are implemented.
+- Keep the branch unmerged until the exact latest commit has a READY preview and the product owner completes hands-on QA.

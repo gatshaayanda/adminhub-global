@@ -1,8 +1,9 @@
 import { advancePlanetEcology, createPlanetEcology, restorePlanetEcology, type PlanetEcologyMap } from "./space-ecology";
 import { advancePopulation, createPopulationState, restorePopulationState, type PopulationState } from "./space-people";
+import { DEFAULT_FOUNDING_IDS } from "./space-founding";
+import { getSurveyWorld } from "./space-universe";
 
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
-
 export const WORLD_PLANETS = [
   { name: "Ember", initialProgress: 0, colonyMachineRequirement: 6, identityColor: "#a75b42", summary: "Sterile rock · full rebuild" },
   { name: "Frost", initialProgress: 0, colonyMachineRequirement: 5, identityColor: "#9ebdce", summary: "Toxic ice · atmosphere work" },
@@ -12,6 +13,19 @@ export const WORLD_PLANETS = [
 ] as const;
 
 export type PlanetName = (typeof WORLD_PLANETS)[number]["name"];
+
+export const PLANET_ORIGIN_STORIES: Record<PlanetName, { title: string; discovery: string; unresolved: string }> = {
+  Aster: { title: "Aster — the fractured silicate frontier", discovery: "The first long-range survey found a cold, low-pressure world shaped by ancient impacts. Its exposed silicate shelves and buried mineral seams make it useful for structural materials, but the surface offers no safe air or dependable open-water cycle.", unresolved: "Subsurface voids and heat pockets remain poorly mapped. Survey teams do not yet know whether they can support stable underground industry or conceal volatile deposits." },
+  Cobalt: { title: "Cobalt — the copper-bearing pressure basin", discovery: "Orbital instruments traced extensive copper-bearing formations beneath a thin, unstable atmosphere. The world is less thermally extreme than the outer planets, but pressure, radiation exposure and the absence of a safe biosphere still make every unprotected landing lethal.", unresolved: "The extent of accessible copper and the behaviour of buried water deposits are uncertain. Its lower initial machinery requirement makes it a practical first restoration candidate, not a habitable world." },
+  Verdant: { title: "Verdant — the reactive living world", discovery: "Verdant's temperate readings and dense biological signatures initially looked promising. Close observation revealed an unfamiliar, reactive ecology and atmospheric chemistry that cannot be assumed safe for humans. Its rare crystalline deposits may help future power and sensor systems.", unresolved: "The ecology's seasonal cycles, chemical signalling and response to industrial disturbance are not understood. Any restoration must begin with containment and study, not uncontrolled terraforming." },
+  Ember: { title: "Ember — the furnace beneath the dust", discovery: "Ember is a superheated, high-radiation world with almost no useful atmospheric pressure. Orbital scans identified iron-rich deposits and signs of persistent geological activity. It is a long-horizon industrial prospect, not an early settlement destination.", unresolved: "The safest extraction windows, depth of stable mineral seams and long-term behaviour of its active crust remain unknown. Heavy shielding and specialised thermal equipment will be required." },
+  Frost: { title: "Frost — the buried-water world", discovery: "Frost is an extreme cold trap with a hostile, thin atmosphere. Survey returns indicate substantial water ice locked below fractured surface layers, making it strategically important for future life-support chemistry despite its severe temperature and radiation hazards.", unresolved: "The depth, purity and accessibility of the ice are not yet confirmed. Heating and drilling could destabilise the surface, so extraction methods must be tested before large-scale deployment." },
+};
+
+const createOpeningChronicle = (population: PopulationState): SpaceChronicleEvent[] => [
+  { id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "The founding of Haven: " + (population.foundingProfile?.title || "A new beginning"), detail: (population.foundingProfile?.originSummary || "Sixty founders establish a shared refuge.") + " Five social networks now take shape from their shared circumstances, different interpretations and competing priorities. Their identities are starting conditions, not fixed factions." },
+  ...WORLD_PLANETS.map((planet) => ({ id: "planet-origin-" + planet.name.toLowerCase(), atWorldMinutes: 0, kind: "origin" as const, location: planet.name, title: PLANET_ORIGIN_STORIES[planet.name].title, detail: PLANET_ORIGIN_STORIES[planet.name].discovery + " Unresolved frontier: " + PLANET_ORIGIN_STORIES[planet.name].unresolved })),
+];
 
 export type HabitatStage = {
   index: number;
@@ -30,7 +44,9 @@ export const HABITAT_STAGES: HabitatStage[] = [
   { index: 4, key: "habitable", label: "HABITABLE", color: "#78f0b1", atmosphereColor: "#49dcb8", description: "Crew can establish a settlement" },
 ];
 
-export type SpaceChronicleEvent = { id: string; atWorldMinutes: number; kind: "origin" | "settlement" | "habitat" | "recovery" | "docking" | "repair" | "hazard" | "society" | "production"; location: string; title: string; detail: string };
+export type SpaceChronicleEvent = { id: string; atWorldMinutes: number; kind: "origin" | "discovery" | "settlement" | "habitat" | "recovery" | "docking" | "repair" | "hazard" | "society" | "production"; location: string; title: string; detail: string };
+
+export type SpaceSurveyRecord = { worldId: string; revealedName: string; classification: string; atmosphere: string; resources: string; meteorExposure: string; surveyedAtWorldMinutes: number };
 
 export type SpaceHazard = { id: string; type: "asteroid-impact" | "power-dust"; target: string; severity: 1 | 2 | 3; forecastStartWorldMinutes: number; impactAtWorldMinutes: number; confidence: number; status: "warning" | "mitigated" | "impact"; mitigation: number };
 
@@ -79,7 +95,62 @@ export type SpaceState = {
   nextHazardAtWorldMinutes?: number;
   ecology?: PlanetEcologyMap;
   chronicle?: SpaceChronicleEvent[];
+  /** Unknown system bodies become known only after a successful close-range survey. */
+  discoveredWorlds?: string[];
+  selectedSurveyTarget?: string | null;
+  surveyRecords?: Record<string, SpaceSurveyRecord>;
+  pilotName?: string;
+  pilotTheoryPassed?: boolean;
+  pilotLicenceIssuedAtWorldMinutes?: number | null;
+  pilotLicenceExpiresAtWorldMinutes?: number | null;
+  pilotCredits?: number;
+  pilotMissionsCompleted?: number;
+  planetIncomeRemainder?: number;
 };
+
+export type PilotCareer = { rank: string; score: number; nextRank: string | null; nextThreshold: number | null; achievements: string[]; operationalLicence: boolean; licenceActive: boolean };
+
+export function getPilotCareer(state: SpaceState): PilotCareer {
+  const discoveries = state.discoveredWorlds?.length || 0;
+  const colonies = Object.values(state.colonies || {}).filter(colony => colony.population > 0).length;
+  const settlements = Object.values(state.colonies || {}).reduce((sum, colony) => sum + colony.population, 0);
+  const trips = state.pilotMissionsCompleted || 0;
+  const hours = Math.floor((state.worldTimeMinutes || 0) / 60);
+  const achievements = [
+    ...(state.pilotTheoryPassed ? ["Flight theory passed"] : []),
+    ...(discoveries ? [discoveries + " planetary surveys"] : []),
+    ...(trips ? [trips + " completed return trips"] : []),
+    ...(colonies ? [colonies + " populated world(s)"] : []),
+    ...((state.salvageRecovered || 0) ? [(state.salvageRecovered || 0) + " equipment recoveries"] : []),
+    ...((state.asteroidsShot || 0) ? [(state.asteroidsShot || 0) + " hazards cleared"] : []),
+    ...(hours ? [hours + " hours in service"] : []),
+  ];
+  const score = Math.floor(hours / 6) + discoveries * 12 + trips * 8 + colonies * 35 + Math.floor(settlements / 5) + (state.salvageRecovered || 0) * 3 + (state.asteroidsShot || 0) * 2;
+  const ranks = [{ title: "Cadet", threshold: 0 }, { title: "Flight Officer", threshold: 25 }, { title: "Survey Specialist", threshold: 60 }, { title: "Pathfinder", threshold: 120 }, { title: "Expedition Commander", threshold: 220 }, { title: "Pioneer", threshold: 360 }];
+  let current = ranks[0];
+  for (const rank of ranks) if (score >= rank.threshold) current = rank;
+  const next = ranks[ranks.indexOf(current) + 1] || null;
+  const issued = typeof state.pilotLicenceIssuedAtWorldMinutes === "number";
+  const active = issued && (state.pilotLicenceExpiresAtWorldMinutes || 0) > state.worldTimeMinutes;
+  return { rank: current.title, score, nextRank: next?.title || null, nextThreshold: next?.threshold || null, achievements, operationalLicence: issued, licenceActive: active };
+}
+
+export function awardPilotCredits(state: SpaceState, amount: number, reason: string): void {
+  const reward = Math.max(0, Math.floor(amount));
+  if (!reward) return;
+  state.pilotCredits = (state.pilotCredits || 0) + reward;
+  recordSpaceChronicle(state, "production", "GGL Haven", reason, "Pilot account credited " + reward + " credits. Available balance: " + state.pilotCredits + ".");
+}
+
+export function updatePilotLicence(state: SpaceState): boolean {
+  if (!state.pilotTheoryPassed || !state.pilotName?.trim() || state.pilotLicenceIssuedAtWorldMinutes !== null && state.pilotLicenceIssuedAtWorldMinutes !== undefined) return false;
+  const hasPopulatedWorld = Object.values(state.colonies || {}).some(colony => colony.population > 0);
+  if (!hasPopulatedWorld) return false;
+  state.pilotLicenceIssuedAtWorldMinutes = state.worldTimeMinutes;
+  state.pilotLicenceExpiresAtWorldMinutes = state.worldTimeMinutes + 30 * 1440;
+  recordSpaceChronicle(state, "society", "GGL Haven", "Operational pilot licence issued", state.pilotName + " earned an operational spaceship licence after establishing the first populated planet. The licence is valid for 30 system days.");
+  return true;
+}
 
 export function habitatStage(progress: number): HabitatStage {
   const index = progress >= 80 ? 4 : progress >= 60 ? 3 : progress >= 40 ? 2 : progress >= 20 ? 1 : 0;
@@ -90,7 +161,8 @@ export function habitatCapacity(progress: number): number {
   return progress < 80 ? 0 : 12 + Math.floor((progress - 80) * 1.6);
 }
 
-export function createInitialSpaceState(now = Date.now()): SpaceState {
+export function createInitialSpaceState(now = Date.now(), foundingIds: string[] = DEFAULT_FOUNDING_IDS): SpaceState {
+  const population = createPopulationState(0x47474c, 60, 0, foundingIds);
   return {
     version: 1,
     nearbyTarget: null,
@@ -99,7 +171,17 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     havenMaterials: 12,
     machineProductionQueue: 0,
     machineProductionProgress: 0,
-    chronicle: [{ id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "The original 60 inhabitants begin the first chapter of the GGL civilisation at Haven. All five worlds await their first restoration investment." }],
+    chronicle: createOpeningChronicle(population),
+    discoveredWorlds: [],
+    selectedSurveyTarget: null,
+    surveyRecords: {},
+    pilotName: "",
+    pilotTheoryPassed: false,
+    pilotLicenceIssuedAtWorldMinutes: null,
+    pilotLicenceExpiresAtWorldMinutes: null,
+    pilotCredits: 0,
+    pilotMissionsCompleted: 0,
+    planetIncomeRemainder: 0,
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
@@ -117,7 +199,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     colonies: {},
     colonyGrowthRemainders: {},
     events: ["Mission signal: Cobalt is awaiting its first restoration investment. Three machines are required to begin its path toward a safe habitat."],
-    population: createPopulationState(0x47474c, 60, 0),
+    population,
     hazards: [],
     nextHazardAtWorldMinutes: 14 * 1440,
     ecology: createPlanetEcology(),
@@ -135,9 +217,58 @@ export function recordSpaceChronicle(state: SpaceState, kind: SpaceChronicleEven
   if (state.chronicle.length > 1200) state.chronicle.splice(0, state.chronicle.length - 1200);
 }
 
+export function selectSpaceSurveyTarget(state: SpaceState, worldId: string | null): boolean {
+  if (worldId !== null && !getSurveyWorld(worldId) && !WORLD_PLANETS.some(planet => planet.name === worldId)) return false;
+  state.selectedSurveyTarget = worldId;
+  return true;
+}
+
+export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
+  const world = getSurveyWorld(worldId);
+  if (!world || (state.discoveredWorlds || []).includes(worldId)) return false;
+  state.discoveredWorlds = [...(state.discoveredWorlds || []), worldId];
+  const record: SpaceSurveyRecord = {
+    worldId,
+    revealedName: world.revealedName,
+    classification: world.classification,
+    atmosphere: world.atmosphere,
+    resources: world.resources,
+    meteorExposure: world.meteorExposure,
+    surveyedAtWorldMinutes: state.worldTimeMinutes,
+  };
+  state.surveyRecords = { ...(state.surveyRecords || {}), [worldId]: record };
+  state.acclaim += world.scanReward;
+  awardPilotCredits(state, 25, "Planetary survey mission reward");
+  state.events.unshift("SURVEY COMPLETE: " + world.revealedName + " identified. " + world.surveyFinding);
+  state.events = state.events.slice(0, 6);
+  recordSpaceChronicle(
+    state,
+    "discovery",
+    "GGL Haven",
+    "Survey report received: " + world.revealedName,
+    "The ship transmitted a close-range planetary survey to Haven. " + world.surveyFinding + " Meteor exposure: " + world.meteorExposure + ". Archive acclaim earned: " + world.scanReward + ".",
+  );
+  recordSpaceChronicle(
+    state,
+    "discovery",
+    world.revealedName,
+    "New world discovered: " + world.revealedName,
+    world.surveyFinding + " Meteor exposure: " + world.meteorExposure + ".",
+  );
+  if (state.selectedSurveyTarget === worldId) state.selectedSurveyTarget = null;
+  return true;
+}
+
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
   if (!Number.isFinite(elapsedWorldMinutes) || elapsedWorldMinutes <= 0) return;
   const hours = elapsedWorldMinutes / 60;
+  const settledPopulation = Object.values(state.colonies || {}).reduce((sum, colony) => sum + colony.population, 0);
+  state.planetIncomeRemainder = (state.planetIncomeRemainder || 0) + settledPopulation * hours * 0.01;
+  const planetIncome = Math.floor(state.planetIncomeRemainder);
+  if (planetIncome > 0) {
+    state.pilotCredits = (state.pilotCredits || 0) + planetIncome;
+    state.planetIncomeRemainder -= planetIncome;
+  }
   // Haven's finite fabricator converts six delivered material units into one machine over four system hours.
   if ((state.machineProductionQueue || 0) > 0) {
     state.machineProductionProgress = (state.machineProductionProgress || 0) + hours;
@@ -222,12 +353,20 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     };
     const motiveCounts = new Map<string, number>();
     for (const person of residents) motiveCounts.set(person.motivation, (motiveCounts.get(person.motivation) || 0) + 1);
-    colony.factions = [...motiveCounts.entries()].filter(([,count]) => count >= 2).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([motivation,count]) => ({
-      id: planet.name.toLowerCase() + "-" + motivation,
-      name: motivationNames[motivation]?.[0] || "Local group",
-      agenda: motivationNames[motivation]?.[1] || "Represent local interests",
-      influence: residents.length ? Math.round(count / residents.length * 100) : 0,
+    const foundingGroups = (state.population?.foundingNetworks || []).map(network => {
+      const count = residents.filter(person => network.householdIds.includes(person.householdId)).length;
+      return { count, faction: { id: planet.name.toLowerCase() + "-network-" + network.id, name: network.name, agenda: network.agenda, influence: residents.length ? Math.round(count / residents.length * network.influence) : 0 } };
+    }).filter(group => group.count >= 2);
+    const motivationGroups = [...motiveCounts.entries()].filter(([,count]) => count >= 2).map(([motivation,count]) => ({
+      count,
+      faction: {
+        id: planet.name.toLowerCase() + "-interest-" + motivation,
+        name: motivationNames[motivation]?.[0] || "Local group",
+        agenda: motivationNames[motivation]?.[1] || "Represent local interests",
+        influence: residents.length ? Math.round(count / residents.length * 100) : 0,
+      },
     }));
+    colony.factions = [...foundingGroups, ...motivationGroups].sort((a,b) => b.faction.influence - a.faction.influence).slice(0,5).map(group => group.faction);
     const previousGovernance = colony.governance;
     colony.governance = colony.independent ? "self-governing" : colony.population >= 8 && colony.autonomy >= 35 ? "local-council" : "provisional";
     if (previousGovernance !== colony.governance) recordSpaceChronicle(state, "society", planet.name, planet.name + " governance changed", "Local governance matured from " + previousGovernance + " to " + colony.governance + " as population and autonomy changed.");
@@ -305,6 +444,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
   if (!value || typeof value !== "object") return initial;
   const saved = value as Partial<SpaceState>;
   if (saved.version !== 1) return initial;
+  const savedChronicle = Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")) : [];
 
   const state: SpaceState = {
     ...initial,
@@ -314,7 +454,17 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     havenMaterials: boundedInteger(saved.havenMaterials, 12, 0, 100000),
     machineProductionQueue: boundedInteger(saved.machineProductionQueue, 0, 0, 1000),
     machineProductionProgress: Math.max(0, Math.min(3.999, finiteNumber(saved.machineProductionProgress, 0))),
-    chronicle: Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")).slice(-1200) : initial.chronicle,
+    chronicle: [],
+    discoveredWorlds: Array.isArray(saved.discoveredWorlds) ? saved.discoveredWorlds.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))) : [],
+    selectedSurveyTarget: typeof saved.selectedSurveyTarget === "string" && (Boolean(getSurveyWorld(saved.selectedSurveyTarget)) || WORLD_PLANETS.some(planet => planet.name === saved.selectedSurveyTarget)) ? saved.selectedSurveyTarget : null,
+    surveyRecords: saved.surveyRecords && typeof saved.surveyRecords === "object" ? Object.fromEntries(Object.entries(saved.surveyRecords).filter(([id, record]) => Boolean(getSurveyWorld(id)) && record && typeof record === "object" && typeof (record as SpaceSurveyRecord).revealedName === "string" && typeof (record as SpaceSurveyRecord).atmosphere === "string").map(([id, record]) => [id, record as SpaceSurveyRecord])) : {},
+    pilotName: typeof saved.pilotName === "string" ? saved.pilotName.slice(0, 28) : "",
+    pilotTheoryPassed: Boolean(saved.pilotTheoryPassed),
+    pilotLicenceIssuedAtWorldMinutes: typeof saved.pilotLicenceIssuedAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceIssuedAtWorldMinutes) ? Math.max(0, saved.pilotLicenceIssuedAtWorldMinutes) : null,
+    pilotLicenceExpiresAtWorldMinutes: typeof saved.pilotLicenceExpiresAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceExpiresAtWorldMinutes) ? Math.max(0, saved.pilotLicenceExpiresAtWorldMinutes) : null,
+    pilotCredits: boundedInteger(saved.pilotCredits, 0, 0, 100000000),
+    pilotMissionsCompleted: boundedInteger(saved.pilotMissionsCompleted, 0, 0, 1000000),
+    planetIncomeRemainder: Math.max(0, Math.min(0.999999, finiteNumber(saved.planetIncomeRemainder, 0))),
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],
@@ -362,11 +512,32 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     const remainders = saved.colonyGrowthRemainders as Record<string, unknown> | undefined;
     state.colonyGrowthRemainders[planet.name] = Math.max(0, Math.min(0.999999, finiteNumber(remainders?.[planet.name], 0)));
   }
-  state.population = restorePopulationState(saved.population, {
+  const rawSurveyRecords = saved.surveyRecords && typeof saved.surveyRecords === "object" ? saved.surveyRecords : {};
+  for (const id of state.discoveredWorlds || []) {
+    const world = getSurveyWorld(id);
+    if (!world) continue;
+    const raw = (rawSurveyRecords as Record<string, unknown>)[id];
+    const record = raw && typeof raw === "object" ? raw as Partial<SpaceSurveyRecord> : {};
+    state.surveyRecords![id] = {
+      worldId: id,
+      revealedName: typeof record.revealedName === "string" ? record.revealedName : world.revealedName,
+      classification: typeof record.classification === "string" ? record.classification : world.classification,
+      atmosphere: typeof record.atmosphere === "string" ? record.atmosphere : world.atmosphere,
+      resources: typeof record.resources === "string" ? record.resources : world.resources,
+      meteorExposure: typeof record.meteorExposure === "string" ? record.meteorExposure : world.meteorExposure,
+      surveyedAtWorldMinutes: Math.max(0, finiteNumber(record.surveyedAtWorldMinutes, 0)),
+    };
+  }
+  const restoredPopulation = restorePopulationState(saved.population, {
     haven: state.havenPopulation,
     ship: state.cargoPeople,
     colonies: Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population])),
   }, state.worldTimeMinutes);
+  state.population = restoredPopulation;
+  const openingEvents = createOpeningChronicle(restoredPopulation).map(event => savedChronicle.find(savedEvent => savedEvent.id === event.id) || event);
+  const openingEventIds = new Set(openingEvents.map(event => event.id));
+  const savedHistoryEvents = savedChronicle.filter(event => !openingEventIds.has(event.id));
+  state.chronicle = [...openingEvents, ...savedHistoryEvents].slice(-1200);
   const savedHazards = Array.isArray((saved as Partial<SpaceState>).hazards) ? (saved as Partial<SpaceState>).hazards! : [];
   state.hazards = savedHazards.filter(hazard => hazard && typeof hazard.id === "string" && (hazard.type === "asteroid-impact" || hazard.type === "power-dust") && typeof hazard.target === "string" && Number.isFinite(hazard.impactAtWorldMinutes) && Number.isFinite(hazard.severity) && ["warning","mitigated","impact"].includes(hazard.status)).slice(-24).map(hazard => ({ ...hazard, severity: Math.max(1, Math.min(3, Math.round(hazard.severity))) as 1|2|3, confidence: Math.max(0, Math.min(1, Number(hazard.confidence) || .5)), mitigation: Math.max(0, Math.min(3, Math.round(Number(hazard.mitigation) || 0))) }));
   state.nextHazardAtWorldMinutes = Math.max(state.worldTimeMinutes, finiteNumber((saved as Partial<SpaceState>).nextHazardAtWorldMinutes, 14 * 1440));
@@ -382,6 +553,8 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
   state.lastSimulatedAt = now;
   return state;
 }
+
+
 
 export function formatWorldTime(worldTimeMinutes: number): string {
   const totalMinutes = (360 + Math.floor(worldTimeMinutes)) % 1440;

@@ -1497,3 +1497,67 @@ This section is authoritative where earlier roadmap wording or workflow instruct
 - Preserve the dedicated Civilisation History drawer, contextual Planet Menu, flight controls, camera, mini-map, Haven marker, manifest, proximity actions and mobile layout.
 - Latest implementation commits before this correction: `c63ba71c9cc59907775a6c9b0cb681a5ae23e61f`, `2b8194aeb28251de3e9b66ca25e01aaa2e04d842`, and `59d2a6e816693f9eae76355743318bc34a091114`. Current baseline correction commits are recorded in Git history and must be verified before QA.
 - Build and live-route verification remain separate from the GitHub commit. Product-owner hands-on QA remains separate.
+
+
+## GGL Space — macro founding networks and authored world origins — 2026-10-31
+
+- The original 60 are a living founding population, not 60 separate biography assignments. Their authored social starting point is five interconnected population networks, each spanning founding households and carrying a distinct shared agenda, origin, pressure point and links to other networks. Household and person simulation remains causal and emergent; do not turn every resident into a chronicle entry.
+- Civilisation History must present these macro agendas and their connections. Chronicle entries are reserved for civilisation-scale turning points and notable people whose actions materially affect the population. Do not narrate every person or manufacture personal events to fill a timeline.
+- Aster, Cobalt, Verdant, Ember and Frost each have a distinct authored survey-origin account, known conditions and unresolved frontier questions. All five begin at 0% restoration and remain uninhabitable. Their different ecology/resource profiles and machine requirements are preserved; Cobalt is only a lower-cost first investment, never a partly habitable starting world.
+- Canonical network seeds live in src/app/ggltournaments/game/space-people.ts; planet-origin canon and opening chronicle events live in src/app/ggltournaments/game/space-civilisation.ts. The dedicated Civilisation History drawer surfaces networks and per-world origins. Legacy saves retain their recorded chronicle and receive any missing canonical origin entries; existing planet progress is not reset during save migration.
+- Preserve the golden flight controls, camera, start/pause/save/restart lifecycle, mobile interactions, finite machine loop and existing QA fixes. This feature branch is for owner QA; do not merge until its exact preview is READY and the owner approves after testing.
+
+
+## GGL Space — player-authored founding circumstances and emergent social networks — 2026-10-31
+
+This section supersedes any earlier instruction that describes the five founding networks as fixed authored factions or hard-coded agendas.
+
+- A new civilisation must begin with a player choice of founding circumstances for OG Haven's original 60 people. The catalogue is extensible and grouped into Beneficial, Harmful, Mixed and Neutral categories. The player may combine up to three circumstances.
+- The four categories describe the circumstance's framing, not the moral worth of every founder. Never label a whole population or future faction as inherently good or evil.
+- The five initial social networks are generated from the selected profile and 20 founding households. Their origins, agendas, pressure points, influence and connections must respond to the chosen circumstances. Stable network role labels are acceptable; fixed predetermined faction identities and agendas are not.
+- The profile must influence founder traits, motivations, household cohesion and relationships. Colony interest groups continue to emerge from the actual people who settle there and their evolving motivations. Network/faction growth must remain causal and responsive to play.
+- Manual saves and autosaves preserve the founding profile. A local archive stores created founding profiles and allows them to be loaded into the new-civilisation setup. Do not regenerate a saved civilisation's origin when loading it.
+- New circumstances require a stable ID, category, readable player-facing description, weighted social axes, a real historical inspiration/source and a research basis/source. Clearly distinguish documented facts from fictional scenario extrapolation. Prefer primary/institutional sources and peer-reviewed psychological research.
+- Catalogue and extension rules live in `docs/FOUNDING-CIRCUMSTANCE-LIBRARY.md`; data and derivation live in `src/app/ggltournaments/game/space-founding.ts`.
+- Preserve the current five worlds, their distinct origins, 0% restoration baseline, existing flight controls, finite machinery, ecology, save lifecycle and mobile interactions.
+- This work remains on its feature branch for owner QA. Do not merge to main without explicit owner approval.
+
+
+## GGL Space — 20-world universe and discovery-first direction (2026-10-31)
+
+The product owner's approved next direction is documented in `docs/GGL-SPACE-UNIVERSE-DESIGN.md`. Treat that document as the authoritative design record for the 20-world/four-quadrant solar system, OG Haven chronicles and missions, meteor-driven planetary destruction and evacuation rewards, conquest/renaming/leadership/taxation, population-built bot ships during war, currency progression, and the staged roadmap.
+
+Immediate next playable milestone is **Stage A — Solar System Discovery**:
+- 20 planetary signatures in four quadrants of five; preserve Aster, Cobalt, Verdant, Ember and Frost as the five existing authored worlds.
+- Discovery is progressive. Do not reveal unknown planetary conditions or pretend an unscanned world has been surveyed.
+- Keep the existing five-world simulation/save data intact while the discovery map is introduced.
+- The three initial meteor-safe worlds include the rare naturally habitable dark world; keep this information hidden from the player until discovery.
+- Preserve the approved habitability count: 15 level-zero worlds, two slightly-above-zero but still uninhabitable worlds, one rare naturally habitable world, and two reserved frontier/anomaly worlds whose exact classifications remain to be authored.
+- Do not claim the later evacuation, planet destruction, conquest, recurring tax, family, or bot-fleet systems are implemented merely because they are documented.
+- Keep the game embedded and preserve the golden flight controls, save compatibility, simulation, finite machinery and mobile interaction.
+- Keep work on the active feature branch. No merge to `main` without explicit product-owner approval. No QA handoff until the exact latest commit has a READY preview.
+
+The first map presentation is available at `/ggltournaments/solar-system`. Its selected-signal mission panel is a planning view only until actual ship navigation, survey actions and persistent discovery are integrated into the game.
+
+
+## GGL Space — playable 20-world survey integration (2026-10-31)
+
+This section supersedes the earlier statement that the /ggltournaments/solar-system route is only a planning view. The discovery loop is now connected to the ship on the active feature branch.
+
+- The 20-world chart is available at /ggltournaments/solar-system. Its Set Course action writes a pending survey target; the flight experience restores it, updates the active mission cue, mini-map route and 3D navigation beacon.
+- The 15 additional bodies are physically instantiated in the existing 3D flight space with visible approach boundaries and live mini-map markers. They are not yet full terraformable/settleable ecology worlds; keep the current five-world simulation systems unchanged.
+- A player must fly into close approach range and explicitly complete the scan. Map selection alone must never reveal findings, award acclaim or create a discovery record.
+- A successful survey persists the discovered world ID and authored survey record, awards archive acclaim once, and appends a discovery event to Civilisation History. The chronicle drawer must include newly discovered world names as groups.
+- The map reads the civilisation autosave to reveal discovered names/findings and update the charted count. Save migration must preserve all existing five-world progress and history.
+- The authored hidden distribution across the 15 new worlds is ten additional level-zero, two near-zero but unsafe, one rare naturally habitable dark world and two frontier anomalies. Exactly three of the 20 initial worlds are meteor-safe; that information remains hidden until each world is surveyed.
+- QA the complete route: map select → set course → return to ship → fly to body → close-range scan → chronicle and save → reload map and verify discovery.
+- Do not treat this milestone as implementation of later meteor destruction/evacuation, conquest/taxation, bot fleets, family raising or black-hole systems.
+- Preserve golden flight controls, existing five planets, mobile UI, pause/save/restart, offline progression, Haven docking, finite machinery and legacy-save compatibility.
+
+
+## GGL Space pilot career protection
+
+- Preserve pilot name, flight-theory result, operational licence, renewal balance/expiry, career rank and achievement history across autosaves and manual saves.
+- Theory covers vertical thrust, firing, NOS and safe approach/docking. Passing theory alone does not issue the operational licence; it is earned after the first populated planet.
+- Operational licence renewal costs 100 in-game credits for 30 system days and is performed at GGL Haven. Mission rewards and populated-planet income fund the pilot account.
+- Career ranks reflect both time in service and verified accomplishments. Do not replace this with a simple leaderboard or a score that ignores missions and outcomes.

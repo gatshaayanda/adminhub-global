@@ -15,7 +15,9 @@ export type SpacePerson = {
 };
 export type PersonRelationship = { id: string; personA: string; personB: string; kind: "kin" | "partner" | "friend" | "rival"; trust: number; affinity: number; lastChangedAtWorldMinutes: number };
 export type SpaceHousehold = { id: string; memberIds: string[]; location: PopulationLocation; cohesion: number; lastBirthAtWorldMinutes: number };
-export type PopulationState = { version: 1; seed: number; lastUpdatedWorldMinutes: number; people: SpacePerson[]; relationships: PersonRelationship[]; households: SpaceHousehold[] };
+import { buildFoundingProfile, createLegacyFoundingProfile, DEFAULT_FOUNDING_IDS, deriveFoundingNetworks, type FoundingNetwork, type FoundingProfile } from "./space-founding";
+export type { FoundingNetwork, FoundingProfile } from "./space-founding";
+export type PopulationState = { version: 1; seed: number; lastUpdatedWorldMinutes: number; people: SpacePerson[]; relationships: PersonRelationship[]; households: SpaceHousehold[]; foundingNetworks: FoundingNetwork[]; foundingProfile: FoundingProfile };
 
 const FIRST_NAMES = ["Ari","Bela","Cato","Dara","Eli","Fara","Galen","Hana","Imani","Jalen","Kesi","Luma","Miro","Nia","Oren","Pela","Quin","Rhea","Sami","Tala","Uma","Vero","Wren","Xavi","Yara","Zuri"];
 const LAST_NAMES = ["Amani","Bako","Cedar","Dube","Ekon","Fenn","Gale","Hale","Ives","Juma","Kade","Lerato","Masego","Ndlovu","Osei","Pike","Quill","Radebe","Sato","Tebogo","Udo","Vale","Wekesa","Xaba","Yeboah","Zulu"];
@@ -36,7 +38,7 @@ const initialSkills = (seed: number, index: number): PersonSkills => ({
   mediation: Math.round(unit(seed,index,7)*38), navigation: Math.round(unit(seed,index,8)*38),
 });
 
-export function createPopulationState(seed = 0x47474c, population = 60, worldMinute = 0): PopulationState {
+export function createPopulationState(seed = 0x47474c, population = 60, worldMinute = 0, foundingIds: string[] = DEFAULT_FOUNDING_IDS): PopulationState {
   const count = Math.max(0, Math.min(10000, Math.floor(population)));
   const people: SpacePerson[] = [];
   const households: SpaceHousehold[] = [];
@@ -79,7 +81,35 @@ export function createPopulationState(seed = 0x47474c, population = 60, worldMin
       }
     }
   }
-  return { version: 1, seed, lastUpdatedWorldMinutes: worldMinute, people, relationships, households };
+  const foundingProfile = buildFoundingProfile(foundingIds, worldMinute || Date.now());
+  const axes = foundingProfile.axes;
+  const average = Math.max(1, foundingProfile.circumstanceIds.length);
+  for (const person of people) {
+    person.traits.cooperation = clamp(person.traits.cooperation + axes.solidarity * 5 / average);
+    person.traits.autonomy = clamp(person.traits.autonomy + axes.autonomy * 5 / average);
+    person.traits.ambition = clamp(person.traits.ambition + (axes.hierarchy + axes.extraction) * 3 / average);
+    person.traits.curiosity = clamp(person.traits.curiosity + axes.knowledge * 5 / average);
+    person.traits.resilience = clamp(person.traits.resilience + axes.trauma * 2 / average);
+    person.needs.belonging = clamp(person.needs.belonging + axes.solidarity * 2 / average);
+    person.needs.autonomy = clamp(person.needs.autonomy + axes.autonomy * 2 / average);
+    if (unit(seed, Number(person.id.slice(-3)), 42) < .36) {
+      const tendencies: Array<{ score: number; motivation: PersonMotivation }> = [
+        { score: axes.solidarity, motivation: unit(seed, Number(person.id.slice(-3)), 43) > .5 ? "family" : "service" },
+        { score: axes.autonomy, motivation: "autonomy" },
+        { score: axes.hierarchy, motivation: "recognition" },
+        { score: axes.extraction, motivation: "opportunity" },
+        { score: axes.knowledge, motivation: unit(seed, Number(person.id.slice(-3)), 44) > .5 ? "science" : "exploration" },
+        { score: axes.trauma, motivation: "refuge" },
+      ].sort((a,b) => b.score - a.score);
+      if (tendencies[0].score > 0) person.motivation = tendencies[0].motivation;
+    }
+  }
+  for (const household of households) household.cohesion = clamp(household.cohesion + axes.solidarity * 2 / average - Math.max(0, -axes.trust) * 2 / average, 20, 98);
+  for (const relationship of relationships) {
+    relationship.trust = clamp(relationship.trust + axes.trust * 3 / average + axes.solidarity * 2 / average);
+    relationship.affinity = clamp(relationship.affinity + axes.solidarity * 2 / average);
+  }
+  return { version: 1, seed, lastUpdatedWorldMinutes: worldMinute, people, relationships, households, foundingProfile, foundingNetworks: deriveFoundingNetworks(households, foundingProfile, seed) };
 }
 
 export function restorePopulationState(value: unknown, counts: { haven: number; ship: number; colonies: Record<string, number> }, worldMinute = 0): PopulationState {
@@ -90,7 +120,14 @@ export function restorePopulationState(value: unknown, counts: { haven: number; 
       const known = new Set(people.map(person => person.id));
       const relationships = saved.relationships.filter(rel => rel && known.has(rel.personA) && known.has(rel.personB) && typeof rel.trust === "number" && typeof rel.affinity === "number").slice(0, 20000);
       const households = saved.households.filter(house => house && typeof house.id === "string" && Array.isArray(house.memberIds)).map(house => ({ ...house, memberIds: house.memberIds.filter(id => known.has(id)) })).slice(0, 5000);
-      if (people.length) return { version: 1, seed: Number.isFinite(saved.seed) ? Number(saved.seed) : 0x47474c, lastUpdatedWorldMinutes: Number.isFinite(saved.lastUpdatedWorldMinutes) ? Number(saved.lastUpdatedWorldMinutes) : worldMinute, people, relationships, households };
+      if (people.length) {
+        const validHouseholds = new Set(households.map(household => household.id));
+        const seed = Number.isFinite(saved.seed) ? Number(saved.seed) : 0x47474c;
+        const savedProfile = saved.foundingProfile && Array.isArray(saved.foundingProfile.circumstanceIds) ? saved.foundingProfile : createLegacyFoundingProfile();
+        const savedNetworks = Array.isArray(saved.foundingNetworks) ? saved.foundingNetworks.filter(network => network && typeof network.id === "string" && typeof network.name === "string" && typeof network.agenda === "string" && typeof network.origin === "string" && typeof network.pressurePoint === "string" && Array.isArray(network.householdIds)).map(network => ({ ...network, householdIds: network.householdIds.filter(id => validHouseholds.has(id)), linkedNetworks: Array.isArray(network.linkedNetworks) ? network.linkedNetworks.filter(id => typeof id === "string") : [] })) : [];
+        const foundingNetworks = savedNetworks.length ? savedNetworks : deriveFoundingNetworks(households, savedProfile, seed);
+        return { version: 1, seed, lastUpdatedWorldMinutes: Number.isFinite(saved.lastUpdatedWorldMinutes) ? Number(saved.lastUpdatedWorldMinutes) : worldMinute, people, relationships, households, foundingProfile: savedProfile, foundingNetworks };
+      }
     }
   }
   const total = Math.max(60, counts.haven + counts.ship + Object.values(counts.colonies).reduce((sum,n)=>sum+n,0));

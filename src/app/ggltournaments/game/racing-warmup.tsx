@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, awardPilotCredits, updatePilotLicence, getPilotCareer, selectSpaceSurveyTarget, surveySpaceWorld, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
+import { FOUNDING_CATEGORIES, FOUNDING_CIRCUMSTANCES, getCircumstance, DEFAULT_FOUNDING_IDS } from "./space-founding";
+import { getSurveyWorld, SPACE_SURVEY_TARGET_KEY } from "./space-universe";
 
 const SPACE_AUTOSAVE_KEY = "ggl-space-autosave-v1";
 const SPACE_MANUAL_SAVE_KEY = "ggl-space-manual-save-v1";
+const SPACE_FOUNDING_ARCHIVE_KEY = "ggl-space-founding-archive-v1";
+type FoundingArchiveEntry = { id: string; title: string; circumstanceIds: string[]; savedAt: number };
 type SpaceGameSnapshot = { version: 1; savedAt: number; world: SpaceState; flight: Race; paused: boolean };
 const isFiniteRace = (value: unknown): value is Race => {
   if (!value || typeof value !== "object") return false;
@@ -65,14 +69,24 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [manualSaveAvailable, setManualSaveAvailable] = useState(false);
   const [chronicleMenuOpen, setChronicleMenuOpen] = useState(false);
+  const [foundingSetupOpen, setFoundingSetupOpen] = useState(false);
+  const [foundingCategory, setFoundingCategory] = useState<"beneficial" | "harmful" | "mixed" | "neutral">("beneficial");
+  const [selectedFoundingIds, setSelectedFoundingIds] = useState<string[]>([]);
+  const [foundingArchive, setFoundingArchive] = useState<FoundingArchiveEntry[]>([]);
   const [sceneGeneration, setSceneGeneration] = useState(0);
   const restartWasRunningRef = useRef(true);
   useEffect(() => { const timer = window.setInterval(() => setSpaceUiTick(n => n + 1), 500); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     const now = Date.now();
     try {
+      const archiveRaw = window.localStorage.getItem(SPACE_FOUNDING_ARCHIVE_KEY);
+      const archiveParsed = archiveRaw ? JSON.parse(archiveRaw) : [];
+      if (Array.isArray(archiveParsed)) setFoundingArchive(archiveParsed.filter(item => item && typeof item.id === "string" && Array.isArray(item.circumstanceIds)).slice(0, 30));
       const autoSnapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_AUTOSAVE_KEY));
       if (autoSnapshot) {
+        setFoundingSetupOpen(false);
+        const savedIds = autoSnapshot.world.population?.foundingProfile?.circumstanceIds;
+        if (Array.isArray(savedIds) && savedIds.length) setSelectedFoundingIds(savedIds.slice(0,3));
         // Restore the last world, applying offline time only when the previous
         // session was active. Every visit waits for an explicit player start.
         const restoreAt = autoSnapshot.paused ? autoSnapshot.world.lastSimulatedAt : now;
@@ -82,7 +96,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         setPhase("ready");
       } else {
         const legacy = window.localStorage.getItem(SPACE_SAVE_KEY);
-        spaceStateRef.current = legacy ? restoreSpaceState(JSON.parse(legacy), now) : createInitialSpaceState(now);
+        if (legacy) { spaceStateRef.current = restoreSpaceState(JSON.parse(legacy), now); setFoundingSetupOpen(false); }
+        else { spaceStateRef.current = createInitialSpaceState(now, selectedFoundingIds); setFoundingSetupOpen(true); }
       }
       setManualSaveAvailable(Boolean(parseGameSnapshot(window.localStorage.getItem(SPACE_MANUAL_SAVE_KEY))));
     } catch {
@@ -92,6 +107,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       setPhase("ready");
       setManualSaveAvailable(false);
     }
+    try {
+      const pendingSurveyTarget = window.localStorage.getItem(SPACE_SURVEY_TARGET_KEY);
+      if (pendingSurveyTarget && getSurveyWorld(pendingSurveyTarget)) selectSpaceSurveyTarget(spaceStateRef.current, pendingSurveyTarget);
+    } catch { /* The ship remains playable without cross-page navigation storage. */ }
     lastProcessedWorldMinutesRef.current = spaceStateRef.current.worldTimeMinutes;
     stateHydratedRef.current = true;
     setSpaceUiTick(n => n + 1);
@@ -143,6 +162,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [transferSignal, setTransferSignal] = useState<{ id: number; emoji: string; title: string; detail: string; route: string } | null>(null);
   const [proximityMenuOpen, setProximityMenuOpen] = useState(true);
   const [shipManifestOpen, setShipManifestOpen] = useState(false);
+  const [pilotCareerOpen, setPilotCareerOpen] = useState(true);
+  const [pilotTheoryAnswers, setPilotTheoryAnswers] = useState<string[]>(["", "", "", ""]);
   const transferSignalId = useRef(0);
   const transferTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signalTransfer = useCallback((emoji: string, title: string, detail: string, route: string) => {
@@ -186,7 +207,34 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
     phaseRef.current = "running"; setPhase("running");
   }, []);
+  const archiveFoundingChoice = (ids: string[]) => {
+    const selected = ids.map(getCircumstance).filter(Boolean);
+    const entry: FoundingArchiveEntry = { id: "origin-" + Date.now().toString(36), title: selected.map(item => item!.title).join(" + "), circumstanceIds: ids, savedAt: Date.now() };
+    const next = [entry, ...foundingArchive.filter(item => item.circumstanceIds.join("|") !== ids.join("|"))].slice(0, 30);
+    setFoundingArchive(next);
+    try { window.localStorage.setItem(SPACE_FOUNDING_ARCHIVE_KEY, JSON.stringify(next)); notify("Founding profile archived. You can load it into another civilisation."); } catch { notify("The civilisation is playable, but its founding archive could not be written.", "error"); }
+  };
+  const toggleFoundingChoice = (id: string) => {
+    setSelectedFoundingIds(current => current.includes(id) ? current.filter(value => value !== id) : current.length < 3 ? [...current, id] : current);
+  };
+  const loadFoundingArchive = (entry: FoundingArchiveEntry) => {
+    setSelectedFoundingIds(entry.circumstanceIds.slice(0,3));
+    const category = getCircumstance(entry.circumstanceIds[0])?.category;
+    if (category) setFoundingCategory(category);
+    notify("Archived founding circumstances loaded into the setup.");
+  };
   const startGame = () => {
+    if (foundingSetupOpen) {
+      const freshWorld = createInitialSpaceState(Date.now(), selectedFoundingIds);
+      spaceStateRef.current = freshWorld;
+      lastProcessedWorldMinutesRef.current = 0;
+      raceRef.current = newRace();
+      setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
+      setSceneGeneration(generation => generation + 1);
+      archiveFoundingChoice(selectedFoundingIds);
+      setFoundingSetupOpen(false);
+      setSpaceUiTick(n => n + 1);
+    }
     neutralControls();
     raceRef.current.last = 0;
     phaseRef.current = "running";
@@ -219,6 +267,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const restoredWorld = restoreSpaceState(snapshot.world, snapshot.paused ? snapshot.world.lastSimulatedAt : Date.now());
     const restoredRace = { ...snapshot.flight, last: 0 };
     spaceStateRef.current = restoredWorld;
+    setFoundingSetupOpen(false);
+    const restoredIds = restoredWorld.population?.foundingProfile?.circumstanceIds;
+    if (Array.isArray(restoredIds) && restoredIds.length) setSelectedFoundingIds(restoredIds.slice(0,3));
     raceRef.current = restoredRace;
     lastProcessedWorldMinutesRef.current = restoredWorld.worldTimeMinutes;
     neutralControls();
@@ -231,7 +282,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     notify("Manual save loaded. The saved ship position and civilisation are restored.");
   };
   const restartCivilisation = () => {
-    const freshWorld = createInitialSpaceState(Date.now());
+    const freshWorld = createInitialSpaceState(Date.now(), selectedFoundingIds);
     spaceStateRef.current = freshWorld;
     lastProcessedWorldMinutesRef.current = freshWorld.worldTimeMinutes;
     reset();
@@ -244,6 +295,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setTransferSignal(null);
     if (transferTimer.current) clearTimeout(transferTimer.current);
     setShowRestartConfirm(false);
+    setFoundingSetupOpen(false);
+    archiveFoundingChoice(selectedFoundingIds);
     try {
       const snapshot: SpaceGameSnapshot = { version: 1, savedAt: Date.now(), world: freshWorld, flight: { ...raceRef.current, last: 0 }, paused: true };
       window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(freshWorld));
@@ -484,6 +537,44 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     notify("Machine fabrication started. Six material units committed; completion in four system hours.", "success");
     setSpaceUiTick(n => n + 1);
   };
+  const submitPilotTheory = () => {
+    const state = spaceStateRef.current;
+    if (!state.pilotName?.trim()) { notify("Enter your pilot name before taking the theory test.", "error"); return; }
+    if (pilotTheoryAnswers.join("|") !== "vertical|fire|toggle|approach") { notify("Theory test not passed. Review the flight controls and try again.", "error"); return; }
+    state.pilotTheoryPassed = true;
+    recordSpaceChronicle(state, "society", "GGL Haven", "Pilot theory examination passed", state.pilotName + " demonstrated knowledge of thrust, firing, NOS and safe docking procedures.");
+    const licenceIssued = updatePilotLicence(state);
+    writeAutoSnapshot();
+    notify(licenceIssued ? "Theory passed. Your operational pilot licence has been issued." : "Theory passed. Operational licence awaits your first populated planet.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
+  const renewPilotLicence = () => {
+    const state = spaceStateRef.current;
+    if (state.dockedAt !== "GGL Haven") { notify("Dock at GGL Haven to renew your pilot licence.", "error"); return; }
+    if (state.pilotLicenceIssuedAtWorldMinutes == null) { notify("Earn your operational licence by establishing a populated planet first.", "info"); return; }
+    if ((state.pilotCredits || 0) < 100) { notify("Licence renewal costs 100 credits. Complete missions or earn planetary income first.", "error"); return; }
+    state.pilotCredits = (state.pilotCredits || 0) - 100;
+    state.pilotLicenceExpiresAtWorldMinutes = Math.max(state.worldTimeMinutes, state.pilotLicenceExpiresAtWorldMinutes || 0) + 30 * 1440;
+    recordSpaceChronicle(state, "society", "GGL Haven", "Pilot licence renewed", state.pilotName + " paid 100 credits to renew the operational licence for 30 system days.");
+    writeAutoSnapshot();
+    notify("Pilot licence renewed for 30 system days.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
+  const surveyNearbyWorld = () => {
+    const state = spaceStateRef.current;
+    const targetId = state.nearbyTarget;
+    const target = targetId ? getSurveyWorld(targetId) : undefined;
+    if (!target) { notify("Fly closer to an unidentified planetary body before scanning.", "info"); return; }
+    if ((state.discoveredWorlds || []).includes(target.id)) { notify(target.revealedName + " is already in Haven's survey archive.", "info"); return; }
+    const completed = surveySpaceWorld(state, target.id);
+    if (!completed) { notify("Survey could not be completed. Hold a stable close approach and try again.", "error"); return; }
+    try { window.localStorage.removeItem(SPACE_SURVEY_TARGET_KEY); } catch {}
+    writeAutoSnapshot();
+    signalTransfer("⌖", "PLANETARY SURVEY COMPLETE", target.revealedName + " identified. Findings transmitted to Haven's chronicle.", "SHIP  →  HAVEN ARCHIVE");
+    notify(target.revealedName + " discovered. +" + target.scanReward + " archive acclaim. Haven's chronicle updated.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
+
   const dockOrLand = () => {
     const state = spaceStateRef.current;
     const target = state.nearbyTarget;
@@ -492,6 +583,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       if (state.cargoEquipment >= 4) { notify("Machine hold full. Return to Haven or deliver equipment before recovering more.", "info"); return; }
       state.cargoEquipment += 1;
       state.salvageRecovered = (state.salvageRecovered || 0) + 1;
+      awardPilotCredits(state, 10, "Equipment recovery mission reward");
       state.acclaim += 1;
       state.events.unshift("Recoverable station equipment recovered and secured aboard the ship.");
       state.events = state.events.slice(0, 6);
@@ -516,6 +608,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — " + (state.deployedEquipment[planet] || 0) + " machine(s) installed; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
         state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8);
         const award = state.visitedPlanets.length * 2;
+        awardPilotCredits(state, state.visitedPlanets.length * 20, "Completed planetary delivery and return mission");
+        state.pilotMissionsCompleted = (state.pilotMissionsCompleted || 0) + 1;
         state.acclaim += award;
         notify("Trip logged. Haven archive gained " + state.visitedPlanets.length + " world report(s). Archive acclaim +" + award + ".", "success");
       } else if (returnedCrew || returnedMachines) {
@@ -575,11 +669,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             state.colonyGrowthRemainders[target] = 0;
           }
           state.cargoPeople -= moved;
+          awardPilotCredits(state, 100, "First populated-world settlement mission reward");
+          const licenceIssued = updatePilotLicence(state);
           movePeople(state.population, "ship", ("planet:" + target) as `planet:${string}`, moved);
           state.events.unshift(target + " settlement founded by " + moved + " people from GGL Haven.");
           recordSpaceChronicle(state, "settlement", target, target + " settlement founded", moved + " settlers from Haven established the first local community. Its history begins here.");
           state.events = state.events.slice(0, 6);
-          notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations.", "success");
+          notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations." + (licenceIssued ? " Operational pilot licence issued!" : ""), "success");
           signalTransfer("🧑‍🚀", "SETTLEMENT FOUNDED", moved + " person(s) established local operations on " + target + ".", "SHIP  →  " + target.toUpperCase());
         } else {
           notify(target + " has no safe living capacity remaining. Crew remain aboard.", "info");
@@ -644,6 +740,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     signalTransfer("🤖", "MACHINES LOADED", added + " machine(s) moved from Haven's finite stores into your cargo.", "STATION  →  SHIP");
     setSpaceUiTick(n => n + 1);
   };
+
   const engageBoost = () => {
     if (phaseRef.current !== "running" || raceRef.current.nos <= 0) return;
     controlsRef.current.boost = true;
@@ -654,32 +751,52 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setBoostActive(false);
   };
   const world = spaceStateRef.current;
-  const mission = getFirstFootholdCue(world);
-  const chronicleLocations = ["GGL Haven", ...WORLD_PLANETS.map((planet) => planet.name)];
+  const selectedSurvey = world.selectedSurveyTarget ? getSurveyWorld(world.selectedSurveyTarget) : undefined;
+  const selectedSurveyRecord = selectedSurvey ? world.surveyRecords?.[selectedSurvey.id] : undefined;
+  const mission = selectedSurvey
+    ? { target: selectedSurvey.id, step: 1 as const, title: "Survey " + (selectedSurveyRecord?.revealedName || "unknown signal"), detail: "Follow the live map route to " + selectedSurvey.displayName + ". Enter planetary approach range, hold position and complete the close-range scan to send the report to Haven.", action: "Approach and scan", progress: 28 }
+    : getFirstFootholdCue(world);
+  const missionTargetLabel = selectedSurvey ? (selectedSurveyRecord?.revealedName || selectedSurvey.displayName) : mission.target;
+  const chronicleLocations = ["GGL Haven", ...WORLD_PLANETS.map((planet) => planet.name), ...Object.values(world.surveyRecords || {}).map((record) => record.revealedName)];
   const chronicleEvents = world.chronicle || [];
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
     {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Space · free exploration</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>OPEN SPACE EXPLORATION</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL SPACE · EXPLORE AT YOUR PACE</p><h1>Find your place among the stars.</h1><p>Take the ship into open space, steer between distant worlds, and explore at your own pace. The analog stick handles direction and forward/reverse flight; up/down thrusters handle altitude.</p><p className="warmup-family-note">Open space, a handful of planets, and room to explore.</p></section></>}
     {embedded && <div className="race-inline-heading"><div><p className="big-brothers-eyebrow">GGL / OPEN SPACE</p><h2>Explore the system.</h2><p>Use the analog stick to steer and fly forward or backward. UP THRUST raises altitude; DOWN THRUST lowers altitude.</p></div></div>}
     <section className="big-brothers-section warmup-game">
-      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds nearby</span><strong>05</strong></div></div>
+      <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds surveyed</span><strong>{5 + (world.discoveredWorlds?.length || 0)} / 20</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene key={sceneGeneration} raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
         {(phase === "ready" || phase === "paused" || showRestartConfirm) && <div className="space-lifecycle-overlay" role="dialog" aria-modal="true" aria-labelledby="space-lifecycle-title">
           <div className="space-lifecycle-card">
             <span className="space-lifecycle-brand">ADMIN HUB CIPA · FLIGHT SYSTEM</span>
             {showRestartConfirm ? <>
-              <h2 id="space-lifecycle-title">RESTART CIVILISATION?</h2>
-              <p>This restores the opening baseline: Haven's original 60 people and finite starting supplies, with all five planets at 0% restoration and their different environmental profiles and machine requirements intact. Your separate manual save will be kept.</p>
+              <h2 id="space-lifecycle-title">DESIGN A NEW CIVILISATION</h2>
+              <div className="space-founding-setup">
+                <p className="space-founding-intro">Choose up to three circumstances that brought the original 60 founders to Haven. These are starting conditions, not predetermined factions. The population, its five networks and their tensions are derived from your choices.</p>
+                <div className="space-founding-categories">{FOUNDING_CATEGORIES.map(category => <button type="button" key={category.id} className={foundingCategory === category.id ? "is-active" : ""} onClick={() => setFoundingCategory(category.id)}>{category.label}</button>)}</div>
+                <small>{FOUNDING_CATEGORIES.find(item => item.id === foundingCategory)?.description}</small>
+                <div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item => item.category === foundingCategory).map(item => <button type="button" key={item.id} className={selectedFoundingIds.includes(item.id) ? "is-selected" : ""} onClick={() => toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}<br /><b>Founder experience:</b> {item.livedExperience}<br /><b>Likely tension:</b> {item.likelyTensions}</span><em>{selectedFoundingIds.includes(item.id) ? "SELECTED" : "ADD TO ORIGIN"}</em></button>)}</div>
+                <small>{selectedFoundingIds.length}/3 selected · Select circumstances across categories to create a mixed beginning.</small><button type="button" className="space-founding-archive-action" onClick={() => archiveFoundingChoice(selectedFoundingIds)} disabled={selectedFoundingIds.length === 0}>ARCHIVE THIS ORIGIN</button>
+                {foundingArchive.length > 0 && <div className="space-founding-archive"><strong>ARCHIVED FOUNDING PROFILES</strong>{foundingArchive.map(entry => <button type="button" key={entry.id} onClick={() => loadFoundingArchive(entry)}>{entry.title} <span>LOAD</span></button>)}</div>}
+              </div>
               <div className="space-lifecycle-actions">
                 <button type="button" className="space-lifecycle-secondary" onClick={cancelRestartCivilisation}>KEEP CURRENT RUN</button>
-                <button type="button" className="space-lifecycle-primary" onClick={restartCivilisation}>RESTART CIVILISATION</button>
+                <button type="button" className="space-lifecycle-primary" onClick={restartCivilisation} disabled={selectedFoundingIds.length === 0}>CREATE CIVILISATION</button>
               </div>
             </> : phase === "ready" ? <>
-              <h2 id="space-lifecycle-title">GGL HAVEN AWAITS</h2>
-              <p>Your civilisation begins with 60 founding people at Haven. All five planets are at 0% restoration, each with its own environmental conditions and machinery needs. Start the simulation when you are ready.</p>
+              <h2 id="space-lifecycle-title">{foundingSetupOpen ? "WHO CAME TO HAVEN?" : "GGL HAVEN AWAITS"}</h2>
+              {foundingSetupOpen ? <div className="space-founding-setup">
+                <p className="space-founding-intro">Choose up to three circumstances that brought the original 60 founders to Haven. These are starting conditions, not predetermined factions. The population, its five networks and their tensions are derived from your choices.</p>
+                <div className="space-founding-categories">{FOUNDING_CATEGORIES.map(category => <button type="button" key={category.id} className={foundingCategory === category.id ? "is-active" : ""} onClick={() => setFoundingCategory(category.id)}>{category.label}</button>)}</div>
+                <small>{FOUNDING_CATEGORIES.find(item => item.id === foundingCategory)?.description}</small>
+                <div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item => item.category === foundingCategory).map(item => <button type="button" key={item.id} className={selectedFoundingIds.includes(item.id) ? "is-selected" : ""} onClick={() => toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}<br /><b>Founder experience:</b> {item.livedExperience}<br /><b>Likely tension:</b> {item.likelyTensions}</span><em>{selectedFoundingIds.includes(item.id) ? "SELECTED" : "ADD TO ORIGIN"}</em></button>)}</div>
+                <small>{selectedFoundingIds.length}/3 selected · Select circumstances across categories to create a mixed beginning.</small>
+                {foundingArchive.length > 0 && <div className="space-founding-archive"><strong>ARCHIVED FOUNDING PROFILES</strong>{foundingArchive.map(entry => <button type="button" key={entry.id} onClick={() => loadFoundingArchive(entry)}>{entry.title} <span>LOAD</span></button>)}</div>}
+              </div> : <p>Your saved civilisation is ready. Resume the current run or create a new founding history. Saved profiles remain available in the archive.</p>}
               <div className="space-lifecycle-actions">
-                <button type="button" className="space-lifecycle-primary" onClick={startGame}>START GAME ▶</button>
+                <button type="button" className="space-lifecycle-primary" onClick={foundingSetupOpen ? startGame : startGame} disabled={foundingSetupOpen && selectedFoundingIds.length === 0}>{foundingSetupOpen ? "START NEW CIVILISATION ▶" : "START GAME ▶"}</button>
+                {!foundingSetupOpen && <button type="button" className="space-lifecycle-secondary" onClick={() => { const ids = world.population?.foundingProfile?.circumstanceIds || DEFAULT_FOUNDING_IDS; setSelectedFoundingIds(ids); setFoundingCategory(getCircumstance(ids[0])?.category || "neutral"); setFoundingSetupOpen(true); }}>NEW CIVILISATION</button>}
                 <button type="button" className="space-lifecycle-secondary" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVED GAME</button>
               </div>
             </> : <>
@@ -705,7 +822,28 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <div><span>HAVEN POPULATION</span><b>{spaceStateRef.current.havenPopulation}</b></div>
             <div><span>HAVEN MACHINE STOCK</span><b>{spaceStateRef.current.machineInventory}</b></div>
             <div><span>SHIP HULL INTEGRITY</span><b>{Math.max(0, 100 - Math.round(raceRef.current.damage))}%</b></div>
-            <div><span>WORLDS VISITED</span><b>{spaceStateRef.current.visitedPlanets.length} / 5</b></div>
+            <details className="space-pilot-career" open={pilotCareerOpen} onToggle={event => setPilotCareerOpen(event.currentTarget.open)}>
+              <summary><span>PILOT LICENCE & CAREER</span><b>{getPilotCareer(world).rank.toUpperCase()}</b></summary>
+              <div className="space-pilot-career-body">
+                <label>PILOT NAME<input maxLength={28} value={world.pilotName || ""} placeholder="Enter your pilot name" onChange={event => { world.pilotName = event.target.value.slice(0, 28); setSpaceUiTick(n => n + 1); }} onBlur={writeAutoSnapshot} /></label>
+                <div className="space-pilot-career-stats"><span>CAREER RANK<strong>{getPilotCareer(world).rank}</strong></span><span>CAREER SCORE<strong>{getPilotCareer(world).score}</strong></span><span>MISSION CREDITS<strong>{world.pilotCredits || 0}</strong></span></div>
+                <div className="space-pilot-licence-status"><b>{world.pilotTheoryPassed ? "THEORY PASSED" : "THEORY EXAM REQUIRED"}</b><span>{getPilotCareer(world).operationalLicence ? (getPilotCareer(world).licenceActive ? "OPERATIONAL LICENCE ACTIVE" : "OPERATIONAL LICENCE EXPIRED") : "OPERATIONAL LICENCE: EARNED AFTER FIRST POPULATED PLANET"}</span></div>
+                {!world.pilotTheoryPassed && <div className="space-pilot-theory">
+                  <p>FLIGHT THEORY · Four checks before certification</p>
+                  {[
+                    {question:"Which control changes vertical thrust?",correct:"vertical",options:[["steer","Steering"],["vertical","Vertical thrust / up-down"],["fire","Fire"]]},
+                    {question:"How do you fire the ship's weapon?",correct:"fire",options:[["boost","NOS"],["fire","FIRE / F key"],["dock","Dock"]]},
+                    {question:"How does NOS engage?",correct:"toggle",options:[["toggle","Tap to toggle boost"],["hold","Hold the steering stick"],["brake","Press brake"]]},
+                    {question:"What is required before docking?",correct:"approach",options:[["approach","Approach a valid target, then dock"],["anywhere","Dock from any distance"],["automatic","Docking is always automatic"]]}
+                  ].map((question,index)=><label key={question.correct}><span>{index+1}. {question.question}</span><select value={pilotTheoryAnswers[index]} onChange={event=>setPilotTheoryAnswers(current=>current.map((value,i)=>i===index?event.target.value:value))}><option value="">Choose answer</option>{question.options.map(option=><option key={option[0]} value={option[0]}>{option[1]}</option>)}</select></label>)}
+                  <button type="button" onClick={submitPilotTheory}>SUBMIT THEORY TEST</button>
+                </div>}
+                {getPilotCareer(world).operationalLicence && <div className="space-pilot-renewal"><span>EXPIRES IN {Math.max(0,Math.ceil(((world.pilotLicenceExpiresAtWorldMinutes || 0)-world.worldTimeMinutes)/1440))} SYSTEM DAYS · 100 CREDITS / 30 DAYS</span><button type="button" onClick={renewPilotLicence} disabled={world.dockedAt!=="GGL Haven" || (world.pilotCredits||0)<100}>RENEW AT HAVEN · 100 CR</button></div>}
+                <div className="space-pilot-achievements"><b>CAREER RECORD</b>{getPilotCareer(world).achievements.length ? getPilotCareer(world).achievements.map(item=><small key={item}>✓ {item}</small>) : <small>Your career record begins with your first flight and mission.</small>}</div>
+                <small className="space-pilot-rank-note">{getPilotCareer(world).nextRank ? "Next rank: "+getPilotCareer(world).nextRank+" · "+Math.max(0,(getPilotCareer(world).nextThreshold||0)-getPilotCareer(world).score)+" points to go. Time served and real achievements both count." : "Top career rank reached. Your history continues to grow."}</small>
+              </div>
+            </details>
+            <div><span>WORLDS VISITED</span><b>{5 + (spaceStateRef.current.discoveredWorlds?.length || 0)} / 20</b></div>
             <div className="space-manifest-save-actions">
               <button type="button" onClick={saveManualGame}>SAVE RUN</button>
               <button type="button" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVE</button>
@@ -721,11 +859,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <span><b>{spaceStateRef.current.visitedPlanets.length}</b> worlds</span>
         </div>
         <div className="space-mission-cue" aria-label="Suggested mission: first foothold">
-          <div className="space-mission-cue-top"><span>FIRST FOOTHOLD</span><span>STEP {mission.step} / 3</span></div>
+          <div className="space-mission-cue-top"><span>{selectedSurvey ? "ACTIVE SURVEY" : "FIRST FOOTHOLD"}</span><span>{selectedSurvey ? "DISCOVERY MISSION" : "STEP " + mission.step + " / 3"}</span></div>
           <strong>{mission.title}</strong>
           <p>{mission.detail}</p>
           <div className="space-mission-progress" aria-label={"Mission progress " + mission.progress + "%"}><span style={{ width: mission.progress + "%" }} /></div>
-          <div className="space-mission-footer"><span>NAV TARGET</span><b>{mission.target}</b></div>
+          <div className="space-mission-footer"><span>NAV TARGET</span><b>{missionTargetLabel}</b></div>
         </div>
         <div className="space-world-signal" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "Your actions are shaping the system."}</strong></div>
         <div className="space-chronicle-dock">
@@ -734,6 +872,19 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           </button>
           {chronicleMenuOpen && <div className="space-chronicle-drawer" aria-label="Haven and planet population chronicles">
             <div className="space-chronicle-drawer-heading"><strong>CIVILISATION HISTORY</strong><button type="button" onClick={() => setChronicleMenuOpen(false)} aria-label="Close chronicles">×</button></div>
+            <details className="space-chronicle-group">
+              <summary><span>THE FOUNDING NETWORKS</span><small>60 FOUNDERS · EMERGENT NETWORKS</small></summary>
+              <div className="space-chronicle-list">
+                <small><strong>OG HAVEN ORIGIN</strong><br />{world.population?.foundingProfile?.title || "Legacy founding profile"}<br />{world.population?.foundingProfile?.originSummary || "This saved civilisation predates the founding circumstance library."}<br /><b>Founding mix:</b> {world.population?.foundingProfile ? (Object.entries(world.population.foundingProfile.categoryMix).filter(([,count]) => count > 0).map(([category,count]) => category.toUpperCase() + " × " + count).join(" · ") || "LEGACY / UNATTRIBUTED") : "Legacy profile"}</small>
+                {(world.population?.foundingNetworks || []).map((network) => {
+                  const livingMembers = (world.population?.people || []).filter(person => person.alive && network.householdIds.includes(person.householdId)).length;
+                  const links = network.linkedNetworks.map(id => world.population?.foundingNetworks?.find(item => item.id === id)?.name).filter(Boolean);
+                  return <small key={network.id}><strong>{network.name}</strong> · {livingMembers} living members · {network.influence}% influence<br />{network.origin}<br /><b>Current agenda:</b> {network.agenda}<br /><b>Pressure point:</b> {network.pressurePoint}<br /><b>Connected with:</b> {links.join(" · ") || "Other Haven networks"}</small>;
+                })}
+                {(world.population?.foundingProfile?.circumstanceIds || []).map(id => { const circumstance = getCircumstance(id); return circumstance ? <small key={id}><b>Historical inspiration:</b> {circumstance.title} · <a href={circumstance.historicalUrl} target="_blank" rel="noreferrer">historical source</a> · <a href={circumstance.researchUrl} target="_blank" rel="noreferrer">research basis</a></small> : null; })}
+                {!(world.population?.foundingNetworks || []).length && <small>The founding networks will be restored with the population archive.</small>}
+              </div>
+            </details>
             {chronicleLocations.map((location) => {
               const events = chronicleEvents.filter((event) => event.location === location).slice().reverse();
               return <details className="space-chronicle-group" key={location}>
@@ -763,7 +914,22 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             </div>
             {world.dockedAt === "GGL Haven" && <button type="button" onClick={startMachineProduction} disabled={(world.havenMaterials || 0) < 6}>Fabricate 1 machine · 6 materials <span>⚙</span></button>}
             <button type="button" onClick={boardCrewAtStation} disabled={world.havenPopulation <= 36 || world.cargoPeople >= 6}>Board crew +3 <span>＋</span></button>
-          </> : <>
+          </> : getSurveyWorld(world.nearbyTarget || "") ? (() => {
+            const survey = getSurveyWorld(world.nearbyTarget!);
+            if (!survey) return null;
+            const record = world.surveyRecords?.[survey.id];
+            return <>
+              <div className="space-proximity-data">
+                <b>{record ? record.revealedName : "UNIDENTIFIED PLANETARY BODY"}</b><br />
+                {record ? "Survey complete · " + record.classification.replaceAll("-", " ") : "Long-range signature acquired. Close-range scan required."}<br />
+                {record ? record.atmosphere + " · " + record.resources : "Atmosphere, resources, habitability and meteor exposure remain unknown."}
+                {record && <><br />Meteor exposure: {record.meteorExposure}</>}
+              </div>
+              {!record
+                ? <button type="button" onClick={surveyNearbyWorld}>Complete planetary scan <span>⌖</span></button>
+                : <button type="button" onClick={() => { selectSpaceSurveyTarget(world, null); setSpaceUiTick(n => n + 1); }}>Clear navigation target <span>×</span></button>}
+            </>;
+          })() : <>
             {(() => { const planet = WORLD_PLANETS.find(item => item.name === world.nearbyTarget); if (!planet) return null; const progress = world.planetProgress[planet.name] ?? planet.initialProgress; const installed = world.deployedEquipment[planet.name] || 0; const stage = habitatStage(progress); const colony = world.colonies[planet.name]; const ecology = world.ecology?.[planet.name]; return <div className="space-proximity-data">
               <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
               {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}<br />{(world.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name)).slice(0, 3).map(person => person.name).join(" · ")}

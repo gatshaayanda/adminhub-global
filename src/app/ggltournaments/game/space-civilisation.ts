@@ -4,11 +4,6 @@ import { DEFAULT_FOUNDING_IDS } from "./space-founding";
 import { getSurveyWorld, SURVEY_WORLDS } from "./space-universe";
 
 export const SPACE_SAVE_KEY = "ggl-space-world-v1";
-export const SYSTEM_SURVEY_TARGETS = [
-  { id: "aster", name: "Aster", signal: "ESTABLISHED WORLD" }, { id: "cobalt", name: "Cobalt", signal: "ESTABLISHED WORLD" }, { id: "verdant", name: "Verdant", signal: "ESTABLISHED WORLD" }, { id: "ember", name: "Ember", signal: "ESTABLISHED WORLD" }, { id: "frost", name: "Frost", signal: "ESTABLISHED WORLD" },
-  ...Array.from({ length: 15 }, (_, index) => ({ id: "signal-" + String(index + 6).padStart(2, "0"), name: "Signal " + String(index + 6).padStart(2, "0"), signal: "UNIDENTIFIED PLANETARY BODY" })),
-] as const;
-
 export const WORLD_PLANETS = [
   { name: "Ember", initialProgress: 0, colonyMachineRequirement: 6, identityColor: "#a75b42", summary: "Sterile rock · full rebuild" },
   { name: "Frost", initialProgress: 0, colonyMachineRequirement: 5, identityColor: "#9ebdce", summary: "Toxic ice · atmosphere work" },
@@ -81,8 +76,6 @@ export type SpaceState = {
   cargoPeople: number;
   cargoEquipment: number;
   visitedPlanets: string[];
-  discoveredPlanets?: string[];
-  surveyRecords?: Record<string, { surveyedAtWorldMinutes: number; report: string; orbitalNotes: string }>;
   deployedEquipment: Record<string, number>;
   planetProgress: Record<string, number>;
   travelNotes: string[];
@@ -134,8 +127,6 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
-    discoveredPlanets: ["aster", "cobalt", "verdant", "ember", "frost"],
-    surveyRecords: {},
     deployedEquipment: Object.fromEntries(WORLD_PLANETS.map((planet) => [planet.name, 0] as const)),
     planetProgress: Object.fromEntries(WORLD_PLANETS.map((planet) => [planet.name, planet.initialProgress] as const)),
     travelNotes: [],
@@ -397,8 +388,6 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],
-    discoveredPlanets: Array.isArray(saved.discoveredPlanets) ? saved.discoveredPlanets.filter((id): id is string => typeof id === "string" && SYSTEM_SURVEY_TARGETS.some((target) => target.id === id)) : [],
-    surveyRecords: saved.surveyRecords && typeof saved.surveyRecords === "object" ? Object.fromEntries(Object.entries(saved.surveyRecords).filter(([id, value]) => SYSTEM_SURVEY_TARGETS.some((target) => target.id === id) && value && typeof value === "object" && typeof (value as { report?: unknown }).report === "string").map(([id, value]) => [id, value])) : {},
     travelNotes: Array.isArray(saved.travelNotes) ? saved.travelNotes.filter((note): note is string => typeof note === "string").slice(0, 8) : [],
     acclaim: boundedInteger(saved.acclaim, 0, 0, 1000000),
     asteroidsShot: boundedInteger(saved.asteroidsShot, 0, 0, 1000000),
@@ -486,27 +475,6 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
 }
 
 
-
-export function recordPlanetSurvey(state: SpaceState, targetId: string): boolean {
-  const target = SYSTEM_SURVEY_TARGETS.find((item) => item.id === targetId);
-  if (!target) return false;
-  if (!state.discoveredPlanets) state.discoveredPlanets = [];
-  if (!state.surveyRecords) state.surveyRecords = {};
-  if (state.surveyRecords[targetId]) return false;
-  const report = target.id === "aster" ? "Cold, low-pressure silicate terrain confirmed. Mineral seams and subsurface voids require deeper study."
-    : target.id === "cobalt" ? "Copper-bearing formations and a thin, unstable atmosphere confirmed. No safe biosphere detected."
-    : target.id === "verdant" ? "Reactive biological signatures confirmed. Atmospheric chemistry remains unsafe and requires controlled research."
-    : target.id === "ember" ? "Extreme heat, radiation and iron-rich deposits confirmed. Surface operations require specialised shielding."
-    : target.id === "frost" ? "Deep water-ice signatures confirmed beneath fractured terrain. Extraction depth and purity remain uncertain."
-    : "A planetary body is confirmed. Initial scan captured surface composition, atmospheric readings and orbital conditions; a full expedition is still required.";
-  const orbitalNotes = "Orbital pass recorded at system time " + Math.floor(state.worldTimeMinutes) + " minutes. Meteor exposure and long-term habitability remain unverified.";
-  state.discoveredPlanets.push(targetId);
-  state.surveyRecords[targetId] = { surveyedAtWorldMinutes: state.worldTimeMinutes, report, orbitalNotes };
-  state.events.unshift(target.name + " is now confirmed in Haven's system chart. Survey findings have been transmitted.");
-  state.events = state.events.slice(0, 6);
-  recordSpaceChronicle(state, "origin", target.name, "Survey report recorded", report + " " + orbitalNotes);
-  return true;
-}
 
 export function formatWorldTime(worldTimeMinutes: number): string {
   const totalMinutes = (360 + Math.floor(worldTimeMinutes)) % 1440;

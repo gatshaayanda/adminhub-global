@@ -1506,3 +1506,18 @@ This section is authoritative where earlier roadmap wording or workflow instruct
 - Aster, Cobalt, Verdant, Ember and Frost each have a distinct authored survey-origin account, known conditions and unresolved frontier questions. All five begin at 0% restoration and remain uninhabitable. Their different ecology/resource profiles and machine requirements are preserved; Cobalt is only a lower-cost first investment, never a partly habitable starting world.
 - Canonical network seeds live in src/app/ggltournaments/game/space-people.ts; planet-origin canon and opening chronicle events live in src/app/ggltournaments/game/space-civilisation.ts. The dedicated Civilisation History drawer surfaces networks and per-world origins. Legacy saves retain their recorded chronicle and receive any missing canonical origin entries; existing planet progress is not reset during save migration.
 - Preserve the golden flight controls, camera, start/pause/save/restart lifecycle, mobile interactions, finite machine loop and existing QA fixes. This feature branch is for owner QA; do not merge until its exact preview is READY and the owner approves after testing.
+
+
+## GGL Space — player-authored founding circumstances and emergent social networks — 2026-10-31
+
+This section supersedes any earlier instruction that describes the five founding networks as fixed authored factions or hard-coded agendas.
+
+- A new civilisation must begin with a player choice of founding circumstances for OG Haven's original 60 people. The catalogue is extensible and grouped into Beneficial, Harmful, Mixed and Neutral categories. The player may combine up to three circumstances.
+- The four categories describe the circumstance's framing, not the moral worth of every founder. Never label a whole population or future faction as inherently good or evil.
+- The five initial social networks are generated from the selected profile and 20 founding households. Their origins, agendas, pressure points, influence and connections must respond to the chosen circumstances. Stable network role labels are acceptable; fixed predetermined faction identities and agendas are not.
+- The profile must influence founder traits, motivations, household cohesion and relationships. Colony interest groups continue to emerge from the actual people who settle there and their evolving motivations. Network/faction growth must remain causal and responsive to play.
+- Manual saves and autosaves preserve the founding profile. A local archive stores created founding profiles and allows them to be loaded into the new-civilisation setup. Do not regenerate a saved civilisation's origin when loading it.
+- New circumstances require a stable ID, category, readable player-facing description, weighted social axes, a real historical inspiration/source and a research basis/source. Clearly distinguish documented facts from fictional scenario extrapolation. Prefer primary/institutional sources and peer-reviewed psychological research.
+- Catalogue and extension rules live in `docs/FOUNDING-CIRCUMSTANCE-LIBRARY.md`; data and derivation live in `src/app/ggltournaments/game/space-founding.ts`.
+- Preserve the current five worlds, their distinct origins, 0% restoration baseline, existing flight controls, finite machinery, ecology, save lifecycle and mobile interactions.
+- This work remains on its feature branch for owner QA. Do not merge to main without explicit owner approval.

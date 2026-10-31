@@ -205,3 +205,25 @@ Owner QA:
 8. Regression: all five planets remain at 0% and uninhabitable; test start/pause/restart, manual save/load, offline time, mobile flight controls, target assist, cache recovery, docking safety, machine logistics and ship repair.
 
 Do not claim the faction simulation is complete from this setup slice alone. The five starting networks and profile-driven founder motivations are now seeded; later faction evolution still needs deeper QA and iteration. Keep branch unmerged until exact preview is READY and owner approves.
+
+
+## Stage A — 20-world solar-system discovery map (2026-10-31)
+
+Design authority: `docs/GGL-SPACE-UNIVERSE-DESIGN.md`. The first discovery-map presentation is available at `/ggltournaments/solar-system`.
+
+### Current map-surface QA
+1. Open the solar-system route on desktop and mobile. Confirm four quadrants, five planetary signatures per quadrant and exactly 20 total.
+2. Confirm Aster, Cobalt, Verdant, Ember and Frost retain their existing identities and descriptions in Quadrant I.
+3. Confirm the other 15 appear as unidentified signatures only; no invented atmospheric, resource, habitability or meteor-safety claims are shown.
+4. Select every signature and confirm the selected intelligence panel updates to the matching quadrant/orbit and the roster selection stays in sync.
+5. Test ALL / CHARTED / UNMAPPED filters and confirm counts and entries are correct.
+6. Confirm the mission panel clearly labels unknown-world survey as awaiting flight integration; selecting a map signal must not award a fake discovery, money or scan result.
+7. Confirm the map remains readable at narrow mobile widths and keyboard focus is visible.
+
+### Integration work still required after this map-surface checkpoint
+- Link the map naturally from the existing in-game interface and make it reflect the current saved civilisation.
+- Implement ship navigation to all 20 bodies, survey interactions, and durable discovery records in the world save and chronicle.
+- Replace approximate orbital presentation with authored orbital positions, distances, travel costs and discovered meteor corridors.
+- Preserve current five-world ecology, restoration, settlement, hazards and legacy save data while extending the data model.
+
+This map-surface checkpoint is not a claim that all 20 planets are physically explorable or that survey actions are already simulated. Keep the branch unmerged until the exact latest commit has a READY preview and the product owner completes QA.

@@ -1492,3 +1492,10 @@ Implement these as direct, narrowly scoped improvements on top of current `main`
 - Do not ask the product owner to repeat decisions already stated. Do not respond to a direct implementation instruction with a plan telling the owner what they should do.
 - Continue to report deployment readiness and QA status accurately and separately from Git merge status. A merge is not proof that Vercel production has deployed or that the owner has tested the latest version.
 - For this requested UI refinement, inspect current `main` after merge, implement the three requested changes, run available checks, commit and push to `main` as directed. Do not expand scope into unrelated milestone redesigns.
+
+
+### GGL Space UI refinement implementation checkpoint — 2026-10-31
+- Implemented independent native disclosure accordions for Haven Chronicle and each planet/colony chronicle inside the existing proximity menu. Each expanded history has a bounded internal scroll region; the outer proximity menu remains independently openable/closeable.
+- Implemented a temporary world-space acquisition ring and target-identity label on the actual aim-assist target when a player-fired projectile acquires it. It remains tied to player FIRE; no autonomous firing was added.
+- Raised toast and transfer-signal stacking above game menus and made these transient overlays non-interactive so they do not intercept menu controls.
+- These changes are committed directly to `main`; run the repository's available lint/typecheck/build checks and verify the matching Vercel deployment before claiming runtime QA. Product-owner hands-on QA remains separate.

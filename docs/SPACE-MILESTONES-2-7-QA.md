@@ -180,3 +180,28 @@ Owner QA for this slice:
 6. Regression: START GAME gate, pause/resume, save/load/restart, offline-time semantics, mobile flight controls, target assist, cache recovery, docking safety, finite materials/machine fabrication and ship repair.
 
 No owner QA pass is claimed by this implementation checkpoint. Keep the branch unmerged until the exact latest commit has a READY preview and the product owner approves.
+
+
+## Player-driven founding circumstances and dynamic OG Haven — 2026-10-31
+
+Implemented on `feat/ggl-dynamic-founding-library`; owner QA pending.
+
+- Replaced fixed five-network seed data with an extensible circumstance library in four categories: Beneficial, Harmful, Mixed and Neutral.
+- Player can select up to three historical circumstances when creating a new civilisation. Starter entries include mutual aid after disaster, peaceful scientific compact, refuge/resettlement, negotiated commons, coercive extraction, authoritarian escape, engineered exclusion, unequal rescue, prosperity with hidden costs, revolutionary coalition, long-range survey, commercial opportunity and planned relocation.
+- Each entry contains a historical basis/source and a psychological research basis/source. Composite scenarios are identified as composites rather than presented as one literal historical event.
+- Selected circumstance axes influence founder traits, motivations, household cohesion and interpersonal trust. Five interconnected networks are generated from those aggregate conditions; their origins, agendas, pressure points, links and influence are not fixed moral factions.
+- Colony interest groups continue to form from the motivations of the people who actually settle there.
+- The selected profile is recorded in Haven's opening chronicle, preserved in manual/autosaves, and archived locally for later loading into a new civilisation setup.
+- Extension rules and current sources are documented in `docs/FOUNDING-CIRCUMSTANCE-LIBRARY.md`.
+
+Owner QA:
+1. Open a genuinely new civilisation and confirm setup appears before START GAME; choose one circumstance from Beneficial, Harmful, Mixed or Neutral.
+2. Create another civilisation combining circumstances from different categories. Confirm max-three selection, selected count and new origin narrative.
+3. Open Civilisation History → The Founding Networks. Confirm five connected networks, 60 founders at Haven, distinct network origins/agendas/pressure points, and that the profile matches the selected circumstances.
+4. Compare profiles: beneficial, harmful, mixed and neutral starts should produce noticeably different founder motivations, trust/cohesion tendencies and network agendas. They must not become fixed good/evil teams.
+5. Create a profile, leave the game, reload the saved game and confirm the origin and networks are unchanged.
+6. Create a second profile and confirm the first appears in the local founding archive and can be loaded back into setup.
+7. Confirm historical and research source links open from the chronicle.
+8. Regression: all five planets remain at 0% and uninhabitable; test start/pause/restart, manual save/load, offline time, mobile flight controls, target assist, cache recovery, docking safety, machine logistics and ship repair.
+
+Do not claim the faction simulation is complete from this setup slice alone. The five starting networks and profile-driven founder motivations are now seeded; later faction evolution still needs deeper QA and iteration. Keep branch unmerged until exact preview is READY and owner approves.

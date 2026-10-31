@@ -13,6 +13,19 @@ export const WORLD_PLANETS = [
 
 export type PlanetName = (typeof WORLD_PLANETS)[number]["name"];
 
+export const PLANET_ORIGIN_STORIES: Record<PlanetName, { title: string; discovery: string; unresolved: string }> = {
+  Aster: { title: "Aster — the fractured silicate frontier", discovery: "The first long-range survey found a cold, low-pressure world shaped by ancient impacts. Its exposed silicate shelves and buried mineral seams make it useful for structural materials, but the surface offers no safe air or dependable open-water cycle.", unresolved: "Subsurface voids and heat pockets remain poorly mapped. Survey teams do not yet know whether they can support stable underground industry or conceal volatile deposits." },
+  Cobalt: { title: "Cobalt — the copper-bearing pressure basin", discovery: "Orbital instruments traced extensive copper-bearing formations beneath a thin, unstable atmosphere. The world is less thermally extreme than the outer planets, but pressure, radiation exposure and the absence of a safe biosphere still make every unprotected landing lethal.", unresolved: "The extent of accessible copper and the behaviour of buried water deposits are uncertain. Its lower initial machinery requirement makes it a practical first restoration candidate, not a habitable world." },
+  Verdant: { title: "Verdant — the reactive living world", discovery: "Verdant's temperate readings and dense biological signatures initially looked promising. Close observation revealed an unfamiliar, reactive ecology and atmospheric chemistry that cannot be assumed safe for humans. Its rare crystalline deposits may help future power and sensor systems.", unresolved: "The ecology's seasonal cycles, chemical signalling and response to industrial disturbance are not understood. Any restoration must begin with containment and study, not uncontrolled terraforming." },
+  Ember: { title: "Ember — the furnace beneath the dust", discovery: "Ember is a superheated, high-radiation world with almost no useful atmospheric pressure. Orbital scans identified iron-rich deposits and signs of persistent geological activity. It is a long-horizon industrial prospect, not an early settlement destination.", unresolved: "The safest extraction windows, depth of stable mineral seams and long-term behaviour of its active crust remain unknown. Heavy shielding and specialised thermal equipment will be required." },
+  Frost: { title: "Frost — the buried-water world", discovery: "Frost is an extreme cold trap with a hostile, thin atmosphere. Survey returns indicate substantial water ice locked below fractured surface layers, making it strategically important for future life-support chemistry despite its severe temperature and radiation hazards.", unresolved: "The depth, purity and accessibility of the ice are not yet confirmed. Heating and drilling could destabilise the surface, so extraction methods must be tested before large-scale deployment." },
+};
+
+const OPENING_CHRONICLE: SpaceChronicleEvent[] = [
+  { id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "Sixty founders from five connected population networks made Haven a shared refuge. Their common survival compact binds the founding households together, while their different priorities will shape what this civilisation becomes." },
+  ...WORLD_PLANETS.map((planet) => ({ id: "planet-origin-" + planet.name.toLowerCase(), atWorldMinutes: 0, kind: "origin" as const, location: planet.name, title: PLANET_ORIGIN_STORIES[planet.name].title, detail: PLANET_ORIGIN_STORIES[planet.name].discovery + " Unresolved frontier: " + PLANET_ORIGIN_STORIES[planet.name].unresolved })),
+];
+
 export type HabitatStage = {
   index: number;
   key: "sterile" | "toxic" | "trace" | "thin-air" | "habitable";
@@ -99,7 +112,7 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
     havenMaterials: 12,
     machineProductionQueue: 0,
     machineProductionProgress: 0,
-    chronicle: [{ id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "The original 60 inhabitants begin the first chapter of the GGL civilisation at Haven. All five worlds await their first restoration investment." }],
+    chronicle: OPENING_CHRONICLE.map(event => ({ ...event })),
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
@@ -305,6 +318,8 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
   if (!value || typeof value !== "object") return initial;
   const saved = value as Partial<SpaceState>;
   if (saved.version !== 1) return initial;
+  const savedChronicle = Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")) : [];
+  const openingEvents = initial.chronicle || [];
 
   const state: SpaceState = {
     ...initial,
@@ -314,7 +329,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     havenMaterials: boundedInteger(saved.havenMaterials, 12, 0, 100000),
     machineProductionQueue: boundedInteger(saved.machineProductionQueue, 0, 0, 1000),
     machineProductionProgress: Math.max(0, Math.min(3.999, finiteNumber(saved.machineProductionProgress, 0))),
-    chronicle: Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")).slice(-1200) : initial.chronicle,
+    chronicle: [...openingEvents.filter(origin => !savedChronicle.some(event => event.id === origin.id)), ...savedChronicle].slice(-1200),
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],

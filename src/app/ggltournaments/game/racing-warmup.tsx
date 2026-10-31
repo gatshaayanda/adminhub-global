@@ -734,6 +734,17 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           </button>
           {chronicleMenuOpen && <div className="space-chronicle-drawer" aria-label="Haven and planet population chronicles">
             <div className="space-chronicle-drawer-heading"><strong>CIVILISATION HISTORY</strong><button type="button" onClick={() => setChronicleMenuOpen(false)} aria-label="Close chronicles">×</button></div>
+            <details className="space-chronicle-group">
+              <summary><span>THE FOUNDING NETWORKS</span><small>60 FOUNDERS · 5 AGENDAS</small></summary>
+              <div className="space-chronicle-list">
+                {(world.population?.foundingNetworks || []).map((network) => {
+                  const livingMembers = (world.population?.people || []).filter(person => person.alive && network.householdIds.includes(person.householdId)).length;
+                  const links = network.linkedNetworks.map(id => world.population?.foundingNetworks?.find(item => item.id === id)?.name).filter(Boolean);
+                  return <small key={network.id}><strong>{network.name}</strong> · {livingMembers} living members<br />{network.origin}<br /><b>Shared agenda:</b> {network.agenda}<br /><b>Pressure point:</b> {network.pressurePoint}<br /><b>Connected with:</b> {links.join(" · ") || "Other Haven networks"}</small>;
+                })}
+                {!(world.population?.foundingNetworks || []).length && <small>The founding networks will be restored with the population archive.</small>}
+              </div>
+            </details>
             {chronicleLocations.map((location) => {
               const events = chronicleEvents.filter((event) => event.location === location).slice().reverse();
               return <details className="space-chronicle-group" key={location}>

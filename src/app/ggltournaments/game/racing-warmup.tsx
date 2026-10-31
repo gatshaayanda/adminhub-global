@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
@@ -417,6 +417,36 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   };
   // NOS is a compact tap-to-toggle burst, not a hold pedal.
   // Tap once to engage, tap again to cut it; vertical thrust remains independent.
+  const minePlanetMaterials = () => {
+    const state = spaceStateRef.current;
+    const target = state.nearbyTarget;
+    const ecology = target ? state.ecology?.[target] : undefined;
+    if (!target || !ecology || (state.deployedEquipment[target] || 0) <= 0) {
+      notify("Deploy a working machine on this world before mining its resources.", "info");
+      return;
+    }
+    const amount = Math.min(5, 20 - (state.cargoMaterials || 0), Math.floor(ecology.resourceStock));
+    if (amount <= 0) {
+      notify((state.cargoMaterials || 0) >= 20 ? "Raw-material hold full. Deliver it to Haven." : "This world's accessible resource stock is depleted.", "info");
+      return;
+    }
+    ecology.resourceStock -= amount;
+    ecology.extractedResource += amount;
+    state.cargoMaterials = (state.cargoMaterials || 0) + amount;
+    recordSpaceChronicle(state, "production", target, "Raw materials extracted", amount + " units of " + ecology.resourceType + " loaded aboard the ship for Haven fabrication.");
+    notify(amount + " units of " + ecology.resourceType + " loaded. Return to Haven to unload them.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
+  const startMachineProduction = () => {
+    const state = spaceStateRef.current;
+    if (state.dockedAt !== "GGL Haven") { notify("Dock at Haven before operating the station fabricator.", "info"); return; }
+    if ((state.havenMaterials || 0) < 6) { notify("Fabrication requires 6 delivered material units. Mine a working colony world and bring the materials back.", "error"); return; }
+    state.havenMaterials = (state.havenMaterials || 0) - 6;
+    state.machineProductionQueue = (state.machineProductionQueue || 0) + 1;
+    recordSpaceChronicle(state, "production", "GGL Haven", "Machine fabrication started", "Six material units entered the station fabricator. One machine will complete after four system hours.");
+    notify("Machine fabrication started. Six material units committed; completion in four system hours.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
   const dockOrLand = () => {
     const state = spaceStateRef.current;
     const target = state.nearbyTarget;
@@ -428,6 +458,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       state.acclaim += 1;
       state.events.unshift("Recoverable station equipment recovered and secured aboard the ship.");
       state.events = state.events.slice(0, 6);
+      recordSpaceChronicle(state, "recovery", "GGL Haven", "Equipment cache recovered", "The pilot recovered one floating machine module; ship cargo increased by one.");
       signalTransfer("🧰", "EQUIPMENT RECOVERED", "One floating machine module secured in the ship cargo.", "SPACE  →  SHIP");
       notify("Equipment module recovered. Cargo +1 machine; archive acclaim +1.", "success");
       setSpaceUiTick(n => n + 1);
@@ -435,10 +466,15 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     }
 
     if (target === "GGL Haven") {
+      const newlyDocked = state.dockedAt !== "GGL Haven";
+      state.dockedAt = "GGL Haven";
+      if (newlyDocked) recordSpaceChronicle(state, "docking", "GGL Haven", "Ship docked at Haven", "The ship entered Haven safe harbour. Ordinary asteroid collision damage is suppressed while docked.");
       const returnedCrew = state.cargoPeople;
       const returnedMachines = state.cargoEquipment;
+      const returnedMaterials = state.cargoMaterials || 0;
       if (returnedCrew > 0) { state.havenPopulation += returnedCrew; movePeople(state.population, "ship", "haven", returnedCrew); } // Returning citizens are never discarded at the station capacity threshold.
       if (returnedMachines > 0) state.machineInventory += returnedMachines;
+      if (returnedMaterials > 0) state.havenMaterials = (state.havenMaterials || 0) + returnedMaterials;
       if (state.visitedPlanets.length) {
         const notes = state.visitedPlanets.map(planet => "Trip note: " + planet + " — " + (state.deployedEquipment[planet] || 0) + " machine(s) installed; " + state.asteroidsShot + " asteroid(s) destroyed on this trip.");
         state.travelNotes = [...notes, ...state.travelNotes].slice(0, 8);
@@ -450,11 +486,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       } else {
         notify("Docked at GGL Haven. Load a mission when you are ready.", "success");
       }
-      if (returnedCrew || returnedMachines) {
-        signalTransfer("🧑‍🚀", "CARGO RETURNED TO HAVEN", returnedCrew + " crew · " + returnedMachines + " unused machine(s) returned.", "SHIP  →  STATION");
+      if (returnedCrew || returnedMachines || returnedMaterials) {
+        signalTransfer("🧑‍🚀", "CARGO RETURNED TO HAVEN", returnedCrew + " crew · " + returnedMachines + " machine(s) · " + returnedMaterials + " raw material units returned.", "SHIP  →  STATION");
       }
       state.cargoPeople = 0;
       state.cargoEquipment = 0;
+      state.cargoMaterials = 0;
       state.visitedPlanets = [];
       state.asteroidsShot = 0;
       setSpaceUiTick(n => n + 1);
@@ -503,6 +540,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           state.cargoPeople -= moved;
           movePeople(state.population, "ship", ("planet:" + target) as `planet:${string}`, moved);
           state.events.unshift(target + " settlement founded by " + moved + " people from GGL Haven.");
+          recordSpaceChronicle(state, "settlement", target, target + " settlement founded", moved + " settlers from Haven established the first local community. Its history begins here.");
           state.events = state.events.slice(0, 6);
           notify(target + " settlement founded. " + moved + " Haven descendant(s) began local operations.", "success");
           signalTransfer("🧑‍🚀", "SETTLEMENT FOUNDED", moved + " person(s) established local operations on " + target + ".", "SHIP  →  " + target.toUpperCase());
@@ -517,6 +555,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     }
     setSpaceUiTick(n => n + 1);
   };
+  const undockFromHaven = () => {
+    const state = spaceStateRef.current;
+    if (state.dockedAt !== "GGL Haven") return;
+    state.dockedAt = null;
+    recordSpaceChronicle(state, "docking", "GGL Haven", "Ship undocked", "The ship left safe harbour; ordinary open-space collision hazards are active again.");
+    notify("Undocked from GGL Haven. Open-space collision hazards are active again.", "info");
+    setSpaceUiTick(n => n + 1);
+  };
   const repairShip = () => {
     const state = spaceStateRef.current;
     if (state.nearbyTarget !== "GGL Haven") { notify("Dock at GGL Haven before attempting hull repairs.", "info"); return; }
@@ -525,6 +571,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const cost = Math.ceil(damage / 35);
     if (state.machineInventory < cost) { notify("Insufficient spare machinery. Repair requires " + cost + " machine unit(s).", "error"); return; }
     state.machineInventory -= cost;
+    recordSpaceChronicle(state, "repair", "GGL Haven", "Ship hull repaired", "Haven consumed " + cost + " machine unit(s) to restore the ship hull.");
     raceRef.current.damage = 0;
     notify("Ship hull repaired at GGL Haven. " + cost + " finite machine unit(s) consumed.", "success");
     signalTransfer("🛠️", "SHIP REPAIRED", "Hull integrity restored using " + cost + " spare machine unit(s).", "HAVEN  →  SHIP");
@@ -643,21 +690,24 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             <div className="space-proximity-data">Unattended equipment module detected. Recover it to replenish the ship equipment cargo.</div>
             <button type="button" onClick={dockOrLand} disabled={world.cargoEquipment >= 4}>Recover equipment <span>＋</span></button>
           </> : world.nearbyTarget === "GGL Haven" ? <>
-            <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage<br /><small>{(world.population?.people || []).filter(person => person.alive && person.location === "haven").slice(0, 4).map(person => person.name).join(" · ")}</small></div>
-            <button type="button" onClick={dockOrLand}>Dock / return cargo <span>↙</span></button>
+            <div className="space-proximity-data"><b>{world.havenPopulation}</b> people at Haven <i /> <b>{world.machineInventory}</b> machines in storage<br /><small>{world.havenMaterials || 0} raw materials · {world.machineProductionQueue || 0} machine(s) queued · {Math.floor(world.machineProductionProgress || 0)}/4 system hours</small><br /><small>{(world.population?.people || []).filter(person => person.alive && person.location === "haven").slice(0, 4).map(person => person.name).join(" · ")}</small></div>
+            <div className="space-chronicle"><b>HAVEN CHRONICLE</b>{(world.chronicle || []).filter(event => event.location === "GGL Haven").slice(-4).reverse().map(event => <small key={event.id}>T+{Math.floor(event.atWorldMinutes / 60)}h · <strong>{event.title}</strong> — {event.detail}</small>)}</div>
+            <button type="button" onClick={world.dockedAt === "GGL Haven" ? undockFromHaven : dockOrLand}>{world.dockedAt === "GGL Haven" ? "Undock · safe harbour active" : "Dock / return cargo"} <span>{world.dockedAt === "GGL Haven" ? "↗" : "↙"}</span></button>
             {raceRef.current.damage > 0 && <button type="button" onClick={repairShip}>Repair ship · {Math.ceil(raceRef.current.damage / 35)} machine(s) <span>🛠</span></button>}
             <div className="space-machine-load-options" aria-label="Choose machinery load">
               <button type="button" onClick={() => loadMachinesAtStation(1)} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load 1 machine</button>
               <button type="button" onClick={() => loadMachinesAtStation(2)} disabled={world.machineInventory <= 0 || world.cargoEquipment >= 4}>Load 2 machines</button>
             </div>
+            {world.dockedAt === "GGL Haven" && <button type="button" onClick={startMachineProduction} disabled={(world.havenMaterials || 0) < 6}>Fabricate 1 machine · 6 materials <span>⚙</span></button>}
             <button type="button" onClick={boardCrewAtStation} disabled={world.havenPopulation <= 36 || world.cargoPeople >= 6}>Board crew +3 <span>＋</span></button>
           </> : <>
             {(() => { const planet = WORLD_PLANETS.find(item => item.name === world.nearbyTarget); if (!planet) return null; const progress = world.planetProgress[planet.name] ?? planet.initialProgress; const installed = world.deployedEquipment[planet.name] || 0; const stage = habitatStage(progress); const colony = world.colonies[planet.name]; const ecology = world.ecology?.[planet.name]; return <div className="space-proximity-data">
               <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
               {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}<br />{(world.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name)).slice(0, 3).map(person => person.name).join(" · ")}
-              {ecology && <div className="space-ecology-data"><b>WORLD SYSTEMS</b><span>{Math.round(ecology.temperatureC)}°C · {Math.round(ecology.pressureKpa)} kPa · water {Math.round(ecology.accessibleWater)}%</span><span>Radiation {Math.round(ecology.radiation)}% · ecology {Math.round(ecology.biodiversity)}% · food {Math.round(ecology.foodProduction)}%</span><span>{ecology.resourceType}: {Math.round(ecology.resourceStock)} units · fabrication {Math.round(ecology.fabricationProgress)}%</span><span>Local modules produced: {ecology.manufacturedModules} · maintenance load {Math.round(ecology.maintenanceLoad)}%</span></div>}
+              <div className="space-chronicle"><b>{planet.name.toUpperCase()} CHRONICLE</b>{(world.chronicle || []).filter(event => event.location === planet.name).slice(-4).reverse().map(event => <small key={event.id}>T+{Math.floor(event.atWorldMinutes / 60)}h · <strong>{event.title}</strong> — {event.detail}</small>)}{!(world.chronicle || []).some(event => event.location === planet.name) && <small>History begins when the first people and machines arrive.</small>}</div>{ecology && <div className="space-ecology-data"><b>WORLD SYSTEMS</b><span>{Math.round(ecology.temperatureC)}°C · {Math.round(ecology.pressureKpa)} kPa · water {Math.round(ecology.accessibleWater)}%</span><span>Radiation {Math.round(ecology.radiation)}% · ecology {Math.round(ecology.biodiversity)}% · food {Math.round(ecology.foodProduction)}%</span><span>{ecology.resourceType}: {Math.round(ecology.resourceStock)} units · fabrication {Math.round(ecology.fabricationProgress)}%</span><span>Local modules produced: {ecology.manufacturedModules} · maintenance load {Math.round(ecology.maintenanceLoad)}%</span></div>}
               {(() => { {colony && <div className="space-society-data"><b>{colony.governance.replace("-", " ").toUpperCase()}</b><span>Haven trust {Math.round(colony.trustWithHaven)}% · local autonomy {Math.round(colony.autonomy)}%</span>{colony.factions.length > 0 ? colony.factions.map(faction => <small key={faction.id}>{faction.name} · {faction.influence}% influence — {faction.agenda}</small>) : <small>Local groups are still forming from settlers' shared experiences.</small>}</div>}const hazard = (world.hazards || []).find(item => item.target === planet.name && (item.status === "warning" || item.status === "mitigated")); if (!hazard) return null; const hours = Math.max(0, (hazard.impactAtWorldMinutes - world.worldTimeMinutes) / 60); return <div className="space-hazard-card"><b>{hazard.type === "power-dust" ? "POWER-DUST SIGNATURE" : "ORBITAL IMPACT WARNING"}</b><small>Estimated impact window: {hours.toFixed(1)} system hours · confidence {Math.round(hazard.confidence * 100)}%</small>{hazard.status === "warning" ? <button type="button" onClick={() => { const ok = mitigateSpaceHazard(world, planet.name); notify(ok ? "Mitigation deployed. One finite Haven machine was committed to the response." : "No machine stock is available for mitigation.", ok ? "success" : "error"); setSpaceUiTick(n => n + 1); }} disabled={world.machineInventory <= 0}>Deploy mitigation · 1 machine</button> : <small>Mitigation deployed · revised impact window active</small>}</div>; })()}
             </div>; })()}
+            {WORLD_PLANETS.some(item => item.name === world.nearbyTarget && (world.deployedEquipment[item.name] || 0) > 0) && <button type="button" onClick={minePlanetMaterials} disabled={(world.cargoMaterials || 0) >= 20 || !WORLD_PLANETS.some(item => item.name === world.nearbyTarget && (world.ecology?.[item.name]?.resourceStock || 0) >= 1)}>Mine 5 raw materials · cargo {(world.cargoMaterials || 0)}/20</button>}
             <button type="button" onClick={dockOrLand}>{world.cargoEquipment > 0 ? (world.cargoPeople > 0 ? "Deliver machines + crew" : "Deploy machinery") : world.cargoPeople > 0 ? "Check settlement conditions" : "Inspect world"} <span>↗</span></button>
           </>}
           </div>}

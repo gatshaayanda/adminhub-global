@@ -30,6 +30,8 @@ export const HABITAT_STAGES: HabitatStage[] = [
   { index: 4, key: "habitable", label: "HABITABLE", color: "#78f0b1", atmosphereColor: "#49dcb8", description: "Crew can establish a settlement" },
 ];
 
+export type SpaceChronicleEvent = { id: string; atWorldMinutes: number; kind: "origin" | "settlement" | "habitat" | "recovery" | "docking" | "repair" | "hazard" | "society" | "production"; location: string; title: string; detail: string };
+
 export type SpaceHazard = { id: string; type: "asteroid-impact" | "power-dust"; target: string; severity: 1 | 2 | 3; forecastStartWorldMinutes: number; impactAtWorldMinutes: number; confidence: number; status: "warning" | "mitigated" | "impact"; mitigation: number };
 
 export type SpaceFaction = { id: string; name: string; agenda: string; influence: number };
@@ -49,6 +51,12 @@ export type SpaceColony = {
 export type SpaceState = {
   version: 1;
   nearbyTarget: string | null;
+  /** Explicit station docking state; proximity alone never implies docking. */
+  dockedAt?: string | null;
+  cargoMaterials?: number;
+  havenMaterials?: number;
+  machineProductionQueue?: number;
+  machineProductionProgress?: number;
   cargoPeople: number;
   cargoEquipment: number;
   visitedPlanets: string[];
@@ -70,6 +78,7 @@ export type SpaceState = {
   hazards?: SpaceHazard[];
   nextHazardAtWorldMinutes?: number;
   ecology?: PlanetEcologyMap;
+  chronicle?: SpaceChronicleEvent[];
 };
 
 export function habitatStage(progress: number): HabitatStage {
@@ -85,6 +94,12 @@ export function createInitialSpaceState(now = Date.now()): SpaceState {
   return {
     version: 1,
     nearbyTarget: null,
+    dockedAt: null,
+    cargoMaterials: 0,
+    havenMaterials: 12,
+    machineProductionQueue: 0,
+    machineProductionProgress: 0,
+    chronicle: [{ id: "haven-origin-0", atWorldMinutes: 0, kind: "origin", location: "GGL Haven", title: "Haven established", detail: "The original 60 inhabitants begin the first chapter of the GGL civilisation." }],
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
@@ -114,9 +129,27 @@ const finiteNumber = (value: unknown, fallback: number) =>
 const boundedInteger = (value: unknown, fallback: number, min: number, max: number) =>
   Math.max(min, Math.min(max, Math.round(finiteNumber(value, fallback))));
 
+export function recordSpaceChronicle(state: SpaceState, kind: SpaceChronicleEvent["kind"], location: string, title: string, detail: string): void {
+  if (!state.chronicle) state.chronicle = createInitialSpaceState().chronicle || [];
+  state.chronicle.push({ id: "event-" + Math.round(state.worldTimeMinutes) + "-" + state.chronicle.length, atWorldMinutes: state.worldTimeMinutes, kind, location, title, detail });
+  if (state.chronicle.length > 1200) state.chronicle.splice(0, state.chronicle.length - 1200);
+}
+
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
   if (!Number.isFinite(elapsedWorldMinutes) || elapsedWorldMinutes <= 0) return;
   const hours = elapsedWorldMinutes / 60;
+  // Haven's finite fabricator converts six delivered material units into one machine over four system hours.
+  if ((state.machineProductionQueue || 0) > 0) {
+    state.machineProductionProgress = (state.machineProductionProgress || 0) + hours;
+    while ((state.machineProductionQueue || 0) > 0 && (state.machineProductionProgress || 0) >= 4) {
+      state.machineProductionProgress = (state.machineProductionProgress || 0) - 4;
+      state.machineProductionQueue = (state.machineProductionQueue || 0) - 1;
+      state.machineInventory += 1;
+      recordSpaceChronicle(state, "production", "GGL Haven", "Machine completed", "Haven's fabricator completed one machine unit from six delivered material units.");
+      state.events.unshift("Haven completed one machine unit. Storage now holds " + state.machineInventory + ".");
+      state.events = state.events.slice(0, 6);
+    }
+  }
   if (!state.ecology) state.ecology = createPlanetEcology();
   advancePlanetEcology(
     state.ecology,
@@ -141,6 +174,7 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       if (nextStage.index > previousStage.index) {
         state.events.unshift(planet.name + " has entered " + nextStage.label + " conditions. " + (nextProgress >= 80 ? "Safe settlement capacity: " + habitatCapacity(nextProgress) + " people." : "More restoration is needed before people can settle safely."));
         state.events = state.events.slice(0, 6);
+        recordSpaceChronicle(state, "habitat", planet.name, planet.name + " reached " + nextStage.label, "Habitat restoration moved from " + previousStage.label + " to " + nextStage.label + " conditions at " + Math.round(state.worldTimeMinutes / 60) + " system hours.");
       }
     }
   }
@@ -194,12 +228,15 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       agenda: motivationNames[motivation]?.[1] || "Represent local interests",
       influence: residents.length ? Math.round(count / residents.length * 100) : 0,
     }));
+    const previousGovernance = colony.governance;
     colony.governance = colony.independent ? "self-governing" : colony.population >= 8 && colony.autonomy >= 35 ? "local-council" : "provisional";
+    if (previousGovernance !== colony.governance) recordSpaceChronicle(state, "society", planet.name, planet.name + " governance changed", "Local governance matured from " + previousGovernance + " to " + colony.governance + " as population and autonomy changed.");
     if (!colony.independent && colony.population >= 18 && colony.autonomy >= 55 && state.worldTimeMinutes - colony.foundedAtWorldMinutes >= 7 * 1440) {
       colony.independent = true;
       colony.governance = "self-governing";
       state.events.unshift(planet.name + " has become self-governing after local capacity and autonomy matured.");
       state.events = state.events.slice(0, 6);
+      recordSpaceChronicle(state, "society", planet.name, planet.name + " became self-governing", "The colony reached its population, autonomy and time thresholds for independence from Haven.");
     }
   }
   const populationCounts = Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population]));
@@ -272,6 +309,12 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
   const state: SpaceState = {
     ...initial,
     nearbyTarget: typeof saved.nearbyTarget === "string" ? saved.nearbyTarget : null,
+    dockedAt: saved.dockedAt === "GGL Haven" ? "GGL Haven" : null,
+    cargoMaterials: boundedInteger(saved.cargoMaterials, 0, 0, 20),
+    havenMaterials: boundedInteger(saved.havenMaterials, 12, 0, 100000),
+    machineProductionQueue: boundedInteger(saved.machineProductionQueue, 0, 0, 1000),
+    machineProductionProgress: Math.max(0, Math.min(3.999, finiteNumber(saved.machineProductionProgress, 0))),
+    chronicle: Array.isArray(saved.chronicle) ? saved.chronicle.filter((event): event is SpaceChronicleEvent => Boolean(event && typeof event === "object" && typeof (event as SpaceChronicleEvent).id === "string" && typeof (event as SpaceChronicleEvent).atWorldMinutes === "number" && typeof (event as SpaceChronicleEvent).location === "string" && typeof (event as SpaceChronicleEvent).title === "string" && typeof (event as SpaceChronicleEvent).detail === "string")).slice(-1200) : initial.chronicle,
     cargoPeople: boundedInteger(saved.cargoPeople, 0, 0, 6),
     cargoEquipment: boundedInteger(saved.cargoEquipment, 0, 0, 4),
     visitedPlanets: Array.isArray(saved.visitedPlanets) ? saved.visitedPlanets.filter((name): name is string => typeof name === "string" && WORLD_PLANETS.some((planet) => planet.name === name)) : [],

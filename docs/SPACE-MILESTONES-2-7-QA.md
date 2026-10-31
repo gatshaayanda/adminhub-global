@@ -96,3 +96,68 @@ Continue implementation toward a coherent playable milestone set before presenti
 - Do not merge until the exact latest branch commit has a READY Vercel Preview and the product owner has completed hands-on QA and explicitly approved.
 - A rate-limit failure is not a successful build and must not be presented as a preview. Do not create repeated empty commits merely to force builds.
 - After explicit approval only: merge, update the golden recovery branch to the accepted merge commit, verify the matching production deployment and route, then branch fresh from the new accepted baseline.
+
+
+---
+
+## Product-owner gameplay QA — 2026-10-30 (exact preview commit 7d9291d)
+
+The product owner tested the READY Vercel preview and reported:
+
+| Area | Result | Observation |
+|---|---|---|
+| Combat target assistance | **Failed / not observed** | Firing near planets and asteroids did not demonstrate target assistance. Player-triggered only remains mandatory; no auto-fire. |
+| Floating equipment recovery | **Failed / blocked** | Cache appeared, but the recovery button was not pressable, so recovery did not occur. |
+| Colony settlement and governance | **Partial** | Settlement was founded and colony systems appeared, but there were no meaningful narrative histories/storylines. |
+| Asteroid safety while docked | **Failed** | Asteroid impacts continued while docked at or near Haven. |
+| Haven machine resupply / ship repair | **Usability and gameplay gap** | Player could not understand how to replenish Haven's machine stock to repair the ship. |
+| Other tested systems | **Reported good** | Preserve the working systems and golden flight controls; continue regression testing. |
+
+### Interpretation and required design
+
+**Combat:** Trace the real projectile path from FIRE input through target acquisition, guidance and collision/impact. Ensure valid targets are selected in front of the ship within a clear range/cone, and that aim assistance visibly guides only shots the player fires. Add hit/near-miss feedback without changing firing cadence or flight controls.
+
+**Equipment recovery:** Make the recovery action genuinely pressable on mobile (pointer/touch target, layering, disabled state, proximity threshold and event propagation). Show a success signal and machine cargo count change. A full cargo hold must produce a clear blocked reason.
+
+**History and storylines:** Build a persistent, causal chronicle for Haven before expanding colony storylines. Haven's founding, original 60 people, named-person relationships, births/deaths, decisions, resource shortages, departures, arrivals and hazards should generate durable events. Each colony begins with its founding/settlement origin and develops its own history from recorded inhabitants, governance, resources, contact and events. No invented retrospective facts or arbitrary plot text: narratives are projections of structured events and should distinguish confirmed events from estimates, beliefs and rumours.
+
+**Docking and hazards:** Add an explicit docking state/action and visible confirmation. While docked at Haven, ordinary asteroid collision damage to the ship must be suppressed by safe-harbour protection. Mere proximity is not docking. Define what happens during undocking and ensure hazards remain consequential in open flight and at exposed colonies/worlds.
+
+**Machine economy:** Show the complete finite chain for machine stock: required inputs, available inputs, production queue/time, finished machine count, capacity, transfer/delivery to Haven and consumption during ship repairs. Explain repair cost and duration before confirming. Keep stock finite; no unexplained replenishment or free repair.
+
+## Follow-up implementation branch
+
+- The tested baseline was merged to `main` via PR #17, merge commit `93666216e30e0ab7a796d73dfea3ed4be7eaa24f`.
+- The next branch is `feat/ggl-space-qa-followup`, created from that merge commit.
+- The earlier `feat/ggl-space-milestones-2-to-7` branch and its PR #16 are historical; PR #16 was closed after its draft state prevented direct merge. PR #17 is the release record.
+- The next branch must remain unmerged until its exact READY preview is tested and explicitly approved.
+
+### Prioritized acceptance checklist
+
+1. Recover cache on touch and mouse; confirm exactly +1 machine in finite cargo; test full hold and repeat tap.
+2. Fire at multiple target distances/angles; confirm aim assistance works only on player input, targets the intended planet/asteroid, and produces visible impacts; verify no shots when FIRE is untouched.
+3. Dock at Haven using an explicit interaction; confirm docked state and safe-harbour status; remain docked through an asteroid event with no ship collision damage; undock and verify ordinary hazards resume.
+4. Inspect machine production: inputs, queue, elapsed time, output, stock transfer, repair cost, and stock decrement. Verify no resource duplication through save/load.
+5. Confirm Haven chronicle appears from structured events; found a colony and confirm its chronicle starts with a settlement record and develops from that colony's own recorded events.
+6. Regression: pause/restart, world-time progression, autosave/manual save/load, offline progression, golden flight controls, camera, collisions away from dock, minimap and mobile layout.
+
+## Release and QA gate — supersedes earlier branch instructions
+
+The earlier instruction to keep `feat/ggl-space-milestones-2-to-7` unmerged applied before the product owner approved release. It is superseded by the actual approval and PR #17 merge recorded above. For the current follow-up branch, keep all changes on `feat/ggl-space-qa-followup`; only merge after a READY preview for its exact latest commit, hands-on product-owner QA, and explicit approval. Always provide the direct `/ggltournaments` route in preview handoffs.
+
+
+## Follow-up implementation checkpoint — current branch work
+
+Implemented in the current follow-up branch (not yet product-owner QA-approved):
+- Added an explicit persisted-compatible `dockedAt` state for GGL Haven. Docking is a deliberate menu action; flight input undocks the ship. Ordinary asteroid hull collision damage is suppressed while explicitly docked at Haven.
+- Increased the target-assist acquisition range/cone and steering strength, and changed the aim point from the target centre to its near surface. It remains strictly player-FIRE-triggered.
+- Raised proximity action stacking priority, restored pointer/touch events to the menu and buttons, made transient transfer signalers ignore pointer input, and strengthened focus/touch affordances.
+- Added a persistent structured chronicle with an initial Haven origin entry and event-backed records for habitat stages, settlement founding, colony governance/independence, equipment recovery, docking/undocking, ship repairs, machine production and asteroid hull impacts. The existing contextual Haven/planet menu surfaces recent entries.
+- Added a finite machine resupply loop: deploy machinery on a planet, mine its finite resource stock into a 20-unit ship material hold, return and dock at Haven to unload, then spend 6 material units to queue one machine. Fabrication takes four simulated system hours; completion adds one machine to Haven storage. Ship repairs continue to consume finite machine stock.
+
+Still outstanding:
+- Full family/person life histories with causal births/deaths, illness/accidents and meaningful personal arcs. Current chronicle records civilisation milestones and selected consequential events, not a complete biography system.
+- Richer production recipes, station power/maintenance, logistics and multiple machine types. The current resupply loop is a deliberately bounded first playable chain.
+- Narrative perspective distinctions (confirmed facts vs estimates, beliefs and rumours) and deeper faction diplomacy/migration remain later work.
+
+The current branch preview must be tested for the implemented fixes before any claim of success. In particular, confirm a player can recover a cache on touch, observe assisted shots, explicitly dock and remain safe through an asteroid event, mine and deliver materials, queue and complete machine fabrication, repair a damaged ship, and inspect Haven/colony histories.

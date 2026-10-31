@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SPACE_SURVEY_TARGET_KEY, SURVEY_WORLDS } from "../game/space-universe";
 import "./solar-system.css";
@@ -27,7 +27,7 @@ export default function SolarSystemPage(){
  ];
  const selected=planets.find(p=>p.id===selectedId)||planets[0];
  const surveyWorld=SURVEY_WORLDS.find(world=>world.id===selected.id);
- const visible=useMemo(()=>filter==="ALL"?planets:planets.filter(p=>filter==="CHARTED"?p.known:!p.known),[filter,discovered]);
+ const visible=filter==="ALL"?planets:planets.filter(p=>filter==="CHARTED"?p.known:!p.known);
  const charted=5+discovered.length;
  const setCourse=()=>{if(!surveyWorld)return;window.localStorage.setItem(SPACE_SURVEY_TARGET_KEY,surveyWorld.id);setCourseSet(true);};
  return <main className="system-page">

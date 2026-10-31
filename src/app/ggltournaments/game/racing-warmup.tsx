@@ -720,7 +720,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setBoostActive(false);
   };
   const world = spaceStateRef.current;
-  const mission = getFirstFootholdCue(world);
+  const selectedSurvey = world.selectedSurveyTarget ? getSurveyWorld(world.selectedSurveyTarget) : undefined;
+  const selectedSurveyRecord = selectedSurvey ? world.surveyRecords?.[selectedSurvey.id] : undefined;
+  const mission = selectedSurvey
+    ? { target: selectedSurvey.id, step: 1 as const, title: "Survey " + (selectedSurveyRecord?.revealedName || "unknown signal"), detail: "Follow the live map route to " + selectedSurvey.displayName + ". Enter planetary approach range, hold position and complete the close-range scan to send the report to Haven.", action: "Approach and scan", progress: 28 }
+    : getFirstFootholdCue(world);
+  const missionTargetLabel = selectedSurvey ? (selectedSurveyRecord?.revealedName || selectedSurvey.displayName) : mission.target;
   const chronicleLocations = ["GGL Haven", ...WORLD_PLANETS.map((planet) => planet.name), ...Object.values(world.surveyRecords || {}).map((record) => record.revealedName)];
   const chronicleEvents = world.chronicle || [];
 
@@ -802,11 +807,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           <span><b>{spaceStateRef.current.visitedPlanets.length}</b> worlds</span>
         </div>
         <div className="space-mission-cue" aria-label="Suggested mission: first foothold">
-          <div className="space-mission-cue-top"><span>FIRST FOOTHOLD</span><span>STEP {mission.step} / 3</span></div>
+          <div className="space-mission-cue-top"><span>{selectedSurvey ? "ACTIVE SURVEY" : "FIRST FOOTHOLD"}</span><span>{selectedSurvey ? "DISCOVERY MISSION" : "STEP " + mission.step + " / 3"}</span></div>
           <strong>{mission.title}</strong>
           <p>{mission.detail}</p>
           <div className="space-mission-progress" aria-label={"Mission progress " + mission.progress + "%"}><span style={{ width: mission.progress + "%" }} /></div>
-          <div className="space-mission-footer"><span>NAV TARGET</span><b>{mission.target}</b></div>
+          <div className="space-mission-footer"><span>NAV TARGET</span><b>{missionTargetLabel}</b></div>
         </div>
         <div className="space-world-signal" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "Your actions are shaping the system."}</strong></div>
         <div className="space-chronicle-dock">

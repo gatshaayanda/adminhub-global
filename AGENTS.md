@@ -1553,3 +1553,11 @@ This section supersedes the earlier statement that the /ggltournaments/solar-sys
 - QA the complete route: map select → set course → return to ship → fly to body → close-range scan → chronicle and save → reload map and verify discovery.
 - Do not treat this milestone as implementation of later meteor destruction/evacuation, conquest/taxation, bot fleets, family raising or black-hole systems.
 - Preserve golden flight controls, existing five planets, mobile UI, pause/save/restart, offline progression, Haven docking, finite machinery and legacy-save compatibility.
+
+
+## GGL Space pilot career protection
+
+- Preserve pilot name, flight-theory result, operational licence, renewal balance/expiry, career rank and achievement history across autosaves and manual saves.
+- Theory covers vertical thrust, firing, NOS and safe approach/docking. Passing theory alone does not issue the operational licence; it is earned after the first populated planet.
+- Operational licence renewal costs 100 in-game credits for 30 system days and is performed at GGL Haven. Mission rewards and populated-planet income fund the pilot account.
+- Career ranks reflect both time in service and verified accomplishments. Do not replace this with a simple leaderboard or a score that ignores missions and outcomes.

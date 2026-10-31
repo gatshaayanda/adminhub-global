@@ -15,23 +15,9 @@ export type SpacePerson = {
 };
 export type PersonRelationship = { id: string; personA: string; personB: string; kind: "kin" | "partner" | "friend" | "rival"; trust: number; affinity: number; lastChangedAtWorldMinutes: number };
 export type SpaceHousehold = { id: string; memberIds: string[]; location: PopulationLocation; cohesion: number; lastBirthAtWorldMinutes: number };
-export type FoundingNetwork = { id: string; name: string; agenda: string; origin: string; pressurePoint: string; householdIds: string[]; linkedNetworks: string[] };
-export type PopulationState = { version: 1; seed: number; lastUpdatedWorldMinutes: number; people: SpacePerson[]; relationships: PersonRelationship[]; households: SpaceHousehold[]; foundingNetworks: FoundingNetwork[] };
-
-const FOUNDING_NETWORK_SEEDS: Omit<FoundingNetwork, "householdIds">[] = [
-  { id: "long-arc-survey", name: "Long Arc Survey Compact", agenda: "Map unknown systems, share discoveries and avoid committing people to worlds before their risks are understood.", origin: "Survey crews and navigators joined Haven after years of fragmented deep-range missions. They brought incomplete star charts, instrument logs and a promise to make exploration a shared public resource.", pressurePoint: "Their appetite for discovery can compete with the immediate need to protect and supply people already at Haven.", linkedNetworks: ["continuity-guild", "commons-charter"] },
-  { id: "hearthline-mutual", name: "Hearthline Mutual", agenda: "Put life support, family continuity, health and dependable shelter ahead of prestige or speed.", origin: "Medical teams, care workers and families arrived through a sequence of evacuation transports. They agreed to pool scarce supplies only if no household was treated as expendable.", pressurePoint: "A cautious settlement threshold can frustrate groups willing to accept greater personal risk for faster expansion.", linkedNetworks: ["commons-charter", "continuity-guild"] },
-  { id: "commons-charter", name: "Commons Charter Assembly", agenda: "Keep shared infrastructure, rationing and major settlement decisions accountable to the people affected by them.", origin: "Delegates from several station communities negotiated the founding compact that made Haven a common refuge rather than the property of one expedition or sponsor.", pressurePoint: "Consensus takes time, especially when urgent technical decisions cannot wait for every household to agree.", linkedNetworks: ["hearthline-mutual", "long-arc-survey", "resource-cooperative"] },
-  { id: "continuity-guild", name: "Continuity and Learning Guild", agenda: "Preserve knowledge, education, cultural memory and the ability of future generations to understand the choices that shaped them.", origin: "Teachers, archivists, researchers and cultural workers carried records from settlements that had lost their institutions during the long migration. Their work became Haven's first shared archive.", pressurePoint: "Long-term research and preservation compete with immediate production demands when materials and machine time are scarce.", linkedNetworks: ["long-arc-survey", "hearthline-mutual"] },
-  { id: "resource-cooperative", name: "Resource and Works Cooperative", agenda: "Build practical extraction, repair, manufacturing and fair exchange so settlements can become materially self-reliant.", origin: "Fabricators, miners, mechanics and logistics crews joined from industrial outposts whose supply lines had become unreliable. They brought repair knowledge and a belief that every colony must learn to make what it needs.", pressurePoint: "Production targets can put pressure on ecological safeguards and on communities that do not want their world treated only as a resource.", linkedNetworks: ["commons-charter", "long-arc-survey"] },
-];
-
-function seedFoundingNetworks(households: SpaceHousehold[]): FoundingNetwork[] {
-  return FOUNDING_NETWORK_SEEDS.map((seed, index) => ({
-    ...seed,
-    householdIds: households.filter((_, householdIndex) => householdIndex % FOUNDING_NETWORK_SEEDS.length === index).map(household => household.id),
-  }));
-}
+import { buildFoundingProfile, DEFAULT_FOUNDING_IDS, deriveFoundingNetworks, type FoundingNetwork, type FoundingProfile } from "./space-founding";
+export type { FoundingNetwork, FoundingProfile } from "./space-founding";
+export type PopulationState = { version: 1; seed: number; lastUpdatedWorldMinutes: number; people: SpacePerson[]; relationships: PersonRelationship[]; households: SpaceHousehold[]; foundingNetworks: FoundingNetwork[]; foundingProfile: FoundingProfile };
 
 const FIRST_NAMES = ["Ari","Bela","Cato","Dara","Eli","Fara","Galen","Hana","Imani","Jalen","Kesi","Luma","Miro","Nia","Oren","Pela","Quin","Rhea","Sami","Tala","Uma","Vero","Wren","Xavi","Yara","Zuri"];
 const LAST_NAMES = ["Amani","Bako","Cedar","Dube","Ekon","Fenn","Gale","Hale","Ives","Juma","Kade","Lerato","Masego","Ndlovu","Osei","Pike","Quill","Radebe","Sato","Tebogo","Udo","Vale","Wekesa","Xaba","Yeboah","Zulu"];
@@ -52,7 +38,7 @@ const initialSkills = (seed: number, index: number): PersonSkills => ({
   mediation: Math.round(unit(seed,index,7)*38), navigation: Math.round(unit(seed,index,8)*38),
 });
 
-export function createPopulationState(seed = 0x47474c, population = 60, worldMinute = 0): PopulationState {
+export function createPopulationState(seed = 0x47474c, population = 60, worldMinute = 0, foundingIds: string[] = DEFAULT_FOUNDING_IDS): PopulationState {
   const count = Math.max(0, Math.min(10000, Math.floor(population)));
   const people: SpacePerson[] = [];
   const households: SpaceHousehold[] = [];
@@ -95,7 +81,7 @@ export function createPopulationState(seed = 0x47474c, population = 60, worldMin
       }
     }
   }
-  return { version: 1, seed, lastUpdatedWorldMinutes: worldMinute, people, relationships, households, foundingNetworks: seedFoundingNetworks(households) };
+  const foundingProfile = buildFoundingProfile(foundingIds, worldMinute || Date.now());\n  return { version: 1, seed, lastUpdatedWorldMinutes: worldMinute, people, relationships, households, foundingProfile, foundingNetworks: deriveFoundingNetworks(households, foundingProfile, seed) };
 }
 
 export function restorePopulationState(value: unknown, counts: { haven: number; ship: number; colonies: Record<string, number> }, worldMinute = 0): PopulationState {
@@ -108,8 +94,11 @@ export function restorePopulationState(value: unknown, counts: { haven: number; 
       const households = saved.households.filter(house => house && typeof house.id === "string" && Array.isArray(house.memberIds)).map(house => ({ ...house, memberIds: house.memberIds.filter(id => known.has(id)) })).slice(0, 5000);
       if (people.length) {
         const validHouseholds = new Set(households.map(household => household.id));
+        const seed = Number.isFinite(saved.seed) ? Number(saved.seed) : 0x47474c;
+        const savedProfile = saved.foundingProfile && Array.isArray(saved.foundingProfile.circumstanceIds) ? saved.foundingProfile : buildFoundingProfile(DEFAULT_FOUNDING_IDS, worldMinute);
         const savedNetworks = Array.isArray(saved.foundingNetworks) ? saved.foundingNetworks.filter(network => network && typeof network.id === "string" && typeof network.name === "string" && typeof network.agenda === "string" && typeof network.origin === "string" && typeof network.pressurePoint === "string" && Array.isArray(network.householdIds)).map(network => ({ ...network, householdIds: network.householdIds.filter(id => validHouseholds.has(id)), linkedNetworks: Array.isArray(network.linkedNetworks) ? network.linkedNetworks.filter(id => typeof id === "string") : [] })) : [];
-        return { version: 1, seed: Number.isFinite(saved.seed) ? Number(saved.seed) : 0x47474c, lastUpdatedWorldMinutes: Number.isFinite(saved.lastUpdatedWorldMinutes) ? Number(saved.lastUpdatedWorldMinutes) : worldMinute, people, relationships, households, foundingNetworks: savedNetworks.length ? savedNetworks : seedFoundingNetworks(households) };
+        const foundingNetworks = savedNetworks.length ? savedNetworks : deriveFoundingNetworks(households, savedProfile, seed);
+        return { version: 1, seed, lastUpdatedWorldMinutes: Number.isFinite(saved.lastUpdatedWorldMinutes) ? Number(saved.lastUpdatedWorldMinutes) : worldMinute, people, relationships, households, foundingProfile: savedProfile, foundingNetworks };
       }
     }
   }

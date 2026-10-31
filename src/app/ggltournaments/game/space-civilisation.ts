@@ -237,12 +237,20 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     };
     const motiveCounts = new Map<string, number>();
     for (const person of residents) motiveCounts.set(person.motivation, (motiveCounts.get(person.motivation) || 0) + 1);
-    colony.factions = [...motiveCounts.entries()].filter(([,count]) => count >= 2).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([motivation,count]) => ({
-      id: planet.name.toLowerCase() + "-" + motivation,
-      name: motivationNames[motivation]?.[0] || "Local group",
-      agenda: motivationNames[motivation]?.[1] || "Represent local interests",
-      influence: residents.length ? Math.round(count / residents.length * 100) : 0,
+    const foundingGroups = (state.population?.foundingNetworks || []).map(network => {
+      const count = residents.filter(person => network.householdIds.includes(person.householdId)).length;
+      return { count, faction: { id: planet.name.toLowerCase() + "-network-" + network.id, name: network.name, agenda: network.agenda, influence: residents.length ? Math.round(count / residents.length * network.influence) : 0 } };
+    }).filter(group => group.count >= 2);
+    const motivationGroups = [...motiveCounts.entries()].filter(([,count]) => count >= 2).map(([motivation,count]) => ({
+      count,
+      faction: {
+        id: planet.name.toLowerCase() + "-interest-" + motivation,
+        name: motivationNames[motivation]?.[0] || "Local group",
+        agenda: motivationNames[motivation]?.[1] || "Represent local interests",
+        influence: residents.length ? Math.round(count / residents.length * 100) : 0,
+      },
     }));
+    colony.factions = [...foundingGroups, ...motivationGroups].sort((a,b) => b.faction.influence - a.faction.influence).slice(0,5).map(group => group.faction);
     const previousGovernance = colony.governance;
     colony.governance = colony.independent ? "self-governing" : colony.population >= 8 && colony.autonomy >= 35 ? "local-council" : "provisional";
     if (previousGovernance !== colony.governance) recordSpaceChronicle(state, "society", planet.name, planet.name + " governance changed", "Local governance matured from " + previousGovernance + " to " + colony.governance + " as population and autonomy changed.");

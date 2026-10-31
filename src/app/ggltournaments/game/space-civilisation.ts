@@ -8,7 +8,7 @@ export const WORLD_PLANETS = [
   { name: "Frost", initialProgress: 0, colonyMachineRequirement: 5, identityColor: "#9ebdce", summary: "Toxic ice · atmosphere work" },
   { name: "Aster", initialProgress: 0, colonyMachineRequirement: 4, identityColor: "#4d438d", summary: "Trace atmosphere · heavy support" },
   { name: "Cobalt", initialProgress: 0, colonyMachineRequirement: 3, identityColor: "#276f9f", summary: "Thin air · settlement prep" },
-  { name: "Verdant", initialProgress: 0, colonyMachineRequirement: 2, identityColor: "#367b62", summary: "Stable biosphere · ready to seed" },
+  { name: "Verdant", initialProgress: 0, colonyMachineRequirement: 2, identityColor: "#367b62", summary: "Reactive biosphere · ecological balancing" },
 ] as const;
 
 export type PlanetName = (typeof WORLD_PLANETS)[number]["name"];

@@ -142,13 +142,15 @@ Family raising is a later system, but it belongs to the intended game vision. It
 
 ## 9. Staged build sequence
 
-### Stage A — Solar System Discovery (next playable base)
-- Build the 20-world / four-quadrant map and integrate it into the existing game flow.
-- Preserve the five current world identities and show the remaining planetary signatures as unknown until surveyed.
-- Add the first survey mission flow and persistent discovery records.
-- Record discoveries in Haven and planetary chronicles.
-- Show discovered routes, distance, signals and confirmed/estimated data.
-- Do not claim all 20 planets are physically explorable until ship navigation and world simulation support all 20.
+### Stage A — Solar System Discovery (current implementation checkpoint)
+- The 20-world / four-quadrant chart is available at `/ggltournaments/solar-system` and linked from the existing flight experience.
+- All 15 additional planetary bodies are physically placed in the same 3D flight space as the five established worlds. They have approach boundaries, appear on the live mini-map, and can be approached using the existing flight controls.
+- The map can set a selected survey target. Returning to the ship restores that target, draws the navigation route and activates the target beacon.
+- An unidentified body becomes a discovered world only when the ship enters planetary approach range and the player explicitly completes its close-range scan.
+- A successful scan reveals the authored finding, adds a survey record to the saved civilisation, awards archive acclaim once, and writes a discovery event into Civilisation History under the newly revealed world's name.
+- The map reads the saved discovery records and updates its charted count, revealed names and findings. Older saves receive empty discovery defaults without resetting the five existing worlds or their history.
+- The 15 additional bodies have hidden survey classifications: ten additional level-zero worlds, two near-zero but unsafe worlds, one rare naturally habitable dark world and two frontier anomalies. The three meteor-safe worlds (including the rare habitable world) remain undisclosed until their individual surveys.
+- This checkpoint is discovery gameplay, not yet the later terraforming, settlement, meteor destruction, evacuation, conquest, taxation, war or family systems.
 
 ### Stage B — Planet inspection and first restoration
 - Add distinct data for all 20 worlds, including the 15 level-zero worlds, two near-zero but uninhabitable worlds, rare dark habitable world, two reserved frontier/anomaly worlds and three meteor-safe worlds.

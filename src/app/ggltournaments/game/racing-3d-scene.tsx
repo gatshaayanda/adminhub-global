@@ -3,6 +3,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { getFirstFootholdCue, habitatStage, recordSpaceChronicle, WORLD_PLANETS } from "./space-civilisation";
+import { SURVEY_WORLDS } from "./space-universe";
 import type { Controls, Phase, Race, SpaceState } from "./racing-warmup";
 
 type Props = { raceRef: RefObject<Race>; controlsRef: RefObject<Controls>; phaseRef: RefObject<Phase>; spaceStateRef: RefObject<SpaceState> };
@@ -194,7 +195,34 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     addPlanet("Cobalt", [290, -22, 145], 43, "#276f9f", "#103a70");
     addPlanet("Verdant", [460, 75, -85], 52, "#367b62", "#123f2d", true);
     addPlanet("Ember", [-170, 52, -80], 24, "#a75b42", "#512216");
-    addPlanet("Frost", [120, -88, 400], 35, "#9ebdce", "#315a75");
+    addPlanet("Frost", [120, -88, 400], 35, "#9ebdce", "#315a75"); 
+    // Fifteen additional planetary bodies are physically present in the same navigable space.
+    // Their names and environmental intelligence remain masked until a close-range scan.
+    for (const worldData of SURVEY_WORLDS) {
+      const world = new THREE.Group();
+      world.name = worldData.id;
+      const surface = new THREE.Mesh(new THREE.SphereGeometry(worldData.radius, 28, 20), new THREE.MeshStandardMaterial({ color: worldData.color, roughness: .92, metalness: .08, emissive: worldData.glow, emissiveIntensity: worldData.id === "signal-08" ? .42 : .07, flatShading: true }));
+      world.add(surface);
+      const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(worldData.radius * 1.045, 24, 18), new THREE.MeshBasicMaterial({ color: worldData.glow, transparent: true, opacity: worldData.id === "signal-08" ? .24 : .025, side: THREE.BackSide }));
+      world.add(atmosphere);
+      const forcefield = new THREE.Mesh(new THREE.SphereGeometry(worldData.radius + 7, 28, 20), new THREE.MeshBasicMaterial({ color: "#83eaff", transparent: true, opacity: .075, side: THREE.BackSide, depthWrite: false }));
+      world.add(forcefield);
+      world.position.set(...worldData.position);
+      scene.add(world);
+      planetVisuals[worldData.id] = { body: world, surface, atmosphere, forcefield, radius: worldData.radius, baseColor: new THREE.Color(worldData.color) };
+      planetBarriers.push({ center: new THREE.Vector3(...worldData.position), radius: worldData.radius + 7 });
+      planetaryBodies.push({ body: world, periodHours: 24 + planetaryBodies.length * 5 });
+      const beacon = new THREE.Group();
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(.16, .55, 12, 8), new THREE.MeshBasicMaterial({ color: "#c5f36b", transparent: true, opacity: .72, depthWrite: false }));
+      beam.position.y = worldData.radius + 5;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(3.7, .28, 8, 32), new THREE.MeshBasicMaterial({ color: "#c5f36b", transparent: true, opacity: .9, depthWrite: false }));
+      ring.rotation.x = Math.PI / 2; ring.position.y = worldData.radius + 12;
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(.72, 10, 8), new THREE.MeshBasicMaterial({ color: "#f4ffbe" }));
+      orb.position.y = worldData.radius + 15;
+      beacon.add(beam, ring, orb); beacon.visible = false; world.add(beacon);
+      planetBeacons[worldData.id] = { root: beacon, ring, beam, orb };
+    }
+
     // Fifteen additional planetary signatures complete the four-quadrant system.
     // Their conditions remain unknown until the player reaches and surveys them.
     for (let index = 0; index < 15; index++) {
@@ -259,8 +287,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     const clock = new THREE.Clock();
     let lastClockPaint = -1;
     let raf = 0;
+    const toMapPoint = (x: number, z: number): [number, number] => [10 + ((x + 650) / 1300) * 160, 10 + ((z + 600) / 1150) * 108];
     const mapTargetPositions: Record<string, [number, number]> = {
-      "GGL Haven": [53, 52], Ember: [21.1, 18], Aster: [96.7, 40], Cobalt: [123.3, 63], Verdant: [161.1, 17], Frost: [85.6, 114],
+      "GGL Haven": toMapPoint(-24, 70),
+      Ember: toMapPoint(-170, -80), Aster: toMapPoint(170, 30), Cobalt: toMapPoint(290, 145), Verdant: toMapPoint(460, -85), Frost: toMapPoint(120, 400),
+      ...Object.fromEntries(SURVEY_WORLDS.map(world => [world.id, toMapPoint(world.position[0], world.position[2])])),
     };
     const resize = () => {
       const w = Math.max(280, host.clientWidth), h = Math.max(320, host.clientHeight);
@@ -354,6 +385,14 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       havenNavigationBeacon.visible = navigationTarget === "GGL Haven";
       havenBeaconRing.rotation.y += frameDelta * .55;
       // Habitat stages are real world-state signals: surface tint, atmosphere, forcefield and visible machinery transition together.
+      for (const worldData of SURVEY_WORLDS) {
+        const beacon = planetBeacons[worldData.id];
+        if (beacon) {
+          beacon.root.visible = navigationTarget === worldData.id;
+          beacon.ring.rotation.y += frameDelta * .65;
+          beacon.orb.scale.setScalar(.82 + (Math.sin(simulationSeconds * .004) + 1) * .14);
+        }
+      }
       for (const planet of WORLD_PLANETS) {
         const visual = planetVisuals[planet.name];
         if (!visual) continue;
@@ -611,11 +650,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       car.position.copy(carWorld);
       car.rotation.y = race.worldYaw;
       if (shipMapMarkerRef.current) {
-        const mapX = 10 + ((race.worldX + 220) / 720) * 160;
-        const mapY = 10 + ((race.worldZ + 120) / 540) * 108;
+        const mapX = toMapPoint(race.worldX, race.worldZ)[0];
+        const mapY = toMapPoint(race.worldX, race.worldZ)[1];
         const mapAngle = -race.worldYaw * 180 / Math.PI;
         shipMapMarkerRef.current.setAttribute("transform", `translate(${mapX.toFixed(2)} ${mapY.toFixed(2)}) rotate(${mapAngle.toFixed(1)})`);
-        const target = getFirstFootholdCue(state).target;
+        const target = state.selectedSurveyTarget || getFirstFootholdCue(state).target;
         const targetPoint = mapTargetPositions[target] || mapTargetPositions["GGL Haven"];
         if (mapRouteRef.current) {
           mapRouteRef.current.setAttribute("x1", mapX.toFixed(2));
@@ -681,7 +720,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     <div className="space-flight-clock" aria-label="Flight elapsed time and accelerated system time" ref={flightClockRef}>FLIGHT T+00:00 · SYSTEM 06:00</div>
     <div aria-label="System map" className="space-mini-map">
       <div className="space-mini-map-title">SYSTEM MAP <span>FREE SPACE</span></div>
-      <svg viewBox="0 0 180 128" role="img" aria-label="Live system map. The ship marker moves and turns with your flight.">
+      <svg viewBox="0 0 180 128" role="img" aria-label="Live system map showing all twenty planetary bodies, the ship and the selected navigation target.">
         <path d="M8 64H172 M90 8V120" stroke="rgba(156,204,255,.14)" strokeDasharray="3 5" fill="none" />
         <line ref={mapRouteRef} x1="58.9" y1="48.4" x2="53" y2="52" stroke="#c5f36b" strokeWidth="1.2" strokeDasharray="3 2" opacity=".92" />
         <circle cx="21.1" cy="18" r="6.8" fill={habitatStage(spaceStateRef.current.planetProgress.Ember ?? 6).color} stroke="#eab08b" strokeWidth="1.2" />
@@ -690,6 +729,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         <circle cx="123.3" cy="63" r="13.5" fill={habitatStage(spaceStateRef.current.planetProgress.Cobalt ?? 66).color} stroke="#77d7f5" strokeWidth="1.5" />
         <circle cx="161.1" cy="17" r="16" fill={habitatStage(spaceStateRef.current.planetProgress.Verdant ?? 86).color} stroke="#85d8ad" strokeWidth="1.5" />
         <circle cx="85.6" cy="114" r="9.5" fill={habitatStage(spaceStateRef.current.planetProgress.Frost ?? 26).color} stroke="#ccefff" strokeWidth="1.2" />
+        {SURVEY_WORLDS.map(world => {
+          const [x, y] = toMapPoint(world.position[0], world.position[2]);
+          const discovered = (spaceStateRef.current.discoveredWorlds || []).includes(world.id);
+          return <circle key={world.id} cx={x} cy={y} r={discovered ? 3.4 : 2.5} fill={discovered ? "#c5f36b" : "#8296a8"} stroke={discovered ? "#efffb8" : "#a4b6c5"} strokeWidth=".8" opacity={discovered ? .95 : .72} />;
+        })}
         <g aria-label="GGL Haven station" transform="translate(53 52)">
           <circle r="7.8" fill="rgba(255,208,107,.14)" stroke="#ffd06b" strokeWidth="1.4" />
           <circle r="3.2" fill="#ffd06b" />

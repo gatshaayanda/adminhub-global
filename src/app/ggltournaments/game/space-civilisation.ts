@@ -134,7 +134,7 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     cargoPeople: 0,
     cargoEquipment: 0,
     visitedPlanets: [],
-    discoveredPlanets: [],
+    discoveredPlanets: ["aster", "cobalt", "verdant", "ember", "frost"],
     surveyRecords: {},
     deployedEquipment: Object.fromEntries(WORLD_PLANETS.map((planet) => [planet.name, 0] as const)),
     planetProgress: Object.fromEntries(WORLD_PLANETS.map((planet) => [planet.name, planet.initialProgress] as const)),

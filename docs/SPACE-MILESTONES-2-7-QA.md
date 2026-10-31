@@ -211,19 +211,23 @@ Do not claim the faction simulation is complete from this setup slice alone. The
 
 Design authority: `docs/GGL-SPACE-UNIVERSE-DESIGN.md`. The first discovery-map presentation is available at `/ggltournaments/solar-system`.
 
-### Current map-surface QA
-1. Open the solar-system route on desktop and mobile. Confirm four quadrants, five planetary signatures per quadrant and exactly 20 total.
-2. Confirm Aster, Cobalt, Verdant, Ember and Frost retain their existing identities and descriptions in Quadrant I.
-3. Confirm the other 15 appear as unidentified signatures only; no invented atmospheric, resource, habitability or meteor-safety claims are shown.
-4. Select every signature and confirm the selected intelligence panel updates to the matching quadrant/orbit and the roster selection stays in sync.
-5. Test ALL / CHARTED / UNMAPPED filters and confirm counts and entries are correct.
-6. Confirm the mission panel clearly labels unknown-world survey as awaiting flight integration; selecting a map signal must not award a fake discovery, money or scan result.
-7. Confirm the map remains readable at narrow mobile widths and keyboard focus is visible.
+### Playable discovery-loop QA — 20 worlds
 
-### Integration work still required after this map-surface checkpoint
-- Link the map naturally from the existing in-game interface and make it reflect the current saved civilisation.
-- Implement ship navigation to all 20 bodies, survey interactions, and durable discovery records in the world save and chronicle.
-- Replace approximate orbital presentation with authored orbital positions, distances, travel costs and discovered meteor corridors.
-- Preserve current five-world ecology, restoration, settlement, hazards and legacy save data while extending the data model.
+1. Open `/ggltournaments/solar-system` on desktop and mobile. Confirm four quadrants, five locations per quadrant and exactly 20 planetary signatures.
+2. Confirm Aster, Cobalt, Verdant, Ember and Frost retain their existing identities and chronicle records.
+3. Select an unidentified signal and choose **SET COURSE IN SHIP**. Return to the flight experience and confirm the mission cue, mini-map route and 3D navigation beacon point to the selected target.
+4. Fly toward the selected body using the existing analog/keyboard flight controls. Confirm the ship collides with its visible approach boundary and the nearby interaction tray identifies the unknown planetary body.
+5. Confirm survey findings remain hidden before scanning. Complete the explicit close-range scan and verify the world name, classification, atmosphere, resources and meteor exposure are revealed only then.
+6. Confirm one survey reward is added to archive acclaim and a discovery event is written to Civilisation History under the newly revealed world. Repeated interaction must not pay or record a duplicate discovery.
+7. Open Civilisation History and confirm the new world's chronicle group appears. Reload the game and map; confirm discovery, revealed name, survey data and charted count persist.
+8. Select a second target, complete another scan and confirm the first discovery remains intact.
+9. Confirm all 15 unknown bodies are physically present and selectable from the system chart; verify the live mini-map includes all 20 bodies and the ship marker remains correctly projected.
+10. Confirm map filters, selected-signal detail, set-course action, return-to-flight links, mobile readability and keyboard focus.
+11. Regression: existing five-world restoration, ecology, settlement, machine logistics, Haven docking/safe harbour, cache recovery, flight controls, camera, pause/resume, restart, manual save/load, autosave and offline progression remain unchanged.
+12. Load a legacy save. Confirm the five established worlds and all prior history remain intact; new discovery state defaults safely without inventing past scans.
 
-This map-surface checkpoint is not a claim that all 20 planets are physically explorable or that survey actions are already simulated. Keep the branch unmerged until the exact latest commit has a READY preview and the product owner completes QA.
+### Remaining integration after Stage A
+- Full survey scanning and discovery persistence are implemented as the first playable slice. Planet-specific restoration/ecology/equipment/settlement for the 15 new worlds remains a later milestone.
+- The current map is a strategic overview; precise orbital mechanics, travel costs, meteor corridor forecasts and dynamic planetary orbits remain future work.
+- Do not imply that the later meteor destruction/evacuation economy, conquest/taxation, war fleets, family raising or black-hole endgame are implemented.
+- Keep the branch unmerged until the exact latest commit has a READY preview and the product owner completes hands-on QA.

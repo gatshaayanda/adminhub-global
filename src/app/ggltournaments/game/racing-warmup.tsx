@@ -544,6 +544,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const completed = surveySpaceWorld(state, target.id);
     if (!completed) { notify("Survey could not be completed. Hold a stable close approach and try again.", "error"); return; }
     try { window.localStorage.removeItem(SPACE_SURVEY_TARGET_KEY); } catch {}
+    writeAutoSnapshot();
     signalTransfer("⌖", "PLANETARY SURVEY COMPLETE", target.revealedName + " identified. Findings transmitted to Haven's chronicle.", "SHIP  →  HAVEN ARCHIVE");
     notify(target.revealedName + " discovered. +" + target.scanReward + " archive acclaim. Haven's chronicle updated.", "success");
     setSpaceUiTick(n => n + 1);

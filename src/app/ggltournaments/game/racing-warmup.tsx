@@ -259,6 +259,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const restoredWorld = restoreSpaceState(snapshot.world, snapshot.paused ? snapshot.world.lastSimulatedAt : Date.now());
     const restoredRace = { ...snapshot.flight, last: 0 };
     spaceStateRef.current = restoredWorld;
+    setFoundingSetupOpen(false);
+    const restoredIds = restoredWorld.population?.foundingProfile?.circumstanceIds;
+    if (Array.isArray(restoredIds) && restoredIds.length) setSelectedFoundingIds(restoredIds.slice(0,3));
     raceRef.current = restoredRace;
     lastProcessedWorldMinutesRef.current = restoredWorld.worldTimeMinutes;
     neutralControls();
@@ -730,13 +733,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                 <p className="space-founding-intro">Choose up to three circumstances that brought the original 60 founders to Haven. These are starting conditions, not predetermined factions. The population, its five networks and their tensions are derived from your choices.</p>
                 <div className="space-founding-categories">{FOUNDING_CATEGORIES.map(category => <button type="button" key={category.id} className={foundingCategory === category.id ? "is-active" : ""} onClick={() => setFoundingCategory(category.id)}>{category.label}</button>)}</div>
                 <small>{FOUNDING_CATEGORIES.find(item => item.id === foundingCategory)?.description}</small>
-                <div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item => item.category === foundingCategory).map(item => <button type="button" key={item.id} className={selectedFoundingIds.includes(item.id) ? "is-selected" : ""} onClick={() => toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}</span><em>{selectedFoundingIds.includes(item.id) ? "SELECTED" : "ADD TO ORIGIN"}</em></button>)}</div>
+                <div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item => item.category === foundingCategory).map(item => <button type="button" key={item.id} className={selectedFoundingIds.includes(item.id) ? "is-selected" : ""} onClick={() => toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}<br /><b>Founder experience:</b> {item.livedExperience}<br /><b>Likely tension:</b> {item.likelyTensions}</span><em>{selectedFoundingIds.includes(item.id) ? "SELECTED" : "ADD TO ORIGIN"}</em></button>)}</div>
                 <small>{selectedFoundingIds.length}/3 selected · Select circumstances across categories to create a mixed beginning.</small>
                 {foundingArchive.length > 0 && <div className="space-founding-archive"><strong>ARCHIVED FOUNDING PROFILES</strong>{foundingArchive.map(entry => <button type="button" key={entry.id} onClick={() => loadFoundingArchive(entry)}>{entry.title} <span>LOAD</span></button>)}</div>}
               </div> : <p>Your saved civilisation is ready. Resume the current run or create a new founding history. Saved profiles remain available in the archive.</p>}
               <div className="space-lifecycle-actions">
                 <button type="button" className="space-lifecycle-primary" onClick={foundingSetupOpen ? startGame : startGame} disabled={foundingSetupOpen && selectedFoundingIds.length === 0}>{foundingSetupOpen ? "START NEW CIVILISATION ▶" : "START GAME ▶"}</button>
-                {!foundingSetupOpen && <button type="button" className="space-lifecycle-secondary" onClick={() => { setSelectedFoundingIds(world.population?.foundingProfile?.circumstanceIds || DEFAULT_FOUNDING_IDS); setFoundingSetupOpen(true); }}>NEW CIVILISATION</button>}
+                {!foundingSetupOpen && <button type="button" className="space-lifecycle-secondary" onClick={() => { const ids = world.population?.foundingProfile?.circumstanceIds || DEFAULT_FOUNDING_IDS; setSelectedFoundingIds(ids); setFoundingCategory(getCircumstance(ids[0])?.category || "neutral"); setFoundingSetupOpen(true); }}>NEW CIVILISATION</button>}
                 <button type="button" className="space-lifecycle-secondary" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVED GAME</button>
               </div>
             </> : <>

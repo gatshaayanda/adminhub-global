@@ -142,4 +142,39 @@ export function readColonySituation(state: SpaceState): ColonySituation | null {
   }).filter((item): item is ColonySituation => Boolean(item));
   return candidates.sort((a,b) => b.urgency - a.urgency)[0] || null;
 }
+export type ColonyConversationResult = { ok: boolean; message: string };
+
+export function engageColonyCouncil(state: SpaceState, world: string, approach: "support" | "autonomy" | "logistics"): ColonyConversationResult {
+  const colony = state.colonies?.[world];
+  if (!colony) return { ok: false, message: "There is no established local council to contact here." };
+  const residents = (state.population?.people || []).filter(person => person.alive && person.location === ("planet:" + world));
+  if (!residents.length) return { ok: false, message: "No residents are available for a local council conversation." };
+  let message = "";
+  if (approach === "support") {
+    if ((state.cargoMaterials || 0) < 1) return { ok: false, message: "Practical support requires one raw material unit in ship cargo." };
+    state.cargoMaterials = (state.cargoMaterials || 0) - 1;
+    const keys = ["air", "food", "water", "shelter", "health", "safety", "belonging", "purpose", "autonomy", "learning"] as const;
+    const weakest = keys.map(key => ({ key, value: residents.reduce((sum, person) => sum + person.needs[key], 0) / residents.length })).sort((a,b) => a.value - b.value)[0];
+    for (const person of residents) person.needs[weakest.key] = Math.min(100, person.needs[weakest.key] + 9);
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + 5);
+    message = "You delivered one material unit and the local residents prioritised " + weakest.key + " support. Their average need improved and trust in Haven increased.";
+  } else if (approach === "autonomy") {
+    colony.autonomy = Math.min(100, colony.autonomy + 7);
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + 1);
+    message = "You recognised the settlement's right to shape its own decisions. Local autonomy increased; the council will remember that Haven listened.";
+  } else {
+    if ((state.cargoMaterials || 0) < 1) return { ok: false, message: "A logistics agreement requires one raw material unit in ship cargo." };
+    state.cargoMaterials = (state.cargoMaterials || 0) - 1;
+    const ecology = state.ecology?.[world];
+    if (ecology) ecology.maintenanceLoad = Math.max(0, ecology.maintenanceLoad - 9);
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + 4);
+    colony.lastContactWorldMinutes = state.worldTimeMinutes;
+    message = "You coordinated a maintenance delivery with local operators. One material unit was consumed, maintenance pressure eased and the Haven relationship strengthened.";
+  }
+  colony.lastContactWorldMinutes = state.worldTimeMinutes;
+  recordSpaceChronicle(state, "society", world, "Pilot held a local council conversation", message);
+  state.events.unshift(world + " council: " + message);
+  state.events = state.events.slice(0, 6);
+  return { ok: true, message };
+}
 

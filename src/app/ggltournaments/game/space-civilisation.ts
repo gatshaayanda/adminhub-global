@@ -62,6 +62,9 @@ export type SpaceColony = {
   governance: "provisional" | "local-council" | "self-governing";
   lastContactWorldMinutes: number;
   factions: SpaceFaction[];
+  collectiveIdentity?: string;
+  productionFocus?: string;
+  customs?: string[];
 };
 
 export type SpaceState = {
@@ -390,6 +393,25 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       },
     }));
     colony.factions = [...foundingGroups, ...motivationGroups].sort((a,b) => b.faction.influence - a.faction.influence).slice(0,5).map(group => group.faction);
+    if (residents.length) {
+      const mean = (selector: (person: NonNullable<typeof residents[number]>) => number) => residents.reduce((sum, person) => sum + selector(person), 0) / residents.length;
+      const cooperation = mean(person => person.traits.cooperation);
+      const autonomy = mean(person => person.traits.autonomy);
+      const curiosity = mean(person => person.traits.curiosity);
+      const dominant = [...motiveCounts.entries()].sort((a,b) => b[1] - a[1])[0]?.[0] || "service";
+      const identity = cooperation > 62 && autonomy < 52 ? "A mutual-aid community" : autonomy > 62 ? "A locally self-directed settlement" : curiosity > 62 ? "An exploratory research community" : "A plural frontier community";
+      const production = ecology?.resourceType ? "Local production centred on " + ecology.resourceType.toLowerCase() : "Local production and repair";
+      const customs = [
+        cooperation > 58 ? "Shared work is organised through mutual support." : "Households protect time and resources for their own members.",
+        autonomy > 58 ? "Local decisions are expected to stay close to the people affected." : "Residents rely on shared coordination for essential systems.",
+        curiosity > 58 ? "New findings are discussed openly and tested in practice." : "Practical experience carries more weight than untested proposals.",
+      ];
+      const identityChanged = Boolean(colony.collectiveIdentity && colony.collectiveIdentity !== identity);
+      colony.collectiveIdentity = identity;
+      colony.productionFocus = production;
+      colony.customs = customs;
+      if (identityChanged) recordSpaceChronicle(state, "society", planet.name, planet.name + " collective identity evolved", "As residents' motivations, skills and relationships changed, the settlement's shared character shifted toward: " + identity + ". " + production + ".");
+    }
     const previousGovernance = colony.governance;
     colony.governance = colony.independent ? "self-governing" : colony.population >= 8 && colony.autonomy >= 35 ? "local-council" : "provisional";
     if (previousGovernance !== colony.governance) recordSpaceChronicle(state, "society", planet.name, planet.name + " governance changed", "Local governance matured from " + previousGovernance + " to " + colony.governance + " as population and autonomy changed.");
@@ -534,6 +556,9 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
           governance: (["provisional","local-council","self-governing"].includes(String((colony as Partial<SpaceColony>).governance)) ? (colony as Partial<SpaceColony>).governance : (colony.independent ? "self-governing" : "provisional")) as SpaceColony["governance"],
           lastContactWorldMinutes: Math.max(foundedAt, finiteNumber((colony as Partial<SpaceColony>).lastContactWorldMinutes, foundedAt)),
           factions: Array.isArray((colony as Partial<SpaceColony>).factions) ? (colony as Partial<SpaceColony>).factions!.filter(faction => faction && typeof faction.id === "string" && typeof faction.name === "string" && typeof faction.agenda === "string" && Number.isFinite(faction.influence)).slice(0, 5) : [],
+          collectiveIdentity: typeof colony.collectiveIdentity === "string" ? colony.collectiveIdentity.slice(0, 120) : undefined,
+          productionFocus: typeof colony.productionFocus === "string" ? colony.productionFocus.slice(0, 160) : undefined,
+          customs: Array.isArray(colony.customs) ? colony.customs.filter((item): item is string => typeof item === "string").slice(0, 4) : [],
         };
       }
     }

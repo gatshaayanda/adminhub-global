@@ -247,7 +247,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     moon.add(moonBarrier);
     planetBarriers.push({ center: new THREE.Vector3(-155, 12, -85), radius: 16 });
     const car = makeCar();
-    const projectiles: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; age: number }> = [];
+    const projectiles: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; age: number; targetObject?: THREE.Object3D }> = [];
     let nextProjectileAt = 0;
     // Small, occasional asteroid clusters drift across the flight path as shootable targets.
     const asteroids: Array<{ mesh: THREE.Mesh; velocity: THREE.Vector3; radius: number; age: number }> = [];
@@ -548,12 +548,13 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         // A generous but bounded 42-degree / 340-unit acquisition window makes the assist perceptible.
         let assistedDirection = shotForward.clone();
         let bestAssistScore = Infinity;
-        const aimCandidates: Array<{ position: THREE.Vector3; radius: number; name: string }> = [];
-        for (const [name, visual] of Object.entries(planetVisuals)) aimCandidates.push({ position: visual.body.position, radius: visual.radius + 7, name });
-        for (const rock of asteroids) if (rock.radius > 0) aimCandidates.push({ position: rock.mesh.position, radius: rock.radius, name: "ASTEROID" });
+        const aimCandidates: Array<{ position: THREE.Vector3; radius: number; name: string; object: THREE.Object3D }> = [];
+        for (const [name, visual] of Object.entries(planetVisuals)) aimCandidates.push({ position: visual.body.position, radius: visual.radius + 7, name, object: visual.body });
+        for (const rock of asteroids) if (rock.radius > 0) aimCandidates.push({ position: rock.mesh.position, radius: rock.radius, name: "ASTEROID", object: rock.mesh });
         let acquiredTargetName = "";
         let acquiredTargetSurface: THREE.Vector3 | null = null;
         let acquiredTargetRadius = 2;
+        let acquiredTargetObject: THREE.Object3D | undefined;
         for (const candidate of aimCandidates) {
           const toCentre = candidate.position.clone().sub(shipPosition);
           const centreDistance = toCentre.length();
@@ -566,7 +567,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
           const direction = targetOffset.normalize();
           const alignment = shotForward.dot(direction);
           if (alignment < Math.cos(42 * Math.PI / 180)) continue;
-          const score = surfaceDistance + (1 - alignment) * 125;
+          const score = surfaceDistance + (1 - alignment) * 24;
           if (score < bestAssistScore) {
             bestAssistScore = score;
             const strength = clamp(.9 - surfaceDistance / 520, .48, .82);
@@ -574,6 +575,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
             acquiredTargetName = candidate.name;
             acquiredTargetSurface = nearSurface.clone();
             acquiredTargetRadius = candidate.radius;
+            acquiredTargetObject = candidate.object;
           }
         }
         if (acquiredTargetSurface) {
@@ -593,12 +595,17 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
         const bolt = new THREE.Mesh(projectileGeometry, projectileMaterial);
         bolt.position.copy(shipPosition).addScaledVector(shotForward, 3.1);
         scene.add(bolt);
-        projectiles.push({ mesh: bolt, velocity: assistedDirection.multiplyScalar(190), age: 0 });
+        projectiles.push({ mesh: bolt, velocity: assistedDirection.multiplyScalar(190), age: 0, targetObject: acquiredTargetObject });
         nextProjectileAt = flightElapsedSeconds + 0.13;
       }
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const shot = projectiles[i];
-        const previousPosition = shot.mesh.position.clone();
+        if (shot.targetObject) {
+          const liveTarget = shot.targetObject.getWorldPosition(new THREE.Vector3());
+          const homingDirection = liveTarget.sub(shot.mesh.position).normalize();
+          shot.velocity.lerp(homingDirection.multiplyScalar(190), Math.min(1, frameDelta * 4.8));
+          if (shot.velocity.lengthSq() > 0) shot.velocity.setLength(190);
+        }
         shot.mesh.position.addScaledVector(shot.velocity, frameDelta);
         shot.age += frameDelta;
         let hit = false;

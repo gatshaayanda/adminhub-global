@@ -852,7 +852,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const activeSurveyTarget = world.selectedSurveyTarget ? getSurveyWorld(world.selectedSurveyTarget) : undefined;
   const latestWorldEvent = world.events[0] || "";
   const pendingReportCount = world.pendingSurveyReports?.length || 0;
-  const activeHazardCount = (world.hazards || []).filter(item => item.status === "warning" || item.status === "mitigated").length;
+  const activeHazards = (world.hazards || []).filter(item => item.status === "warning" || item.status === "mitigated");
+  const activeHazardCount = activeHazards.length;
   const missionInboxHeadline = pendingReportCount > 0 ? "FIELD REPORT READY · RETURN TO HAVEN" : activeHazardCount > 0 ? "HAZARD UPDATE · REVIEW THE INBOX" : !havenRead.ratifiedWorld && havenRead.reportedCount > 0 ? "HAVEN COUNCIL · DECISION AWAITS" : missionInboxUnread ? "NEW CIPA BRIEF" : "CIPA MISSION INBOX";
   useEffect(() => {
     if (!latestWorldEvent || missionInboxEventRef.current === latestWorldEvent) return;
@@ -1030,7 +1031,23 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               <p className="space-menu-footnote">Selecting a destination sets the ship's live navigation target. Survey data remains hidden until you approach and scan the world.</p>
             </div>}
             {spaceMenuTab === "missions" && <div className="space-menu-panel">
-              <div className="space-menu-panel-intro"><b>MISSION CONTROL</b><span>{world.pilotMissionsCompleted || 0} completed missions</span></div>
+              <div className="space-menu-panel-intro"><b>MISSION INBOX</b><span>{world.pilotMissionsCompleted || 0} completed missions</span></div>
+              {latestWorldEvent && <article className="space-menu-active-mission space-cipa-latest-brief">
+                <span>{missionInboxUnread ? "NEW CIPA BRIEF" : "LATEST CIPA BRIEF"}</span>
+                <strong>{latestWorldEvent}</strong>
+                <p>{pendingReportCount > 0 ? "Action: return to Haven and dock to present the field reports." : activeHazardCount > 0 ? "Action: set course to the affected world, approach and open INTERACT to review the hazard." : !havenRead.ratifiedWorld && havenRead.reportedCount > 0 ? "Action: return to Haven, review the evidence and take part in the first-settlement decision." : "Review your current objective and the related civilisation records below."}</p>
+              </article>}
+              {activeHazards.map(hazard => {
+                const hours = Math.max(0, (hazard.impactAtWorldMinutes - world.worldTimeMinutes) / 60);
+                const mitigated = hazard.status === "mitigated";
+                return <article className="space-menu-active-mission space-cipa-hazard-brief" key={hazard.target + hazard.type}>
+                  <span>{mitigated ? "HAZARD MITIGATION TRACKING" : "PRIORITY HAZARD · ACTION REQUIRED"}</span>
+                  <strong>{hazard.type === "power-dust" ? "Power-dust front" : "Orbital impact warning"} · {hazard.target}</strong>
+                  <p>{mitigated ? "Mitigation has been deployed. Check the revised impact window when you revisit this world." : "Estimated impact in " + hours.toFixed(1) + " system hours. Set course, enter approach range, open INTERACT and deploy one finite Haven machine to mitigate it."}</p>
+                  <small>CONFIDENCE {Math.round(hazard.confidence * 100)}% · {hazard.status.toUpperCase()}</small>
+                  <button type="button" onClick={() => setSystemCourse(hazard.target)}>{world.selectedSurveyTarget === hazard.target ? "NAVIGATION ACTIVE ✓" : "SET COURSE TO HAZARD ↗"}</button>
+                </article>;
+              })}
               <article className="space-menu-active-mission">
                 <span>{selectedSurvey ? "ACTIVE DISCOVERY MISSION" : "HAVEN SETTLEMENT PROGRAMME"}</span>
                 <strong>{mission.title}</strong><p>{mission.detail}</p>

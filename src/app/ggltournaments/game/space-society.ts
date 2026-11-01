@@ -114,6 +114,8 @@ export function ratifyHavenSettlement(state: SpaceState): string | null {
   state.events.unshift("HAVEN DECISION: " + chosen + " is the first settlement destination. The pilot can coordinate finite machinery and founding crew.");
   state.events = state.events.slice(0, 6);
   return chosen;
+}
+
 export type ColonySituation = { world: string; title: string; detail: string; need: string; urgency: number; identity: string; production: string; customs: string[] };
 
 export function readColonySituation(state: SpaceState): ColonySituation | null {
@@ -136,4 +138,3 @@ export function readColonySituation(state: SpaceState): ColonySituation | null {
   return candidates.sort((a,b) => b.urgency - a.urgency)[0] || null;
 }
 
-}

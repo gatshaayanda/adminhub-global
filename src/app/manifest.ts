@@ -47,6 +47,13 @@ export default function manifest(): MetadataRoute.Manifest {
         icons: [{ src: icon, sizes: "512x512", type: "image/png" }],
       },
       {
+        name: "GGL Space",
+        short_name: "GGL Space",
+        description: "Launch the GGL Space exploration game.",
+        url: "/ggltournaments/game",
+        icons: [{ src: icon, sizes: "512x512", type: "image/png" }],
+      },
+      {
         name: "Games",
         short_name: "Games",
         description: "Open Admin Hub Games.",

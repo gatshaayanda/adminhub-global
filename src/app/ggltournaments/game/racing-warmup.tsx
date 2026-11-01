@@ -258,9 +258,13 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const continuePilotSetup = () => {
     const name = pilotSetupName.trim().slice(0, 28);
     if (!name) { notify("Enter your pilot name to continue.", "error"); return; }
-    spaceStateRef.current.pilotName = name;
+    // A staged new-civilisation flow must not mutate the currently saved run.
+    // Only a returning legacy save receives the newly supplied missing pilot name here.
+    if (!showRestartConfirm && !foundingSetupOpen) {
+      spaceStateRef.current.pilotName = name;
+      writeAutoSnapshot();
+    }
     setPilotSetupName(name); setPilotSetupOpen(false);
-    if (!foundingSetupOpen) writeAutoSnapshot();
     setSpaceUiTick(n => n + 1);
   };
   const beginNewCivilisation = () => {

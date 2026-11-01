@@ -673,8 +673,9 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       for (const [id, visual] of Object.entries(planetVisuals)) {
         const marker = screenSignalRefs.current[id];
         if (!marker) continue;
+        const viewPosition = visual.body.position.clone().applyMatrix4(camera.matrixWorldInverse);
         const projected = visual.body.position.clone().project(camera);
-        const visible = projected.z > -1 && projected.z < 1 && Math.abs(projected.x) <= .96 && Math.abs(projected.y) <= .96;
+        const visible = viewPosition.z < 0 && projected.z > -1 && projected.z < 1 && Math.abs(projected.x) <= .96 && Math.abs(projected.y) <= .96;
         marker.style.display = visible ? "block" : "none";
         if (visible) {
           marker.style.left = ((projected.x * .5 + .5) * host.clientWidth).toFixed(1) + "px";

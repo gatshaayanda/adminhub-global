@@ -1309,3 +1309,12 @@
 .race-hub-embedded .space-cipa-ship-manifest .space-people-roster{font-size:9px;line-height:1.5}
 .race-hub-embedded .space-cipa-ship-manifest .space-pilot-career{padding:8px;border:1px solid rgba(133,190,255,.2);border-radius:8px;background:rgba(2,11,25,.28)}
 @media(max-width:520px){.race-hub-embedded .space-menu-tabs{gap:3px}.race-hub-embedded .space-menu-tabs button{font-size:7px;padding:7px 2px}.race-hub-embedded .space-cipa-ship-manifest{padding:7px;gap:7px}}
+
+
+/* CIPA inbox cards turn simulation events into a clear next action. */
+.race-hub-embedded .space-cipa-latest-brief{border-left:3px solid #74e3ef;background:linear-gradient(115deg,rgba(27,76,87,.24),rgba(7,22,40,.4))}
+.race-hub-embedded .space-cipa-latest-brief>strong{color:#effcff}
+.race-hub-embedded .space-cipa-hazard-brief{border-left:3px solid #ffc16b;background:linear-gradient(115deg,rgba(100,57,24,.25),rgba(7,22,40,.42))}
+.race-hub-embedded .space-cipa-hazard-brief>span{color:#ffd18a}
+.race-hub-embedded .space-cipa-hazard-brief>small{color:#e5cba7;font-size:9px;line-height:1.4}
+.race-hub-embedded .space-cipa-hazard-brief>button{min-height:34px;align-self:flex-start;padding:7px 10px;border:1px solid rgba(255,193,107,.52);border-radius:7px;background:rgba(255,193,107,.13);color:#ffe5bd;font:900 8px/1.2 system-ui,sans-serif;letter-spacing:.04em}

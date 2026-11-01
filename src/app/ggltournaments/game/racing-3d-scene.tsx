@@ -192,11 +192,11 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       deployedMachines[name] = [];
       for (let i = 0; i < 12; i++) { const machine = new THREE.Group(); const metal = new THREE.MeshStandardMaterial({ color: "#b7c6d7", metalness: .72, roughness: .34, emissive: "#2c6d82", emissiveIntensity: .22 }); const core = new THREE.Mesh(new THREE.CylinderGeometry(.8, 1.05, 2.5, 8), metal); core.position.y = 1.25; machine.add(core); const cap = new THREE.Mesh(new THREE.CylinderGeometry(.35, .65, .45, 8), new THREE.MeshStandardMaterial({ color: "#24364b", metalness: .48, roughness: .5 })); cap.position.y = 2.65; machine.add(cap); const panel = new THREE.Mesh(new THREE.BoxGeometry(2.8, .12, 1.2), new THREE.MeshStandardMaterial({ color: "#4c86b5", metalness: .55, roughness: .32, emissive: "#102b4c", emissiveIntensity: .25 })); panel.position.set(1.6, 1.1, .1); panel.rotation.z = -.12; machine.add(panel); const angle = i * Math.PI / 6; const surfaceNormal = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)); machine.position.copy(surfaceNormal.clone().multiplyScalar(radius + .15)); machine.quaternion.setFromUnitVectors(worldOriginUp, surfaceNormal); machine.visible = false; world.add(machine); deployedMachines[name].push(machine); }
     };
-    addPlanet("Aster", [170, 25, 30], 31, "#4d438d", "#20165d", true);
-    addPlanet("Cobalt", [290, -22, 145], 43, "#276f9f", "#103a70");
-    addPlanet("Verdant", [460, 75, -85], 52, "#367b62", "#123f2d", true);
-    addPlanet("Ember", [-170, 52, -80], 24, "#a75b42", "#512216");
-    addPlanet("Frost", [120, -88, 400], 35, "#9ebdce", "#315a75"); 
+    addPlanet("Aster", [180, 25, -160], 31, "#4d438d", "#20165d", true);
+    addPlanet("Cobalt", [340, -22, -360], 43, "#276f9f", "#103a70");
+    addPlanet("Verdant", [500, 75, -120], 52, "#367b62", "#123f2d", true);
+    addPlanet("Ember", [150, 52, -450], 24, "#a75b42", "#512216");
+    addPlanet("Frost", [520, -88, -500], 35, "#9ebdce", "#315a75"); 
     // Fifteen additional planetary bodies are physically present in the same navigable space.
     // Their names and environmental intelligence remain masked until a close-range scan.
     for (const worldData of SURVEY_WORLDS) {
@@ -278,7 +278,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     let raf = 0;
     const mapTargetPositions: Record<string, [number, number]> = {
       "GGL Haven": mapPoint(-24, 70),
-      Ember: mapPoint(-170, -80), Aster: mapPoint(170, 30), Cobalt: mapPoint(290, 145), Verdant: mapPoint(460, -85), Frost: mapPoint(120, 400),
+      Ember: mapPoint(150, -450), Aster: mapPoint(180, -160), Cobalt: mapPoint(340, -360), Verdant: mapPoint(500, -120), Frost: mapPoint(520, -500),
       ...Object.fromEntries(SURVEY_WORLDS.map(world => [world.id, mapPoint(world.position[0], world.position[2])])),
     };
     const resize = () => {
@@ -709,14 +709,15 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
     <div aria-label="System map" className="space-mini-map">
       <div className="space-mini-map-title">SYSTEM MAP <span>FREE SPACE</span></div>
       <svg viewBox="0 0 180 128" role="img" aria-label="Live system map showing all twenty planetary bodies, the ship and the selected navigation target.">
-        <path d="M8 64H172 M90 8V120" stroke="rgba(156,204,255,.14)" strokeDasharray="3 5" fill="none" />
+        <path d="M8 64H172 M90 8V120" stroke="rgba(156,204,255,.34)" strokeDasharray="3 4" strokeWidth="1.2" fill="none" />
+         <g fill="rgba(196,224,245,.82)" fontSize="5.2" fontWeight="800" letterSpacing=".35"><text x="14" y="17">Q2 · FRONTIER</text><text x="166" y="17" textAnchor="end">Q1 · ORIGIN</text><text x="14" y="115">Q4 · DEEP SPACE</text><text x="166" y="115" textAnchor="end">Q3 · UNKNOWN</text></g>
         <line ref={mapRouteRef} x1={mapPoint(0, -35)[0]} y1={mapPoint(0, -35)[1]} x2={mapPoint(290, 145)[0]} y2={mapPoint(290, 145)[1]} stroke="#c5f36b" strokeWidth="1.2" strokeDasharray="3 2" opacity=".92" />
         <circle cx={mapPoint(-170, -80)[0]} cy={mapPoint(-170, -80)[1]} r="6.8" fill={habitatStage(spaceStateRef.current.planetProgress.Ember ?? 0).color} stroke="#eab08b" strokeWidth="1.2" />
-        <circle cx={mapPoint(170, 30)[0]} cy={mapPoint(170, 30)[1]} r="10.5" fill={habitatStage(spaceStateRef.current.planetProgress.Aster ?? 0).color} stroke="#a6a0ff" strokeWidth="1.5" />
-        <ellipse cx={mapPoint(170, 30)[0]} cy={mapPoint(170, 30)[1]} rx="16" ry="3.5" fill="none" stroke={habitatStage(spaceStateRef.current.planetProgress.Aster ?? 0).color} strokeWidth="1.5" transform={"rotate(-18 " + mapPoint(170, 30)[0] + " " + mapPoint(170, 30)[1] + ")"} />
-        <circle cx={mapPoint(290, 145)[0]} cy={mapPoint(290, 145)[1]} r="13.5" fill={habitatStage(spaceStateRef.current.planetProgress.Cobalt ?? 0).color} stroke="#77d7f5" strokeWidth="1.5" />
-        <circle cx={mapPoint(460, -85)[0]} cy={mapPoint(460, -85)[1]} r="16" fill={habitatStage(spaceStateRef.current.planetProgress.Verdant ?? 0).color} stroke="#85d8ad" strokeWidth="1.5" />
-        <circle cx={mapPoint(120, 400)[0]} cy={mapPoint(120, 400)[1]} r="9.5" fill={habitatStage(spaceStateRef.current.planetProgress.Frost ?? 0).color} stroke="#ccefff" strokeWidth="1.2" />
+        <circle cx={mapPoint(180, -160)[0]} cy={mapPoint(180, -160)[1]} r="10.5" fill={habitatStage(spaceStateRef.current.planetProgress.Aster ?? 0).color} stroke="#a6a0ff" strokeWidth="1.5" />
+        <ellipse cx={mapPoint(180, -160)[0]} cy={mapPoint(180, -160)[1]} rx="16" ry="3.5" fill="none" stroke={habitatStage(spaceStateRef.current.planetProgress.Aster ?? 0).color} strokeWidth="1.5" transform={"rotate(-18 " + mapPoint(180, -160)[0] + " " + mapPoint(180, -160)[1] + ")"} />
+        <circle cx={mapPoint(340, -360)[0]} cy={mapPoint(340, -360)[1]} r="13.5" fill={habitatStage(spaceStateRef.current.planetProgress.Cobalt ?? 0).color} stroke="#77d7f5" strokeWidth="1.5" />
+        <circle cx={mapPoint(500, -120)[0]} cy={mapPoint(500, -120)[1]} r="16" fill={habitatStage(spaceStateRef.current.planetProgress.Verdant ?? 0).color} stroke="#85d8ad" strokeWidth="1.5" />
+        <circle cx={mapPoint(520, -500)[0]} cy={mapPoint(520, -500)[1]} r="9.5" fill={habitatStage(spaceStateRef.current.planetProgress.Frost ?? 0).color} stroke="#ccefff" strokeWidth="1.2" />
         {SURVEY_WORLDS.map(world => {
           const [x, y] = mapPoint(world.position[0], world.position[2]);
           const discovered = (spaceStateRef.current.discoveredWorlds || []).includes(world.id);
@@ -728,7 +729,7 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
           <path d="M-10 0H-5 M5 0H10 M0 -10V-5 M0 5V10" stroke="#ffd06b" strokeWidth="1.5" strokeLinecap="round" />
           <text x="9" y="12" fill="#ffe4a6" fontSize="6.5" fontWeight="800" letterSpacing=".2">HAVEN</text>
         </g>
-        <circle ref={mapTargetMarkerRef} cx={mapPoint(290, 145)[0]} cy={mapPoint(290, 145)[1]} r="9.5" fill="none" stroke="#c5f36b" strokeWidth="1.6" strokeDasharray="3 2" className="space-map-target" />
+        <circle ref={mapTargetMarkerRef} cx={mapPoint(340, -360)[0]} cy={mapPoint(340, -360)[1]} r="9.5" fill="none" stroke="#c5f36b" strokeWidth="1.6" strokeDasharray="3 2" className="space-map-target" />
         <g ref={shipMapMarkerRef} transform={"translate(" + mapPoint(0, -35).join(" ") + ")"}>
           <circle r="7.5" fill="rgba(102,242,255,.17)" stroke="#66f2ff" strokeOpacity=".7" />
           <path d="M0 -6 L4.2 5 L0 2.7 L-4.2 5 Z" fill="#ffffff" stroke="#66f2ff" strokeWidth="1.1" />

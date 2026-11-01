@@ -62,6 +62,14 @@ export function readHavenCollective(state: SpaceState): HavenCollectiveRead {
     if (surveyed.some(record => record.meteorExposure === "safe") && planet.name === "Cobalt") score += 1.2;
     if (surveyed.some(record => record.classification === "naturally-habitable") && planet.name === "Verdant") score += .8;
     if (surveyed.some(record => /iron|ore|metal/i.test(record.resources)) && planet.name === "Ember") score += 1.2;
+    for (const network of networks) {
+      const agenda = network.agenda.toLowerCase();
+      if (planet.name === "Cobalt" && /care|protect|safety|family|reserve/.test(agenda)) score += network.influence * .018;
+      if (planet.name === "Verdant" && /evidence|research|ecolog|study|knowledge/.test(agenda)) score += network.influence * .018;
+      if (planet.name === "Aster" && /production|machinery|engineering|materials/.test(agenda)) score += network.influence * .018;
+      if (planet.name === "Frost" && /water|life.support|health|medical/.test(agenda)) score += network.influence * .018;
+      if (planet.name === "Ember" && /industry|extraction|industrial|power/.test(agenda)) score += network.influence * .018;
+    }
     score += solidarity * .012 - autonomy * .004 - planet.colonyMachineRequirement * .35;
     const character = planet.name === "Verdant" ? "Its reactive biosphere calls for ecological caution." : planet.name === "Frost" ? "Its buried water may support future life-support systems." : planet.name === "Ember" ? "Its heat and radiation demand a long-horizon industrial plan." : planet.name === "Aster" ? "Its mineral shelves favour engineering and materials work." : "Its lower machinery threshold makes it a practical early restoration candidate.";
     return { name: planet.name, score, why: planet.name + " requires " + planet.colonyMachineRequirement + " machines. " + character };

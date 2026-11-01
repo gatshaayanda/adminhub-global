@@ -1192,3 +1192,50 @@
 .space-pilot-achievements small{font-size:10px;line-height:1.35;color:#435b6c}
 .space-pilot-rank-note{font-size:9px;line-height:1.45;color:#607586}
 @media(max-width:520px){.space-pilot-career-stats strong{font-size:12px}.space-pilot-career-body input,.space-pilot-career-body select{font-size:16px}}
+
+
+/* In-flight command desk: the chronicle, system chart and mission controls stay inside the game. */
+.race-hub-embedded .space-chronicle-dock{width:min(370px,calc(100% - 20px));max-height:68%;bottom:10px;left:10px}
+.race-hub-embedded .space-chronicle-toggle{min-height:38px;box-shadow:0 5px 18px #0006}
+.race-hub-embedded .space-chronicle-drawer{max-height:min(62svh,520px);padding:9px;gap:8px}
+.space-menu-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.space-menu-tabs button{min-height:34px;border:1px solid rgba(133,190,255,.25);border-radius:6px;background:rgba(255,255,255,.045);color:#b8cbd9;font:900 8px/1 system-ui,sans-serif;letter-spacing:.06em;cursor:pointer}
+.space-menu-tabs button.active,.space-menu-tabs button[aria-selected="true"]{background:rgba(197,243,107,.16);border-color:#c5f36b;color:#eaffc9}
+.space-menu-panel{display:grid;gap:8px;min-height:0}
+.space-menu-panel-intro{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#dff8ff;font:900 8px/1.3 system-ui,sans-serif;letter-spacing:.08em}
+.space-menu-panel-intro span{color:#9db8ce;font-size:7px;letter-spacing:0;text-align:right}
+.space-chronicle-timeline,.space-menu-world-list{display:grid;gap:6px;max-height:250px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.space-chronicle-entry{padding:8px;border:1px solid rgba(133,190,255,.18);border-radius:7px;background:rgba(255,255,255,.035)}
+.space-chronicle-entry-meta,.space-chronicle-entry-footer{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.space-chronicle-entry-meta>span{color:#78dff3;font:900 7px/1.2 system-ui,sans-serif;letter-spacing:.09em}
+.space-chronicle-entry-meta small,.space-chronicle-entry-footer>span{color:#91a9bd;font:700 7px/1.3 system-ui,sans-serif}
+.space-chronicle-entry>strong{display:block;margin-top:5px;color:#f0f7ff;font-size:10px;line-height:1.3}
+.space-chronicle-entry>p{margin:4px 0 7px;color:#b8cbd9;font-size:8px;line-height:1.45}
+.space-chronicle-entry-footer button,.space-menu-world button,.space-menu-active-mission button{min-height:29px;padding:6px 8px;border:1px solid rgba(197,243,107,.5);border-radius:6px;background:rgba(197,243,107,.12);color:#eaffc9;font:900 7px/1 system-ui,sans-serif;letter-spacing:.04em;cursor:pointer}
+.space-menu-world-group{display:grid;gap:5px}
+.space-menu-world-group>strong{padding:5px 2px;color:#78dff3;font:900 7px/1.2 system-ui,sans-serif;letter-spacing:.1em}
+.space-menu-world{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px;border:1px solid rgba(133,190,255,.15);border-radius:6px;background:rgba(255,255,255,.03)}
+.space-menu-world>span{display:grid;gap:3px;min-width:0}
+.space-menu-world b{color:#f0f7ff;font-size:9px}
+.space-menu-world small{color:#9db8ce;font-size:7px;line-height:1.35}
+.space-menu-world button{flex:0 0 auto}
+.space-menu-footnote,.space-menu-empty{margin:0;padding:8px;border-left:2px solid #78dff3;background:rgba(120,223,243,.07);color:#b8cbd9;font-size:8px;line-height:1.45}
+.space-menu-active-mission{display:grid;gap:6px;padding:10px;border:1px solid rgba(120,223,243,.25);border-radius:8px;background:rgba(120,223,243,.06)}
+.space-menu-active-mission>span{color:#78dff3;font:900 7px/1.2 system-ui,sans-serif;letter-spacing:.1em}
+.space-menu-active-mission>strong{color:#f0f7ff;font-size:12px}
+.space-menu-active-mission>p{margin:0;color:#b8cbd9;font-size:9px;line-height:1.45}
+.space-menu-active-mission>small{color:#9db8ce;font-size:7px}
+.space-menu-mission-progress{height:5px;border-radius:9px;background:#ffffff18;overflow:hidden}
+.space-menu-mission-progress i{display:block;height:100%;background:#c5f36b;border-radius:9px}
+.space-menu-mission-facts{display:grid;grid-template-columns:1fr;gap:5px}
+.space-menu-mission-facts>span{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px;border:1px solid rgba(133,190,255,.15);border-radius:6px;color:#9db8ce;font:800 7px/1.3 system-ui,sans-serif}
+.space-menu-mission-facts strong{color:#f0f7ff;font-size:8px;text-align:right}
+.ggl-space-map-note{margin:10px 0 0!important;color:#b7c4aa!important;font-size:10px!important;line-height:1.5!important}
+@media(max-width:520px){
+ .race-hub-embedded .space-chronicle-dock{width:min(320px,calc(100% - 14px));left:7px;bottom:7px;max-height:65%}
+ .race-hub-embedded .space-chronicle-drawer{max-height:min(58svh,430px)}
+ .space-chronicle-timeline,.space-menu-world-list{max-height:205px}
+ .space-menu-world{gap:5px;padding:6px}
+ .space-menu-world b{font-size:8px}
+ .space-menu-world button{min-height:28px;padding:5px 6px;font-size:6px}
+}

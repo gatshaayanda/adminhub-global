@@ -70,7 +70,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [manualSaveAvailable, setManualSaveAvailable] = useState(false);
   const [chronicleMenuOpen, setChronicleMenuOpen] = useState(false);
-  const [spaceMenuTab, setSpaceMenuTab] = useState<"chronicle" | "system" | "missions" | "ship">("chronicle");
+  const [spaceMenuTab, setSpaceMenuTab] = useState<"chronicle" | "system" | "missions" | "ship">("missions");
   const [foundingSetupOpen, setFoundingSetupOpen] = useState(false);
   const [pilotSetupOpen, setPilotSetupOpen] = useState(false);
   const [pilotSetupName, setPilotSetupName] = useState("");
@@ -937,10 +937,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           {chronicleMenuOpen && <div className="space-chronicle-drawer" aria-label="In-game system menu">
             <div className="space-chronicle-drawer-heading"><strong>CIPA · SHIP COMMAND</strong><button type="button" onClick={() => setChronicleMenuOpen(false)} aria-label="Close system menu">×</button></div>
             <div className="space-menu-tabs" role="tablist" aria-label="System menu sections">
-              <button type="button" role="tab" aria-selected={spaceMenuTab === "chronicle"} className={spaceMenuTab === "chronicle" ? "active" : ""} onClick={() => setSpaceMenuTab("chronicle")}>HISTORY</button>
+              <button type="button" role="tab" aria-selected={spaceMenuTab === "missions"} className={spaceMenuTab === "missions" ? "active" : ""} onClick={() => setSpaceMenuTab("missions")}>INBOX</button>
               <button type="button" role="tab" aria-selected={spaceMenuTab === "ship"} className={spaceMenuTab === "ship" ? "active" : ""} onClick={() => setSpaceMenuTab("ship")}>SHIP</button>
               <button type="button" role="tab" aria-selected={spaceMenuTab === "system"} className={spaceMenuTab === "system" ? "active" : ""} onClick={() => setSpaceMenuTab("system")}>SYSTEM</button>
-              <button type="button" role="tab" aria-selected={spaceMenuTab === "missions"} className={spaceMenuTab === "missions" ? "active" : ""} onClick={() => setSpaceMenuTab("missions")}>INBOX</button>
+              <button type="button" role="tab" aria-selected={spaceMenuTab === "chronicle"} className={spaceMenuTab === "chronicle" ? "active" : ""} onClick={() => setSpaceMenuTab("chronicle")}>HISTORY</button>
             </div>
             {spaceMenuTab === "chronicle" && <div className="space-menu-panel">
               <div className="space-menu-panel-intro"><b>CIVILISATION HISTORY</b><span>{chronicleEvents.length} recorded events · newest first</span></div>

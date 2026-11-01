@@ -178,8 +178,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [boostActive, setBoostActive] = useState(false);
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [transferSignal, setTransferSignal] = useState<{ id: number; emoji: string; title: string; detail: string; route: string } | null>(null);
-  const [proximityMenuOpen, setProximityMenuOpen] = useState(true);
+  const [proximityMenuOpen, setProximityMenuOpen] = useState(false);
   const [shipManifestOpen, setShipManifestOpen] = useState(false);
+  const [missionInboxUnread, setMissionInboxUnread] = useState(false);
+  const missionInboxEventRef = useRef("");
   const [pilotCareerOpen, setPilotCareerOpen] = useState(true);
   const [pilotTheoryAnswers, setPilotTheoryAnswers] = useState<string[]>(["", "", "", ""]);
   const transferSignalId = useRef(0);
@@ -352,7 +354,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setSceneGeneration((generation) => generation + 1);
     setChronicleMenuOpen(false);
     setShipManifestOpen(false);
-    setProximityMenuOpen(true);
+    setProximityMenuOpen(false);
     setTransferSignal(null);
     if (transferTimer.current) clearTimeout(transferTimer.current);
     setShowRestartConfirm(false);
@@ -850,6 +852,16 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const chronicleLocations = [...new Set(["GGL Haven", "Ship", ...WORLD_PLANETS.map((planet) => planet.name), ...Object.values(world.surveyRecords || {}).map((record) => record.revealedName), ...chronicleEvents.map(event => event.location)])];
   const recentChronicleEvents = chronicleEvents.slice(-14).reverse();
   const activeSurveyTarget = world.selectedSurveyTarget ? getSurveyWorld(world.selectedSurveyTarget) : undefined;
+  const latestWorldEvent = world.events[0] || "";
+  const pendingReportCount = world.pendingSurveyReports?.length || 0;
+  const activeHazardCount = (world.hazards || []).filter(item => item.status === "warning" || item.status === "mitigated").length;
+  const missionInboxHeadline = pendingReportCount > 0 ? "FIELD REPORT READY · RETURN TO HAVEN" : activeHazardCount > 0 ? "HAZARD UPDATE · REVIEW THE INBOX" : !havenRead.ratifiedWorld && havenRead.reportedCount > 0 ? "HAVEN COUNCIL · DECISION AWAITS" : "NEW CIPA BRIEF";
+  useEffect(() => {
+    if (!latestWorldEvent || missionInboxEventRef.current === latestWorldEvent) return;
+    missionInboxEventRef.current = latestWorldEvent;
+    setMissionInboxUnread(true);
+  }, [latestWorldEvent]);
+  const openMissionInbox = () => { setSpaceMenuTab("missions"); setChronicleMenuOpen(true); setMissionInboxUnread(false); };
 
   return <div className={"vula race-hub" + (embedded ? " race-hub-embedded" : "")}>
     {!embedded && <><div className="big-brothers-status"><span className="status-dot online" />GGL Space · free exploration</div><header className="big-brothers-nav"><Link href="/" className="big-brothers-brand"><span className="big-brothers-mark">GGL</span><span>GGL Space<small>OPEN SPACE EXPLORATION</small></span></Link><nav><Link href="/ggltournaments">Tournaments</Link><Link href="/ggltournaments">GGL home</Link></nav></header><section className="big-brothers-section warmup-intro"><p className="big-brothers-eyebrow">GGL SPACE · EXPLORE AT YOUR PACE</p><h1>Find your place among the stars.</h1><p>Take the ship into open space, steer between distant worlds, and explore at your own pace. The analog stick handles direction and forward/reverse flight; up/down thrusters handle altitude.</p><p className="warmup-family-note">Open space, a handful of planets, and room to explore.</p></section></>}
@@ -858,6 +870,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds surveyed</span><strong>{5 + (world.discoveredWorlds?.length || 0)} / 20</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene key={sceneGeneration} raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
+        <button type="button" className={"space-mission-inbox-alert" + (missionInboxUnread ? " is-unread" : "") + (pendingReportCount || activeHazardCount || (!havenRead.ratifiedWorld && havenRead.reportedCount) ? " is-actionable" : "")} onClick={openMissionInbox} aria-label="Open CIPA mission inbox">
+          <span className="space-mission-inbox-icon" aria-hidden="true">✦</span>
+          <span className="space-mission-inbox-copy"><b>{missionInboxHeadline}</b><small>{pendingReportCount > 0 ? pendingReportCount + " field report(s) aboard · dock at Haven to debrief" : activeHazardCount > 0 ? activeHazardCount + " active hazard signal(s) need review" : (!havenRead.ratifiedWorld && havenRead.reportedCount > 0) ? "Your evidence is in. Haven's first-settlement council can act." : latestWorldEvent || "Open CIPA for current objectives, requests and mission history."}</small></span>
+          <span className="space-mission-inbox-action">{missionInboxUnread ? "NEW" : "OPEN"} ↗</span>
+        </button>
         {(phase === "ready" || phase === "paused" || showRestartConfirm || pilotSetupOpen || foundingSetupOpen) && <div className="space-lifecycle-overlay" role="dialog" aria-modal="true" aria-labelledby="space-lifecycle-title">
           <div className="space-lifecycle-card">
             <span className="space-lifecycle-brand">ADMIN HUB CIPA · FLIGHT SYSTEM</span>
@@ -959,14 +976,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         <div className="space-world-signal" aria-live="polite"><span>WORLD SIGNAL</span><strong>{world.events[0] || "Your actions are shaping the system."}</strong></div>
         <div className="space-chronicle-dock">
           <button type="button" className="space-chronicle-toggle" aria-expanded={chronicleMenuOpen} onClick={() => setChronicleMenuOpen(open => !open)}>
-            SYSTEM MENU <span>{chronicleEvents.length} HISTORY EVENTS</span><i aria-hidden="true">{chronicleMenuOpen ? "−" : "+"}</i>
+            CIPA COMMAND <span>{chronicleEvents.length} RECORDED EVENTS</span><i aria-hidden="true">{chronicleMenuOpen ? "−" : "+"}</i>
           </button>
           {chronicleMenuOpen && <div className="space-chronicle-drawer" aria-label="In-game system menu">
-            <div className="space-chronicle-drawer-heading"><strong>GGL HAVEN · COMMAND DESK</strong><button type="button" onClick={() => setChronicleMenuOpen(false)} aria-label="Close system menu">×</button></div>
+            <div className="space-chronicle-drawer-heading"><strong>CIPA · SHIP COMMAND</strong><button type="button" onClick={() => setChronicleMenuOpen(false)} aria-label="Close system menu">×</button></div>
             <div className="space-menu-tabs" role="tablist" aria-label="System menu sections">
               <button type="button" role="tab" aria-selected={spaceMenuTab === "chronicle"} className={spaceMenuTab === "chronicle" ? "active" : ""} onClick={() => setSpaceMenuTab("chronicle")}>CHRONICLE</button>
               <button type="button" role="tab" aria-selected={spaceMenuTab === "system"} className={spaceMenuTab === "system" ? "active" : ""} onClick={() => setSpaceMenuTab("system")}>SYSTEM MAP</button>
-              <button type="button" role="tab" aria-selected={spaceMenuTab === "missions"} className={spaceMenuTab === "missions" ? "active" : ""} onClick={() => setSpaceMenuTab("missions")}>MISSIONS</button>
+              <button type="button" role="tab" aria-selected={spaceMenuTab === "missions"} className={spaceMenuTab === "missions" ? "active" : ""} onClick={() => setSpaceMenuTab("missions")}>MISSION INBOX</button>
             </div>
             {spaceMenuTab === "chronicle" && <div className="space-menu-panel">
               <div className="space-menu-panel-intro"><b>CIVILISATION HISTORY</b><span>{chronicleEvents.length} recorded events · newest first</span></div>
@@ -1075,7 +1092,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           </div>}
         </div>
         {world.nearbyTarget && <>
-          <button type="button" className="space-proximity-toggle" aria-expanded={proximityMenuOpen} onClick={() => setProximityMenuOpen(open => !open)}>{proximityMenuOpen ? "CLOSE" : "PLANET MENU"} <span aria-hidden="true">{proximityMenuOpen ? "−" : "+"}</span></button>
+          <button type="button" className="space-proximity-toggle" aria-expanded={proximityMenuOpen} onClick={() => setProximityMenuOpen(open => !open)}>{proximityMenuOpen ? "CLOSE" : "INTERACT"} <span aria-hidden="true">{proximityMenuOpen ? "−" : "+"}</span></button>
           {proximityMenuOpen && <div className="space-proximity-actions" aria-label="Nearby interaction">
           <div className="space-proximity-copy"><span>{world.nearbyTarget === "GGL Haven" ? "HAVEN DOCKING BAY" : world.nearbyTarget === "Floating Equipment" ? "RECOVERY SIGNAL" : "PLANETARY APPROACH"}</span><strong>{world.nearbyTarget}</strong></div>
           {world.nearbyTarget === "Floating Equipment" ? <>

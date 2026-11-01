@@ -105,6 +105,7 @@ export type SpaceState = {
   /** Ratified by Haven after receiving at least one field report. */
   havenSettlementWorld?: string | null;
   havenCouncilSupport?: number;
+  havenCouncilPosition?: "care" | "science" | "industry" | null;
   pilotName?: string;
   pilotTheoryPassed?: boolean;
   pilotLicenceIssuedAtWorldMinutes?: number | null;
@@ -185,6 +186,7 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     reportedSurveyWorlds: [],
     havenSettlementWorld: null,
     havenCouncilSupport: 0,
+    havenCouncilPosition: null,
     pilotName: "",
     pilotTheoryPassed: false,
     pilotLicenceIssuedAtWorldMinutes: null,
@@ -483,6 +485,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     reportedSurveyWorlds: Array.isArray(saved.reportedSurveyWorlds) ? [...new Set(saved.reportedSurveyWorlds.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))))] : [],
     havenSettlementWorld: typeof saved.havenSettlementWorld === "string" && WORLD_PLANETS.some(planet => planet.name === saved.havenSettlementWorld) ? saved.havenSettlementWorld : null,
     havenCouncilSupport: Math.max(-3, Math.min(3, Math.round(finiteNumber(saved.havenCouncilSupport, 0)))),
+    havenCouncilPosition: ["care","science","industry"].includes(String(saved.havenCouncilPosition)) ? saved.havenCouncilPosition as "care" | "science" | "industry" : null,
     pilotName: typeof saved.pilotName === "string" ? saved.pilotName.slice(0, 28) : "",
     pilotTheoryPassed: Boolean(saved.pilotTheoryPassed),
     pilotLicenceIssuedAtWorldMinutes: typeof saved.pilotLicenceIssuedAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceIssuedAtWorldMinutes) ? Math.max(0, saved.pilotLicenceIssuedAtWorldMinutes) : null,

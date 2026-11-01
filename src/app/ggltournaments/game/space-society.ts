@@ -92,7 +92,8 @@ export function readHavenCollective(state: SpaceState): HavenCollectiveRead {
 /** Player arguments change the council balance; they never bypass evidence or commit a settlement. */
 export function influenceHavenCouncil(state: SpaceState, stance: "care" | "science" | "industry"): boolean {
   if (!(state.reportedSurveyWorlds || []).length || state.havenSettlementWorld) return false;
-  const delta = stance === "care" ? 1 : stance === "industry" ? -1 : 0;
+  const delta = stance === "industry" ? -1 : 1;
+  state.havenCouncilPosition = stance;
   state.havenCouncilSupport = Math.max(-3, Math.min(3, (state.havenCouncilSupport || 0) + delta));
   const message = stance === "care" ? "The pilot argued that the first settlement must protect families and preserve a reliable reserve." : stance === "industry" ? "The pilot argued for a destination where engineering and production can build long-term independence." : "The pilot asked the council to keep its decision grounded in survey evidence and scientific uncertainty.";
   recordSpaceChronicle(state, "society", "GGL Haven", "Pilot addressed the founding networks", message + " Council balance: " + state.havenCouncilSupport + ".");
@@ -106,7 +107,7 @@ export function ratifyHavenSettlement(state: SpaceState): string | null {
   if (!(state.reportedSurveyWorlds || []).length || state.havenSettlementWorld) return null;
   const read = readHavenCollective(state);
   const support = state.havenCouncilSupport || 0;
-  const preferred = support >= 2 ? "Verdant" : support <= -2 ? "Aster" : read.recommendation;
+  const preferred = state.havenCouncilPosition === "care" ? "Cobalt" : state.havenCouncilPosition === "science" ? "Verdant" : state.havenCouncilPosition === "industry" ? "Aster" : read.recommendation;
   const chosen = WORLD_PLANETS.some(planet => planet.name === preferred) ? preferred : "Cobalt";
   state.havenSettlementWorld = chosen;
   recordSpaceChronicle(state, "society", "GGL Haven", "Haven ratified its first settlement destination", "After reviewing " + read.reportedCount + " verified field report(s), the founding networks committed to " + chosen + ". The pilot council influence was " + support + ".");

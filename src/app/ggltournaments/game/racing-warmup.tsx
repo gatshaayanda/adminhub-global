@@ -70,7 +70,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [manualSaveAvailable, setManualSaveAvailable] = useState(false);
   const [chronicleMenuOpen, setChronicleMenuOpen] = useState(false);
-  const [spaceMenuTab, setSpaceMenuTab] = useState<"chronicle" | "system" | "missions">("chronicle");
+  const [spaceMenuTab, setSpaceMenuTab] = useState<"chronicle" | "system" | "missions" | "ship">("chronicle");
   const [foundingSetupOpen, setFoundingSetupOpen] = useState(false);
   const [pilotSetupOpen, setPilotSetupOpen] = useState(false);
   const [pilotSetupName, setPilotSetupName] = useState("");
@@ -179,7 +179,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [toast, setToast] = useState<{ text: string; kind: "success" | "error" | "info" } | null>(null);
   const [transferSignal, setTransferSignal] = useState<{ id: number; emoji: string; title: string; detail: string; route: string } | null>(null);
   const [proximityMenuOpen, setProximityMenuOpen] = useState(false);
-  const [shipManifestOpen, setShipManifestOpen] = useState(false);
   const [missionInboxUnread, setMissionInboxUnread] = useState(false);
   const missionInboxEventRef = useRef("");
   const [pilotCareerOpen, setPilotCareerOpen] = useState(true);
@@ -917,48 +916,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             </>}
           </div>
         </div>}
-        <div className="space-ship-manifest" aria-label="Ship manifest">
-          <button type="button" className="space-ship-manifest-toggle" aria-expanded={shipManifestOpen} onClick={() => setShipManifestOpen(open => !open)}>
-            <span>SHIP MANIFEST</span>
-            <strong>{spaceStateRef.current.cargoPeople} crew · {spaceStateRef.current.cargoEquipment} machines</strong>
-            <i aria-hidden="true">{shipManifestOpen ? "−" : "+"}</i>
-          </button>
-          {shipManifestOpen && <div className="space-ship-manifest-details">
-            <div><span>CREW ON BOARD</span><b>{spaceStateRef.current.cargoPeople} / 6</b></div>
-            <small className="space-people-roster">{(spaceStateRef.current.population?.people || []).filter(person => person.alive && person.location === "ship").map(person => person.name).join(" · ") || "No named crew aboard"}</small>
-            <div><span>TERRAFORMING MACHINES</span><b>{spaceStateRef.current.cargoEquipment} / 4</b></div>
-            <div><span>HAVEN POPULATION</span><b>{spaceStateRef.current.havenPopulation}</b></div>
-            <div><span>HAVEN MACHINE STOCK</span><b>{spaceStateRef.current.machineInventory}</b></div>
-            <div><span>SHIP HULL INTEGRITY</span><b>{Math.max(0, 100 - Math.round(raceRef.current.damage))}%</b></div>
-            <details className="space-pilot-career" open={pilotCareerOpen} onToggle={event => setPilotCareerOpen(event.currentTarget.open)}>
-              <summary><span>PILOT LICENCE & CAREER</span><b>{getPilotCareer(world).rank.toUpperCase()}</b></summary>
-              <div className="space-pilot-career-body">
-                <label>PILOT NAME<input maxLength={28} value={world.pilotName || ""} placeholder="Enter your pilot name" onChange={event => { world.pilotName = event.target.value.slice(0, 28); setSpaceUiTick(n => n + 1); }} onBlur={writeAutoSnapshot} /></label>
-                <div className="space-pilot-career-stats"><span>CAREER RANK<strong>{getPilotCareer(world).rank}</strong></span><span>CAREER SCORE<strong>{getPilotCareer(world).score}</strong></span><span>MISSION CREDITS<strong>{world.pilotCredits || 0}</strong></span></div>
-                <div className="space-pilot-licence-status"><b>{world.pilotTheoryPassed ? "THEORY PASSED" : "THEORY EXAM REQUIRED"}</b><span>{getPilotCareer(world).operationalLicence ? (getPilotCareer(world).licenceActive ? "OPERATIONAL LICENCE ACTIVE" : "OPERATIONAL LICENCE EXPIRED") : "OPERATIONAL LICENCE: EARNED AFTER FIRST POPULATED PLANET"}</span></div>
-                {!world.pilotTheoryPassed && <div className="space-pilot-theory">
-                  <p>FLIGHT THEORY · Four checks before certification</p>
-                  {[
-                    {question:"Which control changes vertical thrust?",correct:"vertical",options:[["steer","Steering"],["vertical","Vertical thrust / up-down"],["fire","Fire"]]},
-                    {question:"How do you fire the ship's weapon?",correct:"fire",options:[["boost","NOS"],["fire","FIRE / F key"],["dock","Dock"]]},
-                    {question:"How does NOS engage?",correct:"toggle",options:[["toggle","Tap to toggle boost"],["hold","Hold the steering stick"],["brake","Press brake"]]},
-                    {question:"What is required before docking?",correct:"approach",options:[["approach","Approach a valid target, then dock"],["anywhere","Dock from any distance"],["automatic","Docking is always automatic"]]}
-                  ].map((question,index)=><label key={question.correct}><span>{index+1}. {question.question}</span><select value={pilotTheoryAnswers[index]} onChange={event=>setPilotTheoryAnswers(current=>current.map((value,i)=>i===index?event.target.value:value))}><option value="">Choose answer</option>{question.options.map(option=><option key={option[0]} value={option[0]}>{option[1]}</option>)}</select></label>)}
-                  <button type="button" onClick={submitPilotTheory}>SUBMIT THEORY TEST</button>
-                </div>}
-                {getPilotCareer(world).operationalLicence && <div className="space-pilot-renewal"><span>EXPIRES IN {Math.max(0,Math.ceil(((world.pilotLicenceExpiresAtWorldMinutes || 0)-world.worldTimeMinutes)/1440))} SYSTEM DAYS · 100 CREDITS / 30 DAYS</span><button type="button" onClick={renewPilotLicence} disabled={world.dockedAt!=="GGL Haven" || (world.pilotCredits||0)<100}>RENEW AT HAVEN · 100 CR</button></div>}
-                <div className="space-pilot-achievements"><b>CAREER RECORD</b>{getPilotCareer(world).achievements.length ? getPilotCareer(world).achievements.map(item=><small key={item}>✓ {item}</small>) : <small>Your career record begins with your first flight and mission.</small>}</div>
-                <small className="space-pilot-rank-note">{getPilotCareer(world).nextRank ? "Next rank: "+getPilotCareer(world).nextRank+" · "+Math.max(0,(getPilotCareer(world).nextThreshold||0)-getPilotCareer(world).score)+" points to go. Time served and real achievements both count." : "Top career rank reached. Your history continues to grow."}</small>
-              </div>
-            </details>
-            <div><span>WORLDS VISITED</span><b>{5 + (spaceStateRef.current.discoveredWorlds?.length || 0)} / 20</b></div>
-            <div className="space-manifest-save-actions">
-              <button type="button" onClick={saveManualGame}>SAVE RUN</button>
-              <button type="button" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVE</button>
-            </div>
-            <small className="space-manifest-save-note">{manualSaveAvailable ? "MANUAL SAVE AVAILABLE · AUTOSAVE ACTIVE" : "AUTOSAVE ACTIVE · NO MANUAL SAVE"}</small>
-          </div>}
-        </div>
         <div className="space-flight-status" aria-label="Live flight status">
           <span><b>{spaceStateRef.current.cargoPeople}</b> crew</span>
           <i />
@@ -981,9 +938,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           {chronicleMenuOpen && <div className="space-chronicle-drawer" aria-label="In-game system menu">
             <div className="space-chronicle-drawer-heading"><strong>CIPA · SHIP COMMAND</strong><button type="button" onClick={() => setChronicleMenuOpen(false)} aria-label="Close system menu">×</button></div>
             <div className="space-menu-tabs" role="tablist" aria-label="System menu sections">
-              <button type="button" role="tab" aria-selected={spaceMenuTab === "chronicle"} className={spaceMenuTab === "chronicle" ? "active" : ""} onClick={() => setSpaceMenuTab("chronicle")}>CHRONICLE</button>
-              <button type="button" role="tab" aria-selected={spaceMenuTab === "system"} className={spaceMenuTab === "system" ? "active" : ""} onClick={() => setSpaceMenuTab("system")}>SYSTEM MAP</button>
-              <button type="button" role="tab" aria-selected={spaceMenuTab === "missions"} className={spaceMenuTab === "missions" ? "active" : ""} onClick={() => setSpaceMenuTab("missions")}>MISSION INBOX</button>
+              <button type="button" role="tab" aria-selected={spaceMenuTab === "chronicle"} className={spaceMenuTab === "chronicle" ? "active" : ""} onClick={() => setSpaceMenuTab("chronicle")}>HISTORY</button>
+              <button type="button" role="tab" aria-selected={spaceMenuTab === "ship"} className={spaceMenuTab === "ship" ? "active" : ""} onClick={() => setSpaceMenuTab("ship")}>SHIP</button>
+              <button type="button" role="tab" aria-selected={spaceMenuTab === "system"} className={spaceMenuTab === "system" ? "active" : ""} onClick={() => setSpaceMenuTab("system")}>SYSTEM</button>
+              <button type="button" role="tab" aria-selected={spaceMenuTab === "missions"} className={spaceMenuTab === "missions" ? "active" : ""} onClick={() => setSpaceMenuTab("missions")}>INBOX</button>
             </div>
             {spaceMenuTab === "chronicle" && <div className="space-menu-panel">
               <div className="space-menu-panel-intro"><b>CIVILISATION HISTORY</b><span>{chronicleEvents.length} recorded events · newest first</span></div>
@@ -1019,6 +977,43 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                   </div>
                 </details>;
               })}
+            </div>}
+            {spaceMenuTab === "ship" && <div className="space-menu-panel space-cipa-ship-panel">
+              <div className="space-menu-panel-intro"><b>SHIP MANIFEST & PILOT RECORD</b><span>Live cargo · crew · hull · career</span></div>
+              <div className="space-ship-manifest-details space-cipa-ship-manifest">
+                <div><span>CREW ON BOARD</span><b>{world.cargoPeople} / 6</b></div>
+                <small className="space-people-roster">{(world.population?.people || []).filter(person => person.alive && person.location === "ship").map(person => person.name).join(" · ") || "No named crew aboard"}</small>
+                <div><span>TERRAFORMING MACHINES</span><b>{world.cargoEquipment} / 4</b></div>
+                <div><span>RAW MATERIAL CARGO</span><b>{world.cargoMaterials || 0} / 20</b></div>
+                <div><span>HAVEN POPULATION</span><b>{world.havenPopulation}</b></div>
+                <div><span>HAVEN MACHINE STOCK</span><b>{world.machineInventory}</b></div>
+                <div><span>HAVEN MATERIAL STOCK</span><b>{world.havenMaterials || 0}</b></div>
+                <div><span>SHIP HULL INTEGRITY</span><b>{Math.max(0, 100 - Math.round(raceRef.current.damage))}%</b></div>
+                <details className="space-pilot-career" open={pilotCareerOpen} onToggle={event => setPilotCareerOpen(event.currentTarget.open)}>
+                  <summary><span>PILOT LICENCE & CAREER</span><b>{getPilotCareer(world).rank.toUpperCase()}</b></summary>
+                  <div className="space-pilot-career-body">
+                    <label>PILOT NAME<input maxLength={28} value={world.pilotName || ""} placeholder="Enter your pilot name" onChange={event => { world.pilotName = event.target.value.slice(0, 28); setSpaceUiTick(n => n + 1); }} onBlur={writeAutoSnapshot} /></label>
+                    <div className="space-pilot-career-stats"><span>CAREER RANK<strong>{getPilotCareer(world).rank}</strong></span><span>CAREER SCORE<strong>{getPilotCareer(world).score}</strong></span><span>MISSION CREDITS<strong>{world.pilotCredits || 0}</strong></span></div>
+                    <div className="space-pilot-licence-status"><b>{world.pilotTheoryPassed ? "THEORY PASSED" : "THEORY EXAM REQUIRED"}</b><span>{getPilotCareer(world).operationalLicence ? (getPilotCareer(world).licenceActive ? "OPERATIONAL LICENCE ACTIVE" : "OPERATIONAL LICENCE EXPIRED") : "OPERATIONAL LICENCE: EARNED AFTER FIRST POPULATED PLANET"}</span></div>
+                    {!world.pilotTheoryPassed && <div className="space-pilot-theory">
+                      <p>FLIGHT THEORY · Four checks before certification</p>
+                      {[
+                        {question:"Which control changes vertical thrust?",correct:"vertical",options:[["steer","Steering"],["vertical","Vertical thrust / up-down"],["fire","Fire"]]},
+                        {question:"How do you fire the ship's weapon?",correct:"fire",options:[["boost","NOS"],["fire","FIRE / F key"],["dock","Dock"]]},
+                        {question:"How does NOS engage?",correct:"toggle",options:[["toggle","Tap to toggle boost"],["hold","Hold the steering stick"],["brake","Press brake"]]},
+                        {question:"What is required before docking?",correct:"approach",options:[["approach","Approach a valid target, then dock"],["anywhere","Dock from any distance"],["automatic","Docking is always automatic"]]}
+                      ].map((question,index)=><label key={question.correct}><span>{index+1}. {question.question}</span><select value={pilotTheoryAnswers[index]} onChange={event=>setPilotTheoryAnswers(current=>current.map((value,i)=>i===index?event.target.value:value))}><option value="">Choose answer</option>{question.options.map(option=><option key={option[0]} value={option[0]}>{option[1]}</option>)}</select></label>)}
+                      <button type="button" onClick={submitPilotTheory}>SUBMIT THEORY TEST</button>
+                    </div>}
+                    {getPilotCareer(world).operationalLicence && <div className="space-pilot-renewal"><span>EXPIRES IN {Math.max(0,Math.ceil(((world.pilotLicenceExpiresAtWorldMinutes || 0)-world.worldTimeMinutes)/1440))} SYSTEM DAYS · 100 CREDITS / 30 DAYS</span><button type="button" onClick={renewPilotLicence} disabled={world.dockedAt!=="GGL Haven" || (world.pilotCredits||0)<100}>RENEW AT HAVEN · 100 CR</button></div>}
+                    <div className="space-pilot-achievements"><b>CAREER RECORD</b>{getPilotCareer(world).achievements.length ? getPilotCareer(world).achievements.map(item=><small key={item}>✓ {item}</small>) : <small>Your career record begins with your first flight and mission.</small>}</div>
+                    <small className="space-pilot-rank-note">{getPilotCareer(world).nextRank ? "Next rank: "+getPilotCareer(world).nextRank+" · "+Math.max(0,(getPilotCareer(world).nextThreshold||0)-getPilotCareer(world).score)+" points to go. Time served and real achievements both count." : "Top career rank reached. Your history continues to grow."}</small>
+                  </div>
+                </details>
+                <div><span>WORLDS CHARTED</span><b>{5 + (world.discoveredWorlds?.length || 0)} / 20</b></div>
+                <div className="space-manifest-save-actions"><button type="button" onClick={saveManualGame}>SAVE RUN</button><button type="button" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVE</button></div>
+                <small className="space-manifest-save-note">{manualSaveAvailable ? "MANUAL SAVE AVAILABLE · AUTOSAVE ACTIVE" : "AUTOSAVE ACTIVE · NO MANUAL SAVE"}</small>
+              </div>
             </div>}
             {spaceMenuTab === "system" && <div className="space-menu-panel">
               <div className="space-menu-panel-intro"><b>TWENTY-WORLD SYSTEM</b><span>{5 + (world.discoveredWorlds?.length || 0)} / 20 charted</span></div>

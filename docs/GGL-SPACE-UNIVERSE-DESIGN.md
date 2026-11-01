@@ -202,3 +202,62 @@ Family raising is a later system, but it belongs to the intended game vision. It
 4. **Start:** explicitly start the new civilisation.
 
 Returning players continue their saved civilisation without repeating pilot registration when their name is already saved. Continue/manual load restore the selected save and wait at READY. A missing legacy pilot name is collected without resetting the saved world. New Civilisation/Restart remains staged: the current autosave is untouched until the final create action; cancelling preserves the prior run and manual save.
+
+## 12. Discovery-led first settlement and evolving micro-civilisations (owner direction, 2026-11-01)
+
+This section clarifies the intended player loop beyond the pilot/founding setup. It supersedes any interpretation of step 4 as a simple player-only planet picker.
+
+### Opening sequence and player role
+
+1. Register the pilot identity (or restore the saved pilot when continuing).
+2. Establish the canonical OG Haven starting population and the selected founding circumstances, preserving the 60 original people, 20 households and five emergent networks.
+3. Enter the existing 20-world system: four quadrants, five planetary locations per quadrant. The five established authored worlds are Aster, Cobalt, Verdant, Ember and Frost; the other 15 are additional discoverable worlds.
+4. **Discovery and intelligence gathering:** fly, navigate, inspect and scan. Gather evidence about each world's actual environmental conditions, habitability/restoration status, minerals and other resources, ecology, hazards, meteor exposure, routes and unknowns. Discoveries are saved and become reportable to Haven. Unknown data stays unknown until earned.
+5. **Return and report to Haven:** bring the intelligence back. Haven's people interpret it through their needs, founding circumstances, skills, household relationships and emergent network interests. Different groups can value the same discovery differently and can disagree for understandable reasons.
+6. **Haven chooses and establishes the first settlement:** the settlement proposal must be informed by the intelligence the player actually brought back and by the population's collective interests. The player helps the population evaluate trade-offs, then carries out the chosen settlement logistics. Do not auto-select a default world or treat the population as a passive menu.
+7. **The first settlement triggers the wider civilisation loop:** its world-specific requirements, resources, ecology and risks combine with the people who settle there to generate local development, needs, opportunities and missions. The ship remains the player's active means of exploration, delivery, rescue, negotiation and response.
+
+### The micro-universe principle
+
+The user's reference is the idea of evolved, self-contained micro-universes: each planet can become a distinct, evolving social and ecological world rather than a reskinned copy of another colony.
+
+A settlement can gradually develop:
+- local environmental/ecological adaptation and restoration;
+- resource extraction, production, trade and infrastructure shaped by actual deposits and constraints;
+- skills, occupations, education, household and relationship patterns;
+- local customs, identity, collective personality and competing interests;
+- its own media, chronicles, requests, interpretations of events and relationship with Haven;
+- cooperation, neutrality, autonomy, diplomacy or conflict as outcomes of conditions and actions.
+
+This is an emergent simulation, not a fixed planet personality. Its collective identity must be derived from the actual people present, their motivations and traits, founding-network/household ties, local conditions, material capacity, shared history and player behaviour. Migration and major events can change it over time.
+
+### Haven's collective personality and player relationship
+
+Haven is not a generic quest terminal. The player should become a known participant in the population's story:
+- People and networks remember what the pilot discovered, reported, omitted, prioritised and delivered.
+- Haven can respond with appreciation, scepticism, competing interpretations, urgent requests, warnings and counter-proposals.
+- The population's priorities should be visible as a concise collective picture, with meaningful disagreement rather than one artificial unanimous voice.
+- The player can ask questions, present evidence, compare proposals, negotiate priorities and act on requests through gameplay. Conversations must reflect actual saved state and have consequences; avoid generic AI-like filler.
+- The player's choices and outcomes update trust, interests, relationships, chronicles and the mission board.
+
+### Mission generation rules
+
+A mission opportunity should be grounded in at least one real trigger and connected to the others where relevant:
+1. a confirmed discovery or unresolved survey question;
+2. an actual need, skill, motivation or disagreement among Haven/colony people;
+3. a world-specific resource, ecological condition, hazard or restoration requirement;
+4. a real logistics constraint (people, machines, materials, cargo, ship condition, travel and time);
+5. a previous player decision or unresolved consequence.
+
+Mission offers should vary: survey follow-ups, evidence verification, resource recovery, machinery delivery, restoration support, settlement logistics, research, rescue, negotiation, trade, protection and later political/conflict opportunities as systems unlock. Do not present later-stage systems as already implemented. Every accepted mission must have a clear objective, relevant context, available choices, stateful outcome and chronicle consequence. Avoid arbitrary repetitive mission spam.
+
+### Implementation and QA gates
+
+- Preserve the 20-world/four-quadrant chart and all authored world data. Do not replace it with five total worlds.
+- Preserve the five named core worlds and their existing resource/ecology/restoration requirements as defined by the current approved source of truth. Do not use stale progress values or silently reset legacy saves.
+- Build the Haven response and settlement decision from persisted survey discoveries plus population state; map-only selection or an uncompleted scan cannot count as intelligence delivered.
+- The first settlement must be chosen through a visible Haven response to the actual intel and collective interests. It must not be hard-coded to Cobalt, the cheapest planet, or a random planet.
+- The settlement creates the first colony from people actually transferred from Haven, using finite equipment/materials and the selected world's real requirements. Record the event and resulting local identity in persistent history.
+- QA the full journey end-to-end: new pilot name → founding setup → flight → scan worlds across all four quadrants → return/report → Haven response and disagreement → settlement decision → people/equipment delivery → first colony → emergent mission opportunities → save/reload/continue.
+- Regression-test manual save, autosave, offline-time rules, cancel/restart protection, the mobile layout and all existing ship controls.
+- Keep the code changes additive and preserve the latest accepted playable flight baseline. Do not declare this milestone QA-ready until the exact commit's deployment is READY and the journey above can be exercised on that deployment.

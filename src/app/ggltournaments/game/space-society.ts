@@ -114,4 +114,26 @@ export function ratifyHavenSettlement(state: SpaceState): string | null {
   state.events.unshift("HAVEN DECISION: " + chosen + " is the first settlement destination. The pilot can coordinate finite machinery and founding crew.");
   state.events = state.events.slice(0, 6);
   return chosen;
+export type ColonySituation = { world: string; title: string; detail: string; need: string; urgency: number; identity: string; production: string; customs: string[] };
+
+export function readColonySituation(state: SpaceState): ColonySituation | null {
+  const candidates = Object.entries(state.colonies || {}).map(([world, colony]) => {
+    const residents = (state.population?.people || []).filter(person => person.alive && person.location === ("planet:" + world));
+    if (!residents.length) return null;
+    const keys = ["air", "food", "water", "shelter", "health", "safety", "belonging", "purpose", "autonomy", "learning"] as const;
+    const needs = keys.map(key => ({ key, value: residents.reduce((sum, person) => sum + person.needs[key], 0) / residents.length })).sort((a,b) => a.value - b.value);
+    const weakest = needs[0];
+    const ecology = state.ecology?.[world];
+    const urgency = 100 - weakest.value;
+    const title = weakest.value < 48 ? "Residents need immediate support" : ecology && ecology.maintenanceLoad > 72 ? "Local infrastructure needs maintenance" : "A new local priority is emerging";
+    const detail = weakest.value < 48
+      ? "The residents' average " + weakest.key + " need is " + Math.round(weakest.value) + "%. Their wellbeing is deteriorating; the pilot should return with practical support."
+      : ecology && ecology.maintenanceLoad > 72
+        ? "Maintenance load has reached " + Math.round(ecology.maintenanceLoad) + "%. Local operators need materials and time before further expansion."
+        : "Residents are developing their own priorities, customs and production focus. A visit can strengthen the relationship with Haven.";
+    return { world, title, detail, need: weakest.key, urgency, identity: colony.collectiveIdentity || "A new frontier community", production: colony.productionFocus || "Local production and repair", customs: colony.customs || [] };
+  }).filter((item): item is ColonySituation => Boolean(item));
+  return candidates.sort((a,b) => b.urgency - a.urgency)[0] || null;
+}
+
 }

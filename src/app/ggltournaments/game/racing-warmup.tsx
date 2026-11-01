@@ -853,7 +853,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const latestWorldEvent = world.events[0] || "";
   const pendingReportCount = world.pendingSurveyReports?.length || 0;
   const activeHazardCount = (world.hazards || []).filter(item => item.status === "warning" || item.status === "mitigated").length;
-  const missionInboxHeadline = pendingReportCount > 0 ? "FIELD REPORT READY · RETURN TO HAVEN" : activeHazardCount > 0 ? "HAZARD UPDATE · REVIEW THE INBOX" : !havenRead.ratifiedWorld && havenRead.reportedCount > 0 ? "HAVEN COUNCIL · DECISION AWAITS" : "NEW CIPA BRIEF";
+  const missionInboxHeadline = pendingReportCount > 0 ? "FIELD REPORT READY · RETURN TO HAVEN" : activeHazardCount > 0 ? "HAZARD UPDATE · REVIEW THE INBOX" : !havenRead.ratifiedWorld && havenRead.reportedCount > 0 ? "HAVEN COUNCIL · DECISION AWAITS" : missionInboxUnread ? "NEW CIPA BRIEF" : "CIPA MISSION INBOX";
   useEffect(() => {
     if (!latestWorldEvent || missionInboxEventRef.current === latestWorldEvent) return;
     missionInboxEventRef.current = latestWorldEvent;
@@ -949,7 +949,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                   const surveyId = Object.entries(world.surveyRecords || {}).find(([, record]) => record.revealedName === event.location)?.[0];
                   const eventTarget = WORLD_PLANETS.some(planet => planet.name === event.location) ? event.location : surveyId;
                   return <article className="space-chronicle-entry" key={event.id}>
-                    <div className="space-chronicle-entry-meta"><span>{event.kind.toUpperCase()}</span><small>DAY {Math.floor(event.atWorldMinutes / 1440) + 1} · {Math.floor(event.atWorldMinutes / 60)}H</small></div>
+                    <div className="space-chronicle-entry-meta"><span>{event.kind.toUpperCase()}</span><small>SYSTEM DAY {Math.floor(event.atWorldMinutes / 1440) + 1} · {String(Math.floor(event.atWorldMinutes / 60) % 24).padStart(2, "0")}:00</small></div>
                     <strong>{event.title}</strong><p>{event.detail}</p>
                     <div className="space-chronicle-entry-footer"><span>{event.location}</span>{eventTarget && <button type="button" onClick={() => setSystemCourse(eventTarget)}>SET COURSE ↗</button>}</div>
                   </article>;

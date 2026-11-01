@@ -1,4 +1,4 @@
-import type { SpaceState } from "./space-civilisation";
+import { recordSpaceChronicle, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 
 export type HavenCollectiveRead = {
   identity: string;
@@ -8,6 +8,8 @@ export type HavenCollectiveRead = {
   rationale: string;
   voices: { name: string; position: string; influence: number }[];
   opportunities: { title: string; detail: string; target: string }[];
+  reportedCount: number;
+  ratifiedWorld: string | null;
 };
 
 const clamp = (n: number, min = 0, max = 100) => Math.max(min, Math.min(max, n));
@@ -45,35 +47,23 @@ export function readHavenCollective(state: SpaceState): HavenCollectiveRead {
     ...(solidarity > 52 ? ["Fair sharing of risk, supplies and opportunity"] : []),
     ...(autonomy > 52 ? ["Local choice and limits on central control"] : []),
   ].slice(0, 4);
-  const surveyed = Object.values(state.surveyRecords || {});
-  const candidates = [
-    { name: "Cobalt", score: 0, why: "A lower machinery threshold makes it a practical restoration candidate, but it is not yet habitable." },
-    { name: "Verdant", score: 0, why: "A living but reactive ecology offers research value and demands restraint." },
-    { name: "Aster", score: 0, why: "Mineral shelves and subsurface voids could support industry after further study." },
-    { name: "Frost", score: 0, why: "Water-bearing deposits may support long-term life-support systems, with substantial atmospheric work." },
-    { name: "Ember", score: 0, why: "Industrial potential is high, but heat and radiation make it a long-horizon choice." },
-  ];
-  for (const c of candidates) {
-    if (c.name === "Cobalt") c.score += 2 + (refuge > science ? 1 : 0);
-    if (c.name === "Verdant") c.score += (science > 0 ? 2 : 0) + (curiosity > 55 ? 1 : 0);
-    if (c.name === "Aster") c.score += (people.some(p => p.skills.engineering > 24) ? 2 : 0);
-    if (c.name === "Frost") c.score += (people.some(p => p.skills.medicine > 24) ? 2 : 0);
-    if (c.name === "Ember") c.score += (people.some(p => p.skills.engineering > 32) ? 1 : 0);
-  }
-  const surveyIntel = surveyed.map(record => ({
-    name: record.revealedName,
-    score: (record.classification === "naturally-habitable" ? 8 : record.classification === "near-zero-unsafe" ? 3 : 1)
-      + (record.meteorExposure === "safe" ? 2 : 0)
-      + (/water|ice/i.test(record.resources) ? 2 : 0)
-      + (/breathable/i.test(record.atmosphere) ? 2 : 0),
-    why: record.revealedName + " has verified survey data: " + record.atmosphere + "; " + record.resources + "."
-  }));
+  const reportedIds = new Set(state.reportedSurveyWorlds || []);
+  const surveyed = Object.values(state.surveyRecords || {}).filter(record => reportedIds.has(record.worldId));
+  const candidates = WORLD_PLANETS.map(planet => {
+    const ecology = state.ecology?.[planet.name];
+    let score = 0;
+    if (planet.name === "Cobalt") score += refuge > science ? 3 : 1;
+    if (planet.name === "Verdant") score += science * .08 + curiosity * .025 + (ecology ? ecology.biodiversity * .025 : 0);
+    if (planet.name === "Aster") score += people.reduce((sum, person) => sum + person.skills.engineering, 0) / Math.max(1, people.length) * .06;
+    if (planet.name === "Frost") score += people.reduce((sum, person) => sum + person.skills.medicine + person.skills.logistics, 0) / Math.max(1, people.length) * .035;
+    if (planet.name === "Ember") score += people.reduce((sum, person) => sum + person.skills.engineering, 0) / Math.max(1, people.length) * .04;
+    score += solidarity * .012 - autonomy * .004 - planet.colonyMachineRequirement * .35;
+    const character = planet.name === "Verdant" ? "Its reactive biosphere calls for ecological caution." : planet.name === "Frost" ? "Its buried water may support future life-support systems." : planet.name === "Ember" ? "Its heat and radiation demand a long-horizon industrial plan." : planet.name === "Aster" ? "Its mineral shelves favour engineering and materials work." : "Its lower machinery threshold makes it a practical early restoration candidate.";
+    return { name: planet.name, score, why: planet.name + " requires " + planet.colonyMachineRequirement + " machines. " + character };
+  });
   const bestCore = candidates.slice().sort((a, b) => b.score - a.score)[0];
-  const bestSurvey = surveyIntel.sort((a, b) => b.score - a.score)[0];
-  const recommendation = bestSurvey && bestSurvey.score > bestCore.score ? bestSurvey.name : bestCore.name;
-  const rationale = bestSurvey && bestSurvey.score > bestCore.score
-    ? bestSurvey.why + " The population wants this evidence reviewed before committing the founding crew."
-    : bestCore.why + " This is a provisional recommendation, not an automatic settlement order.";
+  const recommendation = bestCore.name;
+  const rationale = bestCore.why + (surveyed.length ? " The council has received " + surveyed.length + " verified field report(s), including " + surveyed.map(record => record.revealedName).slice(0, 3).join(", ") + ". The evidence informs its caution and priorities." : " No field reports have yet been presented. The council view remains provisional until the pilot returns with evidence.");
   const voices = networks.slice(0, 3).map(network => ({
     name: network.name,
     position: network.agenda + " " + network.pressurePoint,
@@ -82,7 +72,8 @@ export function readHavenCollective(state: SpaceState): HavenCollectiveRead {
   const opportunities: HavenCollectiveRead["opportunities"] = [];
   const undiscovered = (state.discoveredWorlds || []).length;
   if (undiscovered < 15) opportunities.push({ title: "Survey another unknown world", detail: "Bring Haven verified atmosphere, resource and hazard readings before the settlement debate advances.", target: "Deep-space survey" });
-  if (surveyed.length) opportunities.push({ title: "Present the latest survey evidence", detail: "Haven's networks can weigh the recorded findings against their priorities. The recommendation changes as evidence and population needs change.", target: bestSurvey?.name || "Haven" });
+  if ((state.pendingSurveyReports || []).length) opportunities.push({ title: "Return and present field reports", detail: "Survey data is aboard the ship. Dock at Haven so the founding networks can examine the evidence.", target: "GGL Haven" });
+  else if (surveyed.length) opportunities.push({ title: "Deliberate on the first settlement", detail: "The founding networks have received the field reports. Their provisional recommendation can now be ratified or challenged.", target: "GGL Haven" });
   if (state.machineInventory < 3) opportunities.push({ title: "Secure restoration capacity", detail: "The first settlement will consume finite machinery. Recover modules or develop Haven's material supply before promising a launch.", target: "GGL Haven" });
   if (state.havenPopulation > 0) opportunities.push({ title: "Listen to the founding households", detail: "People with different motivations, skills and relationships will not all support the same destination or risk.", target: "GGL Haven" });
   return {
@@ -93,5 +84,32 @@ export function readHavenCollective(state: SpaceState): HavenCollectiveRead {
     rationale,
     voices,
     opportunities,
+    reportedCount: surveyed.length,
+    ratifiedWorld: state.havenSettlementWorld || null,
   };
+/** Player arguments change the council balance; they never bypass evidence or commit a settlement. */
+export function influenceHavenCouncil(state: SpaceState, stance: "care" | "science" | "industry"): boolean {
+  if (!(state.reportedSurveyWorlds || []).length || state.havenSettlementWorld) return false;
+  const delta = stance === "care" ? 1 : stance === "industry" ? -1 : 0;
+  state.havenCouncilSupport = Math.max(-3, Math.min(3, (state.havenCouncilSupport || 0) + delta));
+  const message = stance === "care" ? "The pilot argued that the first settlement must protect families and preserve a reliable reserve." : stance === "industry" ? "The pilot argued for a destination where engineering and production can build long-term independence." : "The pilot asked the council to keep its decision grounded in survey evidence and scientific uncertainty.";
+  recordSpaceChronicle(state, "society", "GGL Haven", "Pilot addressed the founding networks", message + " Council balance: " + state.havenCouncilSupport + ".");
+  state.events.unshift("HAVEN COUNCIL: " + message);
+  state.events = state.events.slice(0, 6);
+  return true;
+}
+
+/** Ratification is an explicit Haven act and only follows a completed field debrief. */
+export function ratifyHavenSettlement(state: SpaceState): string | null {
+  if (!(state.reportedSurveyWorlds || []).length || state.havenSettlementWorld) return null;
+  const read = readHavenCollective(state);
+  const support = state.havenCouncilSupport || 0;
+  const preferred = support >= 2 ? "Verdant" : support <= -2 ? "Aster" : read.recommendation;
+  const chosen = WORLD_PLANETS.some(planet => planet.name === preferred) ? preferred : "Cobalt";
+  state.havenSettlementWorld = chosen;
+  recordSpaceChronicle(state, "society", "GGL Haven", "Haven ratified its first settlement destination", "After reviewing " + read.reportedCount + " verified field report(s), the founding networks committed to " + chosen + ". The pilot council influence was " + support + ".");
+  state.events.unshift("HAVEN DECISION: " + chosen + " is the first settlement destination. The pilot can coordinate finite machinery and founding crew.");
+  state.events = state.events.slice(0, 6);
+  return chosen;
+}
 }

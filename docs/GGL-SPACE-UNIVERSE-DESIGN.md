@@ -261,3 +261,14 @@ Mission offers should vary: survey follow-ups, evidence verification, resource r
 - QA the full journey end-to-end: new pilot name → founding setup → flight → scan worlds across all four quadrants → return/report → Haven response and disagreement → settlement decision → people/equipment delivery → first colony → emergent mission opportunities → save/reload/continue.
 - Regression-test manual save, autosave, offline-time rules, cancel/restart protection, the mobile layout and all existing ship controls.
 - Keep the code changes additive and preserve the latest accepted playable flight baseline. Do not declare this milestone QA-ready until the exact commit's deployment is READY and the journey above can be exercised on that deployment.
+
+
+## 13. Playable Haven debrief and first-settlement council
+
+The first playable social loop uses a ship-carried intelligence model. A successful close-range scan records the world and stores its report as pending field intelligence. The player must return and dock at GGL Haven before the report is presented to the founding population. The debrief is persistent and recorded in the civilisation chronicle.
+
+Haven's recommendation is recalculated from the living Haven population (motivations, traits and skills), its five emergent founding networks, current supplies and reports physically delivered. The pilot can make a short argument for family safety, evidence-led research or engineering/industry. That argument is persisted and influences the first destination vote. Ratification is a separate explicit action at Haven. The first founding crew cannot be delivered before ratification and must be delivered to the selected world.
+
+After settlement, each existing core colony derives a readable collective identity, production focus and local customs from its actual residents and ecology. The mission panel surfaces a local situation from the weakest average resident need or high maintenance load. These summaries are readable signals from the simulation, not fixed authored personalities.
+
+**Scope boundary:** the 15 additional bodies are progressively surveyable and their reports can inform Haven, but they are not yet full restoration/settlement worlds. The five established core worlds remain the current deployable ecology worlds. Do not present the broader micro-civilisation, all-20-world settlement, advanced NPC relationship or full mission-completion roadmap as finished. Save migration preserves existing survey discoveries and population/colony records.

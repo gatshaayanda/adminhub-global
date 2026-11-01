@@ -1007,6 +1007,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                 </div>
               </article>)}
               {(world.colonyMissions || []).filter(item => item.status === "resolved").slice(-3).reverse().map(item => <article className="space-menu-active-mission space-colony-mission-resolved" key={item.id}><span>RESOLVED · {item.relation.toUpperCase()}</span><strong>{item.title}</strong><p>{item.outcome}</p></article>)}
+              {!(world.colonyMissions || []).some(item => item.status === "open") && Object.keys(world.colonies || {}).length > 0 && <article className="space-menu-active-mission space-colony-mission-waiting"><span>COLONY NETWORK MONITOR</span><strong>Listening for settlement transmissions</strong><p>Each settlement can raise its own request once it has at least four residents and roughly two simulated system days have passed since founding or its last response. Keep the simulation moving; new requests will appear here and in the flight alert.</p></article>}
               {latestWorldEvent && <article className="space-menu-active-mission space-cipa-latest-brief">
                 <span>{missionInboxUnread ? "NEW CIPA BRIEF" : "LATEST CIPA BRIEF"}</span>
                 <strong>{latestWorldEvent}</strong>

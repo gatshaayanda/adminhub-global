@@ -599,12 +599,27 @@ export type FirstFootholdCue = {
 };
 
 export function getFirstFootholdCue(state: SpaceState): FirstFootholdCue {
-  // Cobalt remains the suggested first foothold because its three-machine requirement is the lowest practical entry point. Every world begins at 0% restoration; their environmental identities and machine requirements remain distinct.
-  const candidate = !state.colonies.Cobalt
-    ? WORLD_PLANETS.find((planet) => planet.name === "Cobalt")
-    : WORLD_PLANETS
-      .filter((planet) => !state.colonies[planet.name])
-      .sort((a, b) => (state.planetProgress[b.name] ?? b.initialProgress) - (state.planetProgress[a.name] ?? a.initialProgress))[0];
+  if (!Object.keys(state.colonies || {}).length && !state.havenSettlementWorld) {
+    if ((state.pendingSurveyReports || []).length) return {
+      target: "GGL Haven", step: 1, title: "Return with your field intelligence",
+      detail: (state.pendingSurveyReports || []).length + " survey report(s) are aboard the ship. Dock at Haven and present them to the founding networks before the first settlement can be chosen.",
+      action: "Return to Haven and debrief", progress: 55,
+    };
+    if (!(state.reportedSurveyWorlds || []).length) return {
+      target: state.selectedSurveyTarget || "GGL Haven", step: 1, title: "Explore before choosing a home",
+      detail: "The founding population is waiting for evidence. Survey at least one of the 15 unmapped worlds, then return to Haven; its people will weigh the findings against their own priorities.",
+      action: "Survey an unknown world", progress: 18,
+    };
+    return {
+      target: "GGL Haven", step: 1, title: "Haven is deliberating",
+      detail: "The field reports have been presented. Open Mission Control while docked at Haven to hear the networks, influence the debate and ratify the first settlement destination.",
+      action: "Open Haven council", progress: 72,
+    };
+  }
+  // The first destination is selected by Haven after a field debrief; subsequent footholds retain the established expansion flow.
+  const candidate = state.havenSettlementWorld && !state.colonies[state.havenSettlementWorld]
+    ? WORLD_PLANETS.find(planet => planet.name === state.havenSettlementWorld)
+    : WORLD_PLANETS.filter(planet => !state.colonies[planet.name]).sort((a, b) => (state.planetProgress[b.name] ?? b.initialProgress) - (state.planetProgress[a.name] ?? a.initialProgress))[0];
 
   if (!candidate) {
     return {

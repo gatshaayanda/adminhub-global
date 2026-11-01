@@ -352,7 +352,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setPhase("ready");
     setSceneGeneration((generation) => generation + 1);
     setChronicleMenuOpen(false);
-    setShipManifestOpen(false);
     setProximityMenuOpen(false);
     setTransferSignal(null);
     if (transferTimer.current) clearTimeout(transferTimer.current);

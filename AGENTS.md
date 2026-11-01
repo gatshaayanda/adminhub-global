@@ -1574,3 +1574,13 @@ This section supersedes the earlier statement that the /ggltournaments/solar-sys
 - Theory covers vertical thrust, firing, NOS and safe approach/docking. Passing theory alone does not issue the operational licence; it is earned after the first populated planet.
 - Operational licence renewal costs 100 in-game credits for 30 system days and is performed at GGL Haven. Mission rewards and populated-planet income fund the pilot account.
 - Career ranks reflect both time in service and verified accomplishments. Do not replace this with a simple leaderboard or a score that ignores missions and outcomes.
+
+
+## GGL Space — pilot and civilisation start-flow protection (2026-11-01)
+
+- First-time/new-civilisation sequence: register pilot name; explicitly confirm the canonical population source (OG Haven's original 60 named founders, 20 households, five emergent networks, 12 finite machines and 12 stored materials); select up to three founding circumstances or load an archived founding profile; then explicitly start.
+- Do not invent alternate population origins or import extra people into the initial population. All future colonies descend from OG Haven through gameplay. Archived profiles change circumstances, not the identity/count of the original 60.
+- Pilot identity is separate from civilisation identity. Ask for the pilot name before first start and whenever a new pilot/career is created. Never hide required registration in a collapsed ship manifest. Returning pilots with saved names are not asked again.
+- Continue restores the existing autosave and ship, then waits at READY. Manual load restores the chosen save and its pilot. A missing legacy name may be collected without resetting the saved civilisation.
+- New Civilisation/Restart is staged and non-destructive: preserve current autosave/manual save while the player registers and selects origins. Only the final explicit create action may replace active autosave. Cancel preserves the prior run and resumes it if it was running.
+- QA first start, continue autosave, manual load, restart/create and cancellation midway. Verify pilot identity/career persistence, exactly 60 founders and approved finite resources, and no overwrite on cancel.

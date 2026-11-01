@@ -71,6 +71,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [chronicleMenuOpen, setChronicleMenuOpen] = useState(false);
   const [spaceMenuTab, setSpaceMenuTab] = useState<"chronicle" | "system" | "missions">("chronicle");
   const [foundingSetupOpen, setFoundingSetupOpen] = useState(false);
+  const [pilotSetupOpen, setPilotSetupOpen] = useState(false);
+  const [pilotSetupName, setPilotSetupName] = useState("");
+  const [populationSourceConfirmed, setPopulationSourceConfirmed] = useState(false);
   const [foundingCategory, setFoundingCategory] = useState<"beneficial" | "harmful" | "mixed" | "neutral">("beneficial");
   const [selectedFoundingIds, setSelectedFoundingIds] = useState<string[]>([]);
   const [foundingArchive, setFoundingArchive] = useState<FoundingArchiveEntry[]>([]);
@@ -86,6 +89,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const autoSnapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_AUTOSAVE_KEY));
       if (autoSnapshot) {
         setFoundingSetupOpen(false);
+        setPopulationSourceConfirmed(true);
+        setPilotSetupName(autoSnapshot.world.pilotName || "");
+        setPilotSetupOpen(!autoSnapshot.world.pilotName?.trim());
         const savedIds = autoSnapshot.world.population?.foundingProfile?.circumstanceIds;
         if (Array.isArray(savedIds) && savedIds.length) setSelectedFoundingIds(savedIds.slice(0,3));
         // Restore the last world, applying offline time only when the previous
@@ -97,13 +103,23 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         setPhase("ready");
       } else {
         const legacy = window.localStorage.getItem(SPACE_SAVE_KEY);
-        if (legacy) { spaceStateRef.current = restoreSpaceState(JSON.parse(legacy), now); setFoundingSetupOpen(false); }
-        else { spaceStateRef.current = createInitialSpaceState(now, selectedFoundingIds); setFoundingSetupOpen(true); }
+        if (legacy) {
+          const restored = restoreSpaceState(JSON.parse(legacy), now);
+          spaceStateRef.current = restored;
+          setFoundingSetupOpen(false); setPopulationSourceConfirmed(true);
+          setPilotSetupName(restored.pilotName || ""); setPilotSetupOpen(!restored.pilotName?.trim());
+        } else {
+          spaceStateRef.current = createInitialSpaceState(now, selectedFoundingIds);
+          setFoundingSetupOpen(true); setPopulationSourceConfirmed(false);
+          setPilotSetupName(""); setPilotSetupOpen(true);
+        }
       }
       setManualSaveAvailable(Boolean(parseGameSnapshot(window.localStorage.getItem(SPACE_MANUAL_SAVE_KEY))));
     } catch {
       spaceStateRef.current = createInitialSpaceState(now);
       raceRef.current = newRace();
+      setFoundingSetupOpen(true); setPopulationSourceConfirmed(false);
+      setPilotSetupName(""); setPilotSetupOpen(true);
       phaseRef.current = "ready";
       setPhase("ready");
       setManualSaveAvailable(false);
@@ -239,9 +255,32 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     if (category) setFoundingCategory(category);
     notify("Archived founding circumstances loaded into the setup.");
   };
+  const continuePilotSetup = () => {
+    const name = pilotSetupName.trim().slice(0, 28);
+    if (!name) { notify("Enter your pilot name to continue.", "error"); return; }
+    // A staged new-civilisation flow must not mutate the currently saved run.
+    // Only a returning legacy save receives the newly supplied missing pilot name here.
+    if (!showRestartConfirm && !foundingSetupOpen) {
+      spaceStateRef.current.pilotName = name;
+      writeAutoSnapshot();
+    }
+    setPilotSetupName(name); setPilotSetupOpen(false);
+    setSpaceUiTick(n => n + 1);
+  };
+  const beginNewCivilisation = () => {
+    restartWasRunningRef.current = false; setShowRestartConfirm(true);
+    setPilotSetupName(""); setPilotSetupOpen(true);
+    setPopulationSourceConfirmed(false); setFoundingSetupOpen(true);
+    const ids = (spaceStateRef.current.population?.foundingProfile?.circumstanceIds || DEFAULT_FOUNDING_IDS).slice(0,3);
+    setSelectedFoundingIds(ids); setFoundingCategory(getCircumstance(ids[0])?.category || "neutral");
+  };
   const startGame = () => {
+    if (pilotSetupOpen) { notify("Complete pilot registration before starting.", "error"); return; }
+    if (foundingSetupOpen && !populationSourceConfirmed) { notify("Confirm the Haven founding population before continuing.", "error"); return; }
+    if (!pilotSetupName.trim() && !spaceStateRef.current.pilotName?.trim()) { setPilotSetupOpen(true); notify("Register your pilot before starting.", "error"); return; }
     if (foundingSetupOpen) {
       const freshWorld = createInitialSpaceState(Date.now(), selectedFoundingIds);
+      freshWorld.pilotName = pilotSetupName.trim().slice(0, 28);
       spaceStateRef.current = freshWorld;
       lastProcessedWorldMinutesRef.current = 0;
       raceRef.current = newRace();
@@ -283,7 +322,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     const restoredWorld = restoreSpaceState(snapshot.world, snapshot.paused ? snapshot.world.lastSimulatedAt : Date.now());
     const restoredRace = { ...snapshot.flight, last: 0 };
     spaceStateRef.current = restoredWorld;
-    setFoundingSetupOpen(false);
+    setFoundingSetupOpen(false); setPopulationSourceConfirmed(true);
+    setPilotSetupName(restoredWorld.pilotName || ""); setPilotSetupOpen(!restoredWorld.pilotName?.trim());
     const restoredIds = restoredWorld.population?.foundingProfile?.circumstanceIds;
     if (Array.isArray(restoredIds) && restoredIds.length) setSelectedFoundingIds(restoredIds.slice(0,3));
     raceRef.current = restoredRace;
@@ -298,10 +338,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     notify("Manual save loaded. The saved ship position and civilisation are restored.");
   };
   const restartCivilisation = () => {
+    const pilotName = pilotSetupName.trim().slice(0, 28);
+    if (!pilotName || selectedFoundingIds.length === 0 || !populationSourceConfirmed) { notify("Complete pilot registration and founding choices before creating the civilisation.", "error"); return; }
     const freshWorld = createInitialSpaceState(Date.now(), selectedFoundingIds);
+    freshWorld.pilotName = pilotName;
     spaceStateRef.current = freshWorld;
     lastProcessedWorldMinutesRef.current = freshWorld.worldTimeMinutes;
-    reset();
+    raceRef.current = newRace(); neutralControls();
+    setSpeed(0); setLapTime(0); setNos(100); setBoostActive(false);
     phaseRef.current = "ready";
     setPhase("ready");
     setSceneGeneration((generation) => generation + 1);
@@ -311,7 +355,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setTransferSignal(null);
     if (transferTimer.current) clearTimeout(transferTimer.current);
     setShowRestartConfirm(false);
-    setFoundingSetupOpen(false);
+    setFoundingSetupOpen(false); setPilotSetupOpen(false); setPopulationSourceConfirmed(false);
+    setPilotSetupName(pilotName);
     archiveFoundingChoice(selectedFoundingIds);
     try {
       const snapshot: SpaceGameSnapshot = { version: 1, savedAt: Date.now(), world: freshWorld, flight: { ...raceRef.current, last: 0 }, paused: true };
@@ -323,15 +368,14 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   };
   const requestRestartCivilisation = () => {
     restartWasRunningRef.current = phaseRef.current === "running";
-    if (restartWasRunningRef.current) {
-      neutralControls();
-      phaseRef.current = "paused";
-      setPhase("paused");
-    }
+    if (restartWasRunningRef.current) { neutralControls(); phaseRef.current = "paused"; setPhase("paused"); }
+    setPilotSetupName(""); setPilotSetupOpen(true); setPopulationSourceConfirmed(false); setFoundingSetupOpen(true);
+    const ids = (spaceStateRef.current.population?.foundingProfile?.circumstanceIds || DEFAULT_FOUNDING_IDS).slice(0,3);
+    setSelectedFoundingIds(ids); setFoundingCategory(getCircumstance(ids[0])?.category || "neutral");
     setShowRestartConfirm(true);
   };
   const cancelRestartCivilisation = () => {
-    setShowRestartConfirm(false);
+    setShowRestartConfirm(false); setPilotSetupOpen(false); setFoundingSetupOpen(false); setPopulationSourceConfirmed(false);
     if (restartWasRunningRef.current) {
       raceRef.current.last = 0;
       phaseRef.current = "running";
@@ -785,38 +829,38 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       <div className="warmup-hud warmup-circuit-hud"><div><span>Speed</span><strong>{Math.round(speed)} <small>km/h</small></strong></div><div><span>Flight</span><strong>Free roam</strong></div><div><span>Flight time</span><strong>{fmt(lapTime)}</strong></div><div><span>Worlds surveyed</span><strong>{5 + (world.discoveredWorlds?.length || 0)} / 20</strong></div></div>
       <div className="warmup-canvas-wrap warmup-circuit-wrap">
         <Racing3DScene key={sceneGeneration} raceRef={raceRef} controlsRef={controlsRef} phaseRef={phaseRef} spaceStateRef={spaceStateRef} />
-        {(phase === "ready" || phase === "paused" || showRestartConfirm) && <div className="space-lifecycle-overlay" role="dialog" aria-modal="true" aria-labelledby="space-lifecycle-title">
+        {(phase === "ready" || phase === "paused" || showRestartConfirm || pilotSetupOpen || foundingSetupOpen) && <div className="space-lifecycle-overlay" role="dialog" aria-modal="true" aria-labelledby="space-lifecycle-title">
           <div className="space-lifecycle-card">
             <span className="space-lifecycle-brand">ADMIN HUB CIPA · FLIGHT SYSTEM</span>
             {showRestartConfirm ? <>
-              <h2 id="space-lifecycle-title">DESIGN A NEW CIVILISATION</h2>
-              <div className="space-founding-setup">
-                <p className="space-founding-intro">Choose up to three circumstances that brought the original 60 founders to Haven. These are starting conditions, not predetermined factions. The population, its five networks and their tensions are derived from your choices.</p>
-                <div className="space-founding-categories">{FOUNDING_CATEGORIES.map(category => <button type="button" key={category.id} className={foundingCategory === category.id ? "is-active" : ""} onClick={() => setFoundingCategory(category.id)}>{category.label}</button>)}</div>
-                <small>{FOUNDING_CATEGORIES.find(item => item.id === foundingCategory)?.description}</small>
-                <div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item => item.category === foundingCategory).map(item => <button type="button" key={item.id} className={selectedFoundingIds.includes(item.id) ? "is-selected" : ""} onClick={() => toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}<br /><b>Founder experience:</b> {item.livedExperience}<br /><b>Likely tension:</b> {item.likelyTensions}</span><em>{selectedFoundingIds.includes(item.id) ? "SELECTED" : "ADD TO ORIGIN"}</em></button>)}</div>
-                <small>{selectedFoundingIds.length}/3 selected · Select circumstances across categories to create a mixed beginning.</small><button type="button" className="space-founding-archive-action" onClick={() => archiveFoundingChoice(selectedFoundingIds)} disabled={selectedFoundingIds.length === 0}>ARCHIVE THIS ORIGIN</button>
-                {foundingArchive.length > 0 && <div className="space-founding-archive"><strong>ARCHIVED FOUNDING PROFILES</strong>{foundingArchive.map(entry => <button type="button" key={entry.id} onClick={() => loadFoundingArchive(entry)}>{entry.title} <span>LOAD</span></button>)}</div>}
-              </div>
-              <div className="space-lifecycle-actions">
-                <button type="button" className="space-lifecycle-secondary" onClick={cancelRestartCivilisation}>KEEP CURRENT RUN</button>
-                <button type="button" className="space-lifecycle-primary" onClick={restartCivilisation} disabled={selectedFoundingIds.length === 0}>CREATE CIVILISATION</button>
-              </div>
+              {pilotSetupOpen ? <>
+                <h2 id="space-lifecycle-title">REGISTER YOUR PILOT</h2>
+                <div className="space-founding-setup space-pilot-registration"><p className="space-founding-intro">Your pilot name belongs to your flight licence and career record, not to the civilisation.</p><label>PILOT NAME<input autoComplete="name" maxLength={28} value={pilotSetupName} placeholder="Enter your pilot name" onChange={event => setPilotSetupName(event.target.value.slice(0,28))}/></label></div>
+                <div className="space-lifecycle-actions"><button type="button" className="space-lifecycle-secondary" onClick={cancelRestartCivilisation}>KEEP CURRENT RUN</button><button type="button" className="space-lifecycle-primary" onClick={continuePilotSetup} disabled={!pilotSetupName.trim()}>CONTINUE ▶</button></div>
+              </> : !populationSourceConfirmed ? <>
+                <h2 id="space-lifecycle-title">CHOOSE YOUR POPULATION SOURCE</h2>
+                <div className="space-founding-setup"><p className="space-founding-intro">Every new civilisation begins at OG Haven with its original 60 founding people. Every future colony descends from them through your decisions.</p><div className="space-founding-cards"><div className="is-selected"><strong>OG HAVEN · ORIGINAL 60</strong><small>CANONICAL FOUNDING POPULATION</small><span>60 named people, 20 households, five emergent networks, 12 finite machines and 12 stored materials. No imported or invented starting population.</span><em>SELECTED SOURCE</em></div></div></div>
+                <div className="space-lifecycle-actions"><button type="button" className="space-lifecycle-secondary" onClick={() => setPilotSetupOpen(true)}>BACK</button><button type="button" className="space-lifecycle-secondary" onClick={cancelRestartCivilisation}>KEEP CURRENT RUN</button><button type="button" className="space-lifecycle-primary" onClick={() => setPopulationSourceConfirmed(true)}>CONTINUE ▶</button></div>
+              </> : <>
+                <h2 id="space-lifecycle-title">DESIGN A NEW CIVILISATION</h2>
+                <div className="space-founding-setup"><p className="space-founding-intro">Choose up to three circumstances that brought the original 60 founders to Haven. These shape their experiences and the five networks that emerge; they do not predetermine factions.</p>
+                <div className="space-founding-categories">{FOUNDING_CATEGORIES.map(category => <button type="button" key={category.id} className={foundingCategory === category.id ? "is-active" : ""} onClick={() => setFoundingCategory(category.id)}>{category.label}</button>)}</div><small>{FOUNDING_CATEGORIES.find(item => item.id === foundingCategory)?.description}</small>
+                <div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item => item.category === foundingCategory).map(item => <button type="button" key={item.id} className={selectedFoundingIds.includes(item.id) ? "is-selected" : ""} onClick={() => toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}<br/><b>Founder experience:</b> {item.livedExperience}<br/><b>Likely tension:</b> {item.likelyTensions}</span><em>{selectedFoundingIds.includes(item.id) ? "SELECTED" : "ADD TO ORIGIN"}</em></button>)}</div>
+                <small>{selectedFoundingIds.length}/3 selected · Select up to three circumstances.</small>{foundingArchive.length>0 && <div className="space-founding-archive"><strong>ARCHIVED FOUNDING PROFILES</strong>{foundingArchive.map(entry=><button type="button" key={entry.id} onClick={()=>loadFoundingArchive(entry)}>{entry.title} <span>LOAD</span></button>)}</div>}</div>
+                <div className="space-lifecycle-actions"><button type="button" className="space-lifecycle-secondary" onClick={()=>setPopulationSourceConfirmed(false)}>BACK</button><button type="button" className="space-lifecycle-secondary" onClick={cancelRestartCivilisation}>KEEP CURRENT RUN</button><button type="button" className="space-lifecycle-primary" onClick={restartCivilisation} disabled={!selectedFoundingIds.length}>CREATE CIVILISATION ▶</button></div>
+              </>}
             </> : phase === "ready" ? <>
-              <h2 id="space-lifecycle-title">{foundingSetupOpen ? "WHO CAME TO HAVEN?" : "GGL HAVEN AWAITS"}</h2>
-              {foundingSetupOpen ? <div className="space-founding-setup">
-                <p className="space-founding-intro">Choose up to three circumstances that brought the original 60 founders to Haven. These are starting conditions, not predetermined factions. The population, its five networks and their tensions are derived from your choices.</p>
-                <div className="space-founding-categories">{FOUNDING_CATEGORIES.map(category => <button type="button" key={category.id} className={foundingCategory === category.id ? "is-active" : ""} onClick={() => setFoundingCategory(category.id)}>{category.label}</button>)}</div>
-                <small>{FOUNDING_CATEGORIES.find(item => item.id === foundingCategory)?.description}</small>
-                <div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item => item.category === foundingCategory).map(item => <button type="button" key={item.id} className={selectedFoundingIds.includes(item.id) ? "is-selected" : ""} onClick={() => toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}<br /><b>Founder experience:</b> {item.livedExperience}<br /><b>Likely tension:</b> {item.likelyTensions}</span><em>{selectedFoundingIds.includes(item.id) ? "SELECTED" : "ADD TO ORIGIN"}</em></button>)}</div>
-                <small>{selectedFoundingIds.length}/3 selected · Select circumstances across categories to create a mixed beginning.</small>
-                {foundingArchive.length > 0 && <div className="space-founding-archive"><strong>ARCHIVED FOUNDING PROFILES</strong>{foundingArchive.map(entry => <button type="button" key={entry.id} onClick={() => loadFoundingArchive(entry)}>{entry.title} <span>LOAD</span></button>)}</div>}
-              </div> : <p>Your saved civilisation is ready. Resume the current run or create a new founding history. Saved profiles remain available in the archive.</p>}
-              <div className="space-lifecycle-actions">
-                <button type="button" className="space-lifecycle-primary" onClick={foundingSetupOpen ? startGame : startGame} disabled={foundingSetupOpen && selectedFoundingIds.length === 0}>{foundingSetupOpen ? "START NEW CIVILISATION ▶" : "START GAME ▶"}</button>
-                {!foundingSetupOpen && <button type="button" className="space-lifecycle-secondary" onClick={() => { const ids = world.population?.foundingProfile?.circumstanceIds || DEFAULT_FOUNDING_IDS; setSelectedFoundingIds(ids); setFoundingCategory(getCircumstance(ids[0])?.category || "neutral"); setFoundingSetupOpen(true); }}>NEW CIVILISATION</button>}
-                <button type="button" className="space-lifecycle-secondary" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVED GAME</button>
-              </div>
+              {pilotSetupOpen ? <>
+                <h2 id="space-lifecycle-title">REGISTER YOUR PILOT</h2><div className="space-founding-setup space-pilot-registration"><p className="space-founding-intro">Your pilot identity is recorded on your flight licence and career history. It does not name or own the civilisation.</p><label>PILOT NAME<input autoComplete="name" maxLength={28} value={pilotSetupName} placeholder="Enter your pilot name" onChange={event=>setPilotSetupName(event.target.value.slice(0,28))}/></label></div>
+                <div className="space-lifecycle-actions"><button type="button" className="space-lifecycle-primary" onClick={continuePilotSetup} disabled={!pilotSetupName.trim()}>CONTINUE ▶</button></div>
+              </> : foundingSetupOpen && !populationSourceConfirmed ? <>
+                <h2 id="space-lifecycle-title">CHOOSE YOUR POPULATION SOURCE</h2><div className="space-founding-setup"><p className="space-founding-intro">Every new civilisation begins at OG Haven with its original 60 founding people. Every future colony descends from them through your decisions.</p><div className="space-founding-cards"><div className="is-selected"><strong>OG HAVEN · ORIGINAL 60</strong><small>CANONICAL FOUNDING POPULATION</small><span>60 named people, 20 households, five emergent networks, 12 finite machines and 12 stored materials.</span><em>SELECTED SOURCE</em></div></div></div><div className="space-lifecycle-actions"><button type="button" className="space-lifecycle-primary" onClick={()=>setPopulationSourceConfirmed(true)}>CONTINUE TO FOUNDING HISTORY ▶</button></div>
+              </> : foundingSetupOpen ? <>
+                <h2 id="space-lifecycle-title">WHO CAME TO HAVEN?</h2><div className="space-founding-setup"><p className="space-founding-intro">Choose up to three circumstances that brought the original 60 founders to Haven. These shape their experiences and the five networks that emerge; they do not predetermine factions.</p><div className="space-founding-categories">{FOUNDING_CATEGORIES.map(category=><button type="button" key={category.id} className={foundingCategory===category.id?"is-active":""} onClick={()=>setFoundingCategory(category.id)}>{category.label}</button>)}</div><small>{FOUNDING_CATEGORIES.find(item=>item.id===foundingCategory)?.description}</small><div className="space-founding-cards">{FOUNDING_CIRCUMSTANCES.filter(item=>item.category===foundingCategory).map(item=><button type="button" key={item.id} className={selectedFoundingIds.includes(item.id)?"is-selected":""} onClick={()=>toggleFoundingChoice(item.id)}><strong>{item.title}</strong><small>{item.period}</small><span>{item.summary}<br/><b>Founder experience:</b> {item.livedExperience}<br/><b>Likely tension:</b> {item.likelyTensions}</span><em>{selectedFoundingIds.includes(item.id)?"SELECTED":"ADD TO ORIGIN"}</em></button>)}</div><small>{selectedFoundingIds.length}/3 selected · Select up to three circumstances.</small>{foundingArchive.length>0&&<div className="space-founding-archive"><strong>ARCHIVED FOUNDING PROFILES</strong>{foundingArchive.map(entry=><button type="button" key={entry.id} onClick={()=>loadFoundingArchive(entry)}>{entry.title} <span>LOAD</span></button>)}</div>}</div>
+                <div className="space-lifecycle-actions"><button type="button" className="space-lifecycle-secondary" onClick={()=>setPopulationSourceConfirmed(false)}>BACK</button><button type="button" className="space-lifecycle-primary" onClick={startGame} disabled={!selectedFoundingIds.length}>START NEW CIVILISATION ▶</button></div>
+              </> : <>
+                <h2 id="space-lifecycle-title">GGL HAVEN AWAITS</h2><p>Your saved civilisation is ready. Continue from your last position, load your manual save, or create a new founding history. Your pilot and population records are preserved.</p><div className="space-lifecycle-actions"><button type="button" className="space-lifecycle-primary" onClick={startGame}>CONTINUE GAME ▶</button><button type="button" className="space-lifecycle-secondary" onClick={beginNewCivilisation}>NEW CIVILISATION</button><button type="button" className="space-lifecycle-secondary" onClick={loadManualGame} disabled={!manualSaveAvailable}>LOAD SAVED GAME</button></div>
+              </>}
             </> : <>
               <h2 id="space-lifecycle-title">PAUSED</h2>
               <p>Flight controls, world time and civilisation progression are on hold.</p>

@@ -441,7 +441,7 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
   // Each settlement develops its own diplomatic posture and periodically raises a grounded request.
   for (const [world, colony] of Object.entries(state.colonies)) {
     const previousRelation = colony.relation || "neutral";
-    const nextRelation: ColonyRelation = colony.trustWithHaven < 30 ? "conflict" : colony.trustWithHaven >= 68 ? "cooperative" : "neutral";
+    const nextRelation: ColonyRelation = colony.trustWithHaven < 30 || (colony.autonomy >= 70 && colony.trustWithHaven < 58) ? "conflict" : colony.trustWithHaven >= 68 && colony.autonomy < 78 ? "cooperative" : "neutral";
     colony.relation = nextRelation;
     if (previousRelation !== nextRelation) {
       const description = world + " is now on a " + nextRelation + " footing with Haven. Local trust is " + Math.round(colony.trustWithHaven) + "% and autonomy is " + Math.round(colony.autonomy) + "%.";
@@ -537,6 +537,7 @@ export function respondToColonyMission(state: SpaceState, missionId: string, cho
     if (ecology) ecology.maintenanceLoad = Math.max(0, ecology.maintenanceLoad - 3);
   }
   colony.lastContactWorldMinutes = state.worldTimeMinutes;
+  colony.lastMissionAtWorldMinutes = state.worldTimeMinutes;
   mission.status = "resolved";
   mission.outcome = choice === "support" ? "Haven committed one material unit to the settlement." : choice === "autonomy" ? "Haven recognised the settlement's right to make local decisions." : "Haven opened a negotiated exchange and shared responsibility.";
   const message = mission.world + " responded to your " + choice + " decision. Trust is " + Math.round(colony.trustWithHaven) + "% and local autonomy is " + Math.round(colony.autonomy) + "%.";

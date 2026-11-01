@@ -1296,3 +1296,16 @@
  .race-hub-embedded .space-chronicle-entry p{font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){.race-hub-embedded .space-mission-inbox-alert{transition:none}}
+
+
+/* CIPA is the single in-game console for inbox, ship manifest, system chart and history. */
+.race-hub-embedded .space-menu-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.race-hub-embedded .space-menu-tabs button{min-width:0;padding:7px 3px;font-size:8px;letter-spacing:.045em;white-space:nowrap}
+.race-hub-embedded .space-cipa-ship-panel{min-width:0}
+.race-hub-embedded .space-cipa-ship-manifest{display:grid;gap:9px;padding:10px;border-top:0}
+.race-hub-embedded .space-cipa-ship-manifest>div{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:6px;border-bottom:1px solid rgba(133,190,255,.12)}
+.race-hub-embedded .space-cipa-ship-manifest>div span{font-size:8px;line-height:1.35}
+.race-hub-embedded .space-cipa-ship-manifest>div b{font-size:12px;text-align:right}
+.race-hub-embedded .space-cipa-ship-manifest .space-people-roster{font-size:9px;line-height:1.5}
+.race-hub-embedded .space-cipa-ship-manifest .space-pilot-career{padding:8px;border:1px solid rgba(133,190,255,.2);border-radius:8px;background:rgba(2,11,25,.28)}
+@media(max-width:520px){.race-hub-embedded .space-menu-tabs{gap:3px}.race-hub-embedded .space-menu-tabs button{font-size:7px;padding:7px 2px}.race-hub-embedded .space-cipa-ship-manifest{padding:7px;gap:7px}}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, awardPilotCredits, updatePilotLicence, getPilotCareer, selectSpaceSurveyTarget, surveySpaceWorld, receiveSurveyReportsAtHaven, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, respondToColonyMission, awardPilotCredits, updatePilotLicence, getPilotCareer, selectSpaceSurveyTarget, surveySpaceWorld, receiveSurveyReportsAtHaven, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
@@ -70,7 +70,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
   const [manualSaveAvailable, setManualSaveAvailable] = useState(false);
   const [chronicleMenuOpen, setChronicleMenuOpen] = useState(false);
-  const [spaceMenuTab, setSpaceMenuTab] = useState<"chronicle" | "system" | "missions" | "ship">("missions");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [spaceMenuTab, setSpaceMenuTab] = useState<"system" | "missions" | "ship">("missions");
   const [foundingSetupOpen, setFoundingSetupOpen] = useState(false);
   const [pilotSetupOpen, setPilotSetupOpen] = useState(false);
   const [pilotSetupName, setPilotSetupName] = useState("");
@@ -750,7 +751,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
             state.colonies[target] = {
               population: moved, founders: moved, operators: Math.max(1, Math.floor(moved / 4)),
               foundedAtWorldMinutes: state.worldTimeMinutes, independent: false,
-              trustWithHaven: 70, autonomy: 15, governance: "provisional",
+              trustWithHaven: 70, autonomy: 15, governance: "provisional", relation: "cooperative", lastMissionAtWorldMinutes: state.worldTimeMinutes,
               lastContactWorldMinutes: state.worldTimeMinutes, factions: [],
             };
             state.colonyGrowthRemainders[target] = 0;
@@ -941,43 +942,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               <button type="button" role="tab" aria-selected={spaceMenuTab === "missions"} className={spaceMenuTab === "missions" ? "active" : ""} onClick={() => setSpaceMenuTab("missions")}>INBOX</button>
               <button type="button" role="tab" aria-selected={spaceMenuTab === "ship"} className={spaceMenuTab === "ship" ? "active" : ""} onClick={() => setSpaceMenuTab("ship")}>SHIP</button>
               <button type="button" role="tab" aria-selected={spaceMenuTab === "system"} className={spaceMenuTab === "system" ? "active" : ""} onClick={() => setSpaceMenuTab("system")}>SYSTEM</button>
-              <button type="button" role="tab" aria-selected={spaceMenuTab === "chronicle"} className={spaceMenuTab === "chronicle" ? "active" : ""} onClick={() => setSpaceMenuTab("chronicle")}>HISTORY</button>
             </div>
-            {spaceMenuTab === "chronicle" && <div className="space-menu-panel">
-              <div className="space-menu-panel-intro"><b>CIVILISATION HISTORY</b><span>{chronicleEvents.length} recorded events · newest first</span></div>
-              <div className="space-chronicle-timeline">
-                {recentChronicleEvents.map(event => {
-                  const surveyId = Object.entries(world.surveyRecords || {}).find(([, record]) => record.revealedName === event.location)?.[0];
-                  const eventTarget = WORLD_PLANETS.some(planet => planet.name === event.location) ? event.location : surveyId;
-                  return <article className="space-chronicle-entry" key={event.id}>
-                    <div className="space-chronicle-entry-meta"><span>{event.kind.toUpperCase()}</span><small>SYSTEM DAY {Math.floor(event.atWorldMinutes / 1440) + 1} · {String(Math.floor(event.atWorldMinutes / 60) % 24).padStart(2, "0")}:00</small></div>
-                    <strong>{event.title}</strong><p>{event.detail}</p>
-                    <div className="space-chronicle-entry-footer"><span>{event.location}</span>{eventTarget && <button type="button" onClick={() => setSystemCourse(eventTarget)}>SET COURSE ↗</button>}</div>
-                  </article>;
-                })}
-                {!recentChronicleEvents.length && <p className="space-menu-empty">Your civilisation's history will appear here as missions, discoveries and events occur.</p>}
-              </div>
-              <details className="space-chronicle-group">
-                <summary><span>THE FOUNDING NETWORKS</span><small>60 FOUNDERS · EMERGENT NETWORKS</small></summary>
-                <div className="space-chronicle-list">
-                  <small><strong>ORIGIN</strong><br />{world.population?.foundingProfile?.title || "Legacy founding profile"}<br />{world.population?.foundingProfile?.originSummary || "This saved civilisation predates the founding circumstance library."}<br /><b>Founding mix:</b> {world.population?.foundingProfile ? (Object.entries(world.population.foundingProfile.categoryMix).filter(([,count]) => count > 0).map(([category,count]) => category.toUpperCase() + " × " + count).join(" · ") || "LEGACY / UNATTRIBUTED") : "Legacy profile"}</small>
-                  {(world.population?.foundingNetworks || []).map(network => {
-                    const livingMembers = (world.population?.people || []).filter(person => person.alive && network.householdIds.includes(person.householdId)).length;
-                    const links = network.linkedNetworks.map(id => world.population?.foundingNetworks?.find(item => item.id === id)?.name).filter(Boolean);
-                    return <small key={network.id}><strong>{network.name}</strong> · {livingMembers} living members · {network.influence}% influence<br />{network.origin}<br /><b>Current agenda:</b> {network.agenda}<br /><b>Pressure point:</b> {network.pressurePoint}<br /><b>Connected with:</b> {links.join(" · ") || "Other Haven networks"}</small>;
-                  })}
-                </div>
-              </details>
-              {chronicleLocations.map(location => {
-                const events = chronicleEvents.filter(event => event.location === location).slice().reverse();
-                return <details className="space-chronicle-group" key={location}>
-                  <summary><span>{location === "GGL Haven" ? "HAVEN" : location.toUpperCase()}</span><small>{events.length} EVENTS</small></summary>
-                  <div className="space-chronicle-list">
-                    {events.length ? events.map(event => <small key={event.id}>T+{Math.floor(event.atWorldMinutes / 60)}h · <strong>{event.title}</strong> — {event.detail}</small>) : <small>History begins when people, equipment and events reach this location.</small>}
-                  </div>
-                </details>;
-              })}
-            </div>}
             {spaceMenuTab === "ship" && <div className="space-menu-panel space-cipa-ship-panel">
               <div className="space-menu-panel-intro"><b>SHIP MANIFEST & PILOT RECORD</b><span>Live cargo · crew · hull · career</span></div>
               <div className="space-ship-manifest-details space-cipa-ship-manifest">
@@ -1031,7 +996,18 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               <p className="space-menu-footnote">Selecting a destination sets the ship's live navigation target. Survey data remains hidden until you approach and scan the world.</p>
             </div>}
             {spaceMenuTab === "missions" && <div className="space-menu-panel">
-              <div className="space-menu-panel-intro"><b>MISSION INBOX</b><span>{world.pilotMissionsCompleted || 0} completed missions</span></div>
+              <div className="space-menu-panel-intro"><b>MISSION INBOX</b><span>{world.pilotMissionsCompleted || 0} completed · {(world.colonyMissions || []).filter(item => item.status === "open").length} colony requests open</span></div>
+              {(world.colonyMissions || []).filter(item => item.status === "open").map(item => <article className={"space-menu-active-mission space-colony-mission-card relation-" + item.relation} key={item.id}>
+                <span>{item.relation.toUpperCase()} RELATIONSHIP · COLONY TRANSMISSION</span>
+                <strong>{item.title}</strong><p>{item.detail}</p>
+                <small>{item.world} · DAY {Math.floor(item.createdAtWorldMinutes / 1440) + 1} · TRUST {Math.round(world.colonies[item.world]?.trustWithHaven || 0)}% · AUTONOMY {Math.round(world.colonies[item.world]?.autonomy || 0)}%</small>
+                <div className="space-colony-mission-actions">
+                  <button type="button" onClick={() => { const result = respondToColonyMission(world,item.id,"support"); notify(result.message,result.ok?"success":"info"); if(result.ok){writeAutoSnapshot();setSpaceUiTick(n=>n+1);} }} disabled={(world.cargoMaterials || 0)<1}>SEND AID · 1 MATERIAL</button>
+                  <button type="button" onClick={() => { const result = respondToColonyMission(world,item.id,"autonomy"); notify(result.message,result.ok?"success":"info"); if(result.ok){writeAutoSnapshot();setSpaceUiTick(n=>n+1);} }}>RECOGNISE AUTONOMY</button>
+                  <button type="button" onClick={() => { const result = respondToColonyMission(world,item.id,"negotiate"); notify(result.message,result.ok?"success":"info"); if(result.ok){writeAutoSnapshot();setSpaceUiTick(n=>n+1);} }}>NEGOTIATE</button>
+                </div>
+              </article>)}
+              {(world.colonyMissions || []).filter(item => item.status === "resolved").slice(-3).reverse().map(item => <article className="space-menu-active-mission space-colony-mission-resolved" key={item.id}><span>RESOLVED · {item.relation.toUpperCase()}</span><strong>{item.title}</strong><p>{item.outcome}</p></article>)}
               {latestWorldEvent && <article className="space-menu-active-mission space-cipa-latest-brief">
                 <span>{missionInboxUnread ? "NEW CIPA BRIEF" : "LATEST CIPA BRIEF"}</span>
                 <strong>{latestWorldEvent}</strong>
@@ -1101,6 +1077,29 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               {world.nearbyTarget === "GGL Haven" && <p className="space-menu-footnote">Haven is in approach range. Use the contextual docking panel to dock, load machinery or board a crew.</p>}
             </div>}
           </div>}
+        </div>
+        <div className="space-flight-log-dock">
+          <button type="button" className="space-flight-log-toggle" aria-expanded={historyOpen} onClick={() => setHistoryOpen(open => !open)}>
+            FLIGHT LOG <span>{chronicleEvents.length} EVENTS</span><i>{historyOpen ? "−" : "+"}</i>
+          </button>
+          {historyOpen && <section className="space-flight-log-panel" aria-label="Civilisation history">
+            <header><div><b>CIVILISATION HISTORY</b><small>Full record · newest first · {chronicleEvents.length} events</small></div><button type="button" onClick={() => setHistoryOpen(false)} aria-label="Close flight log">×</button></header>
+            <div className="space-flight-log-list">
+              {[...chronicleEvents].reverse().map(event => {
+                const surveyId = Object.entries(world.surveyRecords || {}).find(([, record]) => record.revealedName === event.location)?.[0];
+                const eventTarget = WORLD_PLANETS.some(planet => planet.name === event.location) ? event.location : surveyId;
+                return <article className="space-chronicle-entry" key={event.id}>
+                  <div className="space-chronicle-entry-meta"><span>{event.kind.toUpperCase()}</span><small>DAY {Math.floor(event.atWorldMinutes / 1440) + 1} · {String(Math.floor(event.atWorldMinutes / 60) % 24).padStart(2,"0")}:00</small></div>
+                  <strong>{event.title}</strong><p>{event.detail}</p>
+                  <div className="space-chronicle-entry-footer"><span>{event.location}</span>{eventTarget && <button type="button" onClick={() => { setSystemCourse(eventTarget); setHistoryOpen(false); }}>SET COURSE ↗</button>}</div>
+                </article>;
+              })}
+              {!chronicleEvents.length && <p className="space-menu-empty">Your civilisation's history will appear here as events occur.</p>}
+            </div>
+            <details className="space-chronicle-group"><summary><span>FOUNDING NETWORKS</span><small>60 FOUNDERS</small></summary><div className="space-chronicle-list">
+              {(world.population?.foundingNetworks || []).map(network => <small key={network.id}><b>{network.name}</b> · {network.influence}% influence<br />{network.origin}<br /><b>Agenda:</b> {network.agenda}<br /><b>Pressure point:</b> {network.pressurePoint}</small>)}
+            </div></details>
+          </section>}
         </div>
         {world.nearbyTarget && <>
           <button type="button" className="space-proximity-toggle" aria-expanded={proximityMenuOpen} onClick={() => setProximityMenuOpen(open => !open)}>{proximityMenuOpen ? "CLOSE" : "INTERACT"} <span aria-hidden="true">{proximityMenuOpen ? "−" : "+"}</span></button>

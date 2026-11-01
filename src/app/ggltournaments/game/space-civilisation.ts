@@ -51,6 +51,17 @@ export type SpaceSurveyRecord = { worldId: string; revealedName: string; classif
 export type SpaceHazard = { id: string; type: "asteroid-impact" | "power-dust"; target: string; severity: 1 | 2 | 3; forecastStartWorldMinutes: number; impactAtWorldMinutes: number; confidence: number; status: "warning" | "mitigated" | "impact"; mitigation: number };
 
 export type SpaceFaction = { id: string; name: string; agenda: string; influence: number };
+export type ColonyRelation = "cooperative" | "neutral" | "conflict";
+export type SpaceColonyMission = {
+  id: string;
+  world: string;
+  relation: ColonyRelation;
+  title: string;
+  detail: string;
+  createdAtWorldMinutes: number;
+  status: "open" | "resolved";
+  outcome?: string;
+};
 export type SpaceColony = {
   population: number;
   founders: number;
@@ -65,6 +76,8 @@ export type SpaceColony = {
   collectiveIdentity?: string;
   productionFocus?: string;
   customs?: string[];
+  relation?: ColonyRelation;
+  lastMissionAtWorldMinutes?: number;
 };
 
 export type SpaceState = {
@@ -92,6 +105,7 @@ export type SpaceState = {
   havenGrowthRemainder: number;
   colonies: Record<string, SpaceColony>;
   colonyGrowthRemainders: Record<string, number>;
+  colonyMissions?: SpaceColonyMission[];
   events: string[];
   population?: PopulationState;
   hazards?: SpaceHazard[];
@@ -213,6 +227,7 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     havenGrowthRemainder: 0,
     colonies: {},
     colonyGrowthRemainders: {},
+    colonyMissions: [],
     events: ["Mission signal: Haven is awaiting the pilot's first planetary field report. No first settlement destination has been chosen."],
     population,
     hazards: [],
@@ -423,6 +438,36 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       recordSpaceChronicle(state, "society", planet.name, planet.name + " became self-governing", "The colony reached its population, autonomy and time thresholds for independence from Haven.");
     }
   }
+  // Each settlement develops its own diplomatic posture and periodically raises a grounded request.
+  for (const [world, colony] of Object.entries(state.colonies)) {
+    const previousRelation = colony.relation || "neutral";
+    const nextRelation: ColonyRelation = colony.trustWithHaven < 30 ? "conflict" : colony.trustWithHaven >= 68 ? "cooperative" : "neutral";
+    colony.relation = nextRelation;
+    if (previousRelation !== nextRelation) {
+      const description = world + " is now on a " + nextRelation + " footing with Haven. Local trust is " + Math.round(colony.trustWithHaven) + "% and autonomy is " + Math.round(colony.autonomy) + "%.";
+      recordSpaceChronicle(state, "society", world, world + " relationship with Haven shifted: " + nextRelation, description);
+      state.events.unshift(description);
+    }
+    const openMission = (state.colonyMissions || []).some(mission => mission.world === world && mission.status === "open");
+    const due = state.worldTimeMinutes - (colony.lastMissionAtWorldMinutes ?? colony.foundedAtWorldMinutes) >= 2 * 1440;
+    if (colony.population >= 4 && !openMission && due) {
+      const ecology = state.ecology?.[world];
+      const faction = colony.factions.slice().sort((left, right) => right.influence - left.influence)[0];
+      const mission = nextRelation === "conflict"
+        ? { title: world + " autonomy dispute", detail: (faction?.name || "A local council") + " challenges Haven's role in settlement decisions. They want guarantees that local needs and governance will be respected before further cooperation.", relation: nextRelation as ColonyRelation }
+        : nextRelation === "cooperative"
+          ? { title: world + " requests a joint supply mission", detail: (faction?.name || "The settlement council") + " proposes a shared logistics effort. " + (ecology && ecology.maintenanceLoad > 45 ? "Maintenance pressure is rising and one material unit would help stabilise essential systems." : "The settlement wants to strengthen the supply link and share its growing capacity with Haven."), relation: nextRelation as ColonyRelation }
+          : { title: world + " proposes a research exchange", detail: (faction?.name || "A local research group") + " has identified an opportunity around " + (ecology?.resourceType || "local ecology and production") + ". They are asking Haven to exchange knowledge and agree on the next practical step.", relation: nextRelation as ColonyRelation };
+      const id = "colony-mission-" + world.toLowerCase() + "-" + Math.floor(state.worldTimeMinutes).toString(36);
+      const entry: SpaceColonyMission = { id, world, relation: mission.relation, title: mission.title, detail: mission.detail, createdAtWorldMinutes: state.worldTimeMinutes, status: "open" };
+      state.colonyMissions = [...(state.colonyMissions || []), entry].slice(-100);
+      colony.lastMissionAtWorldMinutes = state.worldTimeMinutes;
+      recordSpaceChronicle(state, "society", world, mission.title, mission.detail + " This request has been transmitted to Haven's CIPA inbox.");
+      state.events.unshift("COLONY TRANSMISSION · " + world + ": " + mission.title + ". Open CIPA to respond.");
+    }
+  }
+  if (state.events.length > 6) state.events.length = 6;
+
   const populationCounts = Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population]));
   populationCounts.Haven = state.havenPopulation;
   advancePopulation(state.population, state.worldTimeMinutes, state.planetProgress, populationCounts, state.events);
@@ -470,6 +515,37 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     }
   }
   if (state.events.length > 6) state.events.length = 6;
+}
+
+export function respondToColonyMission(state: SpaceState, missionId: string, choice: "support" | "autonomy" | "negotiate"): { ok: boolean; message: string } {
+  const mission = (state.colonyMissions || []).find(item => item.id === missionId && item.status === "open");
+  if (!mission) return { ok: false, message: "This colony request is no longer active." };
+  const colony = state.colonies[mission.world];
+  if (!colony) return { ok: false, message: "The settlement record is unavailable." };
+  const ecology = state.ecology?.[mission.world];
+  if (choice === "support") {
+    if ((state.cargoMaterials || 0) < 1) return { ok: false, message: "Load one raw material at Haven before sending practical support." };
+    state.cargoMaterials = (state.cargoMaterials || 0) - 1;
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + 12);
+    if (ecology) ecology.maintenanceLoad = Math.max(0, ecology.maintenanceLoad - 8);
+  } else if (choice === "autonomy") {
+    colony.autonomy = Math.min(100, colony.autonomy + 12);
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + (mission.relation === "conflict" ? 10 : 3));
+  } else {
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + 6);
+    colony.autonomy = Math.min(100, colony.autonomy + 4);
+    if (ecology) ecology.knowledge = Math.min(100, ecology.knowledge + 5);
+  }
+  colony.lastContactWorldMinutes = state.worldTimeMinutes;
+  mission.status = "resolved";
+  mission.outcome = choice === "support" ? "Haven committed one material unit to the settlement." : choice === "autonomy" ? "Haven recognised the settlement's right to make local decisions." : "Haven opened a negotiated exchange and shared responsibility.";
+  const message = mission.world + " responded to your " + choice + " decision. Trust is " + Math.round(colony.trustWithHaven) + "% and local autonomy is " + Math.round(colony.autonomy) + "%.";
+  recordSpaceChronicle(state, "society", mission.world, mission.title + " · " + choice.toUpperCase(), mission.detail + " Outcome: " + mission.outcome + " " + message);
+  state.events.unshift("COLONY RESPONSE · " + message);
+  state.events = state.events.slice(0, 6);
+  state.pilotMissionsCompleted = (state.pilotMissionsCompleted || 0) + 1;
+  awardPilotCredits(state, 20, "Colony diplomacy mission");
+  return { ok: true, message };
 }
 
 export function mitigateSpaceHazard(state: SpaceState, target: string): boolean {
@@ -531,6 +607,7 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     planetProgress: { ...initial.planetProgress },
     colonies: {},
     colonyGrowthRemainders: {},
+    colonyMissions: Array.isArray((saved as Partial<SpaceState>).colonyMissions) ? (saved as Partial<SpaceState>).colonyMissions!.filter(mission => mission && typeof mission.id === "string" && typeof mission.world === "string" && WORLD_PLANETS.some(planet => planet.name === mission.world) && ["cooperative","neutral","conflict"].includes(mission.relation) && typeof mission.title === "string" && typeof mission.detail === "string" && Number.isFinite(mission.createdAtWorldMinutes) && ["open","resolved"].includes(mission.status)).slice(-100) : [],
     events: Array.isArray(saved.events) ? saved.events.filter((event): event is string => typeof event === "string").slice(0, 6) : initial.events,
   };
 
@@ -559,6 +636,8 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
           collectiveIdentity: typeof colony.collectiveIdentity === "string" ? colony.collectiveIdentity.slice(0, 120) : undefined,
           productionFocus: typeof colony.productionFocus === "string" ? colony.productionFocus.slice(0, 160) : undefined,
           customs: Array.isArray(colony.customs) ? colony.customs.filter((item): item is string => typeof item === "string").slice(0, 4) : [],
+          relation: colony.relation === "cooperative" || colony.relation === "conflict" ? colony.relation : "neutral",
+          lastMissionAtWorldMinutes: Math.max(foundedAt, finiteNumber(colony.lastMissionAtWorldMinutes, foundedAt)),
         };
       }
     }

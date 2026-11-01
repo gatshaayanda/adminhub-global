@@ -213,7 +213,7 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     havenGrowthRemainder: 0,
     colonies: {},
     colonyGrowthRemainders: {},
-    events: ["Mission signal: Cobalt is awaiting its first restoration investment. Three machines are required to begin its path toward a safe habitat."],
+    events: ["Mission signal: Haven is awaiting the pilot's first planetary field report. No first settlement destination has been chosen."],
     population,
     hazards: [],
     nextHazardAtWorldMinutes: 14 * 1440,

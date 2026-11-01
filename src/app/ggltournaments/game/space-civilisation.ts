@@ -534,7 +534,7 @@ export function respondToColonyMission(state: SpaceState, missionId: string, cho
   } else {
     colony.trustWithHaven = Math.min(100, colony.trustWithHaven + 6);
     colony.autonomy = Math.min(100, colony.autonomy + 4);
-    if (ecology) ecology.knowledge = Math.min(100, ecology.knowledge + 5);
+    if (ecology) ecology.maintenanceLoad = Math.max(0, ecology.maintenanceLoad - 3);
   }
   colony.lastContactWorldMinutes = state.worldTimeMinutes;
   mission.status = "resolved";

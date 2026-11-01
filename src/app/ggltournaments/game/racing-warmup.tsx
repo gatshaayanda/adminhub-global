@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, awardPilotCredits, updatePilotLicence, getPilotCareer, selectSpaceSurveyTarget, surveySpaceWorld, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, awardPilotCredits, updatePilotLicence, getPilotCareer, selectSpaceSurveyTarget, surveySpaceWorld, receiveSurveyReportsAtHaven, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
 import { FOUNDING_CATEGORIES, FOUNDING_CIRCUMSTANCES, getCircumstance, DEFAULT_FOUNDING_IDS } from "./space-founding";
 import { getSurveyWorld, SURVEY_WORLDS, SPACE_SURVEY_TARGET_KEY } from "./space-universe";
-import { readHavenCollective } from "./space-society";
+import { readHavenCollective, influenceHavenCouncil, ratifyHavenSettlement } from "./space-society";
 
 const SPACE_AUTOSAVE_KEY = "ggl-space-autosave-v1";
 const SPACE_MANUAL_SAVE_KEY = "ggl-space-manual-save-v1";
@@ -631,11 +631,30 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     if (!completed) { notify("Survey could not be completed. Hold a stable close approach and try again.", "error"); return; }
     try { window.localStorage.removeItem(SPACE_SURVEY_TARGET_KEY); } catch {}
     writeAutoSnapshot();
-    signalTransfer("⌖", "PLANETARY SURVEY COMPLETE", target.revealedName + " identified. Findings transmitted to Haven's chronicle.", "SHIP  →  HAVEN ARCHIVE");
-    notify(target.revealedName + " discovered. +" + target.scanReward + " archive acclaim. Haven's chronicle updated.", "success");
+    signalTransfer("⌖", "PLANETARY SURVEY COMPLETE", target.revealedName + " identified. Findings stored aboard your ship; return to Haven to present the report.", "FIELD LOG  →  SHIP");
+    notify(target.revealedName + " discovered. +" + target.scanReward + " archive acclaim. Return to Haven to deliver the verified report.", "success");
     setSpaceUiTick(n => n + 1);
   };
 
+
+  const addressHavenCouncil = (stance: "care" | "science" | "industry") => {
+    const state = spaceStateRef.current;
+    if (state.dockedAt !== "GGL Haven") { notify("Dock at GGL Haven to address the founding networks.", "info"); return; }
+    const changed = influenceHavenCouncil(state, stance);
+    if (!changed) { notify("The council needs delivered field reports and an unratified decision before it can hear another argument.", "info"); return; }
+    writeAutoSnapshot();
+    notify("Your position has been entered into the Haven council record.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
+  const ratifyCouncilDecision = () => {
+    const state = spaceStateRef.current;
+    if (state.dockedAt !== "GGL Haven") { notify("Dock at GGL Haven before ratifying the settlement decision.", "info"); return; }
+    const chosen = ratifyHavenSettlement(state);
+    if (!chosen) { notify("Haven needs at least one delivered field report before it can choose a first settlement.", "info"); return; }
+    writeAutoSnapshot();
+    notify("Haven has ratified " + chosen + " as its first settlement. The founding crew can now be deployed there.", "success");
+    setSpaceUiTick(n => n + 1);
+  };
   const dockOrLand = () => {
     const state = spaceStateRef.current;
     const target = state.nearbyTarget;
@@ -662,6 +681,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const returnedCrew = state.cargoPeople;
       const returnedMachines = state.cargoEquipment;
       const returnedMaterials = state.cargoMaterials || 0;
+      const reportsPresented = receiveSurveyReportsAtHaven(state);
       if (returnedCrew > 0) { state.havenPopulation += returnedCrew; movePeople(state.population, "ship", "haven", returnedCrew); } // Returning citizens are never discarded at the station capacity threshold.
       if (returnedMachines > 0) state.machineInventory += returnedMachines;
       if (returnedMaterials > 0) state.havenMaterials = (state.havenMaterials || 0) + returnedMaterials;
@@ -672,7 +692,9 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         awardPilotCredits(state, state.visitedPlanets.length * 20, "Completed planetary delivery and return mission");
         state.pilotMissionsCompleted = (state.pilotMissionsCompleted || 0) + 1;
         state.acclaim += award;
-        notify("Trip logged. Haven archive gained " + state.visitedPlanets.length + " world report(s). Archive acclaim +" + award + ".", "success");
+        notify("Trip logged. " + reportsPresented + " field report(s) presented to Haven. Archive acclaim +" + award + ".", "success");
+      } else if (reportsPresented > 0) {
+        notify(reportsPresented + " verified field report(s) presented. Haven's founding networks can now deliberate.", "success");
       } else if (returnedCrew || returnedMachines) {
         notify("Unused crew and machinery safely returned to Haven.", "success");
       } else {
@@ -709,7 +731,11 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       existingColony.trustWithHaven = Math.min(100, existingColony.trustWithHaven + (delivered > 0 ? 3 : 1));
     }
     if (state.cargoPeople > 0) {
-      if (progress < 80 || installed < planet.colonyMachineRequirement) {
+      if (!Object.keys(state.colonies || {}).length && state.havenSettlementWorld && state.havenSettlementWorld !== target) {
+        notify("Haven selected " + state.havenSettlementWorld + " as the first settlement. Your founding crew must be delivered there; machinery can still be deployed elsewhere.", "info");
+      } else if (!Object.keys(state.colonies || {}).length && !state.havenSettlementWorld) {
+        notify("Haven has not chosen its first settlement yet. Return with survey intelligence, present the reports and ratify the council decision before deploying founding crew.", "info");
+      } else if (progress < 80 || installed < planet.colonyMachineRequirement) {
         const missing = Math.max(0, planet.colonyMachineRequirement - installed);
         notify(target + ": crew remain aboard. Need HABITABLE air and " + planet.colonyMachineRequirement + " installed machines (" + missing + " more).", "info");
       } else {
@@ -1008,6 +1034,20 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                 <div className="space-chronicle-list">
                   {havenRead.voices.map(voice => <small key={voice.name}><b>{voice.name}</b> · {voice.influence}% influence<br />{voice.position}</small>)}
                 </div>
+              </article>
+              <article className="space-menu-active-mission">
+                <span>HAVEN COUNCIL · EVIDENCE & DELIBERATION</span>
+                <strong>{havenRead.ratifiedWorld ? "First destination ratified · " + havenRead.ratifiedWorld : havenRead.reportedCount ? "Council has received " + havenRead.reportedCount + " field report(s)" : "Awaiting the pilot's first field report"}</strong>
+                <p>{world.pendingSurveyReports?.length ? world.pendingSurveyReports.length + " report(s) remain aboard the ship. Return and dock at Haven to present them." : world.dockedAt === "GGL Haven" ? "The founding networks are listening. Your argument can influence the balance, but the population retains the final collective decision." : "Field reports must be physically returned to Haven before the networks can deliberate or ratify a destination."}</p>
+                {!havenRead.ratifiedWorld && havenRead.reportedCount > 0 && <>
+                  <div className="space-menu-mission-facts"><span>COUNCIL BALANCE<strong>{world.havenCouncilSupport || 0} · pilot influence</strong></span><span>PROVISIONAL VIEW<strong>{havenRead.recommendation}</strong></span></div>
+                  <div className="space-machine-load-options">
+                    <button type="button" onClick={() => addressHavenCouncil("care")} disabled={world.dockedAt !== "GGL Haven"}>Argue for family safety</button>
+                    <button type="button" onClick={() => addressHavenCouncil("science")} disabled={world.dockedAt !== "GGL Haven"}>Argue for evidence</button>
+                    <button type="button" onClick={() => addressHavenCouncil("industry")} disabled={world.dockedAt !== "GGL Haven"}>Argue for engineering</button>
+                  </div>
+                  <button type="button" onClick={ratifyCouncilDecision} disabled={world.dockedAt !== "GGL Haven"}>Ratify Haven's first settlement ▶</button>
+                </>}
               </article>
               <article className="space-menu-active-mission">
                 <span>HAVEN COUNCIL · PROVISIONAL FIRST-SETTLEMENT VIEW</span>

@@ -192,3 +192,13 @@ Family raising is a later system, but it belongs to the intended game vision. It
 - Test map usability on mobile and desktop, all four quadrants, 20 distinct world identities/signatures, known versus unknown status, selected survey target, and chronicle persistence.
 - Regression-test the existing 3D flight controls, pause/resume, restart, manual/autosave, offline time, target assist, docking safety, cache recovery, finite machinery and ship repair.
 - Keep all changes on the active feature branch until the product owner tests the exact READY preview and explicitly approves merging.
+
+
+## 11. Pilot registration and civilisation start sequence (2026-11-01)
+
+1. **Pilot registration:** enter a pilot name for the flight licence and personal career. The pilot does not own or name the civilisation.
+2. **Population source:** confirm OG Haven's canonical founding population: 60 named people, 20 households, five emergent networks, 12 finite machines and 12 stored materials. There are no alternate/imported starting populations in this baseline; later colonies descend from Haven through gameplay.
+3. **Founding history:** choose up to three circumstances that brought the founders together, or load a saved founding profile. An archived profile changes the circumstances, not the population source or count.
+4. **Start:** explicitly start the new civilisation.
+
+Returning players continue their saved civilisation without repeating pilot registration when their name is already saved. Continue/manual load restore the selected save and wait at READY. A missing legacy pilot name is collected without resetting the saved world. New Civilisation/Restart remains staged: the current autosave is untouched until the final create action; cancelling preserves the prior run and manual save.

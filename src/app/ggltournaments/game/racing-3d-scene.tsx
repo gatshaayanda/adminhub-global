@@ -711,8 +711,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       <svg viewBox="0 0 180 128" role="img" aria-label="Live system map showing all twenty planetary bodies, the ship and the selected navigation target.">
         <path d="M8 64H172 M90 8V120" stroke="rgba(156,204,255,.34)" strokeDasharray="3 4" strokeWidth="1.2" fill="none" />
          <g fill="rgba(196,224,245,.82)" fontSize="5.2" fontWeight="800" letterSpacing=".35"><text x="14" y="17">Q2 · FRONTIER</text><text x="166" y="17" textAnchor="end">Q1 · ORIGIN</text><text x="14" y="115">Q4 · DEEP SPACE</text><text x="166" y="115" textAnchor="end">Q3 · UNKNOWN</text></g>
-        <line ref={mapRouteRef} x1={mapPoint(0, -35)[0]} y1={mapPoint(0, -35)[1]} x2={mapPoint(290, 145)[0]} y2={mapPoint(290, 145)[1]} stroke="#c5f36b" strokeWidth="1.2" strokeDasharray="3 2" opacity=".92" />
-        <circle cx={mapPoint(-170, -80)[0]} cy={mapPoint(-170, -80)[1]} r="6.8" fill={habitatStage(spaceStateRef.current.planetProgress.Ember ?? 0).color} stroke="#eab08b" strokeWidth="1.2" />
+        <line ref={mapRouteRef} x1={mapPoint(0, -35)[0]} y1={mapPoint(0, -35)[1]} x2={mapPoint(340, -360)[0]} y2={mapPoint(340, -360)[1]} stroke="#c5f36b" strokeWidth="1.2" strokeDasharray="3 2" opacity=".92" />
+        <circle cx={mapPoint(150, -450)[0]} cy={mapPoint(150, -450)[1]} r="6.8" fill={habitatStage(spaceStateRef.current.planetProgress.Ember ?? 0).color} stroke="#eab08b" strokeWidth="1.2" />
         <circle cx={mapPoint(180, -160)[0]} cy={mapPoint(180, -160)[1]} r="10.5" fill={habitatStage(spaceStateRef.current.planetProgress.Aster ?? 0).color} stroke="#a6a0ff" strokeWidth="1.5" />
         <ellipse cx={mapPoint(180, -160)[0]} cy={mapPoint(180, -160)[1]} rx="16" ry="3.5" fill="none" stroke={habitatStage(spaceStateRef.current.planetProgress.Aster ?? 0).color} strokeWidth="1.5" transform={"rotate(-18 " + mapPoint(180, -160)[0] + " " + mapPoint(180, -160)[1] + ")"} />
         <circle cx={mapPoint(340, -360)[0]} cy={mapPoint(340, -360)[1]} r="13.5" fill={habitatStage(spaceStateRef.current.planetProgress.Cobalt ?? 0).color} stroke="#77d7f5" strokeWidth="1.5" />

@@ -853,7 +853,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const latestWorldEvent = world.events[0] || "";
   const pendingReportCount = world.pendingSurveyReports?.length || 0;
   const activeHazards = (world.hazards || []).filter(item => item.status === "warning" || item.status === "mitigated");
-  const activeHazardCount = activeHazards.length;
+  const activeHazardCount = activeHazards.filter(item => item.status === "warning").length;
   const missionInboxHeadline = pendingReportCount > 0 ? "FIELD REPORT READY · RETURN TO HAVEN" : activeHazardCount > 0 ? "HAZARD UPDATE · REVIEW THE INBOX" : !havenRead.ratifiedWorld && havenRead.reportedCount > 0 ? "HAVEN COUNCIL · DECISION AWAITS" : missionInboxUnread ? "NEW CIPA BRIEF" : "CIPA MISSION INBOX";
   useEffect(() => {
     if (!latestWorldEvent || missionInboxEventRef.current === latestWorldEvent) return;

@@ -1,4 +1,5 @@
-const CACHE_VERSION = "ggl-space-offline-v3";
+const CACHE_VERSION = "ggl-space-offline-v4";
+const OWNED_CACHE_PREFIXES = ["sparkle-legacy-v2-", "ggl-space-offline-"];
 const STATIC_CACHE = CACHE_VERSION + "-static";
 const PAGE_CACHE = CACHE_VERSION + "-pages";
 
@@ -33,7 +34,7 @@ self.addEventListener("activate", (event) => {
     caches.keys()
       .then((keys) => Promise.all(
         keys
-          .filter((key) => !key.startsWith(CACHE_VERSION))
+          .filter((key) => OWNED_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)) && !key.startsWith(CACHE_VERSION))
           .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())

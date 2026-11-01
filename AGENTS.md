@@ -1602,3 +1602,16 @@ This owner direction extends the existing GGL Space universe and supersedes any 
 - New Game/Continue/manual load/restart/cancel semantics, pilot registration, 60-founder source, 20 households, five emergent networks, finite stock, save compatibility and protected flight controls remain intact. New-civilisation staging must not erase an existing save before explicit confirmation.
 - QA must cover first start and name capture; 20 worlds in four quadrants; progressive scanning and intel return; Haven's collective response; settlement decision driven by actual delivered evidence and population interests; first settlement consequences; generated mission variety; persistent chronicles; distinct colony identity; save/continue/restart/cancel; and mobile/desktop flight regression.
 - A documentation checkpoint is not a playable QA build. Do not hand off for gameplay QA until the relevant code is implemented, verified, and the exact commit has a READY Vercel deployment. If deployment limits prevent that, state it plainly and do not invent a preview URL.
+
+
+## GGL Space — Haven field debrief, council ratification and emergent colony identity (2026-11-01)
+
+- Planetary scans are field intelligence held by the ship. They do not count as a Haven briefing until the pilot physically returns and docks at GGL Haven.
+- Docking presents all pending verified survey records to the five founding networks and records the debrief in the civilisation chronicle. Pending and reported records persist across save/restore; old saves migrate without discarding discovered worlds.
+- Haven's collective recommendation is derived from living residents' motivations, skills, needs, founding-network influence and verified field reports already presented. It remains provisional until the player addresses the council and Haven explicitly ratifies a first destination.
+- The pilot can argue for family safety, evidence-led research or engineering/industry. The selected argument is recorded and influences the council's first destination. No first founding crew may be delivered until a destination is ratified; the crew must be delivered to that destination.
+- The first settlement cue guides discovery → return/debrief → council deliberation → ratification → finite machinery/habitat work → founding crew delivery. Do not silently default to Cobalt.
+- Colony identity, production focus and customs are derived from actual resident traits, motivations and local ecology. Local mission signals derive from the lowest average resident need or local maintenance pressure. These summaries evolve from simulation data, not random labels.
+- Preserve existing flight controls, camera, save lifecycle, offline simulation, 20-world map and 0%-restoration baseline. The 15 additional survey bodies remain discovery targets; do not imply they are fully terraformable/settleable until their world ecology and deployment systems exist.
+- Research-informed design: let player choices and simulated social interactions create narrative consequences; keep dialogue/actions grounded in actual world state, avoid repetitive generic NPC text, and expose only a few legible decisions at a time.
+- This is a new playable gameplay slice but still requires end-to-end build and live QA before owner handoff. Never claim the complete micro-civilisation roadmap is finished.

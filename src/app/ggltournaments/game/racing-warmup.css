@@ -1318,3 +1318,55 @@
 .race-hub-embedded .space-cipa-hazard-brief>span{color:#ffd18a}
 .race-hub-embedded .space-cipa-hazard-brief>small{color:#e5cba7;font-size:9px;line-height:1.4}
 .race-hub-embedded .space-cipa-hazard-brief>button{min-height:34px;align-self:flex-start;padding:7px 10px;border:1px solid rgba(255,193,107,.52);border-radius:7px;background:rgba(255,193,107,.13);color:#ffe5bd;font:900 8px/1.2 system-ui,sans-serif;letter-spacing:.04em}
+
+
+/* Flight overlays: protect the centre silhouette and keep controls in separate corners. */
+.race-hub-embedded .space-mission-inbox-alert{z-index:24;top:10px;left:50%;width:min(430px,calc(100% - 300px));}
+.race-hub-embedded .space-proximity-toggle{z-index:10!important;top:auto!important;left:auto!important;right:10px!important;bottom:10px!important;min-height:34px!important;}
+.race-hub-embedded .space-proximity-actions{z-index:9;left:auto;right:10px;bottom:52px;transform:none;width:min(420px,calc(100% - 20px));max-height:46%;overflow-y:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;}
+.race-hub-embedded .space-proximity-copy{flex:1 1 100%;margin-right:0}
+.race-hub-embedded .space-chronicle-dock{left:10px;bottom:10px;width:min(260px,calc(100% - 20px));}
+.race-hub-embedded .space-menu-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.race-hub-embedded .space-menu-tabs button{min-width:0;padding:8px 4px;font-size:8px}
+.race-hub-embedded .space-chronicle-drawer{max-height:min(42%,320px)}
+.race-hub-embedded .space-flight-log-dock{position:absolute;z-index:18;left:10px;top:56px;width:min(220px,calc(100% - 20px));pointer-events:auto;font:800 9px/1.25 system-ui,sans-serif}
+.race-hub-embedded .space-flight-log-toggle{display:flex;align-items:center;gap:8px;min-height:30px;padding:6px 9px;border:1px solid rgba(133,190,255,.34);border-radius:8px;background:rgba(3,10,27,.82);color:#dff7ff;font:900 8px/1 system-ui,sans-serif;letter-spacing:.08em;cursor:pointer;backdrop-filter:blur(8px)}
+.race-hub-embedded .space-flight-log-toggle span{color:#9db8ce;font-size:7px}
+.race-hub-embedded .space-flight-log-toggle i{font-style:normal;color:#c5f36b;font-size:13px}
+.race-hub-embedded .space-flight-log-panel{position:absolute;left:0;top:36px;width:min(390px,calc(100vw - 40px));max-height:min(68vh,560px);display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:8px;padding:10px;border:1px solid rgba(133,190,255,.42);border-radius:11px;background:rgba(3,10,27,.97);box-shadow:0 12px 32px rgba(0,0,0,.48);backdrop-filter:blur(12px)}
+.race-hub-embedded .space-flight-log-panel>header{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#dff8ff}
+.race-hub-embedded .space-flight-log-panel>header>div{display:grid;gap:3px}
+.race-hub-embedded .space-flight-log-panel>header b{font-size:10px;letter-spacing:.1em}
+.race-hub-embedded .space-flight-log-panel>header small{font-size:8px;color:#9db8ce}
+.race-hub-embedded .space-flight-log-panel>header button{width:30px;height:30px;border:1px solid #45627a;border-radius:7px;background:#13253a;color:#fff;font-size:18px}
+.race-hub-embedded .space-flight-log-list{min-height:0;overflow-y:auto;overscroll-behavior:contain;display:grid;gap:7px;padding-right:3px}
+.race-hub-embedded .space-flight-log-list .space-chronicle-entry{padding:9px;background:rgba(18,38,59,.72)}
+.race-hub-embedded .space-flight-log-list .space-chronicle-entry strong{font-size:11px;line-height:1.4}
+.race-hub-embedded .space-flight-log-list .space-chronicle-entry p{font-size:10px;line-height:1.55;white-space:normal;overflow-wrap:anywhere}
+.race-hub-embedded .space-flight-log-list .space-chronicle-entry-meta{font-size:8px}
+.race-hub-embedded .space-colony-mission-card{border-left:3px solid #9ed7e8}
+.race-hub-embedded .space-colony-mission-card.relation-cooperative{border-left-color:#8ee4ad}
+.race-hub-embedded .space-colony-mission-card.relation-conflict{border-left-color:#ff9b82;background:linear-gradient(110deg,rgba(88,35,39,.34),rgba(7,22,40,.42))}
+.race-hub-embedded .space-colony-mission-card.relation-neutral{border-left-color:#d9c17d}
+.race-hub-embedded .space-colony-mission-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.race-hub-embedded .space-colony-mission-actions button{min-height:34px;padding:7px 9px;border:1px solid rgba(133,190,255,.36);border-radius:7px;background:rgba(80,132,165,.16);color:#eaf7ff;font:850 8px/1.25 system-ui,sans-serif}
+.race-hub-embedded .space-colony-mission-actions button:disabled{opacity:.4}
+.race-hub-embedded .space-colony-mission-resolved{opacity:.72}
+.racing-3d-root .space-screen-signals{position:absolute;inset:0;z-index:5;pointer-events:none;overflow:hidden}
+.racing-3d-root .space-screen-signal{position:absolute;display:none;transform:translate(-50%,-50%);padding:3px 5px;border:1px solid rgba(111,232,245,.4);border-radius:5px;background:rgba(3,12,25,.62);color:#c8f5ff;font:900 7px/1 system-ui,sans-serif;letter-spacing:.08em;white-space:nowrap;text-shadow:0 1px 3px #000}
+.racing-3d-root .space-screen-signal[data-known="false"]{color:#a9b9c7;border-style:dashed;opacity:.7}
+.racing-3d-root .space-screen-signal[data-target="true"]{border-color:#c5f36b;background:rgba(20,40,21,.88);color:#efffb8;box-shadow:0 0 12px #c5f36655}
+.racing-3d-root .space-nav-arrow{position:absolute;z-index:7;display:none;pointer-events:none;transform:translate(-50%,-50%);color:#c5f36b;text-align:center;filter:drop-shadow(0 2px 4px #000)}
+.racing-3d-root .space-nav-arrow b{display:block;font:900 23px/1 system-ui,sans-serif;text-shadow:0 0 10px #c5f36b}
+.racing-3d-root .space-nav-arrow span{display:block;margin-top:2px;padding:3px 5px;border:1px solid #c5f36b88;border-radius:5px;background:#061423d9;color:#f0ffc7;font:900 7px/1 system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap}
+.racing-3d-root .space-nav-arrow[data-onscreen="true"] b{display:none}
+@media(max-width:520px){
+ .race-hub-embedded .space-mission-inbox-alert{width:calc(100% - 16px);top:8px;left:8px;transform:none;min-height:42px}
+ .race-hub-embedded .space-flight-log-dock{left:8px;top:54px;width:170px}
+ .race-hub-embedded .space-flight-log-panel{width:min(340px,calc(100vw - 28px));max-height:62vh}
+ .race-hub-embedded .space-proximity-toggle{right:8px!important;bottom:8px!important}
+ .race-hub-embedded .space-proximity-actions{right:8px;bottom:48px;width:calc(100% - 16px);max-height:42%}
+ .race-hub-embedded .space-chronicle-dock{left:8px;bottom:8px;width:150px}
+ .race-hub-embedded .space-menu-tabs button{font-size:7px;padding:7px 2px}
+ .racing-3d-root .space-screen-signal{font-size:6px;padding:2px 3px}
+}

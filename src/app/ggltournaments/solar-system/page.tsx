@@ -12,7 +12,7 @@ const established:Planet[] = [
 {id:"ember",name:"Ember",quadrant:1,orbit:4,known:true,kind:"Furnace beneath the dust",signal:"EXTREME HEAT",note:"Iron-rich deposits, high radiation and persistent geological activity. A long-horizon industrial prospect."},
 {id:"frost",name:"Frost",quadrant:1,orbit:5,known:true,kind:"Buried-water world",signal:"EXTREME COLD",note:"Deep water ice may support future life-support systems. Extraction depth and purity remain unconfirmed."},
 ];
-const quadrants=[{id:1,name:"ORIGIN",detail:"Haven's neighbourhood · five established planetary records"},{id:2,name:"FRONTIER",detail:"Outer routes · planetary signatures awaiting survey"},{id:3,name:"UNKNOWN",detail:"Unmapped conditions · incomplete orbital intelligence"},{id:4,name:"DEEP SPACE",detail:"Long-range signals · distant system approaches"}];
+const quadrants=[{id:1,name:"ORIGIN",detail:"North-east sector · five established planetary records"},{id:2,name:"FRONTIER",detail:"North-west sector · outer routes awaiting survey"},{id:3,name:"UNKNOWN",detail:"South-east sector · incomplete orbital intelligence"},{id:4,name:"DEEP SPACE",detail:"South-west sector · long-range approaches"}];
 export default function SolarSystemPage(){
  const [selectedId,setSelectedId]=useState("signal-06");
  const [filter,setFilter]=useState("ALL");

@@ -57,6 +57,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
   const shipMapMarkerRef = useRef<SVGGElement>(null);
   const mapRouteRef = useRef<SVGLineElement>(null);
   const mapTargetMarkerRef = useRef<SVGCircleElement>(null);
+  const navArrowRef = useRef<HTMLDivElement>(null);
+  const screenSignalRefs = useRef<Record<string, HTMLDivElement | null>>({});
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
@@ -666,6 +668,41 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       camera.lookAt(cameraTarget);
       if (targetReticleTime > 0) { targetReticleTime = Math.max(0, targetReticleTime - frameDelta); targetReticle.visible = targetReticleTime > 0; targetReticle.quaternion.copy(camera.quaternion); }
       else targetReticle.visible = false;
+      // Screen-space signalers mirror the system map; the selected destination gets an edge-safe directional arrow.
+      const knownWorlds = new Set([...(state.discoveredWorlds || []), ...WORLD_PLANETS.map(planet => planet.name)]);
+      for (const [id, visual] of Object.entries(planetVisuals)) {
+        const marker = screenSignalRefs.current[id];
+        if (!marker) continue;
+        const projected = visual.body.position.clone().project(camera);
+        const visible = projected.z > -1 && projected.z < 1 && Math.abs(projected.x) <= .96 && Math.abs(projected.y) <= .96;
+        marker.style.display = visible ? "block" : "none";
+        if (visible) {
+          marker.style.left = ((projected.x * .5 + .5) * host.clientWidth).toFixed(1) + "px";
+          marker.style.top = ((-projected.y * .5 + .5) * host.clientHeight).toFixed(1) + "px";
+          marker.textContent = knownWorlds.has(id) ? id.toUpperCase() : "UNMAPPED SIGNAL";
+          marker.dataset.known = knownWorlds.has(id) ? "true" : "false";
+          marker.dataset.target = state.selectedSurveyTarget === id ? "true" : "false";
+        }
+      }
+      const selectedId = state.selectedSurveyTarget;
+      const selectedVisual = selectedId ? planetVisuals[selectedId] : null;
+      if (navArrowRef.current && selectedVisual) {
+        const viewPosition = selectedVisual.body.position.clone().applyMatrix4(camera.matrixWorldInverse);
+        const projected = selectedVisual.body.position.clone().project(camera);
+        let nx = projected.x, ny = projected.y;
+        const behind = viewPosition.z > 0;
+        if (behind) { nx = -nx; ny = -ny; }
+        const onScreen = !behind && projected.z > -1 && projected.z < 1 && Math.abs(nx) < .82 && Math.abs(ny) < .82;
+        const edgeX = clamp(nx, -.88, .88), edgeY = clamp(ny, -.82, .82);
+        navArrowRef.current.style.display = "block";
+        navArrowRef.current.style.left = ((edgeX * .5 + .5) * host.clientWidth).toFixed(1) + "px";
+        navArrowRef.current.style.top = ((-edgeY * .5 + .5) * host.clientHeight).toFixed(1) + "px";
+        const angle = Math.atan2(nx, -ny) * 180 / Math.PI;
+        navArrowRef.current.style.transform = onScreen ? "translate(-50%,-50%)" : "translate(-50%,-50%) rotate(" + angle.toFixed(1) + "deg)";
+        navArrowRef.current.dataset.onscreen = onScreen ? "true" : "false";
+        const label = navArrowRef.current.querySelector("span");
+        if (label) label.textContent = onScreen ? "TARGET · " + selectedId.toUpperCase() : selectedId.toUpperCase();
+      } else if (navArrowRef.current) navArrowRef.current.style.display = "none";
       const flame = car.userData.flame as THREE.Object3D | undefined;
       if (flame) {
         flame.visible = controls.boost && race.nos > 0 && !controls.brake && currentPhase === "running";
@@ -705,6 +742,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
   }, [raceRef, controlsRef, phaseRef, spaceStateRef]);
 
   return <div ref={mountRef} className="racing-3d-root" data-phase={phaseRef.current} data-braking={controlsRef.current.brake ? "true" : "false"}>
+    <div className="space-screen-signals" aria-hidden="true">{[...WORLD_PLANETS.map(planet => ({ id: planet.name, label: planet.name })), ...SURVEY_WORLDS.map(world => ({ id: world.id, label: world.displayName }))].map(world => <div key={world.id} ref={node => { screenSignalRefs.current[world.id] = node; }} className="space-screen-signal" />)}</div>
+    <div ref={navArrowRef} className="space-nav-arrow" aria-live="polite"><b>▲</b><span>DESTINATION</span></div>
     <div className="space-flight-clock" aria-label="Flight elapsed time and accelerated system time" ref={flightClockRef}>FLIGHT T+00:00 · SYSTEM 06:00</div>
     <div aria-label="System map" className="space-mini-map">
       <div className="space-mini-map-title">SYSTEM MAP <span>FREE SPACE</span></div>

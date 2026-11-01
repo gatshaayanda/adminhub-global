@@ -1286,9 +1286,9 @@
 @media(max-width:520px){
  .race-hub-embedded .space-mission-inbox-alert{top:8px;left:8px;transform:none;width:calc(100% - 122px);min-height:42px;padding:6px 7px;gap:6px;border-radius:9px}
  .race-hub-embedded .space-mission-inbox-icon{width:24px;height:24px;flex-basis:24px;font-size:14px}
- .race-hub-embedded .space-mission-inbox-copy b{font-size:7px}
- .race-hub-embedded .space-mission-inbox-copy small{font-size:7px}
- .race-hub-embedded .space-mission-inbox-action{font-size:7px}
+ .race-hub-embedded .space-mission-inbox-copy b{font-size:8px}
+ .race-hub-embedded .space-mission-inbox-copy small{font-size:8px}
+ .race-hub-embedded .space-mission-inbox-action{font-size:8px}
  .race-hub-embedded .space-ship-manifest{top:56px!important;right:7px!important;width:104px!important}
  .race-hub-embedded .space-ship-manifest:has(.space-ship-manifest-details){top:56px!important;width:min(220px,calc(100% - 14px))!important;max-height:58%}
  .race-hub-embedded .space-chronicle-dock{width:calc(100% - 14px);left:7px;bottom:7px;max-height:72%}

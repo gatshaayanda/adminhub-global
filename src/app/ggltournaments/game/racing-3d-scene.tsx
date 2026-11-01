@@ -669,6 +669,8 @@ export default function Racing3DScene({ raceRef, controlsRef, phaseRef, spaceSta
       if (targetReticleTime > 0) { targetReticleTime = Math.max(0, targetReticleTime - frameDelta); targetReticle.visible = targetReticleTime > 0; targetReticle.quaternion.copy(camera.quaternion); }
       else targetReticle.visible = false;
       // Screen-space signalers mirror the system map; the selected destination gets an edge-safe directional arrow.
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld();
       const knownWorlds = new Set([...(state.discoveredWorlds || []), ...WORLD_PLANETS.map(planet => planet.name)]);
       for (const [id, visual] of Object.entries(planetVisuals)) {
         const marker = screenSignalRefs.current[id];

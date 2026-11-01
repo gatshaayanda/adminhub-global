@@ -114,4 +114,3 @@ export function ratifyHavenSettlement(state: SpaceState): string | null {
   state.events = state.events.slice(0, 6);
   return chosen;
 }
-}

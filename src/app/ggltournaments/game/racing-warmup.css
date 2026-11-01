@@ -1370,3 +1370,9 @@
  .race-hub-embedded .space-menu-tabs button{font-size:7px;padding:7px 2px}
  .racing-3d-root .space-screen-signal{font-size:6px;padding:2px 3px}
 }
+
+@media(max-width:520px){
+ .race-hub-embedded .space-mission-inbox-alert{top:44px;left:8px;width:calc(100% - 16px);transform:none}
+ .race-hub-embedded .space-flight-log-dock{top:94px;left:8px}
+ .race-hub-embedded .space-flight-log-panel{max-height:54vh}
+}

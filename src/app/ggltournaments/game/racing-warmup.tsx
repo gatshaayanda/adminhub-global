@@ -8,6 +8,7 @@ import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
 import { FOUNDING_CATEGORIES, FOUNDING_CIRCUMSTANCES, getCircumstance, DEFAULT_FOUNDING_IDS } from "./space-founding";
 import { getSurveyWorld, SURVEY_WORLDS, SPACE_SURVEY_TARGET_KEY } from "./space-universe";
+import { readHavenCollective } from "./space-society";
 
 const SPACE_AUTOSAVE_KEY = "ggl-space-autosave-v1";
 const SPACE_MANUAL_SAVE_KEY = "ggl-space-manual-save-v1";
@@ -811,6 +812,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     setBoostActive(false);
   };
   const world = spaceStateRef.current;
+  const havenRead = readHavenCollective(world);
   const selectedSurvey = world.selectedSurveyTarget ? getSurveyWorld(world.selectedSurveyTarget) : undefined;
   const selectedSurveyRecord = selectedSurvey ? world.surveyRecords?.[selectedSurvey.id] : undefined;
   const mission = selectedSurvey
@@ -998,6 +1000,25 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                 <small>{mission.progress}% guidance progress · target: {missionTargetLabel}</small>
                 {mission.target !== "GGL Haven" && <button type="button" onClick={() => setSystemCourse(mission.target)}>{world.selectedSurveyTarget === mission.target ? "NAVIGATION ACTIVE ✓" : "SET MISSION COURSE ↗"}</button>}
               </article>
+              <article className="space-menu-active-mission">
+                <span>HAVEN · COLLECTIVE PERSONALITY</span>
+                <strong>{havenRead.identity}</strong>
+                <p>{havenRead.tension}</p>
+                <small>Current priorities: {havenRead.priorities.join(" · ")}</small>
+                <div className="space-chronicle-list">
+                  {havenRead.voices.map(voice => <small key={voice.name}><b>{voice.name}</b> · {voice.influence}% influence<br />{voice.position}</small>)}
+                </div>
+              </article>
+              <article className="space-menu-active-mission">
+                <span>HAVEN COUNCIL · PROVISIONAL FIRST-SETTLEMENT VIEW</span>
+                <strong>{havenRead.recommendation}</strong>
+                <p>{havenRead.rationale}</p>
+                <small>Recommendation is derived from the living population's motivations, skills and verified survey records. Haven has not yet committed its founding crew.</small>
+              </article>
+              <div className="space-menu-active-mission">
+                <span>EMERGING MISSION OPPORTUNITIES</span>
+                {havenRead.opportunities.map(opportunity => <p key={opportunity.title}><b>{opportunity.title}</b><br />{opportunity.detail}</p>)}
+              </div>
               <div className="space-menu-mission-facts"><span>SHIP CARGO<strong>{world.cargoPeople} crew · {world.cargoEquipment} machines</strong></span><span>HAVEN RESERVES<strong>{world.machineInventory} machines · {world.havenMaterials || 0} materials</strong></span><span>PILOT CAREER<strong>{getPilotCareer(world).rank} · {world.pilotCredits || 0} credits</strong></span></div>
               {activeSurveyTarget && <p className="space-menu-footnote">Current route: {activeSurveyTarget.displayName}. Close-range approach and scan are required to complete the report.</p>}
               {world.nearbyTarget === "GGL Haven" && <p className="space-menu-footnote">Haven is in approach range. Use the contextual docking panel to dock, load machinery or board a crew.</p>}

@@ -142,6 +142,19 @@ These are factual background notes for writing project descriptions/case-study c
 - Prefer promoting a verified READY deployment over creating unnecessary code changes.
 - Never change Firebase rules or unrelated application code merely to force a deployment.
 
+## PWA offline release gate — mandatory for PWA/game pushes
+
+For every change to an installable PWA or browser game, offline readiness is part of the main-branch release checklist, not a later enhancement.
+
+- Inspect the existing manifest, the single registered service worker, cache versioning, actual route paths, and all route-specific JS/CSS/font/image dependencies before editing. Do not add a second service worker or replace working install-prompt behaviour.
+- Precache the real playable route and the same-origin Next.js scripts/styles it needs. Confirm every required route exists; one stale/missing URL must not silently invalidate the entire app-shell install.
+- Preserve local-first gameplay and data. Verify save, restore, refresh, and app restart use durable device storage; cloud APIs, analytics, weather, admin content and other network-only features must not block the core offline experience.
+- Keep offline progress and existing saves intact on reconnection. Never replace a newer local save with stale remote state.
+- Before declaring the main push QA-ready, test on a real installed device: while online, open the exact game route and wait for the updated service worker to activate and finish caching; then enable airplane mode, cold-launch the installed app (not merely the already-open tab), play, make a change, close/reopen, and confirm the saved state restores. Reconnect and confirm the local run remains intact.
+- If device airplane-mode testing is not possible, report offline support as source-verified but device-unverified. Never claim that a push made an app playable offline until the matching deployment is READY and this check has passed.
+- When shipping an offline-cache change, bump the cache version, verify activation removes only obsolete app caches, and confirm the worker is controlling the page. Keep user data in localStorage/IndexedDB separate from disposable Cache Storage.
+- Include an obvious route/shortcut for the playable experience when an installed app's normal start URL is a different page. Do not change the product-wide start URL without approval.
+
 ## OPPORTUNITY TRIGGER
 
 **Trigger word: `HUNT`**

@@ -99,6 +99,12 @@ export type SpaceState = {
   discoveredWorlds?: string[];
   selectedSurveyTarget?: string | null;
   surveyRecords?: Record<string, SpaceSurveyRecord>;
+  /** Survey findings remain aboard the ship until the pilot returns to Haven. */
+  pendingSurveyReports?: string[];
+  reportedSurveyWorlds?: string[];
+  /** Ratified by Haven after receiving at least one field report. */
+  havenSettlementWorld?: string | null;
+  havenCouncilSupport?: number;
   pilotName?: string;
   pilotTheoryPassed?: boolean;
   pilotLicenceIssuedAtWorldMinutes?: number | null;
@@ -175,6 +181,10 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     discoveredWorlds: [],
     selectedSurveyTarget: null,
     surveyRecords: {},
+    pendingSurveyReports: [],
+    reportedSurveyWorlds: [],
+    havenSettlementWorld: null,
+    havenCouncilSupport: 0,
     pilotName: "",
     pilotTheoryPassed: false,
     pilotLicenceIssuedAtWorldMinutes: null,
@@ -237,17 +247,11 @@ export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
     surveyedAtWorldMinutes: state.worldTimeMinutes,
   };
   state.surveyRecords = { ...(state.surveyRecords || {}), [worldId]: record };
+  state.pendingSurveyReports = [...new Set([...(state.pendingSurveyReports || []), worldId])];
   state.acclaim += world.scanReward;
   awardPilotCredits(state, 25, "Planetary survey mission reward");
   state.events.unshift("SURVEY COMPLETE: " + world.revealedName + " identified. " + world.surveyFinding);
   state.events = state.events.slice(0, 6);
-  recordSpaceChronicle(
-    state,
-    "discovery",
-    "GGL Haven",
-    "Survey report received: " + world.revealedName,
-    "The ship transmitted a close-range planetary survey to Haven. " + world.surveyFinding + " Meteor exposure: " + world.meteorExposure + ". Archive acclaim earned: " + world.scanReward + ".",
-  );
   recordSpaceChronicle(
     state,
     "discovery",
@@ -257,6 +261,23 @@ export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
   );
   if (state.selectedSurveyTarget === worldId) state.selectedSurveyTarget = null;
   return true;
+}
+
+/** Present field intelligence to Haven only after a physical return and docking. */
+export function receiveSurveyReportsAtHaven(state: SpaceState): number {
+  const pending = [...new Set(state.pendingSurveyReports || [])].filter(id => Boolean(state.surveyRecords?.[id]));
+  if (!pending.length) return 0;
+  const alreadyReported = new Set(state.reportedSurveyWorlds || []);
+  const fresh = pending.filter(id => !alreadyReported.has(id));
+  state.reportedSurveyWorlds = [...alreadyReported, ...fresh];
+  state.pendingSurveyReports = [];
+  if (fresh.length) {
+    const names = fresh.map(id => state.surveyRecords?.[id]?.revealedName || getSurveyWorld(id)?.revealedName || id);
+    recordSpaceChronicle(state, "discovery", "GGL Haven", "Field intelligence presented to Haven", state.pilotName + " returned with " + fresh.length + " verified planetary report(s): " + names.join(", ") + ". The founding networks can now deliberate using this evidence.");
+    state.events.unshift("HAVEN DEBRIEF: " + names.join(", ") + " — verified field intelligence is now available to the founding networks.");
+    state.events = state.events.slice(0, 6);
+  }
+  return fresh.length;
 }
 
 export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number): void {
@@ -458,6 +479,10 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     discoveredWorlds: Array.isArray(saved.discoveredWorlds) ? saved.discoveredWorlds.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))) : [],
     selectedSurveyTarget: typeof saved.selectedSurveyTarget === "string" && (Boolean(getSurveyWorld(saved.selectedSurveyTarget)) || WORLD_PLANETS.some(planet => planet.name === saved.selectedSurveyTarget)) ? saved.selectedSurveyTarget : null,
     surveyRecords: saved.surveyRecords && typeof saved.surveyRecords === "object" ? Object.fromEntries(Object.entries(saved.surveyRecords).filter(([id, record]) => Boolean(getSurveyWorld(id)) && record && typeof record === "object" && typeof (record as SpaceSurveyRecord).revealedName === "string" && typeof (record as SpaceSurveyRecord).atmosphere === "string").map(([id, record]) => [id, record as SpaceSurveyRecord])) : {},
+    pendingSurveyReports: Array.isArray(saved.pendingSurveyReports) ? [...new Set(saved.pendingSurveyReports.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))))] : (Array.isArray(saved.discoveredWorlds) ? saved.discoveredWorlds.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))) : []),
+    reportedSurveyWorlds: Array.isArray(saved.reportedSurveyWorlds) ? [...new Set(saved.reportedSurveyWorlds.filter((id): id is string => typeof id === "string" && Boolean(getSurveyWorld(id))))] : [],
+    havenSettlementWorld: typeof saved.havenSettlementWorld === "string" && WORLD_PLANETS.some(planet => planet.name === saved.havenSettlementWorld) ? saved.havenSettlementWorld : null,
+    havenCouncilSupport: Math.max(-3, Math.min(3, Math.round(finiteNumber(saved.havenCouncilSupport, 0)))),
     pilotName: typeof saved.pilotName === "string" ? saved.pilotName.slice(0, 28) : "",
     pilotTheoryPassed: Boolean(saved.pilotTheoryPassed),
     pilotLicenceIssuedAtWorldMinutes: typeof saved.pilotLicenceIssuedAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceIssuedAtWorldMinutes) ? Math.max(0, saved.pilotLicenceIssuedAtWorldMinutes) : null,

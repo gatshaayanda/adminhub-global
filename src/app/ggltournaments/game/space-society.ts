@@ -87,6 +87,8 @@ export function readHavenCollective(state: SpaceState): HavenCollectiveRead {
     reportedCount: surveyed.length,
     ratifiedWorld: state.havenSettlementWorld || null,
   };
+}
+
 /** Player arguments change the council balance; they never bypass evidence or commit a settlement. */
 export function influenceHavenCouncil(state: SpaceState, stance: "care" | "science" | "industry"): boolean {
   if (!(state.reportedSurveyWorlds || []).length || state.havenSettlementWorld) return false;

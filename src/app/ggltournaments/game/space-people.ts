@@ -235,7 +235,11 @@ export function advancePopulation(population: PopulationState | undefined, world
     const environment = environmentFor(household.location);
     const materialReadiness = (environment.air + environment.food + environment.water + environment.shelter + environment.safety) / 5;
     if (materialReadiness < 68) continue;
-    const locationPopulation = population.people.filter(person => person.alive && person.location === household.location).length;
+    const locationPopulation = Math.max(
+      population.people.filter(person => person.alive && person.location === household.location).length,
+      colonyPopulation[household.location === "haven" ? "Haven" : household.location.slice(7)] || 0,
+    );
+    if (household.location === "haven" && locationPopulation >= 240) continue;
     if (household.location.startsWith("planet:")) {
       const planet = household.location.slice(7);
       const capacity = Math.max(0, 12 + Math.floor(((planetProgress[planet] || 0) - 80) * 1.6));

@@ -546,7 +546,30 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
 
   const populationCounts = Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population]));
   populationCounts.Haven = state.havenPopulation;
+  const livingCountsBefore = state.population ? Object.fromEntries(
+    ["haven", ...WORLD_PLANETS.map(planet => "planet:" + planet.name)].map(location => [
+      location,
+      state.population!.people.filter(person => person.alive && person.location === location).length,
+    ]),
+  ) as Record<string, number> : {};
   advancePopulation(state.population, state.worldTimeMinutes, state.planetProgress, populationCounts, state.events);
+  if (state.population) {
+    const livingCountsAfter = Object.fromEntries(
+      ["haven", ...WORLD_PLANETS.map(planet => "planet:" + planet.name)].map(location => [
+        location,
+        state.population!.people.filter(person => person.alive && person.location === location).length,
+      ]),
+    ) as Record<string, number>;
+    // Keep the civilisation totals in step with individual births and deaths.
+    // The separate habitat-growth counters remain responsible for their existing
+    // baseline growth; this applies only the lifecycle delta from named people.
+    state.havenPopulation = Math.max(0, state.havenPopulation + (livingCountsAfter.haven - (livingCountsBefore.haven || 0)));
+    for (const planet of WORLD_PLANETS) {
+      const location = "planet:" + planet.name;
+      const colony = state.colonies[planet.name];
+      if (colony) colony.population = Math.max(0, colony.population + (livingCountsAfter[location] - (livingCountsBefore[location] || 0)));
+    }
+  }
 
   const activeHazard = (state.hazards || []).find(hazard => hazard.status === "warning" || hazard.status === "mitigated");
   const developedWorld = WORLD_PLANETS.find(planet => (state.planetProgress[planet.name] || 0) >= 92 && Boolean(state.colonies[planet.name]));

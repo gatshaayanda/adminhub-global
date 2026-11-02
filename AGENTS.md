@@ -1687,7 +1687,8 @@ This is an additive foundation. Preserve the existing simulation, Haven-first li
 ### First xenobiology discoveries
 - Lumen's survey record introduces large bioluminescent squid-like cephalopods. They are territorial around breeding grounds, not inherently hostile.
 - Noctis's survey record introduces armoured octopus-like organisms in flooded subsurface caverns whose defensive pulses can damage exposed equipment.
-- These are currently survey/lore discoveries. Visible creature models, autonomous creature behaviour, and direct creature combat are not yet implemented. Do not represent the written discovery as a completed animated encounter.
+- Surveying Lumen or Noctis records a distinct first-contact xenobiology event in the civilisation chronicle and event feed. Lumen releases luminous ink defensively; Noctis organisms emit a damaging defensive pulse after probe disturbance.
+- These are currently simulated first-contact records, not rendered creature models. Visible creature models, ongoing autonomous creature behaviour, and direct creature combat are not yet implemented. Do not represent the written discovery as a completed animated encounter.
 
 ### QA gates for this foundation
 - New player: name → correctly answered flight-controls theory → immediate one-year pilot licence.

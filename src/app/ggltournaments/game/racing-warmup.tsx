@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, respondToColonyMission, awardPilotCredits, updatePilotLicence, getPilotCareer, selectSpaceSurveyTarget, surveySpaceWorld, receiveSurveyReportsAtHaven, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
+import { createInitialSpaceState, advanceSpaceWorld, getFirstFootholdCue, habitatCapacity, habitatStage, mitigateSpaceHazard, recordSpaceChronicle, respondToColonyMission, transmitColonyMissionToBots, awardPilotCredits, updatePilotLicence, getPilotCareer, selectSpaceSurveyTarget, surveySpaceWorld, receiveSurveyReportsAtHaven, restoreSpaceState, SPACE_SAVE_KEY, WORLD_PLANETS, type SpaceState } from "./space-civilisation";
 import "./racing-warmup.css";
 import Racing3DScene from "./racing-3d-scene";
 import { movePeople } from "./space-people";
@@ -613,13 +613,15 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const renewPilotLicence = () => {
     const state = spaceStateRef.current;
     if (state.dockedAt !== "GGL Haven") { notify("Dock at GGL Haven to renew your pilot licence.", "error"); return; }
-    if (state.pilotLicenceIssuedAtWorldMinutes == null) { notify("Earn your operational licence by establishing a populated planet first.", "info"); return; }
+    if (state.pilotLicenceIssuedAtWorldMinutes == null) { notify("Pass the flight-controls theory examination to receive your first operational licence.", "info"); return; }
     if ((state.pilotCredits || 0) < 100) { notify("Licence renewal costs 100 credits. Complete missions or earn planetary income first.", "error"); return; }
     state.pilotCredits = (state.pilotCredits || 0) - 100;
-    state.pilotLicenceExpiresAtWorldMinutes = Math.max(state.worldTimeMinutes, state.pilotLicenceExpiresAtWorldMinutes || 0) + 30 * 1440;
-    recordSpaceChronicle(state, "society", "GGL Haven", "Pilot licence renewed", state.pilotName + " paid 100 credits to renew the operational licence for 30 system days.");
+    state.pilotLicenceExpiresAtWorldMinutes = Math.max(state.worldTimeMinutes, state.pilotLicenceExpiresAtWorldMinutes || 0) + 365 * 1440;
+    state.rivalPilotThreatAtWorldMinutes = null;
+    state.rivalPilotShipBuilt = false;
+    recordSpaceChronicle(state, "society", "GGL Haven", "Pilot licence renewed", state.pilotName + " paid 100 credits to renew the operational licence for one system year.");
     writeAutoSnapshot();
-    notify("Pilot licence renewed for 30 system days.", "success");
+    notify("Pilot licence renewed for one system year.", "success");
     setSpaceUiTick(n => n + 1);
   };
   const surveyNearbyWorld = () => {
@@ -957,7 +959,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                   <div className="space-pilot-career-body">
                     <label>PILOT NAME<input maxLength={28} value={world.pilotName || ""} placeholder="Enter your pilot name" onChange={event => { world.pilotName = event.target.value.slice(0, 28); setSpaceUiTick(n => n + 1); }} onBlur={writeAutoSnapshot} /></label>
                     <div className="space-pilot-career-stats"><span>CAREER RANK<strong>{getPilotCareer(world).rank}</strong></span><span>CAREER SCORE<strong>{getPilotCareer(world).score}</strong></span><span>MISSION CREDITS<strong>{world.pilotCredits || 0}</strong></span></div>
-                    <div className="space-pilot-licence-status"><b>{world.pilotTheoryPassed ? "THEORY PASSED" : "THEORY EXAM REQUIRED"}</b><span>{getPilotCareer(world).operationalLicence ? (getPilotCareer(world).licenceActive ? "OPERATIONAL LICENCE ACTIVE" : "OPERATIONAL LICENCE EXPIRED") : "OPERATIONAL LICENCE: EARNED AFTER FIRST POPULATED PLANET"}</span></div>
+                    <div className="space-pilot-licence-status"><b>{world.pilotTheoryPassed ? "THEORY PASSED" : "THEORY EXAM REQUIRED"}</b><span>{getPilotCareer(world).operationalLicence ? (getPilotCareer(world).licenceActive ? "OPERATIONAL LICENCE ACTIVE" : "OPERATIONAL LICENCE EXPIRED") : "OPERATIONAL LICENCE: ISSUED AFTER THEORY PASS"}</span></div>
                     {!world.pilotTheoryPassed && <div className="space-pilot-theory">
                       <p>FLIGHT THEORY · Four checks before certification</p>
                       {[
@@ -968,7 +970,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                       ].map((question,index)=><label key={question.correct}><span>{index+1}. {question.question}</span><select value={pilotTheoryAnswers[index]} onChange={event=>setPilotTheoryAnswers(current=>current.map((value,i)=>i===index?event.target.value:value))}><option value="">Choose answer</option>{question.options.map(option=><option key={option[0]} value={option[0]}>{option[1]}</option>)}</select></label>)}
                       <button type="button" onClick={submitPilotTheory}>SUBMIT THEORY TEST</button>
                     </div>}
-                    {getPilotCareer(world).operationalLicence && <div className="space-pilot-renewal"><span>EXPIRES IN {Math.max(0,Math.ceil(((world.pilotLicenceExpiresAtWorldMinutes || 0)-world.worldTimeMinutes)/1440))} SYSTEM DAYS · 100 CREDITS / 30 DAYS</span><button type="button" onClick={renewPilotLicence} disabled={world.dockedAt!=="GGL Haven" || (world.pilotCredits||0)<100}>RENEW AT HAVEN · 100 CR</button></div>}
+                    {getPilotCareer(world).operationalLicence && <div className="space-pilot-renewal"><span>EXPIRES IN {Math.max(0,Math.ceil(((world.pilotLicenceExpiresAtWorldMinutes || 0)-world.worldTimeMinutes)/1440))} SYSTEM DAYS · 100 CREDITS / YEAR</span><button type="button" onClick={renewPilotLicence} disabled={world.dockedAt!=="GGL Haven" || (world.pilotCredits||0)<100}>RENEW AT HAVEN · 100 CR</button></div>}
                     <div className="space-pilot-achievements"><b>CAREER RECORD</b>{getPilotCareer(world).achievements.length ? getPilotCareer(world).achievements.map(item=><small key={item}>✓ {item}</small>) : <small>Your career record begins with your first flight and mission.</small>}</div>
                     <small className="space-pilot-rank-note">{getPilotCareer(world).nextRank ? "Next rank: "+getPilotCareer(world).nextRank+" · "+Math.max(0,(getPilotCareer(world).nextThreshold||0)-getPilotCareer(world).score)+" points to go. Time served and real achievements both count." : "Top career rank reached. Your history continues to grow."}</small>
                   </div>
@@ -1004,6 +1006,10 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
                   <button type="button" onClick={() => { const result = respondToColonyMission(world,item.id,"support"); notify(result.message,result.ok?"success":"info"); if(result.ok){writeAutoSnapshot();setSpaceUiTick(n=>n+1);} }} disabled={(world.cargoMaterials || 0)<1}>SEND AID · 1 MATERIAL</button>
                   <button type="button" onClick={() => { const result = respondToColonyMission(world,item.id,"autonomy"); notify(result.message,result.ok?"success":"info"); if(result.ok){writeAutoSnapshot();setSpaceUiTick(n=>n+1);} }}>RECOGNISE AUTONOMY</button>
                   <button type="button" onClick={() => { const result = respondToColonyMission(world,item.id,"negotiate"); notify(result.message,result.ok?"success":"info"); if(result.ok){writeAutoSnapshot();setSpaceUiTick(n=>n+1);} }}>NEGOTIATE</button>
+                  <div className="space-colony-bot-transmit">
+                    <small>REMOTE BOT LINK · {world.colonies[item.world]?.botCount || 0} FIELD BOTS</small>
+                    {(["support","autonomy","negotiate"] as const).map(choice => <button type="button" key={choice} disabled={(world.colonies[item.world]?.botCount || 0) < 1 || (choice === "support" && (world.colonies[item.world]?.localMaterials || 0) < 1)} onClick={() => { const result = transmitColonyMissionToBots(world,item.id,choice); notify(result.message,result.ok?"success":"info"); if(result.ok){writeAutoSnapshot();setSpaceUiTick(n=>n+1);} }}>TRANSMIT · {choice.toUpperCase()}</button>)}
+                  </div>
                 </div>
               </article>)}
               {(world.colonyMissions || []).filter(item => item.status === "resolved").slice(-3).reverse().map(item => <article className="space-menu-active-mission space-colony-mission-resolved" key={item.id}><span>RESOLVED · {item.relation.toUpperCase()}</span><strong>{item.title}</strong><p>{item.outcome}</p></article>)}
@@ -1148,7 +1154,7 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
               <b style={{ color: stage.color }}>{stage.label}</b> · {Math.round(progress)}% restored<br />
               {installed}/{planet.colonyMachineRequirement} founding machines<br />{colony ? colony.population + " settlers · " + colony.operators + " local operators" : progress >= 80 ? "Safe capacity " + habitatCapacity(progress) + " people" : "No safe crew until 80%"}<br />{(world.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name)).slice(0, 3).map(person => person.name).join(" · ")}
               {ecology && <div className="space-ecology-data"><b>WORLD SYSTEMS</b><span>{Math.round(ecology.temperatureC)}°C · {Math.round(ecology.pressureKpa)} kPa · water {Math.round(ecology.accessibleWater)}%</span><span>Radiation {Math.round(ecology.radiation)}% · ecology {Math.round(ecology.biodiversity)}% · food {Math.round(ecology.foodProduction)}%</span><span>{ecology.resourceType}: {Math.round(ecology.resourceStock)} units · fabrication {Math.round(ecology.fabricationProgress)}%</span><span>Local modules produced: {ecology.manufacturedModules} · maintenance load {Math.round(ecology.maintenanceLoad)}%</span></div>}
-              {(() => { {colony && <div className="space-society-data"><b>{colony.collectiveIdentity || colony.governance.replace("-", " ").toUpperCase()}</b><span>{(colony.relation || "neutral").toUpperCase()} RELATIONSHIP · {colony.governance.replace("-", " ").toUpperCase()} · Haven trust {Math.round(colony.trustWithHaven)}% · local autonomy {Math.round(colony.autonomy)}%</span><small>{colony.productionFocus || "Local production and repair"}</small>{(colony.customs || []).map(custom => <small key={custom}>{custom}</small>) }{colony.factions.length > 0 ? colony.factions.map(faction => <small key={faction.id}>{faction.name} · {faction.influence}% influence — {faction.agenda}</small>) : <small>Local groups are still forming from settlers' shared experiences.</small>}</div>}{colony && <div className="space-machine-load-options" aria-label="Local council conversation">
+              {(() => { {colony && <div className="space-society-data"><b>{colony.collectiveIdentity || colony.governance.replace("-", " ").toUpperCase()}</b><span>{(colony.relation || "neutral").toUpperCase()} RELATIONSHIP · {colony.governance.replace("-", " ").toUpperCase()} · Haven trust {Math.round(colony.trustWithHaven)}% · local autonomy {Math.round(colony.autonomy)}%</span><small>{colony.productionFocus || "Local production and repair"}</small><small>LOCAL INDUSTRY · {colony.botCount || 0} bots · robotics {Math.round(colony.roboticsKnowledge || 0)}% · local materials {Math.floor(colony.localMaterials || 0)}</small><small>SPACECRAFT · {colony.spacecraftCount || 0} hulls · knowledge {Math.round(colony.spacecraftKnowledge || 0)}% · build {Math.round(colony.spacecraftBuildProgress || 0)}%</small>{(colony.customs || []).map(custom => <small key={custom}>{custom}</small>) }{colony.factions.length > 0 ? colony.factions.map(faction => <small key={faction.id}>{faction.name} · {faction.influence}% influence — {faction.agenda}</small>) : <small>Local groups are still forming from settlers' shared experiences.</small>}</div>}{colony && <div className="space-machine-load-options" aria-label="Local council conversation">
                 <button type="button" onClick={() => { const result = engageColonyCouncil(world, planet.name, "support"); notify(result.message, result.ok ? "success" : "info"); if (result.ok) { writeAutoSnapshot(); setSpaceUiTick(n => n + 1); } }} disabled={(world.cargoMaterials || 0) < 1}>Deliver practical support · 1 material</button>
                 <button type="button" onClick={() => { const result = engageColonyCouncil(world, planet.name, "autonomy"); notify(result.message, result.ok ? "success" : "info"); if (result.ok) { writeAutoSnapshot(); setSpaceUiTick(n => n + 1); } }}>Recognise local autonomy</button>
                 <button type="button" onClick={() => { const result = engageColonyCouncil(world, planet.name, "logistics"); notify(result.message, result.ok ? "success" : "info"); if (result.ok) { writeAutoSnapshot(); setSpaceUiTick(n => n + 1); } }} disabled={(world.cargoMaterials || 0) < 1}>Coordinate maintenance · 1 material</button>

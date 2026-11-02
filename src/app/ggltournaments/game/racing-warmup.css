@@ -1376,3 +1376,64 @@
  .race-hub-embedded .space-flight-log-dock{top:94px;left:8px}
  .race-hub-embedded .space-flight-log-panel{max-height:54vh}
 }
+
+
+/* 2026-11-02 CIPA flight-readability correction.
+   Keep the three entry points available, but prevent their expanded content from
+   competing with the ship silhouette, map and each other. */
+.race-hub-embedded .space-mission-inbox-alert{
+  top:8px;left:8px;transform:none;width:min(390px,calc(100% - 150px));
+  min-height:40px;padding:6px 8px;z-index:24;
+}
+.race-hub-embedded .space-mission-inbox-copy small{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.race-hub-embedded .space-flight-log-dock{
+  top:56px;left:8px;bottom:auto;width:min(190px,calc(100% - 150px));z-index:18;
+}
+.race-hub-embedded .space-flight-log-panel{
+  top:36px;left:0;width:min(390px,calc(100vw - 28px));
+  max-height:min(54svh,440px);grid-template-rows:auto minmax(0,1fr);
+}
+.race-hub-embedded .space-flight-log-list{min-height:0}
+.race-hub-embedded .space-chronicle-category{
+  border:1px solid rgba(133,190,255,.2);border-radius:8px;background:rgba(255,255,255,.025);
+}
+.race-hub-embedded .space-chronicle-category>summary{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  min-height:34px;padding:8px 10px;cursor:pointer;list-style:none;
+  color:#dff8ff;font:900 9px/1.2 system-ui,sans-serif;letter-spacing:.09em;
+}
+.race-hub-embedded .space-chronicle-category>summary::-webkit-details-marker{display:none}
+.race-hub-embedded .space-chronicle-category>summary::after{content:"+";color:#c5f36b;font-size:14px}
+.race-hub-embedded .space-chronicle-category[open]>summary::after{content:"−"}
+.race-hub-embedded .space-chronicle-category>summary small{color:#9db8ce;font-size:8px}
+.race-hub-embedded .space-chronicle-category-entries{display:grid;gap:6px;padding:0 7px 7px}
+.race-hub-embedded .space-flight-log-list .space-chronicle-category-entries .space-chronicle-entry{padding:8px}
+.race-hub-embedded .space-chronicle-category-entries .space-chronicle-entry-meta>span{color:#c5f36b}
+.race-hub-embedded .space-chronicle-dock{
+  left:8px;bottom:8px;width:min(220px,calc(100% - 16px));z-index:16;
+}
+.race-hub-embedded .space-chronicle-drawer{
+  max-height:min(34svh,270px);width:min(360px,calc(100vw - 24px));
+  overflow-y:auto;overscroll-behavior:contain;
+}
+.race-hub-embedded .space-pilot-licence-status{
+  padding:11px 12px;border:1px solid #3d8290;
+  background:#123d4b;color:#f0fdff;box-shadow:inset 0 0 0 1px #8ce8ed22;
+}
+.race-hub-embedded .space-pilot-licence-status>b{
+  display:block;color:#d9ff9b;font:950 12px/1.35 system-ui,sans-serif;
+  letter-spacing:.09em;text-shadow:0 1px 2px #061923;
+}
+.race-hub-embedded .space-pilot-licence-status>span{
+  color:#e1f5fa;font-size:10px;line-height:1.5;
+}
+@media(max-width:520px){
+  .race-hub-embedded .space-mission-inbox-alert{top:8px;left:8px;width:calc(100% - 142px);min-height:42px}
+  .race-hub-embedded .space-mission-inbox-copy small{-webkit-line-clamp:2}
+  .race-hub-embedded .space-flight-log-dock{top:56px;left:8px;width:132px}
+  .race-hub-embedded .space-flight-log-panel{max-height:48svh;width:min(340px,calc(100vw - 20px))}
+  .race-hub-embedded .space-chronicle-dock{left:8px;bottom:8px;width:190px}
+  .race-hub-embedded .space-chronicle-drawer{max-height:30svh;width:calc(100vw - 16px)}
+  .race-hub-embedded .space-chronicle-toggle{min-height:34px;padding:6px 8px}
+  .race-hub-embedded .space-pilot-licence-status>b{font-size:11px}
+}

@@ -1085,15 +1085,24 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           {historyOpen && <section className="space-flight-log-panel" aria-label="Civilisation history">
             <header><div><b>CIVILISATION HISTORY</b><small>Full record · newest first · {chronicleEvents.length} events</small></div><button type="button" onClick={() => setHistoryOpen(false)} aria-label="Close flight log">×</button></header>
             <div className="space-flight-log-list">
-              {[...chronicleEvents].reverse().map(event => {
-                const surveyId = Object.entries(world.surveyRecords || {}).find(([, record]) => record.revealedName === event.location)?.[0];
-                const eventTarget = WORLD_PLANETS.some(planet => planet.name === event.location) ? event.location : surveyId;
-                return <article className="space-chronicle-entry" key={event.id}>
-                  <div className="space-chronicle-entry-meta"><span>{event.kind.toUpperCase()}</span><small>DAY {Math.floor(event.atWorldMinutes / 1440) + 1} · {String(Math.floor(event.atWorldMinutes / 60) % 24).padStart(2,"0")}:00</small></div>
-                  <strong>{event.title}</strong><p>{event.detail}</p>
-                  <div className="space-chronicle-entry-footer"><span>{event.location}</span>{eventTarget && <button type="button" onClick={() => { setSystemCourse(eventTarget); setHistoryOpen(false); }}>SET COURSE ↗</button>}</div>
-                </article>;
-              })}
+              {Object.entries([...chronicleEvents].reverse().reduce<Record<string, typeof chronicleEvents>>((groups, event) => {
+                const category = (event.kind || "general").replace(/[-_]/g, " ").toUpperCase();
+                (groups[category] ||= []).push(event);
+                return groups;
+              }, {})).map(([category, events]) => <details className="space-chronicle-category" key={category}>
+                <summary><span>{category}</span><small>{events.length} {events.length === 1 ? "ENTRY" : "ENTRIES"}</small></summary>
+                <div className="space-chronicle-category-entries">
+                  {events.map(event => {
+                    const surveyId = Object.entries(world.surveyRecords || {}).find(([, record]) => record.revealedName === event.location)?.[0];
+                    const eventTarget = WORLD_PLANETS.some(planet => planet.name === event.location) ? event.location : surveyId;
+                    return <article className="space-chronicle-entry" key={event.id}>
+                      <div className="space-chronicle-entry-meta"><span>DAY {Math.floor(event.atWorldMinutes / 1440) + 1}</span><small>{String(Math.floor(event.atWorldMinutes / 60) % 24).padStart(2,"0")}:00</small></div>
+                      <strong>{event.title}</strong><p>{event.detail}</p>
+                      <div className="space-chronicle-entry-footer"><span>{event.location}</span>{eventTarget && <button type="button" onClick={() => { setSystemCourse(eventTarget); setHistoryOpen(false); }}>SET COURSE ↗</button>}</div>
+                    </article>;
+                  })}
+                </div>
+              </details>)}
               {!chronicleEvents.length && <p className="space-menu-empty">Your civilisation's history will appear here as events occur.</p>}
             </div>
             <details className="space-chronicle-group"><summary><span>FOUNDING NETWORKS</span><small>60 FOUNDERS</small></summary><div className="space-chronicle-list">

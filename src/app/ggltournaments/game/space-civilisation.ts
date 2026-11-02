@@ -44,7 +44,7 @@ export const HABITAT_STAGES: HabitatStage[] = [
   { index: 4, key: "habitable", label: "HABITABLE", color: "#78f0b1", atmosphereColor: "#49dcb8", description: "Crew can establish a settlement" },
 ];
 
-export type SpaceChronicleEvent = { id: string; atWorldMinutes: number; kind: "origin" | "discovery" | "settlement" | "habitat" | "recovery" | "docking" | "repair" | "hazard" | "society" | "production"; location: string; title: string; detail: string };
+export type SpaceChronicleEvent = { id: string; atWorldMinutes: number; kind: "origin" | "discovery" | "settlement" | "habitat" | "recovery" | "docking" | "repair" | "hazard" | "society" | "production" | "xenobiology"; location: string; title: string; detail: string };
 
 export type SpaceSurveyRecord = { worldId: string; revealedName: string; classification: string; atmosphere: string; resources: string; meteorExposure: string; surveyedAtWorldMinutes: number };
 
@@ -290,6 +290,15 @@ export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
     "New world discovered: " + world.revealedName,
     world.surveyFinding + " Meteor exposure: " + world.meteorExposure + ".",
   );
+  if (worldId === "signal-08" || worldId === "signal-20") {
+    const title = worldId === "signal-08" ? "First contact: Lumen's luminous cephalopods" : "Subsurface life detected beneath Noctis";
+    const detail = worldId === "signal-08"
+      ? "The survey released a cloud of luminous ink from a territorial squid-like organism near its breeding ground. The animal withdrew rather than pursuing the ship. This is a wildlife boundary, not a declaration of war."
+      : "A coordinated pulse from armoured octopus-like organisms damaged an exposed survey probe before the cavern entrance sealed. Their behaviour appears defensive and tied to disturbance of the flooded habitat.";
+    recordSpaceChronicle(state, "xenobiology", world.revealedName, title, detail);
+    state.events.unshift("XENOBIOLOGY · " + world.revealedName + ": " + detail);
+    state.events = state.events.slice(0, 6);
+  }
   if (state.selectedSurveyTarget === worldId) state.selectedSurveyTarget = null;
   return true;
 }

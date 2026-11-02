@@ -1651,3 +1651,14 @@ This owner direction extends the existing GGL Space universe and supersedes any 
 - Preserve save migration: older saves without colony mission/relation fields must restore safely with neutral/default values and retain existing settlements, people, history and progression.
 
 - Player-fired missiles acquire the nearest eligible target inside the existing forward acquisition cone/range, display the target reticle, and use bounded homing to follow that acquired target. Firing is never autonomous; preserve the user's trigger input, projectile rate, collision rules and existing target eligibility.
+
+
+## GGL Space — CIPA overlay and flight-log readability pass (2026-11-02)
+
+- The mission brief, Flight Log and CIPA command are persistent entry points, not permanent expanded panels. Keep each collapsed by default and reveal detail only on explicit player action; do not leave expanded drawers open across unrelated actions or sessions.
+- Keep the top-right system mini-map fully visible. The mission inbox brief must occupy a separate top-left region and use a compact, two-line maximum summary; never stretch across or cover the map.
+- Keep Flight Log and CIPA command drawers in distinct screen regions and constrain their expanded height so the ship silhouette and central flight view remain visible. The proximity INTERACT sheet remains independent and must not overlap either command surface.
+- Flight Log is a complete chronicle, but its presentation is categorised by event kind. Show category and entry count first; keep individual entries newest-first within each category and preserve their timestamps, locations, details and valid set-course actions. Do not repeat the event kind and timestamp in multiple places within each entry.
+- Pilot certification status in the Ship Manifest must use high-contrast foreground/background colours and readable type. “THEORY PASSED” must remain legible on mobile and desktop.
+- Preserve all game state, save formats, chronicle records, CIPA tabs, navigation, ship controls, map, target assist, mission logic and offline/PWA behaviour. This is a presentation/readability correction only.
+- QA on mobile and desktop: map unobstructed with mission brief visible; Flight Log and CIPA open/close independently; categories expand and preserve all entries; command panel does not cover ship; proximity actions remain usable; theory status readable.

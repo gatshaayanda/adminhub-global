@@ -78,6 +78,14 @@ export type SpaceColony = {
   customs?: string[];
   relation?: ColonyRelation;
   lastMissionAtWorldMinutes?: number;
+  roboticsKnowledge?: number;
+  botCount?: number;
+  localMaterials?: number;
+  botProductionProgress?: number;
+  spacecraftKnowledge?: number;
+  spacecraftBuildProgress?: number;
+  spacecraftCount?: number;
+  trainedPilots?: number;
 };
 
 export type SpaceState = {
@@ -127,6 +135,8 @@ export type SpaceState = {
   pilotTheoryPassed?: boolean;
   pilotLicenceIssuedAtWorldMinutes?: number | null;
   pilotLicenceExpiresAtWorldMinutes?: number | null;
+  rivalPilotThreatAtWorldMinutes?: number | null;
+  rivalPilotShipBuilt?: boolean;
   pilotCredits?: number;
   pilotMissionsCompleted?: number;
   planetIncomeRemainder?: number;
@@ -168,11 +178,10 @@ export function awardPilotCredits(state: SpaceState, amount: number, reason: str
 
 export function updatePilotLicence(state: SpaceState): boolean {
   if (!state.pilotTheoryPassed || !state.pilotName?.trim() || state.pilotLicenceIssuedAtWorldMinutes !== null && state.pilotLicenceIssuedAtWorldMinutes !== undefined) return false;
-  const hasPopulatedWorld = Object.values(state.colonies || {}).some(colony => colony.population > 0);
-  if (!hasPopulatedWorld) return false;
   state.pilotLicenceIssuedAtWorldMinutes = state.worldTimeMinutes;
-  state.pilotLicenceExpiresAtWorldMinutes = state.worldTimeMinutes + 30 * 1440;
-  recordSpaceChronicle(state, "society", "GGL Haven", "Operational pilot licence issued", state.pilotName + " earned an operational spaceship licence after establishing the first populated planet. The licence is valid for 30 system days.");
+  state.pilotLicenceExpiresAtWorldMinutes = state.worldTimeMinutes + 365 * 1440;
+  state.rivalPilotThreatAtWorldMinutes = null;
+  recordSpaceChronicle(state, "society", "GGL Haven", "Haven authorised its first spaceship pilot", state.pilotName + " passed the flight-controls theory examination and received the first operational spaceship licence. The licence is valid for one system year.");
   return true;
 }
 
@@ -208,6 +217,8 @@ export function createInitialSpaceState(now = Date.now(), foundingIds: string[] 
     pilotTheoryPassed: false,
     pilotLicenceIssuedAtWorldMinutes: null,
     pilotLicenceExpiresAtWorldMinutes: null,
+    rivalPilotThreatAtWorldMinutes: null,
+    rivalPilotShipBuilt: false,
     pilotCredits: 0,
     pilotMissionsCompleted: 0,
     planetIncomeRemainder: 0,
@@ -380,6 +391,39 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
     }
     const ecology = state.ecology?.[planet.name];
     colony.autonomy = Math.min(100, colony.autonomy + hours * (colony.operators * .08 + (ecology?.manufacturedModules || 0) * .02));
+    // Local industry is independent of the player: skills and usable resources,
+    // not a random roll, determine whether settlements can develop robotics.
+    const engineering = residents.length ? residents.reduce((sum, person) => sum + person.skills.engineering, 0) / residents.length : 0;
+    const research = residents.length ? residents.reduce((sum, person) => sum + person.skills.science, 0) / residents.length : 0;
+    colony.roboticsKnowledge = Math.min(100, (colony.roboticsKnowledge || 0) + hours * (engineering * .0007 + research * .00035) * (ecology && ecology.resourceStock > 0 ? 1 : .25));
+    colony.spacecraftKnowledge = Math.min(100, (colony.spacecraftKnowledge || 0) + hours * (engineering * .00022 + research * .00018) * ((colony.botCount || 0) >= 2 ? 1.4 : .35));
+    if (ecology && ecology.resourceStock > 0) {
+      const extraction = Math.min(ecology.resourceStock, hours * Math.max(.002, colony.operators * .0012));
+      ecology.resourceStock = Math.max(0, ecology.resourceStock - extraction);
+      colony.localMaterials = (colony.localMaterials || 0) + extraction;
+    }
+    const bots = colony.botCount || 0;
+    if (colony.population >= 6 && colony.roboticsKnowledge >= 20 && bots < 4 && (colony.localMaterials || 0) >= 8) {
+      colony.botProductionProgress = (colony.botProductionProgress || 0) + hours;
+      if (colony.botProductionProgress >= 24) {
+        colony.botProductionProgress -= 24;
+        colony.localMaterials = Math.max(0, (colony.localMaterials || 0) - 8);
+        colony.botCount = bots + 1;
+        recordSpaceChronicle(state, "production", planet.name, planet.name + " fabricated an autonomous field bot", "Local engineers used " + Math.round(colony.roboticsKnowledge) + "% robotics knowledge and eight locally gathered material units to build bot " + colony.botCount + ". Its capability is below a spaceship but exceeds the force of a typical asteroid impact.");
+      }
+    } else colony.botProductionProgress = 0;
+    // Spacecraft are a much longer, sequential project. Each colony can work
+    // on only one hull at a time and needs a mature robotics and engineering base.
+    if (colony.population >= 18 && (colony.botCount || 0) >= 2 && colony.spacecraftKnowledge >= 70 && (colony.localMaterials || 0) >= 40 && (colony.spacecraftCount || 0) < 2) {
+      colony.spacecraftBuildProgress = (colony.spacecraftBuildProgress || 0) + hours / 1200 * 100;
+      if (colony.spacecraftBuildProgress >= 100) {
+        colony.spacecraftBuildProgress = 0;
+        colony.localMaterials = Math.max(0, (colony.localMaterials || 0) - 40);
+        colony.spacecraftCount = (colony.spacecraftCount || 0) + 1;
+        colony.trainedPilots = Math.min(colony.population, (colony.trainedPilots || 0) + 1);
+        recordSpaceChronicle(state, "production", planet.name, planet.name + " completed a locally built spaceship", "After developing engineering knowledge, two or more field bots and forty local material units, the settlement completed one spacecraft hull. Construction is sequential and its pilot was trained from the local population.");
+      }
+    }
     if (state.worldTimeMinutes - colony.lastContactWorldMinutes > 3 * 1440) colony.trustWithHaven = Math.max(0, colony.trustWithHaven - hours * .025);
     const residents = (state.population?.people || []).filter(person => person.alive && person.location === ("planet:" + planet.name));
     const motivationNames: Record<string, [string,string]> = {
@@ -466,6 +510,22 @@ export function advanceSpaceWorld(state: SpaceState, elapsedWorldMinutes: number
       state.events.unshift("COLONY TRANSMISSION · " + world + ": " + mission.title + ". Open CIPA to respond.");
     }
   }
+  // A lapsed pilot licence first triggers a Haven review and grace period.
+  // Only after that period, and if Haven can commit the finite industrial reserve,
+  // does it build a rival craft and assign a hostile pilot.
+  const licenceIssued = typeof state.pilotLicenceIssuedAtWorldMinutes === "number";
+  const licenceExpired = licenceIssued && (state.pilotLicenceExpiresAtWorldMinutes || 0) <= state.worldTimeMinutes;
+  if (licenceExpired && state.rivalPilotThreatAtWorldMinutes == null) {
+    state.rivalPilotThreatAtWorldMinutes = state.worldTimeMinutes + 30 * 1440;
+    recordSpaceChronicle(state, "society", "GGL Haven", "Pilot licence review opened", "The pilot's annual authorisation expired. Haven opened a 30-day renewal window before considering an independent security craft and rival pilot.");
+  }
+  if (licenceExpired && state.rivalPilotThreatAtWorldMinutes != null && state.worldTimeMinutes >= state.rivalPilotThreatAtWorldMinutes && !state.rivalPilotShipBuilt && state.machineInventory >= 6 && (state.havenMaterials || 0) >= 24) {
+    state.machineInventory -= 6;
+    state.havenMaterials = (state.havenMaterials || 0) - 24;
+    state.rivalPilotShipBuilt = true;
+    recordSpaceChronicle(state, "society", "GGL Haven", "Haven commissioned a rival pilot", "The annual pilot licence remained unrenewed after the grace period. Haven committed six machines and twenty-four materials to a security spacecraft and assigned a rival pilot to challenge the unauthorised ship.");
+    state.events.unshift("HAVEN SECURITY: A rival pilot has been authorised. Renew your licence or prepare for interception.");
+  }
   if (state.events.length > 6) state.events.length = 6;
 
   const populationCounts = Object.fromEntries(Object.entries(state.colonies).map(([name, colony]) => [name, colony.population]));
@@ -549,6 +609,37 @@ export function respondToColonyMission(state: SpaceState, missionId: string, cho
   return { ok: true, message };
 }
 
+
+/** A settlement bot can carry a signed mission instruction back to its local council.
+ * The colony resolves the request without requiring the player to return physically. */
+export function transmitColonyMissionToBots(state: SpaceState, missionId: string, choice: "support" | "autonomy" | "negotiate"): { ok: boolean; message: string } {
+  const mission = (state.colonyMissions || []).find(item => item.id === missionId && item.status === "open");
+  if (!mission) return { ok: false, message: "This colony request is no longer active." };
+  const colony = state.colonies[mission.world];
+  if (!colony || (colony.botCount || 0) < 1) return { ok: false, message: "This settlement has not built a field bot capable of receiving remote instructions." };
+  if (choice === "support" && (colony.localMaterials || 0) < 1) return { ok: false, message: "The settlement has no local material reserve to fulfil this support instruction." };
+  if (choice === "support") {
+    colony.localMaterials = Math.max(0, (colony.localMaterials || 0) - 1);
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + 8);
+    const ecology = state.ecology?.[mission.world];
+    if (ecology) ecology.maintenanceLoad = Math.max(0, ecology.maintenanceLoad - 5);
+  } else if (choice === "autonomy") {
+    colony.autonomy = Math.min(100, colony.autonomy + 10);
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + (mission.relation === "conflict" ? 8 : 2));
+  } else {
+    colony.trustWithHaven = Math.min(100, colony.trustWithHaven + 5);
+    colony.autonomy = Math.min(100, colony.autonomy + 3);
+  }
+  mission.status = "resolved";
+  mission.outcome = "A local field bot received the pilot's transmission and completed the instruction without a physical return visit.";
+  colony.lastContactWorldMinutes = state.worldTimeMinutes;
+  colony.lastMissionAtWorldMinutes = state.worldTimeMinutes;
+  state.pilotMissionsCompleted = (state.pilotMissionsCompleted || 0) + 1;
+  awardPilotCredits(state, 12, "Remote colony bot mission");
+  recordSpaceChronicle(state, "society", mission.world, "Remote mission completed by local bot", mission.outcome + " Chosen instruction: " + choice + ".");
+  return { ok: true, message: mission.world + " completed the instruction through its field bot. Trust " + Math.round(colony.trustWithHaven) + "% · autonomy " + Math.round(colony.autonomy) + "%." };
+}
+
 export function mitigateSpaceHazard(state: SpaceState, target: string): boolean {
   const hazard = (state.hazards || []).find(item => item.target === target && item.status === "warning");
   if (!hazard || state.machineInventory <= 0) return false;
@@ -589,6 +680,8 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
     pilotTheoryPassed: Boolean(saved.pilotTheoryPassed),
     pilotLicenceIssuedAtWorldMinutes: typeof saved.pilotLicenceIssuedAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceIssuedAtWorldMinutes) ? Math.max(0, saved.pilotLicenceIssuedAtWorldMinutes) : null,
     pilotLicenceExpiresAtWorldMinutes: typeof saved.pilotLicenceExpiresAtWorldMinutes === "number" && Number.isFinite(saved.pilotLicenceExpiresAtWorldMinutes) ? Math.max(0, saved.pilotLicenceExpiresAtWorldMinutes) : null,
+    rivalPilotThreatAtWorldMinutes: typeof saved.rivalPilotThreatAtWorldMinutes === "number" && Number.isFinite(saved.rivalPilotThreatAtWorldMinutes) ? Math.max(0, saved.rivalPilotThreatAtWorldMinutes) : null,
+    rivalPilotShipBuilt: Boolean(saved.rivalPilotShipBuilt),
     pilotCredits: boundedInteger(saved.pilotCredits, 0, 0, 100000000),
     pilotMissionsCompleted: boundedInteger(saved.pilotMissionsCompleted, 0, 0, 1000000),
     planetIncomeRemainder: Math.max(0, Math.min(0.999999, finiteNumber(saved.planetIncomeRemainder, 0))),
@@ -639,6 +732,14 @@ export function restoreSpaceState(value: unknown, now = Date.now()): SpaceState 
           customs: Array.isArray(colony.customs) ? colony.customs.filter((item): item is string => typeof item === "string").slice(0, 4) : [],
           relation: colony.relation === "cooperative" || colony.relation === "conflict" ? colony.relation : "neutral",
           lastMissionAtWorldMinutes: Math.max(foundedAt, finiteNumber(colony.lastMissionAtWorldMinutes, foundedAt)),
+          roboticsKnowledge: Math.max(0, Math.min(100, finiteNumber(colony.roboticsKnowledge, 0))),
+          botCount: boundedInteger(colony.botCount, 0, 0, 12),
+          localMaterials: Math.max(0, finiteNumber(colony.localMaterials, 0)),
+          botProductionProgress: Math.max(0, finiteNumber(colony.botProductionProgress, 0)),
+          spacecraftKnowledge: Math.max(0, Math.min(100, finiteNumber(colony.spacecraftKnowledge, 0))),
+          spacecraftBuildProgress: Math.max(0, Math.min(100, finiteNumber(colony.spacecraftBuildProgress, 0))),
+          spacecraftCount: boundedInteger(colony.spacecraftCount, 0, 0, 12),
+          trainedPilots: boundedInteger(colony.trainedPilots, 0, 0, 12),
         };
       }
     }

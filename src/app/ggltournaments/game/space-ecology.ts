@@ -22,6 +22,21 @@ const PROFILES: Record<string, Omit<PlanetEcology, "extractedResource" | "mainte
   Aster: { temperatureC: -58, pressureKpa: 24, accessibleWater: 18, radiation: 68, contamination: 52, biodiversity: 1, energyPotential: 51, foodProduction: 0, resourceType: "silicate", resourceStock: 62 },
   Cobalt: { temperatureC: -18, pressureKpa: 48, accessibleWater: 58, radiation: 44, contamination: 34, biodiversity: 8, energyPotential: 69, foodProduction: 2, resourceType: "copper", resourceStock: 70 },
   Verdant: { temperatureC: 17, pressureKpa: 76, accessibleWater: 78, radiation: 22, contamination: 48, biodiversity: 36, energyPotential: 55, foodProduction: 22, resourceType: "rare crystal", resourceStock: 34 },
+  "signal-06": { temperatureC: -42, pressureKpa: 3, accessibleWater: 8, radiation: 38, contamination: 24, biodiversity: 0, energyPotential: 42, foodProduction: 0, resourceType: "nickel silicate", resourceStock: 58 },
+  "signal-07": { temperatureC: -72, pressureKpa: 0, accessibleWater: 2, radiation: 24, contamination: 12, biodiversity: 0, energyPotential: 36, foodProduction: 0, resourceType: "rare earth alloy", resourceStock: 74 },
+  "signal-08": { temperatureC: 6, pressureKpa: 91, accessibleWater: 88, radiation: 18, contamination: 8, biodiversity: 76, energyPotential: 22, foodProduction: 42, resourceType: "bioluminescent biomass", resourceStock: 46 },
+  "signal-09": { temperatureC: 184, pressureKpa: 6, accessibleWater: 1, radiation: 72, contamination: 86, biodiversity: 0, energyPotential: 92, foodProduction: 0, resourceType: "geothermal iron", resourceStock: 82 },
+  "signal-10": { temperatureC: -118, pressureKpa: 14, accessibleWater: 64, radiation: 32, contamination: 16, biodiversity: 0, energyPotential: 18, foodProduction: 0, resourceType: "ammonia ice", resourceStock: 68 },
+  "signal-11": { temperatureC: -24, pressureKpa: 19, accessibleWater: 12, radiation: 96, contamination: 22, biodiversity: 0, energyPotential: 31, foodProduction: 0, resourceType: "cobalt glass", resourceStock: 54 },
+  "signal-12": { temperatureC: 34, pressureKpa: 42, accessibleWater: 0, radiation: 88, contamination: 78, biodiversity: 0, energyPotential: 48, foodProduction: 0, resourceType: "silica crystal", resourceStock: 77 },
+  "signal-13": { temperatureC: 0, pressureKpa: 0, accessibleWater: 0, radiation: 50, contamination: 50, biodiversity: 0, energyPotential: 50, foodProduction: 0, resourceType: "anomalous matter", resourceStock: 12 },
+  "signal-14": { temperatureC: 246, pressureKpa: 4, accessibleWater: 0, radiation: 64, contamination: 92, biodiversity: 0, energyPotential: 98, foodProduction: 0, resourceType: "volcanic iron glass", resourceStock: 86 },
+  "signal-15": { temperatureC: -166, pressureKpa: 8, accessibleWater: 92, radiation: 28, contamination: 10, biodiversity: 0, energyPotential: 12, foodProduction: 0, resourceType: "subsurface ice salts", resourceStock: 73 },
+  "signal-16": { temperatureC: -8, pressureKpa: 68, accessibleWater: 44, radiation: 38, contamination: 48, biodiversity: 2, energyPotential: 39, foodProduction: 0, resourceType: "carbon waterstone", resourceStock: 49 },
+  "signal-17": { temperatureC: -36, pressureKpa: 28, accessibleWater: 16, radiation: 26, contamination: 35, biodiversity: 0, energyPotential: 58, foodProduction: 0, resourceType: "aluminium silicate", resourceStock: 62 },
+  "signal-18": { temperatureC: 12, pressureKpa: 0, accessibleWater: 0, radiation: 34, contamination: 18, biodiversity: 0, energyPotential: 46, foodProduction: 0, resourceType: "conductive iron nickel", resourceStock: 88 },
+  "signal-19": { temperatureC: 4, pressureKpa: 82, accessibleWater: 26, radiation: 30, contamination: 62, biodiversity: 1, energyPotential: 44, foodProduction: 0, resourceType: "catalytic nitrogen mineral", resourceStock: 57 },
+  "signal-20": { temperatureC: -2, pressureKpa: 74, accessibleWater: 96, radiation: 22, contamination: 14, biodiversity: 68, energyPotential: 16, foodProduction: 8, resourceType: "armoured bio-mineral", resourceStock: 31 },
 };
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, Number.isFinite(value) ? value : min));
 

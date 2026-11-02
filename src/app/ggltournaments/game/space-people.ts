@@ -183,8 +183,16 @@ export function advancePopulation(population: PopulationState | undefined, world
     needs.learning = clamp(needs.learning + (environment.learning - needs.learning) * Math.min(.2, days * .035));
     needs.autonomy = clamp(needs.autonomy + (person.traits.autonomy - needs.autonomy) * Math.min(.2, days * .025));
     const average = materialKeys.reduce((sum,key)=>sum+needs[key],0)/materialKeys.length;
-    person.health = clamp(person.health + (average < 42 ? -days * .45 : average > 70 ? days * .025 : 0));
+    // Good living conditions support recovery; advanced age gradually adds a
+    // health burden, so long-lived people can die naturally without a random roll.
+    const ageBurden = Math.max(0, person.ageYears - 78) * .012;
+    person.health = clamp(person.health + (average < 42 ? -days * .45 : average > 70 ? days * .025 : 0) - days * ageBurden);
     needs.health = person.health;
+    if (person.health <= 0 || person.ageYears >= 115) {
+      person.alive = false;
+      person.health = 0;
+      events.unshift(person.name + " died at age " + Math.floor(person.ageYears) + " at " + person.location.replace("planet:","") + ".");
+    }
     if (person.location === "ship") person.skills.navigation = clamp(person.skills.navigation + days * .008);
     else if (person.location === "haven") person.skills.logistics = clamp(person.skills.logistics + days * .004);
     else { person.skills.engineering = clamp(person.skills.engineering + days * .006); person.skills.ecology = clamp(person.skills.ecology + days * .004); }
@@ -205,6 +213,71 @@ export function advancePopulation(population: PopulationState | undefined, world
     } else {
       relationship.trust = clamp(relationship.trust - days * .01);
     }
+  }
+  // Births emerge from stable households rather than a population-wide random
+  // growth roll. A household needs two healthy adult partners, good material
+  // conditions, enough cohesion, and room in its current settlement.
+  const livingById = new Map(population.people.map(person => [person.id, person]));
+  for (const household of population.households) {
+    if (household.location === "ship" || worldMinute - household.lastBirthAtWorldMinutes < 10 * 365 * 1440) continue;
+    const adults = household.memberIds
+      .map(id => livingById.get(id))
+      .filter((person): person is SpacePerson => Boolean(person?.alive && person.ageYears >= 20 && person.ageYears <= 48 && person.health >= 65));
+    const partnerPair = population.relationships.find(relationship =>
+      relationship.kind === "partner" &&
+      household.memberIds.includes(relationship.personA) &&
+      household.memberIds.includes(relationship.personB) &&
+      adults.some(person => person.id === relationship.personA) &&
+      adults.some(person => person.id === relationship.personB) &&
+      relationship.trust >= 55
+    );
+    if (!partnerPair || household.cohesion < 58) continue;
+    const environment = environmentFor(household.location);
+    const materialReadiness = (environment.air + environment.food + environment.water + environment.shelter + environment.safety) / 5;
+    if (materialReadiness < 68) continue;
+    const locationPopulation = population.people.filter(person => person.alive && person.location === household.location).length;
+    if (household.location.startsWith("planet:")) {
+      const planet = household.location.slice(7);
+      const capacity = Math.max(0, 12 + Math.floor(((planetProgress[planet] || 0) - 80) * 1.6));
+      if (locationPopulation >= capacity) continue;
+    }
+    const childIndex = population.people.length + 1;
+    const childId = "generation-" + String(childIndex).padStart(5, "0");
+    const parentA = livingById.get(partnerPair.personA)!;
+    const parentB = livingById.get(partnerPair.personB)!;
+    const skillKeys: Array<keyof PersonSkills> = ["engineering","medicine","ecology","logistics","science","leadership","mediation","navigation"];
+    const skills = Object.fromEntries(skillKeys.map((key, index) => [key, Math.round(clamp((parentA.skills[key] + parentB.skills[key]) / 2 + (unit(population.seed, childIndex, 60 + index) - .5) * 12))])) as PersonSkills;
+    const child: SpacePerson = {
+      id: childId,
+      name: FIRST_NAMES[hash(population.seed, childIndex, 61) % FIRST_NAMES.length] + " " + LAST_NAMES[hash(population.seed, childIndex, 62) % LAST_NAMES.length],
+      ageYears: 0,
+      lifeStage: "young",
+      location: household.location,
+      householdId: household.id,
+      motivation: MOTIVATIONS[hash(population.seed, childIndex, 63) % MOTIVATIONS.length],
+      traits: {
+        curiosity: Math.round((parentA.traits.curiosity + parentB.traits.curiosity) / 2),
+        cooperation: Math.round((parentA.traits.cooperation + parentB.traits.cooperation) / 2),
+        ambition: Math.round((parentA.traits.ambition + parentB.traits.ambition) / 2),
+        resilience: Math.round((parentA.traits.resilience + parentB.traits.resilience) / 2),
+        autonomy: Math.round((parentA.traits.autonomy + parentB.traits.autonomy) / 2),
+      },
+      needs: initialNeeds(),
+      skills,
+      health: 100,
+      alive: true,
+      bornAtWorldMinutes: worldMinute,
+      lastWarningAtWorldMinutes: -1,
+    };
+    population.people.push(child);
+    household.memberIds.push(childId);
+    household.lastBirthAtWorldMinutes = worldMinute;
+    population.relationships.push(
+      { id: "rel-" + String(population.relationships.length + 1).padStart(5, "0"), personA: parentA.id, personB: childId, kind: "kin", trust: 82, affinity: 88, lastChangedAtWorldMinutes: worldMinute },
+      { id: "rel-" + String(population.relationships.length + 2).padStart(5, "0"), personA: parentB.id, personB: childId, kind: "kin", trust: 82, affinity: 88, lastChangedAtWorldMinutes: worldMinute },
+    );
+    events.unshift("A new child, " + child.name + ", was born into " + household.location.replace("planet:","") + ".");
+    livingById.set(childId, child);
   }
   population.lastUpdatedWorldMinutes = worldMinute;
   if (events.length > 6) events.length = 6;

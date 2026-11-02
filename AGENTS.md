@@ -1662,3 +1662,39 @@ This owner direction extends the existing GGL Space universe and supersedes any 
 - Pilot certification status in the Ship Manifest must use high-contrast foreground/background colours and readable type. “THEORY PASSED” must remain legible on mobile and desktop.
 - Preserve all game state, save formats, chronicle records, CIPA tabs, navigation, ship controls, map, target assist, mission logic and offline/PWA behaviour. This is a presentation/readability correction only.
 - QA on mobile and desktop: map unobstructed with mission brief visible; Flight Log and CIPA open/close independently; categories expand and preserve all entries; command panel does not cover ship; proximity actions remain usable; theory status readable.
+
+
+## GGL Space — autonomous colony industry, xenobiology and pilot authorisation (2026-11-02)
+
+This is an additive foundation. Preserve the existing simulation, Haven-first lineage, ship controls, saves, and CIPA/Flight Log separation.
+
+### Player pilot authorisation
+- Every new player origin begins as Haven's first designated spaceship pilot candidate. The pilot must enter a name and pass the flight-controls theory examination before an operational licence is issued.
+- Theory must match the real controls: steering, vertical thrust, FIRE, hold-to-engage NOS, and safe docking. Do not describe NOS as a toggle.
+- Passing theory issues the first licence immediately; it is not gated behind founding a populated planet.
+- The licence lasts one full 365-day simulation year. Renewal is performed at Haven and currently costs 100 credits.
+- An expired licence opens a 30-day review/grace period. If it remains unrenewed and Haven has six machines plus 24 materials, Haven can commit those finite reserves to a rival security craft and assign a rival pilot. Renewal cancels the pending review.
+- Current implementation records the rival craft commission and threat in civilisation history and pilot status. A fully rendered, independently piloted combat encounter/AI is a later implementation step; do not claim that the rival ship is already a playable flight opponent.
+
+### Independent colony technology
+- Settlements accumulate robotics and spacecraft knowledge from their residents' actual engineering/science skills and available local resources.
+- A settlement with at least six residents, 20% robotics knowledge and eight locally gathered material units can fabricate a field bot. Fabrication takes 24 simulated hours; the initial cap is four bots per colony.
+- Bots are local autonomous assets. They are less capable than a spaceship but materially more capable than an asteroid-impact event. Their first concrete role is remote mission execution.
+- CIPA colony missions expose remote transmission choices (support, recognise autonomy, negotiate) when the target colony has at least one bot. The bot executes locally; the player does not need to return to that planet. Support consumes one unit of the colony's own local material reserve, not the player's ship cargo.
+- Spacecraft are a later and deliberately slower industrial milestone: at least 18 residents, two field bots, 70% spacecraft knowledge and 40 locally gathered material units. One hull is built at a time over 1,200 simulated hours (50 days); each completed hull trains one local pilot. Current colony production tracks up to two hulls.
+- These systems must remain causal: skills, population, resource availability, accumulated knowledge and construction time determine what a settlement can build. Do not add random hostile factions or free resources.
+
+### First xenobiology discoveries
+- Lumen's survey record introduces large bioluminescent squid-like cephalopods. They are territorial around breeding grounds, not inherently hostile.
+- Noctis's survey record introduces armoured octopus-like organisms in flooded subsurface caverns whose defensive pulses can damage exposed equipment.
+- These are currently survey/lore discoveries. Visible creature models, autonomous creature behaviour, and direct creature combat are not yet implemented. Do not represent the written discovery as a completed animated encounter.
+
+### QA gates for this foundation
+- New player: name → correctly answered flight-controls theory → immediate one-year pilot licence.
+- Verify NOS theory says hold, matching the actual control.
+- Advance simulation by one year; verify expiry, 30-day grace, renewal cancellation, and finite-resource checks for rival craft commissioning.
+- Establish a colony and advance time; verify bots require local skills, knowledge, materials and fabrication time.
+- Open a colony mission with a bot-equipped settlement; transmit an instruction and verify it resolves without travelling back, with local material accounting.
+- Verify spacecraft knowledge/build progress is sequential, resource-gated and slower than bot fabrication.
+- Survey Lumen and Noctis and confirm their xenobiology findings appear in the survey record/chronicle.
+- Existing saves must migrate safely with zero bots/technology defaults; do not reset player worlds or existing civilisation progress.

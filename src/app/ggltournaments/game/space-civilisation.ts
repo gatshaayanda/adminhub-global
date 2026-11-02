@@ -282,8 +282,8 @@ export function surveySpaceWorld(state: SpaceState, worldId: string): boolean {
   state.acclaim += world.scanReward;
   awardPilotCredits(state, 25, "Planetary survey mission reward");
   state.events.unshift("SURVEY COMPLETE: " + world.revealedName + " identified. " + world.surveyFinding);
-  if (worldId === "lumen" || worldId === "noctis") {
-    const firstContact = worldId === "lumen"
+  if (worldId === "signal-08" || worldId === "signal-20") {
+    const firstContact = worldId === "signal-08"
       ? "FIRST XENOBIOLOGY CONTACT: Lumen's deep-water squid-like cephalopods released a cloud of luminous ink when the survey probe crossed a breeding boundary. The response appears defensive; no attack on the ship was recorded."
       : "FIRST XENOBIOLOGY CONTACT: Noctis's armoured cavern cephalopods emitted a coordinated defensive pulse after probe disturbance. Exposed survey equipment registered damaging interference; the organisms retreated into flooded passages.";
     state.events.unshift(firstContact);

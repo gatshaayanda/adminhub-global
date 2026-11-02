@@ -618,7 +618,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
     state.pilotCredits = (state.pilotCredits || 0) - 100;
     state.pilotLicenceExpiresAtWorldMinutes = Math.max(state.worldTimeMinutes, state.pilotLicenceExpiresAtWorldMinutes || 0) + 365 * 1440;
     state.rivalPilotThreatAtWorldMinutes = null;
-    state.rivalPilotShipBuilt = false;
     recordSpaceChronicle(state, "society", "GGL Haven", "Pilot licence renewed", state.pilotName + " paid 100 credits to renew the operational licence for one system year.");
     writeAutoSnapshot();
     notify("Pilot licence renewed for one system year.", "success");

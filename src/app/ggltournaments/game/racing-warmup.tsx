@@ -602,12 +602,12 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
   const submitPilotTheory = () => {
     const state = spaceStateRef.current;
     if (!state.pilotName?.trim()) { notify("Enter your pilot name before taking the theory test.", "error"); return; }
-    if (pilotTheoryAnswers.join("|") !== "vertical|fire|toggle|approach") { notify("Theory test not passed. Review the flight controls and try again.", "error"); return; }
+    if (pilotTheoryAnswers.join("|") !== "vertical|fire|hold|approach") { notify("Theory test not passed. Review the flight controls and try again.", "error"); return; }
     state.pilotTheoryPassed = true;
     recordSpaceChronicle(state, "society", "GGL Haven", "Pilot theory examination passed", state.pilotName + " demonstrated knowledge of thrust, firing, NOS and safe docking procedures.");
     const licenceIssued = updatePilotLicence(state);
     writeAutoSnapshot();
-    notify(licenceIssued ? "Theory passed. Your operational pilot licence has been issued." : "Theory passed. Operational licence awaits your first populated planet.", "success");
+    notify(licenceIssued ? "Theory passed. Haven has authorised you as its first spaceship pilot for one system year." : "Theory passed, but licence issuance needs review.", "success");
     setSpaceUiTick(n => n + 1);
   };
   const renewPilotLicence = () => {

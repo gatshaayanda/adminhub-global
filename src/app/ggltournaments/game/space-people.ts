@@ -119,7 +119,7 @@ export function restorePopulationState(value: unknown, counts: { haven: number; 
       const people = saved.people.filter((person): person is SpacePerson => Boolean(person && typeof person.id === "string" && typeof person.name === "string" && typeof person.ageYears === "number" && person.needs && person.skills && person.traits && typeof person.location === "string" && typeof person.alive === "boolean"));
       const known = new Set(people.map(person => person.id));
       const relationships = saved.relationships.filter(rel => rel && known.has(rel.personA) && known.has(rel.personB) && typeof rel.trust === "number" && typeof rel.affinity === "number").slice(0, 20000);
-      const households = saved.households.filter(house => house && typeof house.id === "string" && Array.isArray(house.memberIds)).map(house => ({ ...house, memberIds: house.memberIds.filter(id => known.has(id)) })).slice(0, 5000);
+      const households = saved.households.filter(house => house && typeof house.id === "string" && Array.isArray(house.memberIds)).map(house => ({ ...house, memberIds: house.memberIds.filter(id => known.has(id)), lastBirthAtWorldMinutes: Number.isFinite(house.lastBirthAtWorldMinutes) ? house.lastBirthAtWorldMinutes : worldMinute })).slice(0, 5000);
       if (people.length) {
         const validHouseholds = new Set(households.map(household => household.id));
         const seed = Number.isFinite(saved.seed) ? Number(saved.seed) : 0x47474c;

@@ -1699,3 +1699,12 @@ This is an additive foundation. Preserve the existing simulation, Haven-first li
 - Verify spacecraft knowledge/build progress is sequential, resource-gated and slower than bot fabrication.
 - Survey Lumen and Noctis and confirm their xenobiology findings appear in the survey record/chronicle.
 - Existing saves must migrate safely with zero bots/technology defaults; do not reset player worlds or existing civilisation progress.
+
+
+## GGL Space — full-system survey-world ecology profiles (2026-11-02)
+
+- The ecology registry now includes all fifteen additional survey-world IDs (signal-06 through signal-20) as well as the five core settlement worlds.
+- Each survey world has its own starting temperature, pressure, water, radiation, contamination, biodiversity, energy potential, food production, resource identity and finite resource stock. These values are initial simulation profiles, not claims that the player has already surveyed the world.
+- Existing save restoration fills newly introduced ecology entries from defaults while preserving saved values for known entries. Do not overwrite an existing world's extracted resources, maintenance, fabrication progress or manufactured modules during migration.
+- advancePlanetEcology accepts the deployed-machine and operator maps by world key. The current settlement/founding loop still operates on the five core settlement worlds; do not imply that the fifteen survey-only worlds can already be colonised or industrialised through the full colony loop.
+- QA: start a new save and inspect the ecology registry for all 20 keys; load a legacy save and confirm core-world values and existing progress remain intact while missing survey-world profiles are added. Confirm the five core worlds retain their established restoration requirements and starting values.

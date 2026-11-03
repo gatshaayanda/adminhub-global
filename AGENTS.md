@@ -1806,3 +1806,70 @@ This subsection clarifies the pricing and scale model for the independent-stylis
 - Explicitly exclude **Braid and Lace**: it now has a standalone website at https://braidandlace.com/ with a published service catalogue, prices, deposit policy and WhatsApp/Instagram rescheduling; it fails the no-website filter and already has a more developed customer journey. Exclude **Elohim Afro Caribbean Salon** because a standalone website is discoverable (https://elohimhair.co.uk/) and a Fresha profile exists. Exclude **Hair by Shervon** because it has a standalone website (https://www.hairbyshervon.co.uk/). Do not promote **Kiki's Quality Braids**, **Reya Braids** or **Millie Hair and Beauty Salon** to the qualified WhatsApp list unless an explicit current WhatsApp business contact is verified; a mobile number or Instagram booking link alone is not proof of WhatsApp.
 - This revalidation did not establish 20 fully qualified leads. Keep the current nine-lead research shortlist as a working set; continue searching rather than padding the list. No one has been contacted and no buying intent or budget is established.
 - **Current contact priority:** Tier A — The Braid Vault, Favorly Styled, HD's Hair & Beauty Salon, SD Beautique and Salon Lux (recent or explicit WhatsApp evidence plus relevant service mix); Tier B — LuxzainCo (WhatsApp is public, but Setmore already handles bookings, so only pitch an unmet branded/customer-history/admin gap); hold for re-verification — Braided Up (WhatsApp evidence is old), Diana Hairdresser (last visible WhatsApp activity is 2023), and Tobim Beauties (the currently surfaced profile confirms the stylist/services but does not itself expose the WhatsApp number). Do not treat Tier B/hold leads as qualified until the specific gap/contact is reconfirmed.
+
+
+## Separate commercial pipeline — Admin Hub Games (2026-11-03)
+
+Admin Hub has two distinct commercial pipelines:
+1. **Digital business tools** — customer journeys, bookings, operations, accounts and managed services.
+2. **Custom mobile-first games and interactive experiences** — personalised entertainment, branded games and event experiences.
+
+Do not collapse the game offer into the business-app pricing model. A game can be a one-off commissioned project, an event/birthday gift, a branded campaign, or a separately scoped interactive product. Ongoing hosting, content updates, analytics, multiplayer services or support are optional recurring services only where the delivered game actually needs them.
+
+### Positioning
+- Public niche: **custom mobile-first games**, designed for phones first and built with Admin Hub's reusable game-development system.
+- Lead with the outcome: a playable, personalised experience that works in a mobile browser and can be designed around a person, family, school, team, event, community or brand.
+- Do not position Admin Hub as a large console/PC studio or promise AAA production. The strength is focused, custom, accessible interactive experiences with a clear scope.
+- Treat the game pipeline as an additional revenue channel alongside business applications. It can serve private individuals and organisations that do not need a managed business application.
+
+### Demonstrable technology and portfolio
+- **Admin Hub Games** (`gatshaayanda/admin-hub-games`) is the canonical Phaser-based game portal/foundation. Its current package uses Phaser 4, TypeScript, Vite and Vitest, with Three.js also present as a dependency. It provides a shared publisher intro/library and independent game flows/scenes, responsive canvas, mobile controls, local game state and PWA/offline foundations.
+- Current library entries include HALL, SRI LANKA LEAGUE, PAWS WORLD and PRESIDENT'S SHOES as playable entries; SHOOTERS TRIGGER and WARDROBE are marked IN DEVELOPMENT. Portfolio videos and proposals must preserve these actual statuses and must not present in-development foundations as finished releases.
+- **Vula's Car Wash** (`gatshaayanda/vulas-car-wash`) demonstrates a different integration: a 3D racing experience embedded in a real customer-facing business PWA. Its racing implementation uses Three.js, not Phaser. It includes vehicle/track systems, mobile controls, offline play and server-verified online persistence for supported career data. AI opponent work must be described according to its verified current state; do not imply fully independent race-ready AI or multiplayer unless tested and shipped.
+- Describe technologies accurately: Phaser is the primary 2D game framework in Admin Hub Games; Three.js is used for Vula's 3D racing. The reusable system is the broader development workflow and platform architecture, not a claim that every title uses the same engine.
+
+### Suitable commissioned products
+- Personalised birthday and celebration games: names, chosen theme, personal references, friends/family characters, custom objectives and a memorable ending.
+- Child/family racing or arcade games: custom player identity, vehicles, tracks, levels, collectibles and difficulty.
+- Football and sports challenges: school/team/tournament themes, scoring challenges, player identity and event-specific presentation.
+- Branded promotional games: a product or service-themed challenge, event activation, customer engagement or campaign mechanic.
+- Community, school and organisation experiences: quizzes, interactive stories, challenges, educational scenarios and event games.
+- A game embedded in an existing business application can be scoped as an add-on, but it is not automatically included in a standard app or managed-service package.
+
+### Technical and scope boundaries
+- Design phone-first: portrait/landscape decision based on gameplay, touch controls, readable UI, safe areas, resize/orientation handling, performance and real-device QA. Desktop support may be added where useful but must not dictate the mobile experience.
+- Use Phaser for suitable 2D games and scene-based experiences. Use Three.js or another appropriate technology for 3D work when the requirements justify it. Choose the engine based on gameplay, not marketing labels.
+- Reuse proven systems where appropriate: boot/loading flow, title/intro, player setup/name entry, touch controls, scene/state management, save/resume, scoring, difficulty, audio settings, responsive UI, asset loading and PWA/offline support. Reuse must not force every commissioned game into one generic template.
+- Keep each game's identity, mechanics, art direction, rules and progression specific to the commission. Clarify which assets/content are supplied by the customer and which are commissioned.
+- Define deliverables before quoting: game mode(s), platforms/orientations, number of levels/tracks, mechanics, visual customisation, audio, save data, offline support, leaderboard/accounts, admin/content tools, revisions, handover, hosting and support.
+- Single-player/local games are the simpler baseline. Accounts, shared leaderboards, real-time multiplayer, matchmaking, chat, anti-cheat, analytics pipelines, moderation, live content and persistent server state are separate scope and infrastructure decisions. Never imply these are included by default.
+- Offline capability must be verified on the actual target device after the required assets have been cached. A successful build or install prompt alone is not proof of offline gameplay.
+- Use licensed, customer-supplied or original assets. Confirm permission for personal photos, likenesses, music, team/club marks and branded materials. Do not use copyrighted characters, commercial music or protected logos without the required rights.
+- Personalised games involving children should collect minimal personal information, avoid public exposure by default, and not introduce accounts, chat or public leaderboards without a clear, justified and properly protected requirement.
+
+### Commercial model
+- Quote custom games separately from the US$25/30-day business-app pilot, £199 indicative business-app setup and £49+/month managed-service tiers. Those prices do not define a custom game commission.
+- Use a scoped project fee based on mechanics, art/assets, number of scenes/levels, personalisation, device support, QA, integrations and delivery deadline. For larger commissions, use milestone payments (for example: approved concept/scope, playable prototype, final delivery) with acceptance criteria.
+- Offer optional maintenance/hosting/content-update support only where useful. Explain any third-party usage, multiplayer hosting, storage or bandwidth charges before launch.
+- Birthday/celebration games should have a clear fixed scope and delivery date; event and promotional games should also define expected audience, peak concurrency, duration and any data collection.
+- Do not quote a price from the development time of a previous game alone. Customers pay for the experience, design, implementation, testing, rights-cleared assets and agreed delivery—not merely coding hours.
+- Treat online multiplayer, live operations and ongoing content as higher-complexity work with separate discovery and estimates. Never promise a multiplayer feature or delivery date before validating the architecture and workload.
+
+### Game demonstration video
+Create a separate short **Admin Hub Games** proof-of-capability video; do not make the business-app demo carry the whole games proposition.
+- Open on actual phone gameplay immediately. Show touch interaction and a game that is genuinely playable.
+- Briefly show different genres/styles from the real portfolio: for example a sports challenge, an exploration/story experience and Vula's 3D racing (clearly labelled as a separate Three.js implementation).
+- Show personalisation/setup where available, then the resulting gameplay. Explain that a commissioned game can be built around the customer's birthday, child, family, team, event or brand.
+- Include a concise behind-the-scenes glimpse of the reusable workflow: mobile-first layout, game scenes/states, controls, mechanics, assets and testing. Sell the repeatable capability, not a claim that a customer can instantly generate any game.
+- End with a simple invitation to describe the occasion, audience and game idea. Use a canonical Admin Hub domain/contact route; do not send unexpected install links or ask prospects to install anything.
+- Use only fictional/demo data or material approved for public display. Do not expose customer information, private development tools, credentials, internal admin screens or unreleased client assets.
+- Keep the video accurate about current completion status. Label prototypes/in-development work clearly and do not imply that every portfolio game is a commissioned client delivery.
+
+### Sales pipeline and lead qualification
+Maintain a separate game-opportunity pipeline:
+`Idea received → Audience/occasion understood → Concept agreed → Scope and assets confirmed → Quote sent → Deposit paid → Prototype review → Revisions/acceptance → Final delivery → Optional support`.
+- Qualify who the game is for, the occasion/business objective, intended players, device/platform, desired delivery date, budget range, reference style, content/assets and whether online features are genuinely needed.
+- For birthday gifts, prioritise the recipient's age range, theme, personal details the purchaser has permission to use, play length and delivery deadline. Avoid collecting unnecessary children's data.
+- For organisations/brands, establish decision authority, campaign dates, expected concurrent players, brand/asset permissions, data requirements and measurable objective.
+- Ask permission before sending a personalised video or demo. A public social profile or contact number is not blanket consent for repeated marketing.
+- Track this pipeline separately from business-app leads and managed-service renewals. Report qualified game enquiries, concepts, quotes, deposits, deliveries and optional recurring support independently.

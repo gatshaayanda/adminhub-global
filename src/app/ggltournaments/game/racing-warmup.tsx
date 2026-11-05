@@ -99,11 +99,25 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       // erase a pilot identity held by the independently protected manual save.
       const autoSnapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_AUTOSAVE_KEY));
       const manualSnapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_MANUAL_SAVE_KEY));
-      const recoveredSnapshot = autoSnapshot
-        ? (autoSnapshot.world.pilotName?.trim() || !manualSnapshot?.world.pilotName?.trim()
-          ? autoSnapshot
-          : { ...autoSnapshot, world: { ...autoSnapshot.world, pilotName: manualSnapshot.world.pilotName } })
-        : manualSnapshot;
+      let legacyWorld: SpaceState | null = null;
+      try {
+        const legacyRaw = window.localStorage.getItem(SPACE_SAVE_KEY);
+        if (legacyRaw) {
+          const parsedLegacy: unknown = JSON.parse(legacyRaw);
+          if (isValidSpaceState(parsedLegacy)) legacyWorld = parsedLegacy;
+        }
+      } catch { /* Ignore a malformed legacy key; snapshot recovery remains available. */ }
+      const savedPilotName = autoSnapshot?.world.pilotName?.trim()
+        ? autoSnapshot.world.pilotName
+        : manualSnapshot?.world.pilotName?.trim()
+          ? manualSnapshot.world.pilotName
+          : legacyWorld?.pilotName?.trim()
+            ? legacyWorld.pilotName
+            : "";
+      const preferredSnapshot = autoSnapshot || manualSnapshot;
+      const recoveredSnapshot = preferredSnapshot
+        ? { ...preferredSnapshot, world: { ...preferredSnapshot.world, pilotName: savedPilotName || preferredSnapshot.world.pilotName || "" } }
+        : null;
       setManualSaveAvailable(Boolean(manualSnapshot));
       if (recoveredSnapshot) {
         setFoundingSetupOpen(false);
@@ -120,9 +134,8 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         phaseRef.current = "ready";
         setPhase("ready");
       } else {
-        const legacy = window.localStorage.getItem(SPACE_SAVE_KEY);
-        if (legacy) {
-          const restored = restoreSpaceState(JSON.parse(legacy), now);
+        if (legacyWorld) {
+          const restored = restoreSpaceState(legacyWorld, now);
           spaceStateRef.current = restored;
           setFoundingSetupOpen(false); setPopulationSourceConfirmed(true);
           setPilotSetupName(restored.pilotName || ""); setPilotSetupOpen(!restored.pilotName?.trim());

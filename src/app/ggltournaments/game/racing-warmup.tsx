@@ -28,11 +28,11 @@ const restoreRaceSnapshot = (value: unknown): Race | null => {
   for (const key of Object.keys(defaults) as (keyof Race)[]) {
     const candidate = saved[key];
     if (key === "lapInvalid") {
-      if (typeof candidate === "boolean") restored[key] = candidate;
+      if (typeof candidate === "boolean") Object.assign(restored, { [key]: candidate });
     } else if (key === "bestLap") {
-      if (candidate === null || (typeof candidate === "number" && Number.isFinite(candidate))) restored[key] = candidate;
+      if (candidate === null || (typeof candidate === "number" && Number.isFinite(candidate))) Object.assign(restored, { [key]: candidate });
     } else if (typeof candidate === "number" && Number.isFinite(candidate)) {
-      restored[key] = candidate;
+      Object.assign(restored, { [key]: candidate });
     }
   }
   return restored;

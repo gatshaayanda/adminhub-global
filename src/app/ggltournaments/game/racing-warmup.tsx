@@ -88,19 +88,28 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
       const archiveRaw = window.localStorage.getItem(SPACE_FOUNDING_ARCHIVE_KEY);
       const archiveParsed = archiveRaw ? JSON.parse(archiveRaw) : [];
       if (Array.isArray(archiveParsed)) setFoundingArchive(archiveParsed.filter(item => item && typeof item.id === "string" && Array.isArray(item.circumstanceIds)).slice(0, 30));
+      // Recover in descending order of recency, but never let a nameless autosave
+      // erase a pilot identity held by the independently protected manual save.
       const autoSnapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_AUTOSAVE_KEY));
-      if (autoSnapshot) {
+      const manualSnapshot = parseGameSnapshot(window.localStorage.getItem(SPACE_MANUAL_SAVE_KEY));
+      const recoveredSnapshot = autoSnapshot
+        ? (autoSnapshot.world.pilotName?.trim() || !manualSnapshot?.world.pilotName?.trim()
+          ? autoSnapshot
+          : { ...autoSnapshot, world: { ...autoSnapshot.world, pilotName: manualSnapshot.world.pilotName } })
+        : manualSnapshot;
+      setManualSaveAvailable(Boolean(manualSnapshot));
+      if (recoveredSnapshot) {
         setFoundingSetupOpen(false);
         setPopulationSourceConfirmed(true);
-        setPilotSetupName(autoSnapshot.world.pilotName || "");
-        setPilotSetupOpen(!autoSnapshot.world.pilotName?.trim());
-        const savedIds = autoSnapshot.world.population?.foundingProfile?.circumstanceIds;
+        setPilotSetupName(recoveredSnapshot.world.pilotName || "");
+        setPilotSetupOpen(!recoveredSnapshot.world.pilotName?.trim());
+        const savedIds = recoveredSnapshot.world.population?.foundingProfile?.circumstanceIds;
         if (Array.isArray(savedIds) && savedIds.length) setSelectedFoundingIds(savedIds.slice(0,3));
-        // Restore the last world, applying offline time only when the previous
-        // session was active. Every visit waits for an explicit player start.
-        const restoreAt = autoSnapshot.paused ? autoSnapshot.world.lastSimulatedAt : now;
-        spaceStateRef.current = restoreSpaceState(autoSnapshot.world, restoreAt);
-        raceRef.current = { ...autoSnapshot.flight, last: 0 };
+        // Autosave remains preferred for the latest world state. A manual snapshot
+        // is used when autosave is absent/invalid; neither path starts a new run.
+        const restoreAt = recoveredSnapshot.paused ? recoveredSnapshot.world.lastSimulatedAt : now;
+        spaceStateRef.current = restoreSpaceState(recoveredSnapshot.world, restoreAt);
+        raceRef.current = { ...recoveredSnapshot.flight, last: 0 };
         phaseRef.current = "ready";
         setPhase("ready");
       } else {
@@ -116,7 +125,6 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           setPilotSetupName(""); setPilotSetupOpen(true);
         }
       }
-      setManualSaveAvailable(Boolean(parseGameSnapshot(window.localStorage.getItem(SPACE_MANUAL_SAVE_KEY))));
     } catch {
       spaceStateRef.current = createInitialSpaceState(now);
       raceRef.current = newRace();

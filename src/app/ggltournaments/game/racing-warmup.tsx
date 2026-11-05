@@ -15,31 +15,38 @@ const SPACE_MANUAL_SAVE_KEY = "ggl-space-manual-save-v1";
 const SPACE_FOUNDING_ARCHIVE_KEY = "ggl-space-founding-archive-v1";
 type FoundingArchiveEntry = { id: string; title: string; circumstanceIds: string[]; savedAt: number };
 type SpaceGameSnapshot = { version: 1; savedAt: number; world: SpaceState; flight: Race; paused: boolean };
-const isFiniteRace = (value: unknown): value is Race => {
-  if (!value || typeof value !== "object") return false;
-  const race = value as Record<string, unknown>;
-  const numeric = ["progress","speed","elapsed","lap","lapTime","steering","throttle","brakePressure","lateral","lateralVelocity","heading","drift","nos","last","offTrack","longitudinalLoad","lateralG","wheelLock","worldX","worldY","worldZ","worldYaw","velocityX","velocityY","velocityZ","damage","lastImpactAt","trackT"];
-  return numeric.every((key) => typeof race[key] === "number" && Number.isFinite(race[key])) && typeof race.lapInvalid === "boolean" && (race.bestLap === null || (typeof race.bestLap === "number" && Number.isFinite(race.bestLap)));
-};
 const isValidSpaceState = (value: unknown): value is SpaceState => {
-  if (!value || typeof value !== "object") return false;
-  const world = value as Record<string, unknown>;
-  const numeric = ["cargoPeople","cargoEquipment","acclaim","asteroidsShot","havenPopulation","machineInventory","worldTimeMinutes","lastSimulatedAt","havenGrowthRemainder"];
-  const records = ["deployedEquipment","planetProgress","colonies","colonyGrowthRemainders"];
-  return world.version === 1
-    && numeric.every((key) => typeof world[key] === "number" && Number.isFinite(world[key]))
-    && (typeof world.nearbyTarget === "string" || world.nearbyTarget === null)
-    && Array.isArray(world.visitedPlanets) && Array.isArray(world.travelNotes) && Array.isArray(world.events)
-    && records.every((key) => Boolean(world[key]) && typeof world[key] === "object" && !Array.isArray(world[key]));
+  // Save schema evolves. The civilisation restorer deliberately migrates optional
+  // fields, so reject only snapshots that cannot identify a real v1 world.
+  return Boolean(value && typeof value === "object" && (value as Record<string, unknown>).version === 1);
+};
+const restoreRaceSnapshot = (value: unknown): Race | null => {
+  if (!value || typeof value !== "object") return null;
+  const saved = value as Record<string, unknown>;
+  const defaults = newRace();
+  const restored = { ...defaults };
+  for (const key of Object.keys(defaults) as (keyof Race)[]) {
+    const candidate = saved[key];
+    if (key === "lapInvalid") {
+      if (typeof candidate === "boolean") restored[key] = candidate;
+    } else if (key === "bestLap") {
+      if (candidate === null || (typeof candidate === "number" && Number.isFinite(candidate))) restored[key] = candidate;
+    } else if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      restored[key] = candidate;
+    }
+  }
+  return restored;
 };
 const parseGameSnapshot = (raw: string | null): SpaceGameSnapshot | null => {
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<SpaceGameSnapshot>;
-    if (value.version !== 1 || typeof value.savedAt !== "number" || !Number.isFinite(value.savedAt) || !isValidSpaceState(value.world) || !isFiniteRace(value.flight) || typeof value.paused !== "boolean") return null;
-    return value as SpaceGameSnapshot;
+    if (value.version !== 1 || typeof value.savedAt !== "number" || !Number.isFinite(value.savedAt) || !isValidSpaceState(value.world) || typeof value.paused !== "boolean") return null;
+    const flight = restoreRaceSnapshot(value.flight);
+    if (!flight) return null;
+    return { ...value, world: value.world as SpaceState, flight } as SpaceGameSnapshot;
   } catch { return null; }
-};
+}
 export type { SpaceState };
 export type Phase = "ready" | "countdown" | "running" | "paused" | "finished" | "crashed";
 export type Controls = { steer: number; flight: number; accelerate: boolean; brake: boolean; boost: boolean; fire: boolean };

@@ -1873,3 +1873,11 @@ Maintain a separate game-opportunity pipeline:
 - For organisations/brands, establish decision authority, campaign dates, expected concurrent players, brand/asset permissions, data requirements and measurable objective.
 - Ask permission before sending a personalised video or demo. A public social profile or contact number is not blanket consent for repeated marketing.
 - Track this pipeline separately from business-app leads and managed-service renewals. Report qualified game enquiries, concepts, quotes, deposits, deliveries and optional recurring support independently.
+
+## GGL Space — startup save recovery and pilot identity (2026-11-05)
+
+- On startup, restore the latest valid autosave first; if it is absent or invalid, restore the protected manual snapshot before considering the legacy world-only save or creating a new civilisation.
+- A valid autosave with a blank/missing pilot name must not erase a non-empty pilot identity in the independently stored manual save. Preserve the autosave's world/ship state while recovering only that missing identity.
+- Startup recovery must not silently create a fresh civilisation when a valid manual snapshot exists. Keep the recovered run in the ready state and require the player's explicit Start Game action.
+- Keep the manual save independently available; do not overwrite it during startup recovery.
+- QA: test normal autosave restore, manual-only recovery (remove/invalid autosave in a disposable test profile), and a nameless autosave with a named manual snapshot. Confirm the saved pilot name appears without a registration prompt and that world/ship state remains intact. Never delete a player's only real save as part of QA.

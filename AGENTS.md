@@ -1881,3 +1881,10 @@ Maintain a separate game-opportunity pipeline:
 - Startup recovery must not silently create a fresh civilisation when a valid manual snapshot exists. Keep the recovered run in the ready state and require the player's explicit Start Game action.
 - Keep the manual save independently available; do not overwrite it during startup recovery.
 - QA: test normal autosave restore, manual-only recovery (remove/invalid autosave in a disposable test profile), and a nameless autosave with a named manual snapshot. Confirm the saved pilot name appears without a registration prompt and that world/ship state remains intact. Never delete a player's only real save as part of QA.
+
+## GGL Space — backward-compatible save snapshot migration (2026-11-05)
+
+- Do not reject a saved civilisation solely because newer game versions added optional world or flight fields. restoreSpaceState owns world-schema migration; snapshot parsing should validate the stable version/world envelope and restore absent flight fields from newRace() defaults.
+- Startup identity recovery checks pilotName in this order: latest autosave, protected manual snapshot, then legacy world save. Prefer the autosave's world/ship state while borrowing only a missing pilot identity from another valid save layer.
+- Never interpret a snapshot rejected by an overly strict current-schema validator as proof that the player has no save. Preserve valid older saves through migration and do not replace them with a fresh civilisation.
+- QA the game at /ggltournaments/game on the same browser origin where the original save was created. Check an existing named save opens without registration, manual load remains available, and older snapshots with missing newer fields migrate without losing world/ship progress.

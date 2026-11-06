@@ -1898,3 +1898,12 @@ Maintain a separate game-opportunity pipeline:
 - Keep runtime caching for same-origin Next.js chunks and static assets; cache successful navigation responses and use the cached game document as the offline fallback for GGL routes.
 - Offline QA is device-specific: open `/ggltournaments/game` online, wait for the game scene and controls to finish loading, allow the service-worker warm-up to complete, close the app, enable airplane mode, then cold-launch the installed PWA directly to the game route. Verify rendering, controls, save/continue, and a second cold launch. Reconnect and reload once to receive the newest cache version.
 - A successful deployment or install prompt is not proof of offline readiness. Confirm actual cold-launch gameplay with network disabled on the target Android device.
+
+## GGL Space — offline cache completion and legacy pilot recovery (2026-11-06)
+
+- Service worker cache generation is now `ggl-space-offline-v6`; every change to the required GGL game shell or offline asset warm-up must bump this generation.
+- After the GGL game route has loaded, send the service worker the same-origin resources actually loaded by the browser (including lazy Next.js chunks and local game textures/assets). The worker must cache only same-origin static assets and acknowledge warm-up after processing.
+- Repeat warm-up after reconnecting so newly deployed bundles and assets replace stale cached resources. Keep `updateViaCache: "none"`, worker update checks on online launches, `skipWaiting`, and `clients.claim`.
+- Existing valid civilisation saves with no pilot name (legacy versions predating pilot licensing) must continue without a registration blocker. Assign and persist the neutral compatibility identity `Haven Pilot` only when an existing save has no saved identity; do not apply this to a genuinely new civilisation and do not modify the protected manual snapshot.
+- Offline QA URL is `/ggltournaments/game`. Open it online on the installed PWA, wait for the game to finish loading and service-worker warm-up, then cold-launch in airplane mode. Check controls, save/continue, and a second cold launch. Reconnect and reload to refresh to the latest cache generation.
+- Do not claim offline readiness from a successful build alone; actual airplane-mode cold launch on the target device remains the final QA.

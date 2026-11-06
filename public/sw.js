@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ggl-space-offline-v5";
+const CACHE_VERSION = "ggl-space-offline-v6";
 const OWNED_CACHE_PREFIXES = ["sparkle-legacy-v2-", "ggl-space-offline-"];
 const STATIC_CACHE = CACHE_VERSION + "-static";
 const PAGE_CACHE = CACHE_VERSION + "-pages";
@@ -46,9 +46,26 @@ self.addEventListener("message", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(STATIC_CACHE);
     await cacheDocumentAndAssets(cache, REQUIRED_OFFLINE_ROUTE);
+
+    // The live page reports its actually-loaded Next.js chunks and local game
+    // assets. This captures lazy-loaded Three.js/game modules that are not
+    // necessarily referenced directly by the initial HTML document.
+    const discoveredAssets = Array.isArray(event.data.assets) ? event.data.assets : [];
+    await Promise.allSettled(discoveredAssets.slice(0, 300).map(async (candidate) => {
+      try {
+        const assetUrl = new URL(candidate, self.location.origin);
+        if (assetUrl.origin !== self.location.origin) return;
+        const isStaticAsset = assetUrl.pathname.startsWith("/_next/") ||
+          /\\.(?:css|js|mjs|png|jpe?g|webp|avif|gif|svg|ico|webmanifest|woff2?|ttf|otf|wasm)$/i.test(assetUrl.pathname);
+        if (isStaticAsset) await cacheAsset(cache, assetUrl.href);
+      } catch {
+        // Ignore stale, malformed or non-cacheable resource timing entries.
+      }
+    }));
+
     const client = event.source;
     if (client && "postMessage" in client) {
-      client.postMessage({ type: "GGL_SPACE_CACHE_READY", version: CACHE_VERSION });
+      client.postMessage({ type: "GGL_SPACE_CACHE_READY", version: CACHE_VERSION, cachedAssets: discoveredAssets.length });
     }
   })());
 });

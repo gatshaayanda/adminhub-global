@@ -56,7 +56,7 @@ self.addEventListener("message", (event) => {
         const assetUrl = new URL(candidate, self.location.origin);
         if (assetUrl.origin !== self.location.origin) return;
         const isStaticAsset = assetUrl.pathname.startsWith("/_next/") ||
-          /\\.(?:css|js|mjs|png|jpe?g|webp|avif|gif|svg|ico|webmanifest|woff2?|ttf|otf|wasm)$/i.test(assetUrl.pathname);
+          /\.(?:css|js|mjs|png|jpe?g|webp|avif|gif|svg|ico|webmanifest|woff2?|ttf|otf|wasm)$/i.test(assetUrl.pathname);
         if (isStaticAsset) await cacheAsset(cache, assetUrl.href);
       } catch {
         // Ignore stale, malformed or non-cacheable resource timing entries.

@@ -11,11 +11,38 @@ export default function ServiceWorkerRegister() {
 
     let disposed = false;
     let reloadedForController = false;
+    let warmTimer: number | undefined;
+
+    const collectLoadedAssets = () => {
+      const urls = new Set<string>();
+      for (const entry of performance.getEntriesByType("resource")) {
+        try {
+          const url = new URL(entry.name, window.location.href);
+          if (url.origin !== window.location.origin) continue;
+          if (
+            url.pathname.startsWith("/_next/") ||
+            /\\.(?:css|js|mjs|png|jpe?g|webp|avif|gif|svg|ico|webmanifest|woff2?|ttf|otf|wasm)$/i.test(url.pathname)
+          ) urls.add(url.href);
+        } catch {
+          // Ignore browser extension and malformed resource timing entries.
+        }
+      }
+      return [...urls].slice(-300);
+    };
 
     const warmGglSpace = (worker?: ServiceWorker | null) => {
       if (pathname !== "/ggltournaments/game") return;
       const target = worker || navigator.serviceWorker.controller;
-      target?.postMessage({ type: "CACHE_GGL_SPACE" });
+      if (!target) return;
+      target.postMessage({ type: "CACHE_GGL_SPACE", assets: collectLoadedAssets() });
+    };
+
+    const scheduleWarmup = (worker?: ServiceWorker | null) => {
+      if (pathname !== "/ggltournaments/game") return;
+      if (warmTimer !== undefined) window.clearTimeout(warmTimer);
+      // Let the game scene finish loading lazy chunks and textures before
+      // reporting the complete set of resources to the service worker.
+      warmTimer = window.setTimeout(() => warmGglSpace(worker), 2200);
     };
 
     const register = async () => {
@@ -25,17 +52,13 @@ export default function ServiceWorkerRegister() {
           updateViaCache: "none",
         });
 
-        // Check for a newer worker on every online app launch. The worker uses
-        // a versioned cache and skipWaiting/clients.claim to replace stale assets.
         if (navigator.onLine) await registration.update().catch(() => undefined);
         if (disposed) return;
 
         const ready = await navigator.serviceWorker.ready;
-        warmGglSpace(ready.active);
         if (pathname === "/ggltournaments/game") {
-          // The route may finish hydrating after the initial install fetch.
-          // Ask the active worker to re-fetch its HTML and all referenced bundles.
-          window.setTimeout(() => warmGglSpace(ready.active), 1200);
+          warmGglSpace(ready.active);
+          scheduleWarmup(ready.active);
         }
 
         console.info("Admin Hub service worker ready:", ready.scope);
@@ -45,20 +68,26 @@ export default function ServiceWorkerRegister() {
     };
 
     const onControllerChange = () => {
-      // Reload once when a newly installed worker takes control so the page
-      // and its chunks are served from one consistent cache generation.
       if (reloadedForController || !navigator.serviceWorker.controller) return;
       reloadedForController = true;
       window.location.reload();
     };
     const onOnline = () => {
+      if (pathname !== "/ggltournaments/game") return;
+      void navigator.serviceWorker.ready.then((ready) => {
+        warmGglSpace(ready.active);
+        scheduleWarmup(ready.active);
+      });
+    };
+    const onLoad = () => {
       if (pathname === "/ggltournaments/game") {
-        void navigator.serviceWorker.ready.then((ready) => warmGglSpace(ready.active));
+        void navigator.serviceWorker.ready.then((ready) => scheduleWarmup(ready.active));
       }
     };
 
     navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
     window.addEventListener("online", onOnline);
+    window.addEventListener("load", onLoad, { once: true });
 
     if (document.readyState === "complete") {
       void register();
@@ -68,7 +97,9 @@ export default function ServiceWorkerRegister() {
 
     return () => {
       disposed = true;
+      if (warmTimer !== undefined) window.clearTimeout(warmTimer);
       window.removeEventListener("load", register);
+      window.removeEventListener("load", onLoad);
       window.removeEventListener("online", onOnline);
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
     };

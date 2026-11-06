@@ -21,7 +21,7 @@ export default function ServiceWorkerRegister() {
           if (url.origin !== window.location.origin) continue;
           if (
             url.pathname.startsWith("/_next/") ||
-            /\\.(?:css|js|mjs|png|jpe?g|webp|avif|gif|svg|ico|webmanifest|woff2?|ttf|otf|wasm)$/i.test(url.pathname)
+            /\.(?:css|js|mjs|png|jpe?g|webp|avif|gif|svg|ico|webmanifest|woff2?|ttf|otf|wasm)$/i.test(url.pathname)
           ) urls.add(url.href);
         } catch {
           // Ignore browser extension and malformed resource timing entries.

@@ -1888,3 +1888,13 @@ Maintain a separate game-opportunity pipeline:
 - Startup identity recovery checks pilotName in this order: latest autosave, protected manual snapshot, then legacy world save. Prefer the autosave's world/ship state while borrowing only a missing pilot identity from another valid save layer.
 - Never interpret a snapshot rejected by an overly strict current-schema validator as proof that the player has no save. Preserve valid older saves through migration and do not replace them with a fresh civilisation.
 - QA the game at /ggltournaments/game on the same browser origin where the original save was created. Check an existing named save opens without registration, manual load remains available, and older snapshots with missing newer fields migrate without losing world/ship progress.
+
+## GGL Space — versioned PWA offline game package (2026-11-06)
+
+- Bump the service-worker cache version whenever the game shell or required offline assets change. Activation removes only older caches owned by this app; preserve unrelated browser caches.
+- The required offline document is `/ggltournaments/game`. Its HTML and all same-origin Next.js JavaScript/CSS/font bundles referenced by the document must be cached before the worker reports a successful install.
+- On the GGL Space route, explicitly ask the active service worker to refresh the game document and its referenced bundles after registration/hydration, and again when connectivity returns. This covers users who open the game after the initial app-shell install.
+- Register with `updateViaCache: "none"`, check for a new worker on online launches, and let the versioned worker activate promptly. A controller change may reload once so the active page and cached chunks use the same release.
+- Keep runtime caching for same-origin Next.js chunks and static assets; cache successful navigation responses and use the cached game document as the offline fallback for GGL routes.
+- Offline QA is device-specific: open `/ggltournaments/game` online, wait for the game scene and controls to finish loading, allow the service-worker warm-up to complete, close the app, enable airplane mode, then cold-launch the installed PWA directly to the game route. Verify rendering, controls, save/continue, and a second cold launch. Reconnect and reload once to receive the newest cache version.
+- A successful deployment or install prompt is not proof of offline readiness. Confirm actual cold-launch gameplay with network disabled on the target Android device.

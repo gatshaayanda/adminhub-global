@@ -107,14 +107,19 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
           if (isValidSpaceState(parsedLegacy)) legacyWorld = parsedLegacy;
         }
       } catch { /* Ignore a malformed legacy key; snapshot recovery remains available. */ }
+      const preferredSnapshot = autoSnapshot || manualSnapshot;
+      // Existing civilisations from pre-licence save versions may have no pilot
+      // identity field. Preserve that run and give it a stable legacy identity
+      // instead of blocking every return visit with the new-game registration UI.
       const savedPilotName = autoSnapshot?.world.pilotName?.trim()
         ? autoSnapshot.world.pilotName
         : manualSnapshot?.world.pilotName?.trim()
           ? manualSnapshot.world.pilotName
           : legacyWorld?.pilotName?.trim()
             ? legacyWorld.pilotName
-            : "";
-      const preferredSnapshot = autoSnapshot || manualSnapshot;
+            : (preferredSnapshot || legacyWorld)
+              ? "Haven Pilot"
+              : "";
       const recoveredSnapshot = preferredSnapshot
         ? { ...preferredSnapshot, world: { ...preferredSnapshot.world, pilotName: savedPilotName || preferredSnapshot.world.pilotName || "" } }
         : null;
@@ -131,14 +136,26 @@ export default function RacingWarmup({ embedded = false }: { embedded?: boolean 
         const restoreAt = recoveredSnapshot.paused ? recoveredSnapshot.world.lastSimulatedAt : now;
         spaceStateRef.current = restoreSpaceState(recoveredSnapshot.world, restoreAt);
         raceRef.current = { ...recoveredSnapshot.flight, last: 0 };
+        // Persist only the migrated identity to autosave + legacy world storage;
+        // keep the independent manual snapshot untouched as a recovery point.
+        if (!preferredSnapshot?.world.pilotName?.trim()) {
+          try {
+            const migratedWorld = spaceStateRef.current;
+            const migratedSnapshot: SpaceGameSnapshot = { ...recoveredSnapshot, savedAt: now, world: migratedWorld };
+            window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(migratedWorld));
+            window.localStorage.setItem(SPACE_AUTOSAVE_KEY, JSON.stringify(migratedSnapshot));
+          } catch { /* Keep the recovered run in memory if storage is unavailable. */ }
+        }
         phaseRef.current = "ready";
         setPhase("ready");
       } else {
         if (legacyWorld) {
           const restored = restoreSpaceState(legacyWorld, now);
+          if (!restored.pilotName?.trim()) restored.pilotName = "Haven Pilot";
           spaceStateRef.current = restored;
           setFoundingSetupOpen(false); setPopulationSourceConfirmed(true);
-          setPilotSetupName(restored.pilotName || ""); setPilotSetupOpen(!restored.pilotName?.trim());
+          setPilotSetupName(restored.pilotName); setPilotSetupOpen(false);
+          try { window.localStorage.setItem(SPACE_SAVE_KEY, JSON.stringify(restored)); } catch { /* Keep the restored run playable. */ }
         } else {
           spaceStateRef.current = createInitialSpaceState(now, selectedFoundingIds);
           setFoundingSetupOpen(true); setPopulationSourceConfirmed(false);

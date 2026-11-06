@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ggl-space-offline-v4";
+const CACHE_VERSION = "ggl-space-offline-v5";
 const OWNED_CACHE_PREFIXES = ["sparkle-legacy-v2-", "ggl-space-offline-"];
 const STATIC_CACHE = CACHE_VERSION + "-static";
 const PAGE_CACHE = CACHE_VERSION + "-pages";
@@ -39,6 +39,18 @@ self.addEventListener("activate", (event) => {
       ))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type !== "CACHE_GGL_SPACE") return;
+  event.waitUntil((async () => {
+    const cache = await caches.open(STATIC_CACHE);
+    await cacheDocumentAndAssets(cache, REQUIRED_OFFLINE_ROUTE);
+    const client = event.source;
+    if (client && "postMessage" in client) {
+      client.postMessage({ type: "GGL_SPACE_CACHE_READY", version: CACHE_VERSION });
+    }
+  })());
 });
 
 self.addEventListener("fetch", (event) => {

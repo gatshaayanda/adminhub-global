@@ -1907,3 +1907,12 @@ Maintain a separate game-opportunity pipeline:
 - Existing valid civilisation saves with no pilot name (legacy versions predating pilot licensing) must continue without a registration blocker. Assign and persist the neutral compatibility identity `Haven Pilot` only when an existing save has no saved identity; do not apply this to a genuinely new civilisation and do not modify the protected manual snapshot.
 - Offline QA URL is `/ggltournaments/game`. Open it online on the installed PWA, wait for the game to finish loading and service-worker warm-up, then cold-launch in airplane mode. Check controls, save/continue, and a second cold launch. Reconnect and reload to refresh to the latest cache generation.
 - Do not claim offline readiness from a successful build alone; actual airplane-mode cold launch on the target device remains the final QA.
+
+
+## GGL Space — verified offline asset completeness (2026-11-08)
+
+- Service worker cache generation is `ggl-space-offline-v7`. The playable `/ggltournaments/game` route and its essential Next.js scripts/styles must cache successfully during installation; failed essential assets must not be silently treated as an offline-ready cache.
+- The game route warm-up gathers loaded browser resources, DOM script/style/image references, and later lazy-loaded resources through `PerformanceObserver`. It repeats warm-up after initial scene load and whenever additional resources arrive, with a larger Resource Timing buffer for mobile browsers.
+- Cache same-origin CSS dependencies (fonts, images, backgrounds and other static resources), plus local media/WASM assets. Do not depend on a single early snapshot of the page's resources.
+- The service worker reports whether essential caching succeeded and lists failed critical assets. Browser storage persistence is requested where supported, but browser/device policies may decline it.
+- Core game simulation and saves remain local-first. Network-only integrations remain outside the offline guarantee. Device airplane-mode cold-launch QA is still required before claiming full offline parity; install/update the app online, open the game route, wait for cache verification, then test a fresh launch offline and confirm saves survive reconnect.

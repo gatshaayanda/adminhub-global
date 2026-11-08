@@ -138,7 +138,7 @@ async function cacheAsset(cache, candidate) {
     const dependencies = [...css.matchAll(/url\(["']?([^"')]+)["']?\)/gi)].map((match) => match[1]);
     await Promise.allSettled(dependencies.map(async (reference) => {
       const dependency = new URL(reference, assetUrl);
-      if (dependency.origin === self.location.origin && isStaticAsset(dependency.pathname)) {
+      if (dependency.origin === self.location.origin && isStaticAsset(dependency.pathname) && !/\\.css$/i.test(dependency.pathname)) {
         await cacheAsset(cache, dependency.href);
       }
     }));

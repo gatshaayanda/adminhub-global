@@ -1416,3 +1416,12 @@ hr {
 .ggl-manager-login-form .ggl-primary{margin-top:.35rem;justify-content:center}
 .ggl-manager-login-note{margin-top:1rem!important;padding-top:.9rem;border-top:1px solid #dce2d5;font-size:.78rem;line-height:1.65}
 .ggl-manager-login-note code{color:#263c1c;font-weight:850}
+
+
+/* Iteration13 demo handoff: imported configuration is visible before submission. */
+.home-intake-demo-brief{display:grid;gap:7px;margin:0 0 18px;padding:15px 17px;border:1px solid #b8d8f4;border-radius:14px;background:#eff7ff;color:#17324e}
+.home-intake-demo-brief strong{font-size:14px}
+.home-intake-demo-brief p{margin:0;font-size:14px;color:#294763}
+.home-intake-demo-brief>div{display:flex;gap:7px;flex-wrap:wrap}
+.home-intake-demo-brief i{display:block;width:24px;height:24px;border:1px solid rgba(15,23,42,.22);border-radius:7px}
+.home-intake-demo-brief small{font-size:13px;line-height:1.5;color:#36536f}

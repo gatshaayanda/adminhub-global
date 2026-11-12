@@ -1916,3 +1916,12 @@ Maintain a separate game-opportunity pipeline:
 - Cache same-origin CSS dependencies (fonts, images, backgrounds and other static resources), plus local media/WASM assets. Do not depend on a single early snapshot of the page's resources.
 - The service worker reports whether essential caching succeeded and lists failed critical assets. Browser storage persistence is requested where supported, but browser/device policies may decline it.
 - Core game simulation and saves remain local-first. Network-only integrations remain outside the offline guarantee. Device airplane-mode cold-launch QA is still required before claiming full offline parity; install/update the app online, open the game route, wait for cache verification, then test a fresh launch offline and confirm saves survive reconnect.
+
+
+## Iteration13 Business OS demo handoff
+- The Iteration13 storefront may link to the public Admin Hub landing page with `source=iteration13` and a compact, URL-encoded `demo` JSON payload.
+- Accept only bounded, validated, non-sensitive setup details: business name, supported base currency, up to three hex brand colours, a small list of service names/prices/descriptions, and the demo journey steps.
+- Prefill the existing homepage inquiry form; do not create a second intake flow or bypass the existing required name/contact validation.
+- On submission, retain the validated configuration in the private inquiry record as `iteration13Demo` and mark its source as `iteration13_business_os_demo`.
+- Never pass customer names, emails, order briefs, payment details, access words, authentication tokens or private account data through the URL or into this handoff.
+- Keep the visitor-facing message clear that the details are an initial implementation brief for discussion, not an automatic quote, order, deployment or commitment.

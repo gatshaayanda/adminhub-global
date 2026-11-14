@@ -1337,3 +1337,8 @@ body:has(.ayanda-profile) .ah-chat-panel {
 .flagship-how>p:last-child{max-width:760px;margin-top:1.2rem;color:#555b63;font-size:1rem;line-height:1.7}
 @media(max-width:800px){.flagship-intro{grid-template-columns:1fr;gap:2rem}.flagship-intro h1{font-size:clamp(3.5rem,15vw,6rem)}.flagship-preview{max-width:620px}.flagship-preview-panels>div{grid-template-columns:1fr 1fr}.flagship-preview-panels small{grid-column:2}}
 @media(max-width:480px){.flagship-preview{padding:.65rem}.flagship-preview-panels>div{grid-template-columns:1fr;gap:.25rem}.flagship-preview-panels small{grid-column:auto}.flagship-preview-top,.flagship-preview-foot{font-size:.53rem}}
+
+
+/* Owner access is deliberately available from the public-site footer. */
+.ah-footer-bottom .ah-owner-briefcase{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.6rem;padding:.55rem .85rem;border:1px solid currentColor;border-radius:999px;color:inherit;font-size:.82rem;font-weight:800;text-decoration:none;transition:background .18s ease,color .18s ease,border-color .18s ease}
+.ah-footer-bottom .ah-owner-briefcase:hover,.ah-footer-bottom .ah-owner-briefcase:focus-visible{background:#173ea5;border-color:#173ea5;color:#fff;outline-offset:3px}

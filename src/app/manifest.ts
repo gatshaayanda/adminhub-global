@@ -5,10 +5,10 @@ const appleIcon = "/apple-icon?v=3";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Admin Hub",
-    short_name: "Admin Hub",
+    name: "Admin Hub Global — i13 B.O.S.",
+    short_name: "i13 B.O.S.",
     description:
-      "Apps, games, products, and interactive experiences built for real use.",
+      "Explore and configure a Business Operating System for your business.",
     start_url: "/",
     scope: "/",
     display: "standalone",

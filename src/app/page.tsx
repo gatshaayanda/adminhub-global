@@ -1,48 +1,5 @@
 import Link from "next/link";
 import HomeIntake from "@/components/HomeIntake";
-
-export default function HomePage() {
-  return (
-    <div className="admin-home">
-      <section className="flagship-intro" aria-labelledby="flagship-title">
-        <div className="flagship-intro-copy">
-          <p className="admin-kicker">ADMIN HUB GLOBAL / i13 B.O.S.</p>
-          <h1 id="flagship-title">Your business.<br />Connected.</h1>
-          <p className="flagship-lead">
-            Explore a working Business Operating System, then create your own
-            example around your business. See how your website, customer
-            experience and owner workspace can work together.
-          </p>
-          <div className="flagship-actions">
-            <Link className="admin-primary-button" href="https://iteration13.vercel.app/" target="_blank" rel="noreferrer">
-              Create or explore a B.O.S. <span>↗</span>
-            </Link>
-            <a className="admin-text-link" href="#start">Apply to the waitlist ↓</a>
-          </div>
-          <p className="flagship-note">
-            When you have created your example, copy its share link and include
-            it in your application so we can review what you have in mind.
-          </p>
-        </div>
-        <div className="flagship-preview" aria-label="i13 Business Operating System overview">
-          <div className="flagship-preview-top"><span>i13 B.O.S.</span><span>BUSINESS OPERATING SYSTEM</span></div>
-          <div className="flagship-preview-window">
-            <div className="flagship-preview-brand"><span className="flagship-preview-mark">B.</span><span><strong>Your business</strong><small>Connected experiences</small></span></div>
-            <div className="flagship-preview-panels">
-              <div><span>01 / PUBLIC</span><strong>Website</strong><small>Showcase your business</small></div>
-              <div><span>02 / CUSTOMERS</span><strong>Customer app</strong><small>Requests and accounts</small></div>
-              <div><span>03 / OWNER</span><strong>Briefcase</strong><small>Manage your operations</small></div>
-            </div>
-            <div className="flagship-preview-foot"><span>ONE CONNECTED BUSINESS</span><span>EXPLORE ↗</span></div>
-          </div>
-        </div>
-      </section>
-      <HomeIntake />
-      <section className="flagship-how">
-        <p className="admin-kicker">A SIMPLE NEXT STEP</p>
-        <h2>Try it. Share it. Let’s see if we’re a fit.</h2>
-        <p>Applications are reviewed by Admin Hub. The minimum starting commitment is US$25 for 30 days after acceptance and onboarding. Applicants able to commit more may receive higher waitlist priority. Final scope and terms are confirmed before anything starts.</p>
-      </section>
-    </div>
-  );
-}
+import HomeProofCarousel from "@/components/HomeProofCarousel";
+const products=[{name:"i13",title:"Business Operating System",detail:"A connected business experience: public storefront, customer requests and accounts, and the owner's Briefcase.",features:["Storefront","Customer workspace","Owner Briefcase"],href:"https://iteration13.vercel.app/"},{name:"i14",title:"Backpack OS",detail:"A personal operating system for organising Backpacks, channels, people, updates and private spaces.",features:["Personal Backpacks","Channels & circles","Private workspace"],href:"https://iteration14.vercel.app/"}];
+export default function HomePage(){return <div className="admin-home"><section className="ibos-stage" aria-labelledby="ibos-title"><div className="ibos-heading"><p className="admin-kicker">ADMIN HUB GLOBAL PRESENTS</p><h1 id="ibos-title">iB O.S.</h1><p>One place to explore interactive operating systems.</p><span className="ibos-caption">OPEN A SYSTEM. MAKE IT YOURS.</span></div><div className="ibos-box" aria-label="The iB O.S. box containing i13 and i14"><div className="ibos-box-top"><span className="ibos-box-brand">ADMIN HUB</span><span className="ibos-box-edition">INTERACTIVE SYSTEMS · 01—02</span></div><div className="ibos-product-grid">{products.map((product,index)=><article className="ibos-product" key={product.name}><div className="ibos-product-index">SYSTEM 0{index+1}</div><div className="ibos-product-name">{product.name}</div><div className="ibos-product-title">{product.title}</div><p>{product.detail}</p><ul>{product.features.map(feature=><li key={feature}>{feature}</li>)}</ul><Link className="ibos-open-link" href={product.href} target="_blank" rel="noreferrer">Open {product.name} <span aria-hidden="true">↗</span></Link></article>)}</div><div className="ibos-box-bottom"><span>BUILT BY ADMIN HUB GLOBAL</span><span>iB O.S. / EXPLORE BOTH</span></div></div><div className="ibos-understage"><p>These are working browser prototypes. Explore either one, try its features and create an example that shows what you have in mind.</p><Link className="admin-primary-button" href="#start">Start here / Join the waitlist <span>↓</span></Link></div></section><HomeIntake/><section className="ibos-founder-wrap" aria-label="Founder references"><div className="ibos-founder-heading"><p className="admin-kicker">THE PERSON BEHIND THE WORK</p><h2>Built through experience. Grounded in real work.</h2></div><HomeProofCarousel/></section></div>;}

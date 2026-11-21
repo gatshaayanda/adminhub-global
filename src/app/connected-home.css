@@ -173,3 +173,26 @@
  .ah-public-shell:has(.ah-connected-home) .ah-footer-main>div:first-child{grid-column:1/-1}
 }
 @media(prefers-reduced-motion:reduce){.ah-connected-button{transition:none}}
+
+/* Connected-home header and final call-to-action details */
+.ah-connected-header{background:rgba(246,245,240,.96);border-bottom:1px solid #d9dce2}
+.ah-connected-header .ah-nav{width:min(1240px,100%);min-height:72px;padding-left:clamp(20px,5vw,64px);padding-right:clamp(20px,5vw,64px)}
+.ah-connected-header .ah-brand{display:inline-flex;align-items:center;gap:11px;color:#111827!important}
+.ah-connected-brand-mark{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:25px;height:24px}
+.ah-connected-brand-mark i{display:block;border:2px solid #2855d9;border-radius:3px}
+.ah-connected-brand-mark i:last-child{border-color:#2b8c73;background:#a9e4d1}
+.ah-connected-header .ah-brand-word{font-size:12px;font-weight:900;letter-spacing:.1em}
+.ah-connected-header .ah-desktop-nav{gap:5px}
+.ah-connected-header .ah-desktop-nav a{min-height:39px;padding:0 13px;border-radius:4px;color:#354052!important;font-size:12px;font-weight:800}
+.ah-connected-header .ah-desktop-nav a:hover,.ah-connected-header .ah-desktop-nav a:focus-visible{background:#e9edf4;color:#173aa6!important}
+.ah-connected-header .ah-desktop-nav .ah-connected-nav-cta{margin-left:7px;background:#111827;color:#fff!important}
+.ah-connected-header .ah-desktop-nav .ah-connected-nav-cta:hover,.ah-connected-header .ah-desktop-nav .ah-connected-nav-cta:focus-visible{background:#2855d9;color:#fff!important}
+.ah-connected-final .ah-connected-eyebrow{color:#d1dcf1!important}
+@media(max-width:640px){
+ .ah-connected-header .ah-nav{min-height:64px;padding-left:16px;padding-right:16px}
+ .ah-connected-header .ah-brand-word{font-size:10px;letter-spacing:.07em}
+ .ah-connected-header .ah-desktop-nav{gap:0}
+ .ah-connected-header .ah-desktop-nav a{min-height:36px;padding:0 8px;font-size:10px}
+ .ah-connected-header .ah-desktop-nav a:first-child{display:none}
+ .ah-connected-header .ah-desktop-nav .ah-connected-nav-cta{margin-left:3px}
+}

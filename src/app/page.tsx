@@ -1,47 +1,139 @@
 import Link from "next/link";
-import HomeProofCarousel from "@/components/HomeProofCarousel";
 
-const products=[
-  {name:"i13",title:"Business Operating System",detail:"A connected business experience: public storefront, customer requests and accounts, and the owner's Briefcase.",features:["Storefront","Customer workspace","Owner Briefcase"],href:"https://iteration13.vercel.app/",kind:"briefcase"},
-  {name:"i14",title:"Backpack OS",detail:"A personal operating system for organising Backpacks, channels, people, updates and private spaces.",features:["Personal Backpacks","Channels & circles","Private workspace"],href:"https://iteration14.vercel.app/",kind:"backpack"}
-];
+const backpackUrl = "https://iteration14.vercel.app/";
+const businessUrl = "https://iteration13.vercel.app/";
 
-function SystemIcon({kind}:{kind:string}){
-  if(kind==="briefcase") return <svg viewBox="0 0 120 100" aria-hidden="true"><defs><linearGradient id="caseMetal" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#fff4d8"/><stop offset=".48" stopColor="#e8a85f"/><stop offset="1" stopColor="#a85a27"/></linearGradient><linearGradient id="caseBody" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#fff"/><stop offset="1" stopColor="#dce7f7"/></linearGradient></defs><path d="M39 29v-9c0-5 4-9 9-9h24c5 0 9 4 9 9v9" fill="none" stroke="url(#caseMetal)" strokeWidth="7" strokeLinecap="round"/><rect x="10" y="27" width="100" height="64" rx="13" fill="url(#caseBody)" stroke="#a8bad3" strokeWidth="2"/><path d="M10 49h100v13H10z" fill="#d5e2f3"/><path d="M48 47h24v13H48z" rx="4" fill="#e6a75f"/><path d="M55 51h10" stroke="#75401f" strokeWidth="2.5" strokeLinecap="round"/><path d="M10 64h100" stroke="#a8bad3" strokeWidth="1.5"/><path d="M22 34h25" stroke="#fff" strokeWidth="3" strokeLinecap="round" opacity=".9"/></svg>;
-  return <svg viewBox="0 0 120 100" aria-hidden="true"><defs><linearGradient id="bagFabric" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#dceaff"/><stop offset=".55" stopColor="#8bb3e8"/><stop offset="1" stopColor="#4d70ad"/></linearGradient><linearGradient id="bagPocket" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#f8fbff"/><stop offset="1" stopColor="#c2d8f5"/></linearGradient></defs><path d="M38 31V23c0-12 9-19 22-19s22 7 22 19v8" fill="none" stroke="#d7e6fb" strokeWidth="8" strokeLinecap="round"/><path d="M25 31c0-7 6-12 13-12h44c7 0 13 5 13 12l7 51c1 8-5 14-13 14H31c-8 0-14-6-13-14z" fill="url(#bagFabric)" stroke="#d7e6fb" strokeWidth="2"/><path d="M34 55c0-6 5-10 11-10h30c6 0 11 4 11 10v25H34z" fill="url(#bagPocket)" stroke="#5578b0" strokeWidth="2"/><path d="M51 44v-5c0-5 4-8 9-8s9 3 9 8v5" fill="none" stroke="#f8fbff" strokeWidth="4" strokeLinecap="round"/><path d="M60 59v13" stroke="#6d8fbe" strokeWidth="3" strokeLinecap="round"/><circle cx="60" cy="76" r="3" fill="#6d8fbe"/><path d="M28 37l-4 31M92 37l4 31" stroke="#eaf3ff" strokeWidth="3" strokeLinecap="round" opacity=".8"/></svg>;
+function BackpackMark() {
+  return <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M15 15v-3.5A5.5 5.5 0 0 1 20.5 6h7a5.5 5.5 0 0 1 5.5 5.5V15" /><path d="M10 17.5A4.5 4.5 0 0 1 14.5 13h19a4.5 4.5 0 0 1 4.5 4.5l2 20A4.5 4.5 0 0 1 35.5 42h-23A4.5 4.5 0 0 1 8 37.5z" /><path d="M15 27h18v10H15zM19 27v-3a5 5 0 0 1 10 0v3M24 31v2" /></svg>;
 }
 
-export default function HomePage(){
-  return <div className="admin-home">
-    <section className="ibos-stage" aria-labelledby="ibos-title">
-      <div className="ibos-heading">
-        <p className="admin-kicker">ADMIN HUB GLOBAL PRESENTS</p>
-        <h1 id="ibos-title">iB O.S.</h1>
-        <p>One place to explore interactive operating systems.</p>
-        <span className="ibos-caption">OPEN A SYSTEM. MAKE IT YOURS.</span>
-        <div className="ibos-edition"><span>ITERATION B</span><i aria-hidden="true"/><span>FOR BUSINESS &amp; EVERYDAY</span></div>
-      </div>
-      <div className="ibos-box" aria-label="The iB O.S. collection: business and everyday operating systems">
-        <div className="ibos-box-top"><span className="ibos-box-brand">ADMIN HUB</span><span className="ibos-box-edition">INTERACTIVE SYSTEMS · 01—02</span></div>
-        <div className="ibos-product-grid" id="ibos-products">
-          {products.map((product,index)=><article className={`ibos-product ibos-product-${product.kind}`} key={product.name}>
-            <div className="ibos-product-index">SYSTEM 0{index+1}</div>
-            <Link className="ibos-icon-launch" href={product.href} target="_blank" rel="noreferrer" aria-label={`Enter ${product.name} — ${product.title}`}>
-              <span className="ibos-icon-orbit" aria-hidden="true"/><span className="ibos-icon-art"><SystemIcon kind={product.kind}/></span><span className="ibos-icon-enter">ENTER <b aria-hidden="true">↗</b></span>
-            </Link>
-            <div className="ibos-product-name">{product.name}</div>
-            <div className="ibos-product-title">{product.title}</div>
-            <p>{product.detail}</p>
-            <ul>{product.features.map(feature=><li key={feature}>{feature}</li>)}</ul>
-            <Link className="ibos-open-link" href={product.href} target="_blank" rel="noreferrer"><span>Open {product.name}</span><span aria-hidden="true">↗</span></Link>
-          </article>)}
+function BriefcaseMark() {
+  return <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5.5" y="14" width="37" height="27" rx="4" /><path d="M17 14v-3a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v3M5.5 24h37M20 23v4h8v-4" /></svg>;
+}
+
+export default function HomePage() {
+  return (
+    <div className="ah-connected-home">
+      <section className="ah-connected-hero">
+        <div className="ah-connected-shell ah-connected-hero-grid">
+          <div>
+            <p className="ah-connected-eyebrow">Admin Hub Global · One connected digital environment</p>
+            <h1>Your digital world, <em>connected.</em></h1>
+            <p className="ah-connected-lead">A personal space for life. A business space for work. One connected environment you can explore first, then shape around the way you want to operate.</p>
+            <div className="ah-connected-actions">
+              <a className="ah-connected-button" href="#spaces">Explore the two spaces <span aria-hidden="true">↓</span></a>
+              <Link className="ah-connected-button ah-connected-button-secondary" href="/contact">Talk to Admin Hub <span aria-hidden="true">↗</span></Link>
+            </div>
+            <p className="ah-connected-microcopy">Start with the live experiences. Decide what you need after you have seen how they work.</p>
+          </div>
+
+          <div className="ah-connected-diagram" role="img" aria-label="One Admin Hub environment connects Backpack OS for personal organisation with B.O.S. for business operations">
+            <div className="ah-connected-diagram-top"><span>One environment</span><span>Two operating spaces</span></div>
+            <div className="ah-connected-network">
+              <div className="ah-connected-node ah-connected-node-personal">
+                <span className="ah-connected-node-kicker">PERSONAL</span>
+                <strong>BACKPACK OS</strong>
+                <small>Your life, organised around you.</small>
+                <ul><li>Engagements</li><li>People & conversations</li><li>Resources</li><li>Private spaces</li></ul>
+              </div>
+              <div className="ah-connected-bridge"><div className="ah-connected-hub"><b>ADMIN<br/>HUB</b><small>GLOBAL</small></div></div>
+              <div className="ah-connected-node ah-connected-node-business">
+                <span className="ah-connected-node-kicker">BUSINESS</span>
+                <strong>B.O.S.</strong>
+                <small>Your business, in one workspace.</small>
+                <ul><li>Branded storefront</li><li>Customer accounts</li><li>Requests & updates</li><li>Owner Briefcase</li></ul>
+              </div>
+            </div>
+            <div className="ah-connected-diagram-bottom"><span>One starting point</span><strong>Connected by Admin Hub</strong></div>
+          </div>
         </div>
-        <div className="ibos-box-bottom">
-          <div className="ibos-maker-mark"><span className="ibos-maker-symbol">iB</span><span><b>BUILT BY ADMIN HUB GLOBAL</b><small>BUSINESS SYSTEMS · EVERYDAY SYSTEMS</small></span></div>
-          <Link className="ibos-explore-both" href="#ibos-products"><span className="ibos-explore-spark" aria-hidden="true">✳</span><span>EXPLORE BOTH</span><span aria-hidden="true">↓</span></Link>
+      </section>
+
+      <section className="ah-connected-section" id="spaces">
+        <div className="ah-connected-shell">
+          <div className="ah-connected-section-heading">
+            <div>
+              <p className="ah-connected-eyebrow">The connected environment</p>
+              <h2>Two spaces. One bigger picture.</h2>
+            </div>
+            <p>They are not competing products. Each space has a distinct job, and both belong to the same digital environment provided and supported by Admin Hub Global.</p>
+          </div>
+
+          <div className="ah-connected-spaces">
+            <article className="ah-connected-space ah-connected-space-personal">
+              <div className="ah-connected-space-top"><span>01 / PERSONAL</span><span>BACKPACK OS</span></div>
+              <div className="ah-connected-space-mark"><BackpackMark /></div>
+              <h3>BACKPACK OS</h3>
+              <p className="ah-connected-space-subtitle">Your Personal Operating System.</p>
+              <p className="ah-connected-space-copy">A place to organise your engagements, people, conversations, resources and private spaces — with room to create spaces around the things that matter to you.</p>
+              <ul className="ah-connected-space-features"><li>Personal organisation</li><li>People & conversations</li><li>Private spaces</li><li>Your own engagements</li></ul>
+              <a className="ah-connected-space-link" href={backpackUrl} target="_blank" rel="noreferrer"><span>Explore the live BACKPACK OS experience</span><span aria-hidden="true">↗</span></a>
+            </article>
+
+            <article className="ah-connected-space ah-connected-space-business">
+              <div className="ah-connected-space-top"><span>02 / BUSINESS</span><span>B.O.S.</span></div>
+              <div className="ah-connected-space-mark"><BriefcaseMark /></div>
+              <h3>B.O.S.</h3>
+              <p className="ah-connected-space-subtitle">Your Business Operating System.</p>
+              <p className="ah-connected-space-copy">A branded business environment that brings your storefront, customer accounts, requests, communications and the owner's Briefcase into one operating flow.</p>
+              <ul className="ah-connected-space-features"><li>Branded storefront</li><li>Customer accounts</li><li>Requests & communication</li><li>Owner Briefcase</li></ul>
+              <a className="ah-connected-space-link" href={businessUrl} target="_blank" rel="noreferrer"><span>Explore the live B.O.S. experience</span><span aria-hidden="true">↗</span></a>
+            </article>
+          </div>
         </div>
-      </div>
-    </section>
-    <section className="ibos-founder-wrap" aria-label="Founder references"><div className="ibos-founder-heading"><p className="admin-kicker">THE PERSON BEHIND THE WORK</p><h2>Built through experience. Grounded in real work.</h2></div><HomeProofCarousel/></section>
-  </div>;
+      </section>
+
+      <section className="ah-connected-section ah-connected-package" id="package">
+        <div className="ah-connected-shell">
+          <div className="ah-connected-package-head">
+            <div><p className="ah-connected-eyebrow">The Admin Hub package</p><h2>Not just a website. An environment that keeps working.</h2></div>
+            <p>Admin Hub provides the connected environment, helps you make it yours, and supports the platform beyond the initial setup.</p>
+          </div>
+          <div className="ah-connected-includes">
+            <div className="ah-connected-include"><b>BACKPACK OS</b><p>Your personal operating environment.</p></div>
+            <div className="ah-connected-include"><b>B.O.S.</b><p>Your business operating environment.</p></div>
+            <div className="ah-connected-include"><b>Interactive prototypes</b><p>Explore real experiences before committing.</p></div>
+            <div className="ah-connected-include"><b>Onboarding & refinement</b><p>Shape the experience around your needs.</p></div>
+            <div className="ah-connected-include"><b>Ongoing operation</b><p>Platform infrastructure and continued operation.</p></div>
+          </div>
+          <div className="ah-connected-capacity">
+            <div className="ah-connected-capacity-number">25GB / month</div>
+            <div className="ah-connected-capacity-copy"><strong>Shared platform infrastructure allowance.</strong> This is a defined capacity allowance — not a promise of unlimited storage, traffic or activity. The practical scope is agreed during onboarding.</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="ah-connected-section">
+        <div className="ah-connected-shell">
+          <div className="ah-connected-section-heading">
+            <div><p className="ah-connected-eyebrow">A clear path from exploring to operating</p><h2>Experience it. Shape it. Make it yours.</h2></div>
+            <p>You do not need to understand every technical detail before you begin. Start by seeing what the environment can do.</p>
+          </div>
+          <div className="ah-connected-steps">
+            <article className="ah-connected-step"><span className="ah-connected-step-number">STEP 01</span><h3>Explore</h3><p>Open the working prototypes and experience the personal and business spaces for yourself.</p></article>
+            <article className="ah-connected-step"><span className="ah-connected-step-number">STEP 02</span><h3>Make it yours</h3><p>Discuss your needs, onboarding, access, privacy and the design refinements that make the environment fit.</p></article>
+            <article className="ah-connected-step"><span className="ah-connected-step-number">STEP 03</span><h3>Keep it running</h3><p>Admin Hub provides the platform operation and ongoing infrastructure within the agreed capacity and support scope.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section className="ah-connected-section">
+        <div className="ah-connected-shell ah-connected-trust">
+          <div><p className="ah-connected-eyebrow">Clarity & control</p><h2>See what you are stepping into.</h2></div>
+          <div className="ah-connected-trust-copy">
+            <p>Both spaces are designed to be explored before you decide. You can understand the experience first, then discuss how your own spaces, people, information and access should be organised.</p>
+            <p>Privacy and permissions are part of the setup conversation — not something hidden behind a sales promise. We will agree what is public, what is private, who can access each space and what ongoing operation covers.</p>
+            <Link className="ah-connected-space-link" href="/contact"><span>Ask a question or discuss your environment</span><span aria-hidden="true">↗</span></Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="ah-connected-final">
+        <div className="ah-connected-shell ah-connected-final-inner">
+          <div><p className="ah-connected-eyebrow">Admin Hub Global</p><h2>Bring your digital world together.</h2><p>Explore the live spaces today. When you are ready, we can talk about the environment you want to build around them.</p></div>
+          <Link className="ah-connected-button" href="/contact">Start a conversation <span aria-hidden="true">↗</span></Link>
+        </div>
+      </section>
+    </div>
+  );
 }

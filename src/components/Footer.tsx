@@ -16,7 +16,6 @@ export default function Footer() {
             <Link href="/#spaces">The connected environment</Link>
             <a href="https://iteration14.vercel.app/" target="_blank" rel="noreferrer">BACKPACK OS · Personal ↗</a>
             <a href="https://iteration13.vercel.app/" target="_blank" rel="noreferrer">B.O.S. · Business ↗</a>
-            <Link href="/contact">Talk to Admin Hub</Link>
           </div>
           <div className="ah-footer-column">
             <span className="ah-footer-label">Admin Hub</span>

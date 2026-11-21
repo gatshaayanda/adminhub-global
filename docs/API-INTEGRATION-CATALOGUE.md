@@ -98,3 +98,43 @@ Each adapter should document:
 ## Current decision
 
 **No provider is approved or connected by this document.** This is a shortlist for later investigation. Start a separate, scoped research task before selecting a provider; start an implementation task only after availability, commercial terms, security and acceptance criteria are confirmed.
+
+
+## API discovery directories — shared research sources
+
+Use these repositories and directories to discover candidate APIs. **Public APIs is the primary discovery catalogue; the remaining repositories are supplementary research sources.** These are directories, not vetted providers and not production dependencies.
+
+### Primary source
+
+| Resource | Purpose | Link |
+|---|---|---|
+| Public APIs | Main community-maintained directory of public APIs across many categories | https://github.com/public-apis/public-apis |
+
+### Supplementary GitHub catalogues
+
+| Resource | Purpose | Link |
+|---|---|---|
+| Public API Lists | Searchable API collection; inspect its JSON API, maintenance status and licence before relying on it | https://github.com/public-api-lists/public-api-lists |
+| Free Public APIs | Additional categorized API collection | https://github.com/free-public-apis/apis |
+| BM804 Free Public APIs | Supplementary directory with access notes and documentation references | https://github.com/BM804/free-public-apis |
+| APIs Hub | Curated API discovery across developer categories | https://github.com/kabishS/APIs-Hub |
+
+### Direct discovery links
+
+- Public APIs searchable website: https://publicapis.lol/
+- No-API-key discovery: https://publicapis.lol/no-api-key
+- GitHub public-apis topic: https://github.com/topics/public-apis
+- GitHub free-api topic: https://github.com/topics/free-api
+
+### How to use these sources
+
+1. Start with **Public APIs** when researching a new capability.
+2. Use the supplementary lists to discover alternatives or fill category gaps.
+3. Follow each listing to the provider's own official documentation and verify that the API is still maintained.
+4. Record the exact API product, provider, documentation URL, licence/terms, authentication, CORS behaviour, quotas, pricing and commercial-use restrictions in this catalogue.
+5. Confirm Botswana availability and local business eligibility where relevant.
+6. Test the actual endpoint and intended production architecture before recommending implementation.
+
+**Discovery is not approval.** A listing described as free, public or requiring no API key does not guarantee unlimited access, commercial-use permission, uptime, data quality, Botswana availability or suitability for browser use. Check the provider's current terms, licence, rate limits, CORS policy, privacy requirements and costs. Never expose a secret API key in frontend code. A no-key API still needs security, reliability and data-quality review.
+
+These discovery sources are shared references for Iteration13, Iteration14 and Admin Hub Global. They do not add runtime dependencies, fetch APIs automatically or authorise changes to any existing app behaviour.

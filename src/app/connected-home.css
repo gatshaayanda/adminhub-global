@@ -49,3 +49,15 @@
 @media(max-width:760px){.ah-connected-section-heading{grid-template-columns:1fr;gap:13px}.ah-connected-spaces{grid-template-columns:1fr}.ah-connected-includes{grid-template-columns:1fr 1fr}.ah-connected-includes>div{min-height:110px;padding:17px 14px 17px 0;border-bottom:1px solid #fff}.ah-connected-includes>div:not(:first-child){padding-left:14px}.ah-connected-includes>div:nth-child(2n){border-right:0}.ah-connected-includes>div:last-child{border-bottom:0}}
 @media(max-width:520px){.ah-connected-shell{padding-left:18px;padding-right:18px}.ah-connected-hero{padding-top:48px}.ah-connected-hero h1{font-size:clamp(39px,11vw,58px)}.ah-connected-lead{font-size:17px}.ah-connected-space{padding:21px}.ah-connected-space-heading{margin-top:20px}.ah-connected-emoji-button{flex-basis:66px;width:66px;height:66px;font-size:34px}.ah-connected-space-copy{font-size:15px}.ah-connected-includes{grid-template-columns:1fr}.ah-connected-includes>div,.ah-connected-includes>div:not(:first-child){min-height:0;padding:16px 0;border-right:0;border-bottom:1px solid #fff}.ah-connected-includes>div:last-child{border-bottom:0}.ah-public-shell:has(.ah-connected-home) .ah-footer-main{grid-template-columns:1fr 1fr;gap:25px}.ah-public-shell:has(.ah-connected-home) .ah-footer-main>div:first-child{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.ah-connected-home *{scroll-behavior:auto;transition:none!important}}
+
+.ah-connected-founder{padding:clamp(54px,8vw,88px) 0;background:#fff;color:#000;border-top:2px solid #000}
+.ah-connected-founder .ah-connected-eyebrow,.ah-connected-founder h2{color:#000}
+.ah-connected-founder h2{margin:0 0 28px;font-size:clamp(34px,5vw,56px);font-weight:850;line-height:1.04;letter-spacing:-.045em}
+.ah-connected-founder .admin-proof-carousel{border-color:#000;color:#000}
+.ah-connected-founder .admin-proof-carousel-topline,.ah-connected-founder .admin-proof-carousel-count{color:#000}
+.ah-connected-founder .admin-proof-carousel-stage{border-color:#000}
+.ah-connected-founder .admin-proof-carousel-stage blockquote,.ah-connected-founder .admin-proof-carousel-statement,.ah-connected-founder .admin-proof-carousel-source strong{color:#000}
+.ah-connected-founder .admin-proof-carousel-source span,.ah-connected-founder .admin-proof-carousel-footer p{color:#000}
+.ah-connected-founder .admin-proof-carousel-buttons button{border-color:#000;border-radius:0;background:#fff;color:#000}
+.ah-connected-founder .admin-proof-carousel-buttons button:hover,.ah-connected-founder .admin-proof-carousel-buttons button:focus-visible{background:#000;color:#fff}
+.ah-connected-founder .admin-proof-carousel-footer .admin-primary-button{border-radius:0;background:#000;color:#fff}

@@ -26,3 +26,8 @@ This project uses [`next/font`](https://nextjs.org) to optimize fonts.
 <!-- deployment retrigger: 2026-10-28 -->
 <!-- deployment retry: 2026-10-29 -->
 <!-- deployment retry: 2026-10-29-second -->
+
+
+## Internal engineering reference
+
+The [Botswana API & Integration Catalogue](docs/API-INTEGRATION-CATALOGUE.md) is an internal research backlog for future client-PWA integrations. Catalogue entries are candidates only; no provider is approved or connected by this document. Confirm availability, commercial terms, security and project fit before implementation. This is not a new public homepage section or a visitor-facing offer.

@@ -1,4 +1,5 @@
-import Link from "next/link";
+
+import HomeProofCarousel from "@/components/HomeProofCarousel";
 
 const backpackUrl = "https://iteration14.vercel.app/";
 const businessUrl = "https://iteration13.vercel.app/";
@@ -77,7 +78,14 @@ export default function HomePage() {
             <div><b>Ongoing operation</b><p>Infrastructure and support within an agreed scope.</p></div>
           </div>
           <p className="ah-connected-capacity"><strong>25GB / month shared infrastructure allowance.</strong> Capacity and support are agreed during onboarding; this is not an unlimited-use promise.</p>
-          <Link className="ah-connected-contact" href="/contact">Talk to Admin Hub</Link>
+        </div>
+      </section>
+
+      <section className="ah-connected-founder" aria-label="Founder references">
+        <div className="ah-connected-shell">
+          <p className="ah-connected-eyebrow">THE PERSON BEHIND THE WORK</p>
+          <h2>Meet the founder.</h2>
+          <HomeProofCarousel />
         </div>
       </section>
     </div>

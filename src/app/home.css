@@ -1415,3 +1415,48 @@ body:has(.ayanda-profile) .ah-chat-panel {
 @keyframes ibos-footer-glint{0%,75%,100%{background-position:0 0}86%{background-position:100% 0}}
 @media(max-width:720px){.ibos-icon-launch{min-height:138px}.ibos-box-bottom{align-items:flex-start;flex-direction:column;gap:1rem}.ibos-explore-both{width:100%;justify-content:center}.ibos-maker-mark b{font-size:.59rem}.ibos-maker-mark small{font-size:.48rem}}
 @media(prefers-reduced-motion:reduce){.ibos-heading .admin-kicker,.ibos-heading h1,.ibos-heading>p:not(.admin-kicker),.ibos-caption,.ibos-edition,.ibos-box,.ibos-product,.ibos-box:after,.ibos-explore-both{animation:none!important}.ibos-product,.ibos-icon-art,.ibos-icon-orbit,.ibos-open-link,.ibos-icon-launch{transition:none!important}.ibos-product:hover{transform:none}}
+
+/* iB O.S. — restrained system catalogue refresh */
+.admin-home{background:#f4f3ef!important;color:#17191d!important}
+.ibos-stage{width:min(1280px,100%);margin:0 auto;padding:clamp(34px,6vw,76px) clamp(18px,4vw,52px) 72px!important;display:grid;grid-template-columns:.72fr 1.28fr;gap:clamp(28px,5vw,68px);align-items:start}
+.ibos-heading{position:sticky;top:36px;padding-top:22px}
+.ibos-heading .admin-kicker{color:#64666b!important;font-size:10px;letter-spacing:.16em}
+.ibos-heading h1{margin:0;color:#17191d!important;font-size:clamp(64px,9vw,116px)!important;line-height:.82;letter-spacing:-.085em;font-weight:760}
+.ibos-heading>p:not(.admin-kicker){max-width:330px;margin:24px 0 0;color:#42454b!important;font-size:clamp(19px,2.1vw,26px);line-height:1.2;letter-spacing:-.035em}
+.ibos-caption{display:block;margin-top:30px;color:#17191d;font:800 10px/1.2 var(--font-mono),monospace;letter-spacing:.12em}
+.ibos-edition{display:flex;align-items:center;gap:10px;margin-top:44px;color:#5b5e64;font:800 9px/1 var(--font-mono),monospace;letter-spacing:.1em}
+.ibos-edition i{width:24px;height:1px;background:#9a9ca0}
+.ibos-box{overflow:hidden;border:1px solid #c9c8c1;border-radius:4px;background:#fbfaf7;box-shadow:0 18px 50px rgba(24,25,28,.07)}
+.ibos-box-top{min-height:54px;padding:0 22px;display:flex;justify-content:space-between;align-items:center;gap:14px;border-bottom:1px solid #d9d8d1;color:#62646a;font:800 9px/1 var(--font-mono),monospace;letter-spacing:.12em}
+.ibos-box-brand{color:#17191d}
+.ibos-product-grid{display:grid;grid-template-columns:1fr 1fr}
+.ibos-product{position:relative;min-width:0;padding:28px clamp(18px,2.5vw,32px) 30px;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+.ibos-product+ .ibos-product{border-left:1px solid #d9d8d1!important}
+.ibos-product-index{color:#777980;font:800 9px/1 var(--font-mono),monospace;letter-spacing:.13em}
+.ibos-icon-launch{position:relative;width:100%;height:158px;margin:20px 0 23px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #deddd6;background:#f1f0eb!important;border-radius:3px!important;box-shadow:none!important}
+.ibos-icon-orbit{display:none!important}
+.ibos-icon-art{width:84px;height:74px;display:grid;place-items:center;transition:transform .22s ease}
+.ibos-icon-art svg{width:84px;height:74px;filter:grayscale(.72) saturate(.55)}
+.ibos-icon-enter{position:absolute;right:12px;bottom:11px;color:#52555b;font:800 9px/1 var(--font-mono),monospace;letter-spacing:.1em}
+.ibos-icon-launch:hover .ibos-icon-art,.ibos-icon-launch:focus-visible .ibos-icon-art{transform:translateY(-4px)}
+.ibos-product-name{color:#17191d!important;font-size:clamp(32px,4vw,48px)!important;line-height:.9;letter-spacing:-.07em;font-weight:800}
+.ibos-product-title{margin-top:9px;color:#292c31!important;font-size:15px;font-weight:750;letter-spacing:-.02em}
+.ibos-product>p{min-height:76px;margin:14px 0 18px;color:#5a5d63!important;font-size:13px;line-height:1.55}
+.ibos-product ul{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.ibos-product li{padding-top:8px;border-top:1px solid #e2e1db;color:#484b51;font-size:11px;line-height:1.3}
+.ibos-open-link{min-height:44px;margin-top:22px;padding:0 13px;display:flex;align-items:center;justify-content:space-between;border:1px solid #25282d;background:#25282d;color:#fff!important;font-size:12px;font-weight:750;transition:background .18s ease,color .18s ease}
+.ibos-open-link:hover{background:transparent;color:#25282d!important}
+.ibos-box-bottom{min-height:76px;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid #d9d8d1;background:#f7f6f2}
+.ibos-maker-mark{display:flex;align-items:center;gap:11px}
+.ibos-maker-symbol{width:32px;height:32px;display:grid;place-items:center;border:1px solid #b8b7b0;color:#25282d;font-size:11px;font-weight:850}
+.ibos-maker-mark b,.ibos-maker-mark small{display:block}
+.ibos-maker-mark b{color:#25282d;font:800 9px/1.2 var(--font-mono),monospace;letter-spacing:.08em}
+.ibos-maker-mark small{margin-top:5px;color:#777980;font:700 8px/1 var(--font-mono),monospace;letter-spacing:.06em}
+.ibos-explore-both{display:flex;align-items:center;gap:9px;color:#25282d!important;font:800 9px/1 var(--font-mono),monospace;letter-spacing:.08em}
+.ibos-explore-spark{display:none}
+.ibos-founder-wrap{width:min(1280px,100%);margin:0 auto;padding:0 clamp(18px,4vw,52px) 80px!important;color:#17191d}
+.ibos-founder-heading{margin-bottom:26px}
+.ibos-founder-heading h2{max-width:700px;color:#17191d!important;font-size:clamp(32px,5vw,58px)!important;line-height:.98;letter-spacing:-.06em}
+@media(max-width:900px){.ibos-stage{grid-template-columns:1fr;gap:28px}.ibos-heading{position:static;padding-top:0}.ibos-heading>p:not(.admin-kicker){max-width:520px}.ibos-edition{margin-top:22px}}
+@media(max-width:620px){.ibos-stage{padding:30px 14px 48px!important}.ibos-heading h1{font-size:72px!important}.ibos-box-top{padding:0 13px;font-size:8px}.ibos-product{padding:18px 13px 20px}.ibos-icon-launch{height:112px;margin:15px 0 18px}.ibos-icon-art,.ibos-icon-art svg{width:62px;height:58px}.ibos-product-name{font-size:36px!important}.ibos-product-title{font-size:13px}.ibos-product>p{min-height:108px;font-size:12px}.ibos-box-bottom{padding:12px;align-items:flex-start;flex-direction:column}.ibos-founder-wrap{padding:0 14px 54px!important}}
+@media(prefers-reduced-motion:reduce){.ibos-icon-art,.ibos-open-link{transition:none}}

@@ -12,6 +12,7 @@ export default function Header() {
         </Link>
         <nav className="ah-desktop-nav" aria-label="Primary navigation">
           <Link href="/#spaces">Systems</Link>
+          <Link href="/business">Rates</Link>
         </nav>
       </div>
     </header>

@@ -61,3 +61,21 @@
 .ah-connected-founder .admin-proof-carousel-buttons button{border-color:#000;border-radius:0;background:#fff;color:#000}
 .ah-connected-founder .admin-proof-carousel-buttons button:hover,.ah-connected-founder .admin-proof-carousel-buttons button:focus-visible{background:#000;color:#fff}
 .ah-connected-founder .admin-proof-carousel-footer .admin-primary-button{border-radius:0;background:#000;color:#fff}
+
+
+/* Product-card micro-interactions: restrained, interaction-led, and motion-safe. */
+.ah-connected-space{position:relative;isolation:isolate;overflow:hidden;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.ah-connected-space:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:0;transform:translateX(-115%);background:linear-gradient(110deg,transparent 0%,rgba(0,0,0,.035) 42%,rgba(0,0,0,.09) 50%,rgba(0,0,0,.035) 58%,transparent 100%)}
+.ah-connected-space:hover,.ah-connected-space:focus-within{transform:translateY(-3px);box-shadow:0 14px 34px rgba(0,0,0,.12)}
+.ah-connected-space:hover:before,.ah-connected-space:focus-within:before{opacity:1;animation:ah-system-sweep .85s ease-out 1}
+.ah-connected-space--business:hover,.ah-connected-space--business:focus-within{border-color:#000}
+.ah-connected-space--personal:hover,.ah-connected-space--personal:focus-within{border-color:#000}
+.ah-connected-emoji-button{position:relative;overflow:hidden;transition:background .2s ease,color .2s ease,transform .2s ease,box-shadow .2s ease}
+.ah-connected-emoji-button:hover,.ah-connected-emoji-button:focus-visible{transform:translateY(-2px) scale(1.045);box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.ah-connected-emoji-button:active{transform:scale(.96)}
+.ah-connected-emoji-button:before{content:"";position:absolute;inset:-60%;pointer-events:none;opacity:0;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.55) 50%,transparent 58%);transform:translateX(-65%)}
+.ah-connected-emoji-button:hover:before,.ah-connected-emoji-button:focus-visible:before{opacity:1;animation:ah-icon-glint .7s ease-out 1}
+@keyframes ah-system-sweep{0%{opacity:0;transform:translateX(-115%)}18%{opacity:1}100%{opacity:0;transform:translateX(115%)}}
+@keyframes ah-icon-glint{0%{transform:translateX(-65%)}100%{transform:translateX(65%)}}
+@media(hover:none){.ah-connected-space:active{transform:scale(.992)}.ah-connected-emoji-button:active{background:#fff;color:#000!important}}
+@media(prefers-reduced-motion:reduce){.ah-connected-space,.ah-connected-emoji-button{transition:none!important;transform:none!important}.ah-connected-space:hover,.ah-connected-space:focus-within{box-shadow:none}.ah-connected-space:before,.ah-connected-emoji-button:before{animation:none!important;display:none}}

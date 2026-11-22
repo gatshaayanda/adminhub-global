@@ -64,9 +64,6 @@ export default function HomePage() {
 
       <section className="ah-connected-package" id="package">
         <div className="ah-connected-shell">
-          <p className="ah-connected-eyebrow">BUILT BY ADMIN HUB GLOBAL</p>
-          <h2>One package. Two connected systems.</h2>
-          <p className="ah-connected-package-lead">Admin Hub helps you explore, set up and operate a digital environment that fits the way you live or work. Start with the experience. We can help shape the right setup around you.</p>
           <div className="ah-connected-includes">
             <div><b>BACKPACK OS</b><p>Your personal operating environment.</p></div>
             <div><b>B.O.S.</b><p>Your business operating environment.</p></div>

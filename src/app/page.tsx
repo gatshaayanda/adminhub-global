@@ -8,7 +8,7 @@ export default function HomePage() {
     <div className="ah-connected-home">
       <section className="ah-connected-hero">
         <div className="ah-connected-shell">
-          <p className="ah-connected-eyebrow">ADMIN HUB GLOBAL PRESENTS</p>
+          <p className="ah-connected-eyebrow">YOUR DIGITAL WORLD, CONNECTED</p>
         </div>
       </section>
 

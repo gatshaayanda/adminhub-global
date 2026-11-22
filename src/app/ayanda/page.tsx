@@ -185,11 +185,11 @@ export default function AyandaPage() {
               </div>
             </div>
             <aside className="rounded-2xl border border-white bg-white p-5 text-black sm:p-6">
-              <p className="text-[11px] font-extrabold uppercase tracking-[.18em] text-white">Professional focus</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-[.18em] text-black">Professional focus</p>
               <div className="mt-4 grid gap-4">
-                <div><p className="text-sm font-bold">Operations</p><p className="mt-1 text-sm leading-6 text-white">Workflows, delivery, support and coordination.</p></div>
-                <div className="border-t border-black pt-4"><p className="text-sm font-bold">Technology</p><p className="mt-1 text-sm leading-6 text-white">Software, integrations, troubleshooting and QA.</p></div>
-                <div className="border-t border-black pt-4"><p className="text-sm font-bold">Product</p><p className="mt-1 text-sm leading-6 text-white">Ownership, user experience, systems and implementation.</p></div>
+                <div><p className="text-sm font-bold">Operations</p><p className="mt-1 text-sm leading-6 text-black">Workflows, delivery, support and coordination.</p></div>
+                <div className="border-t border-black pt-4"><p className="text-sm font-bold">Technology</p><p className="mt-1 text-sm leading-6 text-black">Software, integrations, troubleshooting and QA.</p></div>
+                <div className="border-t border-black pt-4"><p className="text-sm font-bold">Product</p><p className="mt-1 text-sm leading-6 text-black">Ownership, user experience, systems and implementation.</p></div>
               </div>
               <div className="mt-5 border-t border-black pt-4 text-xs font-semibold uppercase tracking-[.12em] text-black">Botswana · EMEA · GMT+2 · International remote</div>
             </aside>

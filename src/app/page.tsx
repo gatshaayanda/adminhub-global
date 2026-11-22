@@ -62,18 +62,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="ah-connected-package" id="package">
-        <div className="ah-connected-shell">
-          <div className="ah-connected-includes">
-            <div><b>BACKPACK OS</b><p>Your personal operating environment.</p></div>
-            <div><b>B.O.S.</b><p>Your business operating environment.</p></div>
-            <div><b>Setup & refinement</b><p>Make the experience fit your needs.</p></div>
-            <div><b>Ongoing operation</b><p>Infrastructure and support within an agreed scope.</p></div>
-          </div>
-          <p className="ah-connected-capacity"><strong>25GB / month shared infrastructure allowance.</strong> Capacity and support are agreed during onboarding; this is not an unlimited-use promise.</p>
-        </div>
-      </section>
-
       <section className="ah-connected-founder" aria-label="Founder references">
         <div className="ah-connected-shell">
           <p className="ah-connected-eyebrow">THE PERSON BEHIND THE WORK</p>

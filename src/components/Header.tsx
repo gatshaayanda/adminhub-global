@@ -12,8 +12,6 @@ export default function Header() {
         </Link>
         <nav className="ah-desktop-nav" aria-label="Primary navigation">
           <Link href="/#spaces">Systems</Link>
-          <Link href="/#package">The package</Link>
-          <Link className="ah-connected-nav-cta" href="/contact">Contact</Link>
         </nav>
       </div>
     </header>

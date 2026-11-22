@@ -170,31 +170,31 @@ export default function AyandaPage() {
   return (
     <main className="ayanda-profile overflow-x-clip bg-[#f7f7f3] text-[#111318]">
       <div className="mx-auto w-full max-w-6xl px-4 py-7 sm:px-6 sm:py-10 lg:px-8">
-        <section className="relative overflow-hidden rounded-[1.6rem] bg-[#111b2b] px-5 py-8 text-white shadow-xl sm:px-9 sm:py-12 lg:px-12 lg:py-14">
+        <section className="relative overflow-hidden rounded-[1.6rem] bg-black px-5 py-8 text-white shadow-xl sm:px-9 sm:py-12 lg:px-12 lg:py-14">
           <div className="pointer-events-none absolute -right-24 -top-28 h-80 w-80 rounded-full border border-white/10" />
           <div className="pointer-events-none absolute -right-8 -top-12 h-56 w-56 rounded-full border border-white/10" />
           <div className="relative grid gap-9 lg:grid-cols-[1.25fr_.75fr] lg:items-end">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#b9d2f5]">Founder &amp; Product Operator · Admin Hub Global</p>
-              <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[.98] tracking-[-.055em] sm:text-5xl lg:text-7xl">Ayanda Kopano<br className="hidden sm:block"/> Gatsha<span className="text-[#9fc3f5]">.</span></h1>
-              <p className="mt-5 max-w-3xl text-xl font-semibold leading-snug text-white/90 sm:text-2xl">Technical Operations &amp; Product Systems Specialist</p>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-white/95">I connect business operations, technology and product delivery — understanding how work happens, building practical systems, and helping those systems operate reliably.</p>
+              <p className="text-xs font-extrabold uppercase tracking-[.2em] text-white">Founder &amp; Product Operator · Admin Hub Global</p>
+              <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[.98] tracking-[-.055em] sm:text-5xl lg:text-7xl">Ayanda Kopano<br className="hidden sm:block"/> Gatsha<span className="text-white">.</span></h1>
+              <p className="mt-5 max-w-3xl text-xl font-semibold leading-snug text-white sm:text-2xl">Technical Operations &amp; Product Systems Specialist</p>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-white">I connect business operations, technology and product delivery — understanding how work happens, building practical systems, and helping those systems operate reliably.</p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <a href="#selected-work" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-[#111b2b] transition hover:bg-[#dce9fa]">View selected work <ArrowUpRight size={16}/></a>
                 <a href="mailto:gatshaayanda@gmail.com" className="inline-flex items-center gap-2 rounded-full border border-white/30 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"><Mail size={16}/> Contact me</a>
               </div>
             </div>
-            <aside className="rounded-2xl border border-white/15 bg-white/[.07] p-5 backdrop-blur-sm sm:p-6">
-              <p className="text-[11px] font-extrabold uppercase tracking-[.18em] text-[#b9d2f5]">Professional focus</p>
+            <aside className="rounded-2xl border border-white bg-white p-5 text-black sm:p-6">
+              <p className="text-[11px] font-extrabold uppercase tracking-[.18em] text-white">Professional focus</p>
               <div className="mt-4 grid gap-4">
-                <div><p className="text-sm font-bold">Operations</p><p className="mt-1 text-sm leading-6 text-white/90">Workflows, delivery, support and coordination.</p></div>
-                <div className="border-t border-white/10 pt-4"><p className="text-sm font-bold">Technology</p><p className="mt-1 text-sm leading-6 text-white/90">Software, integrations, troubleshooting and QA.</p></div>
-                <div className="border-t border-white/10 pt-4"><p className="text-sm font-bold">Product</p><p className="mt-1 text-sm leading-6 text-white/90">Ownership, user experience, systems and implementation.</p></div>
+                <div><p className="text-sm font-bold">Operations</p><p className="mt-1 text-sm leading-6 text-white">Workflows, delivery, support and coordination.</p></div>
+                <div className="border-t border-black pt-4"><p className="text-sm font-bold">Technology</p><p className="mt-1 text-sm leading-6 text-white">Software, integrations, troubleshooting and QA.</p></div>
+                <div className="border-t border-black pt-4"><p className="text-sm font-bold">Product</p><p className="mt-1 text-sm leading-6 text-white">Ownership, user experience, systems and implementation.</p></div>
               </div>
-              <div className="mt-5 border-t border-white/10 pt-4 text-xs font-semibold uppercase tracking-[.12em] text-white/85">Botswana · EMEA · GMT+2 · International remote</div>
+              <div className="mt-5 border-t border-black pt-4 text-xs font-semibold uppercase tracking-[.12em] text-black">Botswana · EMEA · GMT+2 · International remote</div>
             </aside>
           </div>
-          <div className="relative mt-8 flex flex-wrap gap-x-5 gap-y-3 border-t border-white/15 pt-5 text-sm font-semibold text-white/95">
+          <div className="relative mt-8 flex flex-wrap gap-x-5 gap-y-3 border-t border-white/15 pt-5 text-sm font-semibold text-white">
             <a className="inline-flex items-center gap-2 hover:text-white" href="mailto:gatshaayanda@gmail.com"><Mail size={15}/> gatshaayanda@gmail.com</a>
             <a className="inline-flex items-center gap-2 hover:text-white" href={whatsappHref} target="_blank" rel="noreferrer"><MessageCircle size={15}/> WhatsApp</a>
             <a className="inline-flex items-center gap-2 hover:text-white" href="https://www.linkedin.com/in/ayandagatsha" target="_blank" rel="noreferrer"><Linkedin size={15}/> LinkedIn</a>
@@ -264,16 +264,16 @@ export default function AyandaPage() {
           </div>
         </section>
 
-        <section className="mt-3 rounded-[1.6rem] bg-[#111b2b] p-6 text-white sm:p-9">
-          <p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#b9d2f5]">Let's work together</p>
+        <section className="mt-3 rounded-[1.6rem] bg-black p-6 text-white sm:p-9">
+          <p className="text-xs font-extrabold uppercase tracking-[.18em] text-white">Let's work together</p>
           <h2 className="mt-3 max-w-3xl text-3xl font-black tracking-[-.04em] sm:text-4xl">A role, a product challenge or an operational problem?</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/95">I'm interested in international remote opportunities and thoughtful collaborations where operations, technology and product delivery meet.</p>
+          <p className="mt-3 max-w-2xl text-sm leading-7 text-white">I'm interested in international remote opportunities and thoughtful collaborations where operations, technology and product delivery meet.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <a href="mailto:gatshaayanda@gmail.com?subject=Professional%20opportunity" className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-[#111b2b] hover:bg-[#dce9fa]"><Mail size={16}/> Discuss an opportunity</a>
             <a href={whatsappHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/30 px-5 py-3 text-sm font-bold text-white hover:bg-white/10"><MessageCircle size={16}/> WhatsApp</a>
             <a href="https://adminhub-global.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/30 px-5 py-3 text-sm font-bold text-white hover:bg-white/10">Admin Hub <ArrowUpRight size={15}/></a>
           </div>
-          <p className="mt-6 border-t border-white/15 pt-4 text-xs font-semibold uppercase tracking-[.12em] text-white/85">Ayanda Gatsha · Botswana · International remote</p>
+          <p className="mt-6 border-t border-white pt-4 text-xs font-semibold uppercase tracking-[.12em] text-white">Ayanda Gatsha · Botswana · International remote</p>
         </section>
 
         {activeMuseumItem && (

@@ -23,7 +23,7 @@ export default function HomePage() {
           </div>
 
           <div className="ah-connected-spaces">
-            <article className="ah-connected-space">
+            <article className="ah-connected-space ah-connected-space--business">
               <div className="ah-connected-space-top"><span>SYSTEM 01</span><span>FOR BUSINESS</span></div>
               <div className="ah-connected-space-heading">
                 <div>
@@ -41,7 +41,7 @@ export default function HomePage() {
               <p className="ah-connected-space-instruction">Tap the briefcase to open the live business experience.</p>
             </article>
 
-            <article className="ah-connected-space">
+            <article className="ah-connected-space ah-connected-space--personal">
               <div className="ah-connected-space-top"><span>SYSTEM 02</span><span>FOR EVERYDAY LIFE</span></div>
               <div className="ah-connected-space-heading">
                 <div>

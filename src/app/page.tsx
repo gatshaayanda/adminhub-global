@@ -1,4 +1,3 @@
-
 import HomeProofCarousel from "@/components/HomeProofCarousel";
 
 const backpackUrl = "https://iteration14.vercel.app/";
@@ -10,9 +9,6 @@ export default function HomePage() {
       <section className="ah-connected-hero">
         <div className="ah-connected-shell">
           <p className="ah-connected-eyebrow">ADMIN HUB GLOBAL PRESENTS</p>
-          <h1>One place to explore interactive operating systems.</h1>
-          <p className="ah-connected-lead">Two useful digital spaces. One for everyday life. One for running a business. Try the working experiences and see what they can do.</p>
-          <a className="ah-connected-primary" href="#spaces">Explore the systems <span aria-hidden="true">↓</span></a>
         </div>
       </section>
 
